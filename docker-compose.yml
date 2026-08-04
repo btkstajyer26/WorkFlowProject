@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:17-alpine
+    image: postgres:15-alpine
     container_name: workflow-db
     environment:
       POSTGRES_DB: ${DB_NAME:-workflowdb}
@@ -9,7 +9,9 @@ services:
     ports:
       - "${DB_PORT:-5432}:5432"
     volumes:
-      - db-data:/var/lib/postgresql/data
+      # PostgreSQL 17 ile oluşturulmuş olabilecek eski db-data volume'ünü
+      # silmeden korumak için PostgreSQL 15 ayrı bir volume kullanır.
+      - db-data-pg15:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-workflowdb}"]
       interval: 5s
@@ -65,5 +67,5 @@ services:
       - /app/node_modules
 
 volumes:
-  db-data:
+  db-data-pg15:
   uploads:
