@@ -1,0 +1,71 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: workflow-db
+    environment:
+      POSTGRES_DB: ${DB_NAME:-workflowdb}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      # PostgreSQL 17 ile oluşturulmuş olabilecek eski db-data volume'ünü
+      # silmeden korumak için PostgreSQL 15 ayrı bir volume kullanır.
+      - db-data-pg15:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-workflowdb}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # Gerçek Outlook SMTP hesabı olmadan e-posta akışını test etmek için sahte SMTP.
+  # Giden tüm mailler http://localhost:8025 arayüzünde görüntülenir.
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: workflow-mailpit
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+    container_name: workflow-backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-workflowdb}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+      UPLOAD_DIR: /app/uploads
+    ports:
+      - "8080:8080"
+    volumes:
+      - uploads:/app/uploads
+    restart: unless-stopped
+
+  # Frontend iskeleti (package.json) henüz oluşturulmadığı için profil arkasında.
+  # Hazır olunca: docker compose --profile frontend up
+  frontend:
+    profiles: ["frontend"]
+    build:
+      context: ./frontend
+    container_name: workflow-frontend
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  db-data-pg15:
+  uploads:

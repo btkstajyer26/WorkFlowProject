@@ -1,0 +1,16 @@
+# Build çıktıları
+backend/target/
+frontend/dist/
+frontend/node_modules/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Ortam ve loglar
+.env
+*.log
+
+# Yüklenen dosyalar (local çalıştırmada)
+backend/uploads/
