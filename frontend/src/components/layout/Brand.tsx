@@ -1,0 +1,17 @@
+import { FileText } from 'lucide-react'
+
+export function Brand() {
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-lg shadow-brand-200/70">
+        <FileText aria-hidden="true" className="size-6" strokeWidth={2.2} />
+      </div>
+      <div className="min-w-0">
+        <p className="text-lg font-bold tracking-tight text-slate-900">EBYS</p>
+        <p className="truncate text-[11px] font-medium text-slate-500">
+          İş Akışı ve Onay Yönetim Sistemi
+        </p>
+      </div>
+    </div>
+  )
+}
