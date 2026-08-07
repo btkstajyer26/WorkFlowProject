@@ -54,7 +54,7 @@ export function DashboardPage({ user }: { user: AuthUser }) {
       <header>
         <p className="text-sm font-semibold text-brand-600">Dashboard</p>
         <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
-          Hoş geldiniz, {user.firstName} <span aria-hidden="true">👋</span>
+          Hoş geldiniz, {user.firstName} {user.lastName} <span aria-hidden="true">👋</span>
         </h1>
         <p className="mt-2 text-sm text-slate-600 sm:text-base">
           Kayıt süreçlerinizi ve bekleyen işlemlerinizi buradan takip edebilirsiniz.
