@@ -33,7 +33,7 @@ type NewRecordComposerProps = {
 }
 
 const fieldClass =
-  'w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand-400 focus:ring-4 focus:ring-brand-100'
+  'w-full rounded-xl border border-app-border bg-app-surface px-3.5 py-3 text-sm text-app-text-strong outline-none transition placeholder:text-app-text-faint focus:border-brand-400 focus:ring-4 focus:ring-brand-100 dark:focus:ring-brand-800/60'
 
 export function NewRecordComposer({ open, requestId, onClose }: NewRecordComposerProps) {
   const navigate = useNavigate()
@@ -221,16 +221,16 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
         <button
           type="button"
           onClick={() => setMinimized(false)}
-          className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-brand-200 bg-white px-4 text-left shadow-2xl shadow-slate-900/15 transition hover:-translate-y-0.5 hover:border-brand-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+          className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-brand-200 dark:border-brand-700/60 bg-app-surface px-4 text-left shadow-2xl shadow-slate-900/15 transition hover:-translate-y-0.5 hover:border-brand-300 dark:hover:border-brand-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
         >
-          <span className="flex size-9 items-center justify-center rounded-xl bg-brand-100 text-brand-700">
+          <span className="flex size-9 items-center justify-center rounded-xl bg-brand-100 dark:bg-brand-900/45 text-brand-700 dark:text-brand-300">
             <FileText className="size-4.5" aria-hidden="true" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-sm font-bold text-slate-900">Yeni Kayıt</span>
-            <span className="block truncate text-xs text-slate-500">Taslak düzenleniyor</span>
+            <span className="block text-sm font-bold text-app-text-strong">Yeni Kayıt</span>
+            <span className="block truncate text-xs text-app-text-subtle">Taslak düzenleniyor</span>
           </span>
-          <Maximize2 className="size-4 text-slate-400" aria-hidden="true" />
+          <Maximize2 className="size-4 text-app-text-faint" aria-hidden="true" />
         </button>
       </div>
     )
@@ -247,7 +247,7 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
       aria-labelledby="new-record-title"
     >
       <form
-        className={`flex h-full min-h-0 flex-col overflow-hidden bg-white shadow-2xl shadow-slate-950/20 ring-1 ring-slate-200 ${
+        className={`flex h-full min-h-0 flex-col overflow-hidden bg-app-surface shadow-2xl shadow-slate-950/20 ring-1 ring-app-border ${
           expanded ? 'rounded-2xl' : 'sm:rounded-2xl'
         }`}
         noValidate
@@ -257,15 +257,15 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
         }}
         onSubmit={submitRecord}
       >
-        <header className="flex min-h-16 items-center gap-3 border-b border-slate-200 bg-slate-50/80 px-4 sm:px-5">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand-100 text-brand-700">
+        <header className="flex min-h-16 items-center gap-3 border-b border-app-border bg-app-surface-muted/80 px-4 sm:px-5">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand-100 dark:bg-brand-900/45 text-brand-700 dark:text-brand-300">
             <FileText className="size-4.5" aria-hidden="true" />
           </span>
           <div className="min-w-0 flex-1">
-            <h2 id="new-record-title" className="text-sm font-bold text-slate-950 sm:text-base">
+            <h2 id="new-record-title" className="text-sm font-bold text-app-text sm:text-base">
               Yeni Kayıt
             </h2>
-            <p className={`truncate text-xs ${draftSaved ? 'font-semibold text-emerald-700' : 'text-slate-500'}`}>
+            <p className={`truncate text-xs ${draftSaved ? 'font-semibold text-emerald-700 dark:text-emerald-300' : 'text-app-text-subtle'}`}>
               {draftSaved ? 'Taslak kaydedildi' : 'Henüz kaydedilmedi'}
             </p>
           </div>
@@ -273,7 +273,7 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
             <button
               type="button"
               onClick={() => setMinimized(true)}
-              className="hidden size-10 items-center justify-center rounded-xl text-slate-500 transition hover:bg-white hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-brand-500 sm:flex"
+              className="hidden size-10 items-center justify-center rounded-xl text-app-text-subtle transition hover:bg-app-surface hover:text-app-text-strong focus-visible:outline-2 focus-visible:outline-brand-500 sm:flex"
               aria-label="Formu küçült"
             >
               <Minimize2 className="size-4" aria-hidden="true" />
@@ -281,7 +281,7 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
             <button
               type="button"
               onClick={() => setExpanded((current) => !current)}
-              className="hidden size-10 items-center justify-center rounded-xl text-slate-500 transition hover:bg-white hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-brand-500 sm:flex"
+              className="hidden size-10 items-center justify-center rounded-xl text-app-text-subtle transition hover:bg-app-surface hover:text-app-text-strong focus-visible:outline-2 focus-visible:outline-brand-500 sm:flex"
               aria-label={expanded ? 'Pencere görünümüne dön' : 'Formu büyüt'}
             >
               {expanded ? (
@@ -293,7 +293,7 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
             <button
               type="button"
               onClick={requestClose}
-              className="flex size-10 items-center justify-center rounded-xl text-slate-500 transition hover:bg-white hover:text-rose-600 focus-visible:outline-2 focus-visible:outline-brand-500"
+              className="flex size-10 items-center justify-center rounded-xl text-app-text-subtle transition hover:bg-app-surface hover:text-rose-600 dark:hover:text-rose-400 focus-visible:outline-2 focus-visible:outline-brand-500"
               aria-label="Yeni kayıt formunu kapat"
             >
               <X className="size-5" aria-hidden="true" />
@@ -305,10 +305,10 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
           <div className="space-y-5">
             <div>
               <div className="mb-1.5 flex items-center justify-between gap-3">
-                <label htmlFor="record-title" className="block text-xs font-bold text-slate-700">
+                <label htmlFor="record-title" className="block text-xs font-bold text-app-text-secondary">
                   Başlık <span className="text-rose-500">*</span>
                 </label>
-                <span className="text-[11px] font-semibold text-slate-400">
+                <span className="text-[11px] font-semibold text-app-text-faint">
                   {titleValue.length} / {maxRecordTitleLength}
                 </span>
               </div>
@@ -329,7 +329,7 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
             </div>
 
             <div>
-              <label htmlFor="record-category" className="mb-1.5 block text-xs font-bold text-slate-700">
+              <label htmlFor="record-category" className="mb-1.5 block text-xs font-bold text-app-text-secondary">
                 Kategori <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
@@ -347,13 +347,13 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-app-text-faint" aria-hidden="true" />
               </div>
               {errors.category ? <FieldError id="record-category-error" message={errors.category.message} /> : null}
             </div>
 
             <div>
-              <label htmlFor="record-description" className="mb-1.5 block text-xs font-bold text-slate-700">
+              <label htmlFor="record-description" className="mb-1.5 block text-xs font-bold text-app-text-secondary">
                 Açıklama <span className="text-rose-500">*</span>
               </label>
               <textarea
@@ -371,10 +371,10 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
             <div>
               <div className="mb-2 flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-bold text-slate-700">Ek dosyalar</p>
-                  <p className="mt-0.5 text-xs text-slate-500">PDF, Word, Excel, JPG veya PNG</p>
+                  <p className="text-xs font-bold text-app-text-secondary">Ek dosyalar</p>
+                  <p className="mt-0.5 text-xs text-app-text-subtle">PDF, Word, Excel, JPG veya PNG</p>
                 </div>
-                <label className="flex min-h-10 cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 transition hover:border-brand-300 hover:text-brand-700 focus-within:outline-2 focus-within:outline-brand-500">
+                <label className="flex min-h-10 cursor-pointer items-center gap-2 rounded-xl border border-app-border bg-app-surface px-3 text-xs font-bold text-app-text-secondary transition hover:border-brand-300 dark:hover:border-brand-600 hover:text-brand-700 dark:hover:text-brand-300 focus-within:outline-2 focus-within:outline-brand-500">
                   <Paperclip className="size-4" aria-hidden="true" />
                   Dosya ekle
                   <input
@@ -415,11 +415,11 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
               {attachments.length > 0 ? (
                 <ul className="space-y-2" aria-label="Eklenen dosyalar">
                   {attachments.map((attachment, index) => (
-                    <li key={`${attachment.name}-${attachment.size}-${attachment.lastModified}`} className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2.5">
-                      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-white text-brand-600 ring-1 ring-slate-200">
+                    <li key={`${attachment.name}-${attachment.size}-${attachment.lastModified}`} className="flex items-center gap-3 rounded-xl bg-app-surface-muted px-3 py-2.5">
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-app-surface text-brand-600 dark:text-brand-400 ring-1 ring-app-border">
                         <FileText className="size-4" aria-hidden="true" />
                       </span>
-                      <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-700">{attachment.name}</span>
+                      <span className="min-w-0 flex-1 truncate text-xs font-semibold text-app-text-secondary">{attachment.name}</span>
                       <button
                         type="button"
                         onClick={() => {
@@ -427,7 +427,7 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
                           setAttachmentsDirty(true)
                           setAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))
                         }}
-                        className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-white hover:text-rose-600 focus-visible:outline-2 focus-visible:outline-brand-500"
+                        className="flex size-8 items-center justify-center rounded-lg text-app-text-faint transition hover:bg-app-surface hover:text-rose-600 dark:hover:text-rose-400 focus-visible:outline-2 focus-visible:outline-brand-500"
                         aria-label={`${attachment.name} dosyasını kaldır`}
                       >
                         <Trash2 className="size-4" aria-hidden="true" />
@@ -436,21 +436,21 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
                   ))}
                 </ul>
               ) : (
-                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/70 px-4 py-4 text-center text-xs text-slate-500">
+                <div className="rounded-xl border border-dashed border-app-border bg-app-surface-muted/70 px-4 py-4 text-center text-xs text-app-text-subtle">
                   Henüz dosya eklenmedi.
                 </div>
               )}
             </div>
 
-            <div className="rounded-xl border border-brand-100 bg-brand-50/70 px-4 py-3 text-xs leading-5 text-brand-800">
+            <div className="rounded-xl border border-brand-100 dark:border-brand-800/60 bg-brand-50/70 dark:bg-brand-900/30 px-4 py-3 text-xs leading-5 text-brand-800 dark:text-brand-200">
               Gönderildiğinde kayıt Başkan Yardımcısı incelemesine iletilecek.
             </div>
           </div>
         </div>
 
-        <footer className="border-t border-slate-200 bg-white px-4 py-3 sm:px-6 sm:py-4">
+        <footer className="border-t border-app-border bg-app-surface px-4 py-3 sm:px-6 sm:py-4">
           {attentionTarget ? (
-            <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold leading-5 text-amber-900" role="status" aria-live="polite">
+            <p className="mb-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-xs font-semibold leading-5 text-amber-900 dark:text-amber-200" role="status" aria-live="polite">
               {attentionTarget === 'save'
                 ? 'Yeni kayıt açmadan önce mevcut formu taslak olarak kaydedin veya kapatın.'
                 : 'Taslağınız kaydedildi. Yeni bir form açmak için “Yeni Kayıt Oluştur”u kullanın.'}
@@ -458,7 +458,7 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
           ) : null}
           {draftSaved ? (
             <div role="status">
-              <div className="mb-3 flex items-center gap-2 text-xs font-bold text-emerald-700">
+              <div className="mb-3 flex items-center gap-2 text-xs font-bold text-emerald-700 dark:text-emerald-300">
                 <CircleCheck className="size-4" aria-hidden="true" />
                 Taslaklarım'a kaydedildi.
               </div>
@@ -466,7 +466,7 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex min-h-11 items-center justify-center rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-700 transition hover:bg-slate-50 hover:text-slate-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 sm:text-sm"
+                  className="flex min-h-11 items-center justify-center rounded-xl border border-app-border px-3 text-xs font-bold text-app-text-secondary transition hover:bg-app-surface-muted hover:text-app-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 sm:text-sm"
                 >
                   Formu Kapat
                 </button>
@@ -475,8 +475,8 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
                   ref={newRecordButtonRef}
                   type="button"
                   onClick={startNewRecord}
-                  className={`flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-600 px-3 text-xs font-bold text-white shadow-lg shadow-brand-200 transition hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 sm:text-sm ${
-                    attentionTarget === 'new' ? 'composer-action-nudge ring-2 ring-amber-300 ring-offset-2' : ''
+                  className={`flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-600 px-3 text-xs font-bold text-white shadow-lg shadow-brand-200 dark:shadow-black/20 transition hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 sm:text-sm ${
+                    attentionTarget === 'new' ? 'composer-action-nudge ring-2 ring-amber-300 dark:ring-amber-700 ring-offset-2' : ''
                   }`}
                 >
                   <FilePlus2 className="size-4" aria-hidden="true" />
@@ -486,7 +486,7 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
             </div>
           ) : (
             <>
-              {feedback ? <p className="mb-2 text-xs font-semibold text-emerald-700" role="status">{feedback}</p> : null}
+              {feedback ? <p className="mb-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300" role="status">{feedback}</p> : null}
               <div className="flex items-center justify-between gap-3">
                 <button
                   key={`save-draft-${attentionVersion}`}
@@ -494,8 +494,8 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
                   type="button"
                   onClick={saveDraft}
                   disabled={mutationBusy}
-                  className={`flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3.5 text-xs font-bold text-slate-700 transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 sm:text-sm ${
-                    attentionTarget === 'save' ? 'composer-action-nudge border-amber-300 bg-amber-50 ring-2 ring-amber-200 ring-offset-2' : ''
+                  className={`flex min-h-11 items-center justify-center gap-2 rounded-xl border border-app-border px-3.5 text-xs font-bold text-app-text-secondary transition hover:border-brand-200 dark:hover:border-brand-700/60 hover:bg-brand-50 dark:hover:bg-brand-900/30 hover:text-brand-700 dark:hover:text-brand-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 sm:text-sm ${
+                    attentionTarget === 'save' ? 'composer-action-nudge border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 ring-2 ring-amber-200 dark:ring-amber-800/70 ring-offset-2' : ''
                   }`}
                 >
                   <Save className="size-4" aria-hidden="true" />
@@ -504,7 +504,7 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
                 <button
                   type="submit"
                   disabled={mutationBusy}
-                  className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand-600 to-brand-500 px-4 text-xs font-bold text-white shadow-lg shadow-brand-200 transition hover:from-brand-700 hover:to-brand-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 sm:px-5 sm:text-sm"
+                  className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand-600 to-brand-500 px-4 text-xs font-bold text-white shadow-lg shadow-brand-200 dark:shadow-black/20 transition hover:from-brand-700 hover:to-brand-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 sm:px-5 sm:text-sm"
                 >
                   İncelemeye Gönder
                   <Send className="size-4" aria-hidden="true" />
@@ -523,10 +523,10 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
             aria-modal="true"
             aria-labelledby="discard-record-title"
             aria-describedby="discard-record-description"
-            className="w-full rounded-t-3xl bg-white p-5 shadow-2xl sm:max-w-md sm:rounded-2xl sm:p-6"
+            className="w-full rounded-t-3xl bg-app-surface p-5 shadow-2xl sm:max-w-md sm:rounded-2xl sm:p-6"
           >
-            <h2 id="discard-record-title" className="text-lg font-bold text-slate-950">Kaydedilmemiş değişiklikler var</h2>
-            <p id="discard-record-description" className="mt-2 text-sm leading-6 text-slate-600">
+            <h2 id="discard-record-title" className="text-lg font-bold text-app-text">Kaydedilmemiş değişiklikler var</h2>
+            <p id="discard-record-description" className="mt-2 text-sm leading-6 text-app-text-muted">
               Formu kapatırsanız henüz taslak olarak kaydedilmemiş bilgiler silinecek.
             </p>
             <div className="mt-6 grid grid-cols-2 gap-3">
@@ -534,7 +534,7 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
                 ref={continueEditingRef}
                 type="button"
                 onClick={() => setDiscardDialogOpen(false)}
-                className="min-h-11 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-700 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                className="min-h-11 rounded-xl border border-app-border px-4 text-sm font-bold text-app-text-secondary hover:bg-app-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
               >
                 Düzenlemeye Devam Et
               </button>
@@ -558,7 +558,7 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
 
 function FieldError({ id, message }: { id: string; message?: string }) {
   return (
-    <p id={id} className="mt-1.5 text-xs font-semibold text-rose-700" role="alert">
+    <p id={id} className="mt-1.5 text-xs font-semibold text-rose-700 dark:text-rose-300" role="alert">
       {message}
     </p>
   )

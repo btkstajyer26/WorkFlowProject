@@ -87,14 +87,14 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
 
   if (employeeCanEdit) {
     return (
-      <section className="rounded-2xl border border-brand-200 bg-gradient-to-br from-brand-50 to-white p-5 shadow-sm sm:p-6">
+      <section className="rounded-2xl border border-brand-200 dark:border-brand-700/60 bg-gradient-to-br from-brand-50 dark:from-brand-900/30 to-app-surface p-5 shadow-sm sm:p-6">
         <div className="flex items-start gap-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white text-brand-700 shadow-sm ring-1 ring-brand-100">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-app-surface text-brand-700 dark:text-brand-300 shadow-sm ring-1 ring-brand-100 dark:ring-brand-800/60">
             <FilePenLine className="size-5" aria-hidden="true" />
           </span>
           <div>
-            <h2 className="font-bold text-slate-950">Kayıt İşlemleri</h2>
-            <p className="mt-1 text-xs leading-5 text-slate-600">
+            <h2 className="font-bold text-app-text">Kayıt İşlemleri</h2>
+            <p className="mt-1 text-xs leading-5 text-app-text-muted">
               {record.status === 'TASLAK'
                 ? 'Taslağınıza devam edebilir veya incelemeye gönderebilirsiniz.'
                 : 'İstenen düzeltmeleri tamamlayıp kaydı yeniden gönderebilirsiniz.'}
@@ -107,7 +107,7 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
         <div className="mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
           <Link
             to={`/kayitlar/${record.id}/duzenle`}
-            className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-brand-200 bg-white px-4 text-sm font-bold text-brand-700 transition hover:border-brand-300 hover:bg-brand-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+            className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-brand-200 dark:border-brand-700/60 bg-app-surface px-4 text-sm font-bold text-brand-700 dark:text-brand-300 transition hover:border-brand-300 dark:hover:border-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
           >
             <FilePenLine className="size-4" aria-hidden="true" />
             Düzenlemeye Devam Et
@@ -115,7 +115,7 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
           <button
             type="button"
             onClick={() => setActiveAction('submit')}
-            className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-700 px-4 text-sm font-bold text-white shadow-lg shadow-brand-200 transition hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+            className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-700 px-4 text-sm font-bold text-white shadow-lg shadow-brand-200 dark:shadow-black/20 transition hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
           >
             <Send className="size-4" aria-hidden="true" />
             {record.status === 'TASLAK' ? 'İncelemeye Gönder' : 'Yeniden Gönder'}
@@ -139,25 +139,25 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
   }
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+    <section className="rounded-2xl border border-app-border bg-app-surface p-5 shadow-sm sm:p-6">
       <div className="flex items-start gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300">
           <ShieldCheck className="size-5" aria-hidden="true" />
         </span>
         <div>
-          <h2 className="font-bold text-slate-950">İnceleme İşlemleri</h2>
-          <p className="mt-1 text-xs leading-5 text-slate-600">Not ekleyebilir veya süreç aksiyonu alabilirsiniz.</p>
+          <h2 className="font-bold text-app-text">İnceleme İşlemleri</h2>
+          <p className="mt-1 text-xs leading-5 text-app-text-muted">Not ekleyebilir veya süreç aksiyonu alabilirsiniz.</p>
         </div>
       </div>
 
       <label className="mt-5 block">
-        <span className="mb-1.5 block text-xs font-bold text-slate-700">İnceleme notu</span>
+        <span className="mb-1.5 block text-xs font-bold text-app-text-secondary">İnceleme notu</span>
         <textarea
           value={note}
           onChange={(event) => setNote(event.target.value)}
           rows={4}
           placeholder="Değerlendirmenizi veya yönlendirmenizi yazın…"
-          className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm leading-6 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
+          className="w-full resize-none rounded-xl border border-app-border bg-app-surface px-3.5 py-3 text-sm leading-6 text-app-text-strong outline-none transition placeholder:text-app-text-faint focus:border-brand-400 focus:ring-4 focus:ring-brand-100 dark:focus:ring-brand-800/60"
         />
       </label>
 
@@ -169,7 +169,7 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
           setFeedback('İnceleme notu işlem geçmişine eklendi.')
           setNote('')
         })}
-        className="mt-2 flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-700 transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+        className="mt-2 flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-app-border px-3 text-xs font-bold text-app-text-secondary transition hover:border-brand-200 dark:hover:border-brand-700/60 hover:bg-brand-50 dark:hover:bg-brand-900/30 hover:text-brand-700 dark:hover:text-brand-300 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
       >
         <MessageSquareText className="size-4" aria-hidden="true" />
         Notu Kaydet
@@ -181,7 +181,7 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
         <button
           type="button"
           onClick={() => setActiveAction('return')}
-          className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 text-sm font-bold text-rose-700 transition hover:bg-rose-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"
+          className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-rose-200 dark:border-rose-800/70 bg-rose-50 dark:bg-rose-950/40 px-4 text-sm font-bold text-rose-700 dark:text-rose-300 transition hover:bg-rose-100 dark:hover:bg-rose-900/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"
         >
           <ArrowLeftRight className="size-4" aria-hidden="true" />
           Geri Gönder
@@ -203,7 +203,7 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
             <button
               type="button"
               onClick={() => setActiveAction('reject')}
-              className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-rose-200 px-3 text-sm font-bold text-rose-700 transition hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"
+              className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-rose-200 dark:border-rose-800/70 px-3 text-sm font-bold text-rose-700 dark:text-rose-300 transition hover:bg-rose-50 dark:hover:bg-rose-950/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"
             >
               <XCircle className="size-4" aria-hidden="true" />
               Reddet
@@ -238,7 +238,7 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
 
 function FeedbackMessage({ message }: { message: string }) {
   return (
-    <p className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2.5 text-xs font-semibold leading-5 text-emerald-800" role="status">
+    <p className="mt-4 rounded-xl border border-emerald-100 dark:border-emerald-900/70 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-2.5 text-xs font-semibold leading-5 text-emerald-800 dark:text-emerald-200" role="status">
       {message}
     </p>
   )
@@ -289,18 +289,18 @@ function ActionDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="record-action-title"
-        className="w-full rounded-t-3xl bg-white p-5 shadow-2xl sm:max-w-md sm:rounded-2xl sm:p-6"
+        className="w-full rounded-t-3xl bg-app-surface p-5 shadow-2xl sm:max-w-md sm:rounded-2xl sm:p-6"
       >
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
-            <h2 id="record-action-title" className="text-lg font-bold text-slate-950">{copy.title}</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">{copy.description}</p>
+            <h2 id="record-action-title" className="text-lg font-bold text-app-text">{copy.title}</h2>
+            <p className="mt-2 text-sm leading-6 text-app-text-muted">{copy.description}</p>
           </div>
           <button
             ref={closeButtonRef}
             type="button"
             onClick={onClose}
-            className="flex size-10 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-brand-500"
+            className="flex size-10 shrink-0 items-center justify-center rounded-xl text-app-text-subtle transition hover:bg-app-surface-strong hover:text-app-text-strong focus-visible:outline-2 focus-visible:outline-brand-500"
             aria-label="İşlem penceresini kapat"
           >
             <X className="size-5" aria-hidden="true" />
@@ -311,11 +311,11 @@ function ActionDialog({
           <div className="mt-5 space-y-4">
             {role === 'BASKAN' ? (
               <label className="block">
-                <span className="mb-1.5 block text-xs font-bold text-slate-700">Geri gönderilecek kişi</span>
+                <span className="mb-1.5 block text-xs font-bold text-app-text-secondary">Geri gönderilecek kişi</span>
                 <select
                   value={returnTarget}
                   onChange={(event) => onTargetChange(event.target.value as 'CALISAN' | 'BASKAN_YARDIMCISI')}
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
+                  className="h-11 w-full rounded-xl border border-app-border bg-app-surface px-3 text-sm text-app-text-strong outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100 dark:focus:ring-brand-800/60"
                 >
                   <option value="CALISAN">Çalışan</option>
                   <option value="BASKAN_YARDIMCISI">Başkan Yardımcısı</option>
@@ -323,7 +323,7 @@ function ActionDialog({
               </label>
             ) : null}
             <label className="block">
-              <span className="mb-1.5 block text-xs font-bold text-slate-700">Geri gönderme açıklaması *</span>
+              <span className="mb-1.5 block text-xs font-bold text-app-text-secondary">Geri gönderme açıklaması *</span>
               <textarea
                 ref={returnReasonRef}
                 value={returnReason}
@@ -331,14 +331,14 @@ function ActionDialog({
                 required
                 rows={4}
                 placeholder="Eksik veya düzeltilmesi gereken alanları açıklayın…"
-                className="w-full resize-none rounded-xl border border-slate-200 px-3.5 py-3 text-sm leading-6 text-slate-900 outline-none placeholder:text-slate-400 focus:border-rose-400 focus:ring-4 focus:ring-rose-100"
+                className="w-full resize-none rounded-xl border border-app-border bg-app-surface px-3.5 py-3 text-sm leading-6 text-app-text-strong outline-none placeholder:text-app-text-faint focus:border-rose-400 focus:ring-4 focus:ring-rose-100 dark:focus:ring-rose-900/70"
               />
             </label>
           </div>
         ) : note.trim() ? (
-          <div className="mt-5 rounded-xl bg-slate-50 px-4 py-3">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">İşleme eklenecek not</p>
-            <p className="mt-1 text-sm leading-6 text-slate-700">{note}</p>
+          <div className="mt-5 rounded-xl bg-app-surface-muted px-4 py-3">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-app-text-subtle">İşleme eklenecek not</p>
+            <p className="mt-1 text-sm leading-6 text-app-text-secondary">{note}</p>
           </div>
         ) : null}
 
@@ -346,7 +346,7 @@ function ActionDialog({
           <button
             type="button"
             onClick={onClose}
-            className="min-h-11 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+            className="min-h-11 rounded-xl border border-app-border px-4 text-sm font-bold text-app-text-secondary transition hover:bg-app-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
           >
             İptal
           </button>

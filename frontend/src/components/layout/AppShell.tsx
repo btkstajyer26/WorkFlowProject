@@ -82,7 +82,7 @@ export function AppShell({
   }, [mobileOpen])
 
   return (
-    <div className="min-h-screen bg-[#f7f8fc]">
+    <div className="min-h-screen bg-app-canvas">
       <div inert={logoutOpen}>
         <Sidebar
           user={user}
@@ -125,20 +125,20 @@ export function AppShell({
       </div>
       {logoutOpen ? (
         <div className="fixed inset-0 z-[90] flex items-end justify-center bg-slate-950/35 backdrop-blur-[2px] sm:items-center sm:p-4" role="presentation">
-          <section ref={logoutDialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="logout-dialog-title" className="w-full rounded-t-3xl bg-white p-5 shadow-2xl sm:max-w-md sm:rounded-2xl sm:p-6">
+          <section ref={logoutDialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="logout-dialog-title" className="w-full rounded-t-3xl bg-app-surface p-5 shadow-2xl sm:max-w-md sm:rounded-2xl sm:p-6">
             <div className="flex items-start gap-3">
-              <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-700">
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300">
                 <LogOut className="size-5" aria-hidden="true" />
               </span>
               <div className="min-w-0 flex-1">
-                <h2 id="logout-dialog-title" className="text-lg font-bold text-slate-950">Çıkış yapmak istediğinize emin misiniz?</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-600">Mevcut oturumunuz sonlandırılacak ve giriş ekranına yönlendirileceksiniz.</p>
+                <h2 id="logout-dialog-title" className="text-lg font-bold text-app-text">Çıkış yapmak istediğinize emin misiniz?</h2>
+                <p className="mt-2 text-sm leading-6 text-app-text-muted">Mevcut oturumunuz sonlandırılacak ve giriş ekranına yönlendirileceksiniz.</p>
               </div>
               <button
                 ref={logoutCloseButtonRef}
                 type="button"
                 onClick={() => setLogoutOpen(false)}
-                className="flex size-10 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-brand-500"
+                className="flex size-10 shrink-0 items-center justify-center rounded-xl text-app-text-subtle transition hover:bg-app-surface-strong hover:text-app-text-strong focus-visible:outline-2 focus-visible:outline-brand-500"
                 aria-label="Çıkış penceresini kapat"
               >
                 <X className="size-5" aria-hidden="true" />
@@ -148,7 +148,7 @@ export function AppShell({
               <button
                 type="button"
                 onClick={() => setLogoutOpen(false)}
-                className="min-h-11 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                className="min-h-11 rounded-xl border border-app-border px-4 text-sm font-bold text-app-text-secondary transition hover:bg-app-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
               >
                 Vazgeç
               </button>
@@ -178,13 +178,13 @@ function RolePreview({
   onRoleChange: (role: UserRole) => void
 }) {
   return (
-    <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-100 bg-brand-50/70 p-2.5 pl-4">
+    <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-100 dark:border-brand-800/60 bg-brand-50/70 dark:bg-brand-900/30 p-2.5 pl-4">
       <div>
-        <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-700">Arayüz önizleme</p>
-        <p className="mt-0.5 text-xs text-slate-600">Gerçek uygulamada rol, oturum bilgisinden gelecek.</p>
+        <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-700 dark:text-brand-300">Arayüz önizleme</p>
+        <p className="mt-0.5 text-xs text-app-text-muted">Gerçek uygulamada rol, oturum bilgisinden gelecek.</p>
       </div>
       <div
-        className="flex rounded-xl bg-white p-1 shadow-sm ring-1 ring-slate-200"
+        className="flex rounded-xl bg-app-surface p-1 shadow-sm ring-1 ring-app-border"
         role="group"
         aria-label="Önizlenecek rol"
       >
@@ -197,7 +197,7 @@ function RolePreview({
             className={`rounded-lg px-3 py-2 text-xs font-bold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ${
               role === item.value
                 ? 'bg-brand-600 text-white shadow-sm'
-                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                : 'text-app-text-subtle hover:bg-app-surface-muted hover:text-app-text-strong'
             }`}
           >
             {item.label}

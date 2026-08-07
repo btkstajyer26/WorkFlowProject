@@ -35,14 +35,14 @@ export function AccountStatusDialog({
         ? `${user.firstName} ${user.lastName} kullanıcısının erişim durumunu değiştirmek üzeresiniz.`
         : ''}
     >
-      <div className="mt-5 rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-700">
+      <div className="mt-5 rounded-xl bg-app-surface-muted p-4 text-sm leading-6 text-app-text-secondary">
         {willActivate
           ? 'Kullanıcı yeniden giriş yapabilir ve rolünün izin verdiği işlemleri gerçekleştirebilir.'
           : 'Kullanıcı sisteme giriş yapamaz. Backend mevcut access/refresh tokenlarını da geçersiz kılmalıdır.'}
       </div>
-      {error ? <p className="mt-3 text-sm font-semibold text-rose-700" role="alert">{error}</p> : null}
+      {error ? <p className="mt-3 text-sm font-semibold text-rose-700 dark:text-rose-300" role="alert">{error}</p> : null}
       <div className="mt-6 grid grid-cols-2 gap-3">
-        <button type="button" onClick={closeDialog} className="min-h-11 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-700 hover:bg-slate-50">Vazgeç</button>
+        <button type="button" onClick={closeDialog} className="min-h-11 rounded-xl border border-app-border px-4 text-sm font-bold text-app-text-secondary hover:bg-app-surface-muted">Vazgeç</button>
         <button
           type="button"
           disabled={mutationBusy}

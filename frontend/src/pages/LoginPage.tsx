@@ -113,28 +113,28 @@ export function LoginPage({ user, onLogin }: { user: AuthUser | null; onLogin: (
       </section>
 
       <section className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-8 sm:px-8 lg:px-12 xl:px-16">
-        <div className="pointer-events-none absolute -right-40 -top-40 size-[30rem] rounded-full bg-brand-100/70 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-40 left-10 size-[26rem] rounded-full bg-blue-100/55 blur-3xl" />
+        <div className="pointer-events-none absolute -right-40 -top-40 size-[30rem] rounded-full bg-brand-100/70 dark:bg-brand-900/45 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-40 left-10 size-[26rem] rounded-full bg-blue-100/55 dark:bg-blue-900/60 blur-3xl" />
 
-        <div className="relative w-full max-w-2xl rounded-[1.75rem] border border-white/80 bg-white/90 p-5 shadow-2xl shadow-slate-900/[0.08] backdrop-blur sm:p-8 lg:p-10 xl:p-12">
+        <div className="relative w-full max-w-2xl rounded-[1.75rem] border border-white/80 bg-app-surface/90 p-5 shadow-2xl shadow-slate-900/[0.08] backdrop-blur sm:p-8 lg:p-10 xl:p-12">
           <div className="mb-8 lg:hidden">
             <div className="flex items-center gap-3">
-              <span className="flex size-11 items-center justify-center rounded-2xl bg-brand-700 text-white shadow-lg shadow-brand-200">
+              <span className="flex size-11 items-center justify-center rounded-2xl bg-brand-700 text-white shadow-lg shadow-brand-200 dark:shadow-black/20">
                 <FileText className="size-6" aria-hidden="true" />
               </span>
               <div>
-                <p className="text-lg font-bold text-slate-950">EBYS</p>
-                <p className="text-[11px] text-slate-500">İş Akışı ve Onay Yönetim Sistemi</p>
+                <p className="text-lg font-bold text-app-text">EBYS</p>
+                <p className="text-[11px] text-app-text-subtle">İş Akışı ve Onay Yönetim Sistemi</p>
               </div>
             </div>
           </div>
 
           <div className="mx-auto max-w-xl">
-            <h1 className="text-3xl font-medium tracking-[-0.03em] text-slate-950 sm:text-4xl">Hesabınıza giriş yapın</h1>
-            <p className="mt-3 text-sm leading-6 text-slate-600">Devam etmek için kurumsal hesap bilgilerinizi girin.</p>
+            <h1 className="text-3xl font-medium tracking-[-0.03em] text-app-text sm:text-4xl">Hesabınıza giriş yapın</h1>
+            <p className="mt-3 text-sm leading-6 text-app-text-muted">Devam etmek için kurumsal hesap bilgilerinizi girin.</p>
 
             {reason === 'expired' ? (
-              <p className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900" role="status">
+              <p className="mt-5 rounded-xl border border-amber-200 dark:border-amber-800/70 bg-amber-50 dark:bg-amber-950/40 px-4 py-3 text-sm font-semibold text-amber-900 dark:text-amber-200" role="status">
                 Oturumunuzun süresi doldu. Lütfen tekrar giriş yapın.
               </p>
             ) : null}
@@ -145,9 +145,9 @@ export function LoginPage({ user, onLogin }: { user: AuthUser | null; onLogin: (
               onSubmit={submitLogin}
             >
               <label className="block">
-                <span className="mb-2 block text-sm font-bold text-slate-800">E-posta adresi</span>
+                <span className="mb-2 block text-sm font-bold text-app-text-emphasis">E-posta adresi</span>
                 <span className="relative block">
-                  <Mail className="pointer-events-none absolute left-4 top-1/2 size-[18px] -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                  <Mail className="pointer-events-none absolute left-4 top-1/2 size-[18px] -translate-y-1/2 text-app-text-faint" aria-hidden="true" />
                   <input
                     type="email"
                     {...register('email')}
@@ -155,28 +155,28 @@ export function LoginPage({ user, onLogin }: { user: AuthUser | null; onLogin: (
                     placeholder="ad.soyad@kurum.gov.tr"
                     aria-invalid={Boolean(errors.email)}
                     aria-describedby={errors.email ? 'login-email-error' : undefined}
-                    className="h-13 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-4 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
+                    className="h-13 w-full rounded-xl border border-app-border bg-app-surface pl-11 pr-4 text-sm text-app-text outline-none transition placeholder:text-app-text-faint focus:border-brand-400 focus:ring-4 focus:ring-brand-100 dark:focus:ring-brand-800/60"
                   />
                 </span>
                 {errors.email ? <FieldError id="login-email-error" message={errors.email.message} /> : null}
               </label>
 
               <label className="block">
-                <span className="mb-2 block text-sm font-bold text-slate-800">Şifre</span>
+                <span className="mb-2 block text-sm font-bold text-app-text-emphasis">Şifre</span>
                 <span className="relative block">
-                  <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 size-[18px] -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                  <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 size-[18px] -translate-y-1/2 text-app-text-faint" aria-hidden="true" />
                   <input
                     type={passwordVisible ? 'text' : 'password'}
                     {...register('password')}
                     autoComplete="current-password"
                     aria-invalid={Boolean(errors.password)}
                     aria-describedby={errors.password ? 'login-password-error' : undefined}
-                    className="h-13 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-12 text-sm text-slate-950 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
+                    className="h-13 w-full rounded-xl border border-app-border bg-app-surface pl-11 pr-12 text-sm text-app-text outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100 dark:focus:ring-brand-800/60"
                   />
                   <button
                     type="button"
                     onClick={() => setPasswordVisible((visible) => !visible)}
-                    className="absolute right-2 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-brand-500"
+                    className="absolute right-2 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-lg text-app-text-subtle transition hover:bg-app-surface-strong hover:text-app-text-strong focus-visible:outline-2 focus-visible:outline-brand-500"
                     aria-label={passwordVisible ? 'Şifreyi gizle' : 'Şifreyi göster'}
                   >
                     {passwordVisible ? <EyeOff className="size-4" aria-hidden="true" /> : <Eye className="size-4" aria-hidden="true" />}
@@ -188,7 +188,7 @@ export function LoginPage({ user, onLogin }: { user: AuthUser | null; onLogin: (
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex min-h-13 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand-600 to-brand-700 px-5 text-sm font-bold text-white shadow-lg shadow-brand-200 transition hover:from-brand-700 hover:to-brand-800 disabled:cursor-wait disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                className="flex min-h-13 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand-600 to-brand-700 px-5 text-sm font-bold text-white shadow-lg shadow-brand-200 dark:shadow-black/20 transition hover:from-brand-700 hover:to-brand-800 disabled:cursor-wait disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
               >
                 {isSubmitting ? 'Giriş yapılıyor…' : 'Giriş Yap'}
                 {isSubmitting ? null : <ArrowRight className="size-4" aria-hidden="true" />}
@@ -196,7 +196,7 @@ export function LoginPage({ user, onLogin }: { user: AuthUser | null; onLogin: (
             </form>
           </div>
 
-          <p className="mt-6 text-center text-xs leading-5 text-slate-500">
+          <p className="mt-6 text-center text-xs leading-5 text-app-text-subtle">
             Hesabınız bulunmuyorsa sistem yöneticinizle iletişime geçin.
           </p>
         </div>
@@ -216,7 +216,7 @@ function FeaturePill({ icon: Icon, text }: { icon: typeof ShieldCheck; text: str
 
 function FieldError({ id, message }: { id: string; message?: string }) {
   return (
-    <span id={id} className="mt-1.5 block text-xs font-semibold text-rose-700" role="alert">
+    <span id={id} className="mt-1.5 block text-xs font-semibold text-rose-700 dark:text-rose-300" role="alert">
       {message}
     </span>
   )

@@ -46,7 +46,7 @@ const dateFormatter = new Intl.DateTimeFormat('tr-TR', {
 })
 
 const filterControlClass =
-  'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100'
+  'h-11 w-full rounded-xl border border-app-border bg-app-surface px-3 text-sm text-app-text-secondary outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100 dark:focus:ring-brand-800/60'
 
 const pageSizes = [5, 10, 20]
 
@@ -163,36 +163,36 @@ export function RecordsPage({ role }: { role: UserRole }) {
     <div className="space-y-5">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-semibold text-brand-600">Kayıtlar</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">{title}</h1>
-          <p className="mt-2 text-sm text-slate-600">Erişim kapsamınızdaki kayıtları arayın, filtreleyin ve inceleyin.</p>
+          <p className="text-sm font-semibold text-brand-600 dark:text-brand-400">Kayıtlar</p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-app-text sm:text-3xl">{title}</h1>
+          <p className="mt-2 text-sm text-app-text-muted">Erişim kapsamınızdaki kayıtları arayın, filtreleyin ve inceleyin.</p>
         </div>
-        <div className="flex items-center gap-2 text-sm text-slate-600">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-brand-50 font-bold text-brand-700">
+        <div className="flex items-center gap-2 text-sm text-app-text-muted">
+          <span className="flex size-8 items-center justify-center rounded-lg bg-brand-50 dark:bg-brand-900/30 font-bold text-brand-700 dark:text-brand-300">
             {filteredRecords.length}
           </span>
           kayıt bulundu
         </div>
       </header>
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" aria-label="Kayıt listesi">
-        <div className="border-b border-slate-200 p-4 sm:p-5">
+      <section className="overflow-hidden rounded-2xl border border-app-border bg-app-surface shadow-sm" aria-label="Kayıt listesi">
+        <div className="border-b border-app-border p-4 sm:p-5">
           <div className="flex flex-col gap-3 sm:flex-row">
             <label className="relative min-w-0 flex-1">
               <span className="sr-only">Başlık, içerik veya kayıt numarasıyla ara</span>
-              <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-app-text-faint" aria-hidden="true" />
               <input
                 type="search"
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
                 placeholder="Başlık, içerik veya kayıt no ile ara..."
-                className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
+                className="h-11 w-full rounded-xl border border-app-border bg-app-surface pl-10 pr-4 text-sm text-app-text-strong outline-none transition placeholder:text-app-text-faint focus:border-brand-400 focus:ring-4 focus:ring-brand-100 dark:focus:ring-brand-800/60"
               />
             </label>
             <button
               type="button"
               onClick={() => setFiltersOpen((current) => !current)}
-              className="flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:border-brand-200 hover:text-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 md:hidden"
+              className="flex h-11 items-center justify-center gap-2 rounded-xl border border-app-border bg-app-surface px-4 text-sm font-bold text-app-text-secondary transition hover:border-brand-200 dark:hover:border-brand-700/60 hover:text-brand-700 dark:hover:text-brand-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 md:hidden"
               aria-expanded={filtersOpen}
             >
               <SlidersHorizontal className="size-4" aria-hidden="true" />
@@ -205,7 +205,7 @@ export function RecordsPage({ role }: { role: UserRole }) {
 
           <div className={`${filtersOpen ? 'grid' : 'hidden'} mt-3 gap-3 md:grid md:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_1fr_auto]`}>
             <label>
-              <span className="mb-1.5 block text-xs font-bold text-slate-600">Kategori</span>
+              <span className="mb-1.5 block text-xs font-bold text-app-text-muted">Kategori</span>
               <select
                 value={category}
                 onChange={(event) => updateQuery({ kategori: event.target.value === 'ALL' ? null : event.target.value })}
@@ -218,25 +218,25 @@ export function RecordsPage({ role }: { role: UserRole }) {
               </select>
             </label>
             <label>
-              <span className="mb-1.5 block text-xs font-bold text-slate-600">Durum</span>
+              <span className="mb-1.5 block text-xs font-bold text-app-text-muted">Durum</span>
               <select
                 aria-label="Durum"
                 value={lockedStatus ?? status}
                 onChange={(event) => updateQuery({ durum: event.target.value === 'ALL' ? null : event.target.value })}
                 disabled={Boolean(lockedStatus)}
-                className={`${filterControlClass} disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500`}
+                className={`${filterControlClass} disabled:cursor-not-allowed disabled:bg-app-surface-strong disabled:text-app-text-subtle`}
               >
                 {lockedStatus ? null : <option value="ALL">{viewConfig ? 'Tüm ilgili durumlar' : 'Tüm durumlar'}</option>}
                 {availableStatuses.map((value) => (
                   <option key={value} value={value}>{recordStatusMeta[value].label}</option>
                 ))}
               </select>
-              {lockedStatus ? <span className="mt-1 block text-[11px] text-slate-500">Bu görünümde durum sabittir.</span> : null}
+              {lockedStatus ? <span className="mt-1 block text-[11px] text-app-text-subtle">Bu görünümde durum sabittir.</span> : null}
             </label>
             <label>
-              <span className="mb-1.5 block text-xs font-bold text-slate-600">Başlangıç tarihi</span>
+              <span className="mb-1.5 block text-xs font-bold text-app-text-muted">Başlangıç tarihi</span>
               <div className="relative">
-                <CalendarDays className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                <CalendarDays className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-app-text-faint" aria-hidden="true" />
                 <input
                   type="date"
                   value={dateFrom}
@@ -249,9 +249,9 @@ export function RecordsPage({ role }: { role: UserRole }) {
               </div>
             </label>
             <label>
-              <span className="mb-1.5 block text-xs font-bold text-slate-600">Bitiş tarihi</span>
+              <span className="mb-1.5 block text-xs font-bold text-app-text-muted">Bitiş tarihi</span>
               <div className="relative">
-                <CalendarDays className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                <CalendarDays className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-app-text-faint" aria-hidden="true" />
                 <input
                   type="date"
                   value={dateTo}
@@ -266,13 +266,13 @@ export function RecordsPage({ role }: { role: UserRole }) {
             <button
               type="button"
               onClick={resetFilters}
-              className="flex h-11 items-center justify-center gap-2 self-start rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-600 transition hover:bg-slate-50 hover:text-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 md:mt-[22px]"
+              className="flex h-11 items-center justify-center gap-2 self-start rounded-xl border border-app-border px-3 text-xs font-bold text-app-text-muted transition hover:bg-app-surface-muted hover:text-brand-700 dark:hover:text-brand-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 md:mt-[22px]"
             >
               <RotateCcw className="size-4" aria-hidden="true" />
               Temizle
             </button>
             {dateRangeInvalid ? (
-              <p id="record-date-range-error" className="text-xs font-semibold text-rose-700 md:col-span-2 xl:col-span-4" role="alert">
+              <p id="record-date-range-error" className="text-xs font-semibold text-rose-700 dark:text-rose-300 md:col-span-2 xl:col-span-4" role="alert">
                 Başlangıç tarihi bitiş tarihinden sonra olamaz.
               </p>
             ) : null}
@@ -283,7 +283,7 @@ export function RecordsPage({ role }: { role: UserRole }) {
           <>
             <div className="hidden overflow-x-auto lg:block">
               <table className="w-full min-w-[960px] border-collapse text-left">
-                <thead className="bg-slate-50/80 text-xs font-bold text-slate-500">
+                <thead className="bg-app-surface-muted/80 text-xs font-bold text-app-text-subtle">
                   <tr>
                     <th className="px-5 py-3.5">Kayıt</th>
                     <th className="px-4 py-3.5">Kategori</th>
@@ -293,23 +293,23 @@ export function RecordsPage({ role }: { role: UserRole }) {
                     <th className="px-5 py-3.5 text-right">İşlem</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-app-border-subtle">
                   {visibleRecords.map((record) => (
-                    <tr key={record.id} className="group transition-colors hover:bg-brand-50/35">
+                    <tr key={record.id} className="group transition-colors hover:bg-brand-50/35 dark:hover:bg-brand-900/20">
                       <td className="px-5 py-4">
-                        <Link to={`/kayitlar/${record.id}`} className="font-bold text-slate-900 transition hover:text-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500">
+                        <Link to={`/kayitlar/${record.id}`} className="font-bold text-app-text-strong transition hover:text-brand-700 dark:hover:text-brand-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500">
                           {record.title}
                         </Link>
-                        <p className="mt-1 text-xs font-medium text-slate-500">{record.recordNumber}</p>
+                        <p className="mt-1 text-xs font-medium text-app-text-subtle">{record.recordNumber}</p>
                       </td>
-                      <td className="px-4 py-4 text-sm font-medium text-slate-600">{record.category}</td>
+                      <td className="px-4 py-4 text-sm font-medium text-app-text-muted">{record.category}</td>
                       <td className="px-4 py-4"><RecordStatusBadge status={record.status} /></td>
-                      <td className="max-w-52 px-4 py-4 text-sm leading-5 text-slate-600">{record.lastAction}</td>
-                      <td className="whitespace-nowrap px-4 py-4 text-xs font-medium text-slate-500">{dateFormatter.format(new Date(record.updatedAt))}</td>
+                      <td className="max-w-52 px-4 py-4 text-sm leading-5 text-app-text-muted">{record.lastAction}</td>
+                      <td className="whitespace-nowrap px-4 py-4 text-xs font-medium text-app-text-subtle">{dateFormatter.format(new Date(record.updatedAt))}</td>
                       <td className="px-5 py-4 text-right">
                         <Link
                           to={canEditRecord(role, record) ? `/kayitlar/${record.id}/duzenle` : `/kayitlar/${record.id}`}
-                          className="inline-flex size-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:border-brand-200 hover:bg-white hover:text-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                          className="inline-flex size-10 items-center justify-center rounded-xl border border-app-border text-app-text-subtle transition hover:border-brand-200 dark:hover:border-brand-700/60 hover:bg-app-surface hover:text-brand-700 dark:hover:text-brand-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
                           aria-label={`${record.title} kaydını ${canEditRecord(role, record) ? 'düzenle' : 'görüntüle'}`}
                         >
                           {canEditRecord(role, record) ? <FilePenLine className="size-4" aria-hidden="true" /> : <Eye className="size-4" aria-hidden="true" />}
@@ -321,30 +321,30 @@ export function RecordsPage({ role }: { role: UserRole }) {
               </table>
             </div>
 
-            <div className="divide-y divide-slate-100 lg:hidden">
+            <div className="divide-y divide-app-border-subtle lg:hidden">
               {visibleRecords.map((record) => (
                 <article key={record.id} className="p-4 sm:p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-xs font-semibold text-brand-600">{record.recordNumber}</p>
-                      <h2 className="mt-1 text-sm font-bold leading-5 text-slate-950">{record.title}</h2>
+                      <p className="text-xs font-semibold text-brand-600 dark:text-brand-400">{record.recordNumber}</p>
+                      <h2 className="mt-1 text-sm font-bold leading-5 text-app-text">{record.title}</h2>
                     </div>
                     <RecordStatusBadge status={record.status} />
                   </div>
-                  <dl className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3 text-xs">
+                  <dl className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-app-surface-muted p-3 text-xs">
                     <div>
-                      <dt className="font-semibold text-slate-500">Kategori</dt>
-                      <dd className="mt-1 font-bold text-slate-800">{record.category}</dd>
+                      <dt className="font-semibold text-app-text-subtle">Kategori</dt>
+                      <dd className="mt-1 font-bold text-app-text-emphasis">{record.category}</dd>
                     </div>
                     <div>
-                      <dt className="font-semibold text-slate-500">Güncellenme</dt>
-                      <dd className="mt-1 font-bold text-slate-800">{dateFormatter.format(new Date(record.updatedAt))}</dd>
+                      <dt className="font-semibold text-app-text-subtle">Güncellenme</dt>
+                      <dd className="mt-1 font-bold text-app-text-emphasis">{dateFormatter.format(new Date(record.updatedAt))}</dd>
                     </div>
                   </dl>
-                  <p className="mt-3 text-xs leading-5 text-slate-600">{record.lastAction}</p>
+                  <p className="mt-3 text-xs leading-5 text-app-text-muted">{record.lastAction}</p>
                   <Link
                     to={canEditRecord(role, record) ? `/kayitlar/${record.id}/duzenle` : `/kayitlar/${record.id}`}
-                    className="mt-4 flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                    className="mt-4 flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-app-border text-xs font-bold text-app-text-secondary transition hover:border-brand-200 dark:hover:border-brand-700/60 hover:bg-brand-50 dark:hover:bg-brand-900/30 hover:text-brand-700 dark:hover:text-brand-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
                   >
                     {canEditRecord(role, record) ? <FilePenLine className="size-4" aria-hidden="true" /> : <Eye className="size-4" aria-hidden="true" />}
                     {canEditRecord(role, record) ? 'Düzenlemeye Devam Et' : 'Kaydı Görüntüle'}
@@ -355,26 +355,26 @@ export function RecordsPage({ role }: { role: UserRole }) {
           </>
         ) : (
           <div className="flex min-h-72 flex-col items-center justify-center px-6 py-12 text-center">
-            <div className="flex size-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
+            <div className="flex size-12 items-center justify-center rounded-2xl bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400">
               <Search className="size-5" aria-hidden="true" />
             </div>
-            <h2 className="mt-4 font-bold text-slate-900">Eşleşen kayıt bulunamadı</h2>
-            <p className="mt-1 max-w-sm text-sm leading-6 text-slate-600">Arama ifadenizi veya seçtiğiniz filtreleri değiştirerek tekrar deneyin.</p>
-            <button type="button" onClick={resetFilters} className="mt-4 text-sm font-bold text-brand-700 hover:text-brand-800">Filtreleri temizle</button>
+            <h2 className="mt-4 font-bold text-app-text-strong">Eşleşen kayıt bulunamadı</h2>
+            <p className="mt-1 max-w-sm text-sm leading-6 text-app-text-muted">Arama ifadenizi veya seçtiğiniz filtreleri değiştirerek tekrar deneyin.</p>
+            <button type="button" onClick={resetFilters} className="mt-4 text-sm font-bold text-brand-700 dark:text-brand-300 hover:text-brand-800 dark:hover:text-brand-200">Filtreleri temizle</button>
           </div>
         )}
 
-        <footer className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-          <p className="text-xs font-medium text-slate-500">
+        <footer className="flex flex-col gap-3 border-t border-app-border bg-app-surface-muted/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+          <p className="text-xs font-medium text-app-text-subtle">
             {filteredRecords.length === 0 ? 0 : pageStart + 1}–{Math.min(pageStart + pageSize, filteredRecords.length)} / {filteredRecords.length} kayıt
           </p>
           <div className="flex items-center justify-between gap-3 sm:justify-end">
-            <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+            <label className="flex items-center gap-2 text-xs font-semibold text-app-text-muted">
               <span className="hidden sm:inline">Sayfa başına</span>
               <select
                 value={pageSize}
                 onChange={(event) => updateQuery({ boyut: event.target.value === '10' ? null : event.target.value })}
-                className="h-9 rounded-lg border border-slate-200 bg-white px-2 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+                className="h-9 rounded-lg border border-app-border bg-app-surface px-2 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100 dark:focus:ring-brand-800/60"
               >
                 <option value={5}>5</option>
                 <option value={10}>10</option>
@@ -386,17 +386,17 @@ export function RecordsPage({ role }: { role: UserRole }) {
                 type="button"
                 onClick={() => updateQuery({ sayfa: currentPage - 1 === 1 ? null : String(currentPage - 1) }, false)}
                 disabled={currentPage === 1}
-                className="flex size-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-brand-200 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex size-9 items-center justify-center rounded-lg border border-app-border bg-app-surface text-app-text-muted transition hover:border-brand-200 dark:hover:border-brand-700/60 hover:text-brand-700 dark:hover:text-brand-300 disabled:cursor-not-allowed disabled:opacity-40"
                 aria-label="Önceki sayfa"
               >
                 <ChevronLeft className="size-4" aria-hidden="true" />
               </button>
-              <span className="min-w-16 text-center text-xs font-bold text-slate-700">{currentPage} / {totalPages}</span>
+              <span className="min-w-16 text-center text-xs font-bold text-app-text-secondary">{currentPage} / {totalPages}</span>
               <button
                 type="button"
                 onClick={() => updateQuery({ sayfa: String(Math.min(totalPages, currentPage + 1)) }, false)}
                 disabled={currentPage === totalPages}
-                className="flex size-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-brand-200 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex size-9 items-center justify-center rounded-lg border border-app-border bg-app-surface text-app-text-muted transition hover:border-brand-200 dark:hover:border-brand-700/60 hover:text-brand-700 dark:hover:text-brand-300 disabled:cursor-not-allowed disabled:opacity-40"
                 aria-label="Sonraki sayfa"
               >
                 <ChevronRight className="size-4" aria-hidden="true" />

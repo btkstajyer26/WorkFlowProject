@@ -54,10 +54,10 @@ export function ChangeRoleDialog({
     >
       <form className="mt-6" onSubmit={submit}>
         <label className="block">
-          <span className="mb-1.5 block text-sm font-bold text-slate-800">Yeni rol</span>
+          <span className="mb-1.5 block text-sm font-bold text-app-text-emphasis">Yeni rol</span>
           <select
             {...register('role')}
-            className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
+            className="min-h-11 w-full rounded-xl border border-app-border bg-app-surface px-3 text-sm outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100 dark:focus:ring-brand-800/60"
           >
             <option value="CALISAN">{roleLabels.CALISAN}</option>
             <option value="BASKAN_YARDIMCISI">{roleLabels.BASKAN_YARDIMCISI}</option>
@@ -66,13 +66,13 @@ export function ChangeRoleDialog({
           </select>
         </label>
         {activeDeputy ? (
-          <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900">
+          <p className="mt-4 rounded-xl border border-amber-200 dark:border-amber-800/70 bg-amber-50 dark:bg-amber-950/40 p-3 text-sm leading-6 text-amber-900 dark:text-amber-200">
             Bu işlem yardımcılık rolünü <strong>{activeDeputy.firstName} {activeDeputy.lastName}</strong> kullanıcısından devralır. Mevcut yardımcı Çalışan rolüne geçirilir.
           </p>
         ) : null}
-        {errors.root ? <p className="mt-3 text-sm font-semibold text-rose-700" role="alert">{errors.root.message}</p> : null}
+        {errors.root ? <p className="mt-3 text-sm font-semibold text-rose-700 dark:text-rose-300" role="alert">{errors.root.message}</p> : null}
         <div className="mt-6 grid grid-cols-2 gap-3">
-          <button type="button" onClick={onClose} className="min-h-11 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-700 hover:bg-slate-50">Vazgeç</button>
+          <button type="button" onClick={onClose} className="min-h-11 rounded-xl border border-app-border px-4 text-sm font-bold text-app-text-secondary hover:bg-app-surface-muted">Vazgeç</button>
           <button type="submit" disabled={mutationBusy} className="min-h-11 rounded-xl bg-brand-700 px-4 text-sm font-bold text-white hover:bg-brand-800 disabled:opacity-60">Değiştir</button>
         </div>
       </form>

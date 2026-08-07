@@ -54,20 +54,20 @@ export function AdminLogsPage() {
     <div className="space-y-5">
       <header>
         <div>
-          <p className="text-sm font-semibold text-brand-600">Sistem Yönetimi</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">İşlem Kayıtları</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Evrak işlemleri ile hesap ve rol değişikliklerini birlikte inceleyin.</p>
+          <p className="text-sm font-semibold text-brand-600 dark:text-brand-400">Sistem Yönetimi</p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-app-text sm:text-3xl">İşlem Kayıtları</h1>
+          <p className="mt-2 text-sm leading-6 text-app-text-muted">Evrak işlemleri ile hesap ve rol değişikliklerini birlikte inceleyin.</p>
         </div>
       </header>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" aria-label="Log filtreleri">
+      <section className="rounded-2xl border border-app-border bg-app-surface p-4 shadow-sm" aria-label="Log filtreleri">
         <div className="grid gap-3 md:grid-cols-[minmax(16rem,1fr)_15rem]">
           <label className="relative block">
             <span className="sr-only">İşlem kaydı ara</span>
-            <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
-            <input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Evrak no, kullanıcı veya işlem ara" className="min-h-11 w-full rounded-xl border border-slate-200 pl-10 pr-3 text-sm outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100" />
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-app-text-faint" aria-hidden="true" />
+            <input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Evrak no, kullanıcı veya işlem ara" className="min-h-11 w-full rounded-xl border border-app-border bg-app-surface pl-10 pr-3 text-sm text-app-text-strong outline-none placeholder:text-app-text-faint focus:border-brand-400 focus:ring-4 focus:ring-brand-100 dark:focus:ring-brand-800/60" />
           </label>
-          <select aria-label="Log türüne göre filtrele" value={type} onChange={(event) => updateParam('tur', event.target.value)} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100">
+          <select aria-label="Log türüne göre filtrele" value={type} onChange={(event) => updateParam('tur', event.target.value)} className="min-h-11 rounded-xl border border-app-border bg-app-surface px-3 text-sm text-app-text-strong outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100 dark:focus:ring-brand-800/60">
             <option value="">Tüm işlem türleri</option>
             <option value="RECORD">Evrak işlemleri</option>
             <option value="USER">Kullanıcı ve rol işlemleri</option>
@@ -75,38 +75,38 @@ export function AdminLogsPage() {
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-100 px-4 py-3 text-xs font-semibold text-slate-500 sm:px-6">{filteredLogs.length} işlem kaydı bulundu</div>
+      <section className="overflow-hidden rounded-2xl border border-app-border bg-app-surface shadow-sm">
+        <div className="border-b border-app-border-subtle px-4 py-3 text-xs font-semibold text-app-text-subtle sm:px-6">{filteredLogs.length} işlem kaydı bulundu</div>
         {visibleLogs.length ? (
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-app-border-subtle">
             {visibleLogs.map((log) => (
               <article key={log.id} className="grid gap-3 px-4 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_12rem] lg:items-start">
                 <div className="flex min-w-0 gap-3">
-                  <span className={`mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl ${log.type === 'USER' ? 'bg-brand-50 text-brand-700' : 'bg-blue-50 text-blue-700'}`}>
+                  <span className={`mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl ${log.type === 'USER' ? 'bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300' : 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300'}`}>
                     {log.type === 'USER' ? <UsersRound className="size-[18px]" aria-hidden="true" /> : <FileClock className="size-[18px]" aria-hidden="true" />}
                   </span>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="text-sm font-bold text-slate-950">{log.actionLabel}</h2>
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600">{log.type === 'USER' ? 'Kullanıcı' : 'Evrak'}</span>
+                      <h2 className="text-sm font-bold text-app-text">{log.actionLabel}</h2>
+                      <span className="rounded-full bg-app-surface-strong px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-app-text-muted">{log.type === 'USER' ? 'Kullanıcı' : 'Evrak'}</span>
                     </div>
-                    <p className="mt-1 text-sm font-semibold text-slate-700">{log.target}</p>
-                    <p className="mt-1 text-xs leading-5 text-slate-500">{log.description}</p>
-                    <p className="mt-2 text-xs text-slate-500">İşlemi yapan: <strong className="text-slate-700">{log.actor}</strong></p>
+                    <p className="mt-1 text-sm font-semibold text-app-text-secondary">{log.target}</p>
+                    <p className="mt-1 text-xs leading-5 text-app-text-subtle">{log.description}</p>
+                    <p className="mt-2 text-xs text-app-text-subtle">İşlemi yapan: <strong className="text-app-text-secondary">{log.actor}</strong></p>
                   </div>
                 </div>
-                <time className="text-xs text-slate-500 lg:text-right">{formatDateTime(log.createdAt)}</time>
+                <time className="text-xs text-app-text-subtle lg:text-right">{formatDateTime(log.createdAt)}</time>
               </article>
             ))}
           </div>
         ) : (
-          <div className="px-5 py-14 text-center"><Search className="mx-auto size-8 text-slate-300" /><h2 className="mt-3 font-bold text-slate-900">İşlem kaydı bulunamadı</h2><p className="mt-1 text-sm text-slate-500">Filtreleri değiştirerek tekrar deneyin.</p></div>
+          <div className="px-5 py-14 text-center"><Search className="mx-auto size-8 text-app-text-disabled" /><h2 className="mt-3 font-bold text-app-text-strong">İşlem kaydı bulunamadı</h2><p className="mt-1 text-sm text-app-text-subtle">Filtreleri değiştirerek tekrar deneyin.</p></div>
         )}
-        <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 sm:px-6">
-          <p className="text-xs text-slate-500">Sayfa {currentPage} / {pageCount}</p>
+        <div className="flex items-center justify-between border-t border-app-border-subtle px-4 py-3 sm:px-6">
+          <p className="text-xs text-app-text-subtle">Sayfa {currentPage} / {pageCount}</p>
           <div className="flex gap-2">
-            <button type="button" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)} className="min-h-9 rounded-lg border border-slate-200 px-3 text-xs font-bold text-slate-700 disabled:opacity-40">Önceki</button>
-            <button type="button" disabled={currentPage >= pageCount} onClick={() => setPage(currentPage + 1)} className="min-h-9 rounded-lg border border-slate-200 px-3 text-xs font-bold text-slate-700 disabled:opacity-40">Sonraki</button>
+            <button type="button" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)} className="min-h-9 rounded-lg border border-app-border px-3 text-xs font-bold text-app-text-secondary disabled:opacity-40">Önceki</button>
+            <button type="button" disabled={currentPage >= pageCount} onClick={() => setPage(currentPage + 1)} className="min-h-9 rounded-lg border border-app-border px-3 text-xs font-bold text-app-text-secondary disabled:opacity-40">Sonraki</button>
           </div>
         </div>
       </section>

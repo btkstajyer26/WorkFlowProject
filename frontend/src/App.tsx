@@ -5,6 +5,7 @@ import { AppErrorBoundary } from './components/errors/AppErrorBoundary'
 import { WorkflowProvider } from './context/WorkflowContext'
 import { useWorkflow } from './context/workflowState'
 import { AdminProvider } from './context/AdminContext'
+import { ThemeProvider } from './context/ThemeContext'
 import { getDemoUserByRole } from './mocks/users'
 import { DashboardPage } from './pages/DashboardPage'
 import { ErrorStatePage } from './pages/ErrorStatePage'
@@ -63,23 +64,25 @@ function App() {
   }
 
   return (
-    <AppErrorBoundary>
-      <Routes>
-        <Route path="/giris" element={<LoginPage user={user} onLogin={handleLogin} />} />
-        <Route
-          path="/*"
-          element={
-            <ProtectedApplication
-              user={user}
-              onUserChange={(nextUser) => {
-                persistMockSession(nextUser)
-                setUser(nextUser)
-              }}
-            />
-          }
-        />
-      </Routes>
-    </AppErrorBoundary>
+    <ThemeProvider>
+      <AppErrorBoundary>
+        <Routes>
+          <Route path="/giris" element={<LoginPage user={user} onLogin={handleLogin} />} />
+          <Route
+            path="/*"
+            element={
+              <ProtectedApplication
+                user={user}
+                onUserChange={(nextUser) => {
+                  persistMockSession(nextUser)
+                  setUser(nextUser)
+                }}
+              />
+            }
+          />
+        </Routes>
+      </AppErrorBoundary>
+    </ThemeProvider>
   )
 }
 

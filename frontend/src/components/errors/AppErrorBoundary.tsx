@@ -19,14 +19,14 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
     if (!this.state.hasError) return this.props.children
 
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
-        <section className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-7 text-center shadow-sm sm:p-10">
-          <span className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-rose-50 text-rose-700">
+      <main className="flex min-h-screen items-center justify-center bg-app-surface-muted p-4">
+        <section className="w-full max-w-lg rounded-3xl border border-app-border bg-app-surface p-7 text-center shadow-sm sm:p-10">
+          <span className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300">
             <TriangleAlert className="size-8" aria-hidden="true" />
           </span>
-          <p className="mt-6 text-sm font-black tracking-[0.2em] text-rose-700">BEKLENMEYEN HATA</p>
-          <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">Sayfa görüntülenirken bir sorun oluştu</h1>
-          <p className="mt-3 text-sm leading-6 text-slate-600">
+          <p className="mt-6 text-sm font-black tracking-[0.2em] text-rose-700 dark:text-rose-300">BEKLENMEYEN HATA</p>
+          <h1 className="mt-2 text-2xl font-bold tracking-tight text-app-text">Sayfa görüntülenirken bir sorun oluştu</h1>
+          <p className="mt-3 text-sm leading-6 text-app-text-muted">
             Çalışmanız sunucuya gönderilmediyse form verilerinizi kontrol edin ve sayfayı yeniden yükleyin.
           </p>
           <button

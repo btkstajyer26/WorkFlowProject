@@ -27,7 +27,7 @@ import type { UserRole } from '../types/auth'
 import type { WorkflowRecord } from '../types/record'
 
 const fieldClass =
-  'w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand-400 focus:ring-4 focus:ring-brand-100'
+  'w-full rounded-xl border border-app-border bg-app-surface px-3.5 py-3 text-sm text-app-text-strong outline-none transition placeholder:text-app-text-faint focus:border-brand-400 focus:ring-4 focus:ring-brand-100 dark:focus:ring-brand-800/60'
 
 export function RecordEditPage({ role }: { role: UserRole }) {
   const { recordId } = useParams()
@@ -105,7 +105,7 @@ function EditableRecordForm({ record }: { record: WorkflowRecord }) {
           if (hasUnsavedChanges) setActiveDialog('discard')
           else navigate(`/kayitlar/${record.id}`)
         }}
-        className="inline-flex items-center gap-2 text-sm font-bold text-slate-600 transition hover:text-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+        className="inline-flex items-center gap-2 text-sm font-bold text-app-text-muted transition hover:text-brand-700 dark:hover:text-brand-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
       >
         <ArrowLeft className="size-4" aria-hidden="true" />
         Kayıt detayına dön
@@ -113,11 +113,11 @@ function EditableRecordForm({ record }: { record: WorkflowRecord }) {
 
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-bold text-brand-600">{record.recordNumber}</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
+          <p className="text-sm font-bold text-brand-600 dark:text-brand-400">{record.recordNumber}</p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-app-text sm:text-3xl">
             {record.status === 'TASLAK' ? 'Taslağı Düzenle' : 'Düzeltmeleri Tamamla'}
           </h1>
-          <p className="mt-2 text-sm text-slate-600">Kaydı kaydedebilir veya Başkan Yardımcısı incelemesine gönderebilirsiniz.</p>
+          <p className="mt-2 text-sm text-app-text-muted">Kaydı kaydedebilir veya Başkan Yardımcısı incelemesine gönderebilirsiniz.</p>
         </div>
         <RecordStatusBadge status={record.status} />
       </header>
@@ -127,12 +127,12 @@ function EditableRecordForm({ record }: { record: WorkflowRecord }) {
         noValidate
         onSubmit={handleSubmit(() => setActiveDialog('submit'))}
       >
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <section className="rounded-2xl border border-app-border bg-app-surface p-5 shadow-sm sm:p-6">
           <div className="space-y-5">
             <label className="block" htmlFor="edit-record-title">
-              <span className="mb-1.5 flex items-center justify-between gap-3 text-xs font-bold text-slate-700">
+              <span className="mb-1.5 flex items-center justify-between gap-3 text-xs font-bold text-app-text-secondary">
                 <span>Başlık *</span>
-                <span className="text-[11px] font-semibold text-slate-400">
+                <span className="text-[11px] font-semibold text-app-text-faint">
                   {titleValue.length} / {maxRecordTitleLength}
                 </span>
               </span>
@@ -148,7 +148,7 @@ function EditableRecordForm({ record }: { record: WorkflowRecord }) {
             </label>
 
             <label className="block" htmlFor="edit-record-category">
-              <span className="mb-1.5 block text-xs font-bold text-slate-700">Kategori *</span>
+              <span className="mb-1.5 block text-xs font-bold text-app-text-secondary">Kategori *</span>
               <select
                 id="edit-record-category"
                 {...register('category')}
@@ -162,7 +162,7 @@ function EditableRecordForm({ record }: { record: WorkflowRecord }) {
             </label>
 
             <label className="block" htmlFor="edit-record-description">
-              <span className="mb-1.5 block text-xs font-bold text-slate-700">Kayıt açıklaması *</span>
+              <span className="mb-1.5 block text-xs font-bold text-app-text-secondary">Kayıt açıklaması *</span>
               <textarea
                 id="edit-record-description"
                 {...register('description')}
@@ -177,10 +177,10 @@ function EditableRecordForm({ record }: { record: WorkflowRecord }) {
             <div>
               <div className="mb-2 flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-bold text-slate-700">Ek dosyalar</p>
-                  <p className="mt-0.5 text-xs text-slate-500">PDF, Word, Excel, JPG veya PNG</p>
+                  <p className="text-xs font-bold text-app-text-secondary">Ek dosyalar</p>
+                  <p className="mt-0.5 text-xs text-app-text-subtle">PDF, Word, Excel, JPG veya PNG</p>
                 </div>
-                <label className="flex min-h-10 cursor-pointer items-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-700 transition hover:border-brand-300 hover:text-brand-700 focus-within:outline-2 focus-within:outline-brand-500">
+                <label className="flex min-h-10 cursor-pointer items-center gap-2 rounded-xl border border-app-border px-3 text-xs font-bold text-app-text-secondary transition hover:border-brand-300 dark:hover:border-brand-600 hover:text-brand-700 dark:hover:text-brand-300 focus-within:outline-2 focus-within:outline-brand-500">
                   <Paperclip className="size-4" aria-hidden="true" />
                   Dosya ekle
                   <input
@@ -227,13 +227,13 @@ function EditableRecordForm({ record }: { record: WorkflowRecord }) {
               {attachments.length > 0 ? (
                 <ul className="space-y-2" aria-label="Kayıt ekleri">
                   {attachments.map((attachment) => (
-                    <li key={attachment.id} className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2.5">
-                      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-white text-brand-600 ring-1 ring-slate-200">
+                    <li key={attachment.id} className="flex items-center gap-3 rounded-xl bg-app-surface-muted px-3 py-2.5">
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-app-surface text-brand-600 dark:text-brand-400 ring-1 ring-app-border">
                         <FileText className="size-4" aria-hidden="true" />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-bold text-slate-800">{attachment.name}</p>
-                        <p className="mt-0.5 text-[11px] text-slate-500">{attachment.size}</p>
+                        <p className="truncate text-xs font-bold text-app-text-emphasis">{attachment.name}</p>
+                        <p className="mt-0.5 text-[11px] text-app-text-subtle">{attachment.size}</p>
                       </div>
                       <button
                         type="button"
@@ -241,7 +241,7 @@ function EditableRecordForm({ record }: { record: WorkflowRecord }) {
                           setAttachmentsDirty(true)
                           setAttachments((current) => current.filter((item) => item.id !== attachment.id))
                         }}
-                        className="flex size-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-white hover:text-rose-600 focus-visible:outline-2 focus-visible:outline-brand-500"
+                        className="flex size-9 items-center justify-center rounded-lg text-app-text-faint transition hover:bg-app-surface hover:text-rose-600 dark:hover:text-rose-400 focus-visible:outline-2 focus-visible:outline-brand-500"
                         aria-label={`${attachment.name} dosyasını kaldır`}
                       >
                         <Trash2 className="size-4" aria-hidden="true" />
@@ -250,7 +250,7 @@ function EditableRecordForm({ record }: { record: WorkflowRecord }) {
                   ))}
                 </ul>
               ) : (
-                <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-center text-xs text-slate-500">Henüz dosya eklenmedi.</p>
+                <p className="rounded-xl border border-dashed border-app-border bg-app-surface-muted px-4 py-5 text-center text-xs text-app-text-subtle">Henüz dosya eklenmedi.</p>
               )}
             </div>
           </div>
@@ -258,23 +258,23 @@ function EditableRecordForm({ record }: { record: WorkflowRecord }) {
 
         <aside className="space-y-4 xl:sticky xl:top-6 xl:self-start">
           {record.status === 'DUZENLEME_BEKLIYOR' && latestRevisionNote ? (
-            <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+            <section className="rounded-2xl border border-amber-200 dark:border-amber-800/70 bg-amber-50 dark:bg-amber-950/40 p-5">
               <div className="flex items-start gap-3">
-                <AlertCircle className="mt-0.5 size-5 shrink-0 text-amber-700" aria-hidden="true" />
+                <AlertCircle className="mt-0.5 size-5 shrink-0 text-amber-700 dark:text-amber-300" aria-hidden="true" />
                 <div>
-                  <h2 className="text-sm font-bold text-amber-950">Düzeltme Talebi</h2>
-                  <p className="mt-2 text-sm leading-6 text-amber-900">{latestRevisionNote}</p>
+                  <h2 className="text-sm font-bold text-amber-950 dark:text-amber-100">Düzeltme Talebi</h2>
+                  <p className="mt-2 text-sm leading-6 text-amber-900 dark:text-amber-200">{latestRevisionNote}</p>
                 </div>
               </div>
             </section>
           ) : null}
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="font-bold text-slate-950">Kaydet ve Gönder</h2>
-            <p className="mt-2 text-xs leading-5 text-slate-600">Göndermeden önce değişikliklerinizi taslak olarak kaydedebilirsiniz.</p>
+          <section className="rounded-2xl border border-app-border bg-app-surface p-5 shadow-sm">
+            <h2 className="font-bold text-app-text">Kaydet ve Gönder</h2>
+            <p className="mt-2 text-xs leading-5 text-app-text-muted">Göndermeden önce değişikliklerinizi taslak olarak kaydedebilirsiniz.</p>
 
             {feedback ? (
-              <p className="mt-4 rounded-xl bg-emerald-50 px-3 py-2.5 text-xs font-semibold leading-5 text-emerald-800" role="status">{feedback}</p>
+              <p className="mt-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 px-3 py-2.5 text-xs font-semibold leading-5 text-emerald-800 dark:text-emerald-200" role="status">{feedback}</p>
             ) : null}
 
             <div className="mt-5 grid gap-2">
@@ -282,7 +282,7 @@ function EditableRecordForm({ record }: { record: WorkflowRecord }) {
                 type="button"
                 onClick={saveDraft}
                 disabled={mutationBusy}
-                className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-700 transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-app-border px-4 text-sm font-bold text-app-text-secondary transition hover:border-brand-200 dark:hover:border-brand-700/60 hover:bg-brand-50 dark:hover:bg-brand-900/30 hover:text-brand-700 dark:hover:text-brand-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
               >
                 <Save className="size-4" aria-hidden="true" />
                 Taslağı Kaydet
@@ -290,7 +290,7 @@ function EditableRecordForm({ record }: { record: WorkflowRecord }) {
               <button
                 type="submit"
                 disabled={mutationBusy}
-                className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-700 px-4 text-sm font-bold text-white shadow-lg shadow-brand-200 transition hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-700 px-4 text-sm font-bold text-white shadow-lg shadow-brand-200 dark:shadow-black/20 transition hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
               >
                 <Send className="size-4" aria-hidden="true" />
                 {record.status === 'TASLAK' ? 'İncelemeye Gönder' : 'Yeniden Gönder'}
@@ -299,7 +299,7 @@ function EditableRecordForm({ record }: { record: WorkflowRecord }) {
                 <button
                   type="button"
                   onClick={() => setActiveDialog('delete')}
-                  className="mt-2 flex min-h-11 items-center justify-center gap-2 border-t border-slate-100 pt-3 text-sm font-bold text-rose-600 transition hover:text-rose-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"
+                  className="mt-2 flex min-h-11 items-center justify-center gap-2 border-t border-app-border-subtle pt-3 text-sm font-bold text-rose-600 dark:text-rose-400 transition hover:text-rose-700 dark:hover:text-rose-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"
                 >
                   <Trash2 className="size-4" aria-hidden="true" />
                   Taslağı Sil
@@ -312,17 +312,17 @@ function EditableRecordForm({ record }: { record: WorkflowRecord }) {
 
       {activeDialog ? (
         <div className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-950/35 backdrop-blur-[2px] sm:items-center sm:p-4" role="presentation">
-          <section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="draft-dialog-title" className="w-full rounded-t-3xl bg-white p-5 shadow-2xl sm:max-w-md sm:rounded-2xl sm:p-6">
+          <section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="draft-dialog-title" className="w-full rounded-t-3xl bg-app-surface p-5 shadow-2xl sm:max-w-md sm:rounded-2xl sm:p-6">
             <div className="flex items-start gap-3">
               <div className="min-w-0 flex-1">
-                <h2 id="draft-dialog-title" className="text-lg font-bold text-slate-950">
+                <h2 id="draft-dialog-title" className="text-lg font-bold text-app-text">
                   {activeDialog === 'delete'
                     ? 'Taslağı silmek istediğinize emin misiniz?'
                     : activeDialog === 'discard'
                       ? 'Kaydedilmemiş değişikliklerden vazgeçilsin mi?'
                       : 'Başkan Yardımcısına gönder'}
                 </h2>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
+                <p className="mt-2 text-sm leading-6 text-app-text-muted">
                   {activeDialog === 'delete'
                     ? 'Bu işlem geri alınamaz. Taslak ve taslağa eklediğiniz dosyalar kalıcı olarak silinecek.'
                     : activeDialog === 'discard'
@@ -334,14 +334,14 @@ function EditableRecordForm({ record }: { record: WorkflowRecord }) {
                 ref={dialogCloseButtonRef}
                 type="button"
                 onClick={() => setActiveDialog(null)}
-                className="flex size-10 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-brand-500"
+                className="flex size-10 shrink-0 items-center justify-center rounded-xl text-app-text-subtle transition hover:bg-app-surface-strong hover:text-app-text-strong focus-visible:outline-2 focus-visible:outline-brand-500"
                 aria-label={activeDialog === 'delete' ? 'Silme penceresini kapat' : activeDialog === 'discard' ? 'Vazgeçme penceresini kapat' : 'Gönderme penceresini kapat'}
               >
                 <X className="size-5" aria-hidden="true" />
               </button>
             </div>
             <div className="mt-6 grid grid-cols-2 gap-3">
-              <button type="button" onClick={() => setActiveDialog(null)} className="min-h-11 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50">İptal</button>
+              <button type="button" onClick={() => setActiveDialog(null)} className="min-h-11 rounded-xl border border-app-border px-4 text-sm font-bold text-app-text-secondary transition hover:bg-app-surface-muted">İptal</button>
               <button
                 type="button"
                 disabled={mutationBusy}
@@ -377,7 +377,7 @@ function EditableRecordForm({ record }: { record: WorkflowRecord }) {
 
 function FieldError({ id, message }: { id: string; message?: string }) {
   return (
-    <span id={id} className="mt-1.5 block text-xs font-semibold text-rose-700" role="alert">
+    <span id={id} className="mt-1.5 block text-xs font-semibold text-rose-700 dark:text-rose-300" role="alert">
       {message}
     </span>
   )

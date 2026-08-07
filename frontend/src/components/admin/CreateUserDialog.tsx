@@ -57,10 +57,10 @@ export function CreateUserDialog({ open, onClose }: { open: boolean; onClose: ()
     >
       {temporaryPassword ? (
         <div className="mt-6">
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-            <p className="text-sm font-bold text-emerald-900">Geçici parola</p>
+          <div className="rounded-2xl border border-emerald-200 dark:border-emerald-800/70 bg-emerald-50 dark:bg-emerald-950/40 p-4">
+            <p className="text-sm font-bold text-emerald-900 dark:text-emerald-200">Geçici parola</p>
             <div className="mt-2 flex items-center gap-2">
-              <code className="min-w-0 flex-1 rounded-xl bg-white px-3 py-2.5 text-sm font-bold text-slate-950 ring-1 ring-emerald-200">
+              <code className="min-w-0 flex-1 rounded-xl bg-app-surface px-3 py-2.5 text-sm font-bold text-app-text ring-1 ring-emerald-200 dark:ring-emerald-800/70">
                 {temporaryPassword}
               </code>
               <button
@@ -75,7 +75,7 @@ export function CreateUserDialog({ open, onClose }: { open: boolean; onClose: ()
                 {copied ? <Check className="size-5" aria-hidden="true" /> : <Copy className="size-5" aria-hidden="true" />}
               </button>
             </div>
-            <p className="mt-3 text-xs leading-5 text-emerald-800">Kullanıcı ilk girişinde bu parolayı değiştirmek zorunda olacaktır.</p>
+            <p className="mt-3 text-xs leading-5 text-emerald-800 dark:text-emerald-200">Kullanıcı ilk girişinde bu parolayı değiştirmek zorunda olacaktır.</p>
           </div>
           <button
             type="button"
@@ -98,12 +98,12 @@ export function CreateUserDialog({ open, onClose }: { open: boolean; onClose: ()
           <FormField label="Kurumsal e-posta" error={errors.email?.message}>
             <input {...register('email')} type="email" autoComplete="off" placeholder="ad.soyad@kurum.gov.tr" className={inputClass} />
           </FormField>
-          <p className="rounded-xl bg-slate-50 px-3 py-2.5 text-xs leading-5 text-slate-600">
+          <p className="rounded-xl bg-app-surface-muted px-3 py-2.5 text-xs leading-5 text-app-text-muted">
             Yeni hesap Çalışan rolüyle açılır. Gerekirse hesap oluşturulduktan sonra rolü ayrıca değiştirilebilir.
           </p>
-          {errors.root ? <p className="text-sm font-semibold text-rose-700" role="alert">{errors.root.message}</p> : null}
+          {errors.root ? <p className="text-sm font-semibold text-rose-700 dark:text-rose-300" role="alert">{errors.root.message}</p> : null}
           <div className="grid grid-cols-2 gap-3 pt-2">
-            <button type="button" onClick={closeDialog} className="min-h-11 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-700 hover:bg-slate-50">Vazgeç</button>
+            <button type="button" onClick={closeDialog} className="min-h-11 rounded-xl border border-app-border px-4 text-sm font-bold text-app-text-secondary hover:bg-app-surface-muted">Vazgeç</button>
             <button type="submit" disabled={isSubmitting || mutationBusy} className="min-h-11 rounded-xl bg-brand-700 px-4 text-sm font-bold text-white hover:bg-brand-800 disabled:opacity-60">Hesap Aç</button>
           </div>
         </form>
@@ -112,14 +112,14 @@ export function CreateUserDialog({ open, onClose }: { open: boolean; onClose: ()
   )
 }
 
-const inputClass = 'min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100'
+const inputClass = 'min-h-11 w-full rounded-xl border border-app-border bg-app-surface px-3 text-sm text-app-text outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100 dark:focus:ring-brand-800/60'
 
 function FormField({ label, error, children }: { label: string; error?: string; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-sm font-bold text-slate-800">{label}</span>
+      <span className="mb-1.5 block text-sm font-bold text-app-text-emphasis">{label}</span>
       {children}
-      {error ? <span className="mt-1 block text-xs font-semibold text-rose-700" role="alert">{error}</span> : null}
+      {error ? <span className="mt-1 block text-xs font-semibold text-rose-700 dark:text-rose-300" role="alert">{error}</span> : null}
     </label>
   )
 }

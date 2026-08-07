@@ -9,6 +9,22 @@
       content="EBYS İş Akışı ve Onay Yönetim Sistemi"
     />
     <title>EBYS | İş Akışı ve Onay Yönetim Sistemi</title>
+    <script>
+      (() => {
+        try {
+          const storedTheme = window.localStorage.getItem('ebys:theme:v1')
+          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+          const hasStoredTheme = storedTheme === 'light' || storedTheme === 'dark'
+          const isDark = storedTheme === 'dark' || (!hasStoredTheme && prefersDark)
+          document.documentElement.classList.toggle('dark', isDark)
+          document.documentElement.style.colorScheme = isDark ? 'dark' : 'light'
+        } catch {
+          const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+          document.documentElement.classList.toggle('dark', isDark)
+          document.documentElement.style.colorScheme = isDark ? 'dark' : 'light'
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

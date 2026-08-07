@@ -19,6 +19,7 @@ import {
 } from '../../config/navigation'
 import { roleLabels, type AuthUser } from '../../types/auth'
 import { Brand } from './Brand'
+import { ThemeToggle } from './ThemeToggle'
 
 type SidebarContentProps = {
   user: AuthUser
@@ -62,7 +63,7 @@ function SidebarContent({
   }
 
   return (
-    <div className="flex h-full flex-col bg-white">
+    <div className="flex h-full flex-col bg-app-surface">
       <div className="flex items-center justify-between px-5 pb-5 pt-6">
         <Brand />
         {showCloseButton ? (
@@ -70,7 +71,7 @@ function SidebarContent({
             ref={closeButtonRef}
             type="button"
             onClick={onClose}
-            className="flex size-10 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+            className="flex size-10 items-center justify-center rounded-xl text-app-text-subtle transition-colors hover:bg-app-surface-strong hover:text-app-text-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
             aria-label="Menüyü kapat"
           >
             <X className="size-5" aria-hidden="true" />
@@ -86,7 +87,7 @@ function SidebarContent({
               onNavigate?.()
               onNewRecord?.()
             }}
-            className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand-700 px-4 text-sm font-bold text-white shadow-lg shadow-brand-200 transition hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+            className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand-700 px-4 text-sm font-bold text-white shadow-lg shadow-brand-200 dark:shadow-black/20 transition hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
           >
             <Plus className="size-5" aria-hidden="true" />
             Yeni Kayıt
@@ -95,7 +96,7 @@ function SidebarContent({
       ) : null}
 
       <nav className="mt-5 flex-1 overflow-y-auto px-4 pb-5" aria-label="Ana menü">
-        <p className="mb-2 px-3 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-600">
+        <p className="mb-2 px-3 text-[11px] font-bold uppercase tracking-[0.16em] text-app-text-muted">
           Menü
         </p>
 
@@ -111,8 +112,8 @@ function SidebarContent({
                 className={({ isActive }) =>
                   `${baseNavigationClass} ${
                     isActive
-                      ? 'bg-brand-50 text-brand-700'
-                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      ? 'bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300'
+                      : 'text-app-text-muted hover:bg-app-surface-muted hover:text-app-text-strong'
                   }`
                 }
               >
@@ -129,8 +130,8 @@ function SidebarContent({
                 onClick={onNavigate}
                 className={`${baseNavigationClass} min-w-0 flex-1 ${
                   location.pathname.startsWith('/kayitlar')
-                    ? 'bg-brand-50 text-brand-700'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    ? 'bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300'
+                    : 'text-app-text-muted hover:bg-app-surface-muted hover:text-app-text-strong'
                 }`}
               >
                 <RecordsIcon className="size-[19px]" aria-hidden="true" />
@@ -139,7 +140,7 @@ function SidebarContent({
               <button
                 type="button"
                 onClick={() => setRecordsExpanded((expanded) => !expanded)}
-                className="flex size-11 shrink-0 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                className="flex size-11 shrink-0 items-center justify-center rounded-xl text-app-text-subtle transition-colors hover:bg-app-surface-muted hover:text-app-text-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
                 aria-label={recordsExpanded ? 'Kayıt menüsünü daralt' : 'Kayıt menüsünü genişlet'}
                 aria-expanded={recordsExpanded}
               >
@@ -151,7 +152,7 @@ function SidebarContent({
             </div>
 
             {recordsExpanded ? (
-              <div className="ml-[21px] mt-1 space-y-0.5 border-l border-slate-200 pl-4">
+              <div className="ml-[21px] mt-1 space-y-0.5 border-l border-app-border pl-4">
                 {recordItems.map((item) => {
                   const isActive = isRecordViewActive(item.view)
                   return (
@@ -162,12 +163,12 @@ function SidebarContent({
                       aria-current={isActive ? 'page' : undefined}
                       className={`group flex min-h-9 items-center gap-2 rounded-lg px-2 text-[13px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ${
                         isActive
-                          ? 'text-brand-700'
-                          : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                          ? 'text-brand-700 dark:text-brand-300'
+                          : 'text-app-text-subtle hover:bg-app-surface-muted hover:text-app-text-strong'
                       }`}
                     >
                       <ChevronRight
-                        className={`size-3.5 ${isActive ? 'text-brand-500' : 'text-slate-300 group-hover:text-slate-500'}`}
+                        className={`size-3.5 ${isActive ? 'text-brand-500' : 'text-app-text-disabled group-hover:text-app-text-subtle'}`}
                         aria-hidden="true"
                       />
                       <span>{item.label}</span>
@@ -184,15 +185,15 @@ function SidebarContent({
             className={({ isActive }) =>
               `${baseNavigationClass} ${
                 isActive
-                  ? 'bg-brand-50 text-brand-700'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  ? 'bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300'
+                  : 'text-app-text-muted hover:bg-app-surface-muted hover:text-app-text-strong'
               }`
             }
           >
             <Bell className="size-[19px]" aria-hidden="true" />
             <span className="flex-1">{notificationNavigation.label}</span>
             {unreadNotificationCount > 0 ? (
-              <span className="flex min-w-6 items-center justify-center rounded-full bg-brand-100 px-1.5 py-0.5 text-[11px] font-bold text-brand-700">
+              <span className="flex min-w-6 items-center justify-center rounded-full bg-brand-100 dark:bg-brand-900/45 px-1.5 py-0.5 text-[11px] font-bold text-brand-700 dark:text-brand-300">
                 {unreadNotificationCount}
               </span>
             ) : null}
@@ -200,23 +201,24 @@ function SidebarContent({
         </div>
       </nav>
 
-      <div className="border-t border-slate-100 p-4">
-        <div className="rounded-2xl bg-slate-50 p-3">
+      <div className="border-t border-app-border-subtle p-4">
+        <ThemeToggle />
+        <div className="mt-3 rounded-2xl bg-app-surface-muted p-3">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-100 dark:bg-brand-900/45 text-xs font-bold text-brand-700 dark:text-brand-300">
               {`${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toLocaleUpperCase('tr-TR')}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-bold text-slate-900">{user.firstName} {user.lastName}</p>
-              <p className="truncate text-xs text-slate-500">{roleLabels[role]}</p>
+              <p className="truncate text-sm font-bold text-app-text-strong">{user.firstName} {user.lastName}</p>
+              <p className="truncate text-xs text-app-text-subtle">{roleLabels[role]}</p>
             </div>
           </div>
-          <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-200 pt-3">
+          <div className="mt-3 grid grid-cols-2 gap-2 border-t border-app-border pt-3">
             <NavLink
               to="/profil"
               onClick={onNavigate}
               className={({ isActive }) => `flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ${
-                isActive ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-600 hover:bg-white hover:text-slate-900'
+                isActive ? 'bg-app-surface text-brand-700 dark:text-brand-300 shadow-sm' : 'text-app-text-muted hover:bg-app-surface hover:text-app-text-strong'
               }`}
             >
               <UserRound className="size-4" aria-hidden="true" />
@@ -225,7 +227,7 @@ function SidebarContent({
             <button
               type="button"
               onClick={onLogout}
-              className="flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-semibold text-slate-600 transition hover:bg-white hover:text-rose-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+              className="flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-semibold text-app-text-muted transition hover:bg-app-surface hover:text-rose-600 dark:hover:text-rose-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
             >
               <LogOut className="size-4" aria-hidden="true" />
               Çıkış
@@ -262,7 +264,7 @@ export function Sidebar({
 
   return (
     <>
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 border-r border-slate-200 lg:block">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 border-r border-app-border lg:block">
         <SidebarContent
           user={user}
           unreadNotificationCount={unreadNotificationCount}
@@ -286,7 +288,7 @@ export function Sidebar({
           }`}
         />
         <aside
-          className={`absolute inset-y-0 left-0 w-[min(88vw,20rem)] border-r border-slate-200 bg-white shadow-2xl transition-transform duration-300 ease-out ${
+          className={`absolute inset-y-0 left-0 w-[min(88vw,20rem)] border-r border-app-border bg-app-surface shadow-2xl transition-transform duration-300 ease-out ${
             mobileOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
           role="dialog"
