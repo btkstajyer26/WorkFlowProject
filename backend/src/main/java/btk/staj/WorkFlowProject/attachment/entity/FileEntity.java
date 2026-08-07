@@ -1,11 +1,18 @@
 package btk.staj.WorkFlowProject.attachment.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
 @Table(name = "files")
+@Getter
+@Setter
+@NoArgsConstructor
 public class FileEntity {
 
     @Id
@@ -32,68 +39,4 @@ public class FileEntity {
 
     @Column(name = "uploaded_at", nullable = false)
     private LocalDateTime uploadedAt;
-
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public UUID getRecordId() {
-        return recordId;
-    }
-
-    public void setRecordId(UUID recordId) {
-        this.recordId = recordId;
-    }
-
-    public String getOriginalName() {
-        return originalName;
-    }
-
-    public void setOriginalName(String originalName) {
-        this.originalName = originalName;
-    }
-
-    public String getStoredName() {
-        return storedName;
-    }
-
-    public void setStoredName(String storedName) {
-        this.storedName = storedName;
-    }
-
-    public String getMimeType() {
-        return mimeType;
-    }
-
-    public void setMimeType(String mimeType) {
-        this.mimeType = mimeType;
-    }
-
-    public int getFileSize() {
-        return fileSize;
-    }
-
-    public void setFileSize(int fileSize) {
-        this.fileSize = fileSize;
-    }
-
-    public UUID getUploadedBy() {
-        return uploadedBy;
-    }
-
-    public void setUploadedBy(UUID uploadedBy) {
-        this.uploadedBy = uploadedBy;
-    }
-
-    public LocalDateTime getUploadedAt() {
-        return uploadedAt;
-    }
-
-    public void setUploadedAt(LocalDateTime uploadedAt) {
-        this.uploadedAt = uploadedAt;
-    }
 }

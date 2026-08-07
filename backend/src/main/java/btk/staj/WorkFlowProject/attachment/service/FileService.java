@@ -3,7 +3,7 @@ package btk.staj.WorkFlowProject.attachment.service;
 import btk.staj.WorkFlowProject.attachment.entity.FileEntity;
 import btk.staj.WorkFlowProject.attachment.repository.FileRepository;
 import btk.staj.WorkFlowProject.attachment.storage.FileStorageService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -11,17 +11,16 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class FileService {
 
-    @Autowired
-    private FileRepository fileRepository;
-
-    @Autowired
-    private FileStorageService fileStorageService;
+    private final FileRepository fileRepository;
+    private final FileStorageService fileStorageService;
 
     private static final List<String> ALLOWED_TYPES = List.of(
             "application/pdf",
@@ -52,7 +51,7 @@ public class FileService {
         entity.setMimeType(contentType);
         entity.setFileSize((int) file.getSize());
         entity.setUploadedBy(uploadedBy);
-        entity.setUploadedAt(java.time.LocalDateTime.now());
+        entity.setUploadedAt(LocalDateTime.now());
 
         return fileRepository.save(entity);
     }
