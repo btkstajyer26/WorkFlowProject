@@ -123,7 +123,7 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
     setDraftId(null)
     setAttentionTarget(null)
     setDiscardDialogOpen(false)
-    reset()
+    reset(emptyRecordFormValues)
   }, [open, reset])
 
   useEffect(() => {

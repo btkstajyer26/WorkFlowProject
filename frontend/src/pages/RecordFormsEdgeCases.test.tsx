@@ -49,6 +49,11 @@ describe('Kayıt formu edge-case davranışları', () => {
 
     expect(await screen.findByRole('heading', { name: 'Doğrudan gönderilecek taslak' })).toBeInTheDocument()
     expect(screen.getByText('Bşk. Yrd. İncelemesinde')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Yeni Kayıt' }))
+    expect(screen.getByLabelText(/Başlık/)).toHaveValue('')
+    expect(screen.getByLabelText(/Kategori/)).toHaveValue('')
+    expect(screen.getByLabelText(/Açıklama/)).toHaveValue('')
   })
 
   it('kaydedilmemiş yeni kayıt formu kapatılırken onay ister ve odağı dialog içinde tutar', async () => {
