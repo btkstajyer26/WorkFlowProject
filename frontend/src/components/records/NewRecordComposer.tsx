@@ -463,8 +463,8 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
             </p>
           ) : null}
           {draftSaved ? (
-            <div role="status">
-              <div className="mb-3 flex items-center gap-2 text-xs font-bold text-emerald-700 dark:text-emerald-300">
+            <div>
+              <div className="mb-3 flex items-center gap-2 text-xs font-bold text-emerald-700 dark:text-emerald-300" role="status">
                 <CircleCheck className="size-4" aria-hidden="true" />
                 Taslaklarım'a kaydedildi.
               </div>
@@ -487,6 +487,14 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
                 >
                   <FilePlus2 className="size-4" aria-hidden="true" />
                   Yeni Kayıt Oluştur
+                </button>
+                <button
+                  type="submit"
+                  disabled={mutationBusy}
+                  className="col-span-2 flex min-h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand-600 to-brand-500 px-4 text-xs font-bold text-white shadow-lg shadow-brand-200 dark:shadow-black/20 transition hover:from-brand-700 hover:to-brand-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-60 sm:px-5 sm:text-sm"
+                >
+                  İncelemeye Gönder
+                  <Send className="size-4" aria-hidden="true" />
                 </button>
               </div>
             </div>

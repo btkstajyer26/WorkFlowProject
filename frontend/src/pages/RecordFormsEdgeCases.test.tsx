@@ -34,6 +34,23 @@ describe('Kayıt formu edge-case davranışları', () => {
     expect(screen.getByRole('button', { name: 'Taslak Kaydet' })).toBeInTheDocument()
   })
 
+  it('kaydedilen taslağı doğrudan incelemeye gönderir', async () => {
+    const user = userEvent.setup()
+    renderEmployeeApp('/dashboard')
+
+    await user.click(await screen.findByRole('button', { name: 'Yeni Kayıt' }))
+    await user.type(screen.getByLabelText(/Başlık/), 'Doğrudan gönderilecek taslak')
+    await user.selectOptions(screen.getByLabelText(/Kategori/), 'Bilgi İşlem')
+    await user.type(screen.getByLabelText(/Açıklama/), 'Taslak kaydedildikten sonra incelemeye gönderilecek.')
+    await user.click(screen.getByRole('button', { name: 'Taslak Kaydet' }))
+    const submitButton = await screen.findByRole('button', { name: 'İncelemeye Gönder' })
+    await waitFor(() => expect(submitButton).toBeEnabled())
+    await user.click(submitButton)
+
+    expect(await screen.findByRole('heading', { name: 'Doğrudan gönderilecek taslak' })).toBeInTheDocument()
+    expect(screen.getByText('Bşk. Yrd. İncelemesinde')).toBeInTheDocument()
+  })
+
   it('kaydedilmemiş yeni kayıt formu kapatılırken onay ister ve odağı dialog içinde tutar', async () => {
     const user = userEvent.setup()
     renderEmployeeApp('/dashboard')
