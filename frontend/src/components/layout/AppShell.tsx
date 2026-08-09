@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { LogOut, X } from 'lucide-react'
-import { useLocation, useNavigate } from 'react-router'
 import { NewRecordComposer } from '../records/NewRecordComposer'
 import type { AuthUser, UserRole } from '../../types/auth'
 import { MobileHeader } from './MobileHeader'
@@ -29,8 +28,6 @@ export function AppShell({
   onRoleChange,
   onLogout,
 }: AppShellProps) {
-  const location = useLocation()
-  const navigate = useNavigate()
   const role = user.role
   const [mobileOpen, setMobileOpen] = useState(false)
   const [composerOpen, setComposerOpen] = useState(false)
@@ -48,10 +45,6 @@ export function AppShell({
   useEffect(() => {
     if (role !== 'CALISAN') setComposerOpen(false)
   }, [role])
-
-  useEffect(() => {
-    if (role === 'CALISAN' && location.pathname === '/kayitlar/yeni') setComposerOpen(true)
-  }, [location.pathname, role])
 
   useEffect(() => {
     const desktopQuery = window.matchMedia('(min-width: 1024px)')
@@ -93,7 +86,6 @@ export function AppShell({
             setMobileOpen(false)
             setComposerOpen(true)
             setNewRecordRequestId((current) => current + 1)
-            navigate('/kayitlar/yeni')
           }}
           onLogout={() => {
             setMobileOpen(false)
@@ -117,10 +109,7 @@ export function AppShell({
         {role === 'CALISAN' ? <NewRecordComposer
           open={composerOpen}
           requestId={newRecordRequestId}
-          onClose={() => {
-            setComposerOpen(false)
-            if (location.pathname === '/kayitlar/yeni') navigate('/kayitlar')
-          }}
+          onClose={() => setComposerOpen(false)}
         /> : null}
       </div>
       {logoutOpen ? (

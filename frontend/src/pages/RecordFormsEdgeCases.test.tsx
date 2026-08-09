@@ -19,7 +19,10 @@ function renderEmployeeApp(path: string) {
 describe('Kayıt formu edge-case davranışları', () => {
   it('kaydedilmemiş yeni kayıt formu kapatılırken onay ister ve odağı dialog içinde tutar', async () => {
     const user = userEvent.setup()
-    renderEmployeeApp('/kayitlar/yeni')
+    renderEmployeeApp('/dashboard')
+
+    await user.click(await screen.findByRole('button', { name: 'Yeni Kayıt' }))
+    expect(screen.getByRole('heading', { name: /Hoş geldiniz/ })).toBeInTheDocument()
 
     await user.type(await screen.findByLabelText(/Başlık/), 'Yeni talep')
     await user.click(screen.getByRole('button', { name: 'Yeni kayıt formunu kapat' }))

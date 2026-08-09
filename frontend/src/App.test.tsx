@@ -21,10 +21,11 @@ describe('App authorization boundaries', () => {
     expect(screen.queryByRole('heading', { name: 'Demo hesapları' })).not.toBeInTheDocument()
   })
 
-  it('Başkan Yardımcısının yeni kayıt sayfasını açmasını engeller', async () => {
+  it('Başkan Yardımcısına yeni kayıt oluşturma kontrolünü göstermez', async () => {
     window.sessionStorage.setItem(mockSessionKey, JSON.stringify(getDemoUserByRole('BASKAN_YARDIMCISI')))
-    renderApp('/kayitlar/yeni')
-    expect(await screen.findByRole('heading', { name: 'Bu sayfayı görüntüleme yetkiniz yok' })).toBeInTheDocument()
+    renderApp('/dashboard')
+    expect(await screen.findByRole('heading', { name: /Hoş geldiniz/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Yeni Kayıt' })).not.toBeInTheDocument()
   })
 
   it('Başkanın kendi kapsamı dışındaki kaydını 403 ile sınırlar', async () => {

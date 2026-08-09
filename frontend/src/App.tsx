@@ -10,7 +10,6 @@ import { getDemoUserByRole } from './mocks/users'
 import { DashboardPage } from './pages/DashboardPage'
 import { ErrorStatePage } from './pages/ErrorStatePage'
 import { LoginPage } from './pages/LoginPage'
-import { NewRecordPage } from './pages/NewRecordPage'
 import { NotificationsPage } from './pages/NotificationsPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { RecordDetailPage } from './pages/RecordDetailPage'
@@ -157,10 +156,6 @@ function WorkflowApplication({
         <Route path="/kayitlar" element={<RecordsPage role={user.role} />} />
         <Route path="/kayitlar/:recordId/duzenle" element={<RecordEditPage role={user.role} />} />
         <Route path="/kayitlar/:recordId" element={<RecordDetailPage role={user.role} />} />
-        <Route
-          path="/kayitlar/yeni"
-          element={user.role === 'CALISAN' ? <NewRecordPage /> : <Navigate to="/403" replace />}
-        />
         <Route
           path="/bildirimler"
           element={
