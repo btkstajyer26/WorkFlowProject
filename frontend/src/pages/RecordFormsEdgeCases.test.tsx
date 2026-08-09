@@ -17,6 +17,23 @@ function renderEmployeeApp(path: string) {
 }
 
 describe('Kayıt formu edge-case davranışları', () => {
+  it('kaydedilen taslaktan sonra yeni kayıt formunu boş açar', async () => {
+    const user = userEvent.setup()
+    renderEmployeeApp('/dashboard')
+
+    await user.click(await screen.findByRole('button', { name: 'Yeni Kayıt' }))
+    await user.type(screen.getByLabelText(/Başlık/), 'Yeni talep')
+    await user.selectOptions(screen.getByLabelText(/Kategori/), 'Bilgi İşlem')
+    await user.type(screen.getByLabelText(/Açıklama/), 'Yeni kayıt açıklaması')
+    await user.click(screen.getByRole('button', { name: 'Taslak Kaydet' }))
+    await user.click(await screen.findByRole('button', { name: 'Yeni Kayıt Oluştur' }))
+
+    expect(screen.getByLabelText(/Başlık/)).toHaveValue('')
+    expect(screen.getByLabelText(/Kategori/)).toHaveValue('')
+    expect(screen.getByLabelText(/Açıklama/)).toHaveValue('')
+    expect(screen.getByRole('button', { name: 'Taslak Kaydet' })).toBeInTheDocument()
+  })
+
   it('kaydedilmemiş yeni kayıt formu kapatılırken onay ister ve odağı dialog içinde tutar', async () => {
     const user = userEvent.setup()
     renderEmployeeApp('/dashboard')

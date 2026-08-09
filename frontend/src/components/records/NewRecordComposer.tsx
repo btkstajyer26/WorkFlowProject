@@ -35,6 +35,12 @@ type NewRecordComposerProps = {
 const fieldClass =
   'w-full rounded-xl border border-app-border bg-app-surface px-3.5 py-3 text-sm text-app-text-strong outline-none transition placeholder:text-app-text-faint focus:border-brand-400 focus:ring-4 focus:ring-brand-100 dark:focus:ring-brand-800/60'
 
+const emptyRecordFormValues: RecordFormValues = {
+  title: '',
+  category: '',
+  description: '',
+}
+
 export function NewRecordComposer({ open, requestId, onClose }: NewRecordComposerProps) {
   const navigate = useNavigate()
   const { createDraft, createAndSubmit, updateEditableRecord, updateAndSubmit } = useWorkflow()
@@ -67,7 +73,7 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
     formState: { errors, isDirty },
   } = useForm<RecordFormValues>({
     resolver: zodResolver(recordFormSchema),
-    defaultValues: { title: '', category: '', description: '' },
+    defaultValues: emptyRecordFormValues,
   })
   const titleValue = watch('title')
   const { busy: mutationBusy, run: runMutation } = useSingleFlight()
@@ -166,7 +172,7 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
   )
 
   const startNewRecord = () => {
-    reset()
+    reset(emptyRecordFormValues)
     setAttachments([])
     setAttachmentsDirty(false)
     setAttachmentError(null)
