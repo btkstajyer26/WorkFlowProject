@@ -17,6 +17,7 @@ import {
   recordSection,
   type RecordView,
 } from '../../config/navigation'
+import { UserAvatar } from '../users/UserAvatar'
 import { roleLabels, type AuthUser } from '../../types/auth'
 import { Brand } from './Brand'
 import { ThemeToggle } from './ThemeToggle'
@@ -205,9 +206,7 @@ function SidebarContent({
         <ThemeToggle />
         <div className="mt-3 rounded-2xl bg-app-surface-muted p-3">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-100 dark:bg-brand-900/45 text-xs font-bold text-brand-700 dark:text-brand-300">
-              {`${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toLocaleUpperCase('tr-TR')}
-            </div>
+            <UserAvatar user={user} className="size-10 rounded-full text-xs" />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-bold text-app-text-strong">{user.firstName} {user.lastName}</p>
               <p className="truncate text-xs text-app-text-subtle">{roleLabels[role]}</p>

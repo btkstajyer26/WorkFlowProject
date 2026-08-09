@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router'
 import { AccountStatusDialog } from '../../components/admin/AccountStatusDialog'
 import { ChangeRoleDialog } from '../../components/admin/ChangeRoleDialog'
 import { CreateUserDialog } from '../../components/admin/CreateUserDialog'
+import { UserAvatar } from '../../components/users/UserAvatar'
 import { useAdmin } from '../../context/adminState'
 import { useDebouncedSearchParam } from '../../hooks/useDebouncedSearchParam'
 import { roleLabels, type UserRole } from '../../types/auth'
@@ -162,7 +163,7 @@ type UserActionsProps = { user: ManagedUser; onRole: () => void; onStatus: () =>
 function UserIdentity({ user }: { user: ManagedUser }) {
   return (
     <div className="flex min-w-0 items-center gap-3">
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-100 dark:bg-brand-900/45 text-xs font-bold text-brand-700 dark:text-brand-300">{`${user.firstName[0]}${user.lastName[0]}`.toLocaleUpperCase('tr-TR')}</span>
+      <UserAvatar user={user} className="size-10 rounded-full text-xs" />
       <div className="min-w-0"><p className="truncate font-bold text-app-text">{user.firstName} {user.lastName}</p><p className="truncate text-xs text-app-text-subtle">{user.email}</p></div>
     </div>
   )
