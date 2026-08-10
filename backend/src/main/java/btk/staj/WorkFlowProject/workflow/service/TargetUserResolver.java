@@ -35,7 +35,7 @@ public final class TargetUserResolver {
 
         return switch (action) {
             case GONDER, TEKRAR_GONDER -> resolveRequestedTarget(requestedTargetUserId);
-            case BASKANA_ILET -> resolveSingleActivePresident();
+            case BASKANA_ILET -> resolveSingleActiveRole(RoleName.BASKAN);
             case CALISANA_GERI_GONDER -> resolveCreatedBy(record.createdBy());
             case BASKAN_YARDIMCISINA_GERI_GONDER -> resolveLastDeputy(record.lastDeputyId());
             case ONAYLA, REDDET -> new TargetResolution.NotProvided();
@@ -54,15 +54,15 @@ public final class TargetUserResolver {
         return new TargetResolution.Resolved(user.get());
     }
 
-    private TargetResolution resolveSingleActivePresident() {
-        List<WorkflowUserSnapshot> activePresidents = Objects.requireNonNull(
-                userPort.findActiveByRole(RoleName.BASKAN),
+    private TargetResolution resolveSingleActiveRole(RoleName role) {
+        List<WorkflowUserSnapshot> activeUsers = Objects.requireNonNull(
+                userPort.findActiveByRole(role),
                 "userPort.findActiveByRole(role)");
 
-        if (activePresidents.size() != 1) {
-            return new TargetResolution.RoleNotConfigured(RoleName.BASKAN, activePresidents.size());
+        if (activeUsers.size() != 1) {
+            return new TargetResolution.RoleNotConfigured(role, activeUsers.size());
         }
-        return new TargetResolution.Resolved(activePresidents.getFirst());
+        return new TargetResolution.Resolved(activeUsers.getFirst());
     }
 
     private TargetResolution resolveCreatedBy(UUID createdBy) {
