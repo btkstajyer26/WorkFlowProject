@@ -1,0 +1,175 @@
+package btk.staj.WorkFlowProject.common.exception;
+
+import btk.staj.WorkFlowProject.workflow.exception.WorkflowApplicationException;
+import btk.staj.WorkFlowProject.workflow.exception.WorkflowRecordNotFoundException;
+import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowErrorCode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    // ---------- Uygulama hatalari ----------
+
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<ApiError> handleForbidden(ForbiddenException ex) {
+        return build("FORBIDDEN", ex.getMessage(), HttpStatus.FORBIDDEN);
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ApiError> handleNotFound(ResourceNotFoundException ex) {
+        return build("RESOURCE_NOT_FOUND", ex.getMessage(), HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(BusinessRuleException.class)
+    public ResponseEntity<ApiError> handleBusinessRule(BusinessRuleException ex) {
+        return build("BUSINESS_RULE_VIOLATION", ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
+    // ---------- Guvenlik ----------
+
+    /**
+     * {@code @PreAuthorize} reddettiginde firlatilir. Bu handler olmasaydi genel
+     * Exception handler'ina duser ve yetki hatasi 500 olarak donerdi.
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiError> handleAccessDenied(AccessDeniedException ex) {
+        return build("FORBIDDEN", "Bu işlem için yetkiniz yok", HttpStatus.FORBIDDEN);
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ApiError> handleAuthentication(AuthenticationException ex) {
+        return build("UNAUTHORIZED", "Kimlik doğrulaması gerekli", HttpStatus.UNAUTHORIZED);
+    }
+
+    // ---------- Is akisi ----------
+
+    @ExceptionHandler(WorkflowRecordNotFoundException.class)
+    public ResponseEntity<ApiError> handleWorkflowRecordNotFound(WorkflowRecordNotFoundException ex) {
+        return build("RESOURCE_NOT_FOUND", "Kayıt bulunamadı: " + ex.recordId(), HttpStatus.NOT_FOUND);
+    }
+
+    /** Durum makinesi hata kodlarini anlamli HTTP durumlarina esler. */
+    @ExceptionHandler(WorkflowApplicationException.class)
+    public ResponseEntity<ApiError> handleWorkflow(WorkflowApplicationException ex) {
+        WorkflowErrorCode code = ex.errorCode();
+        HttpStatus status = switch (code) {
+            case WORKFLOW_FORBIDDEN, WORKFLOW_ROLE_NOT_ALLOWED -> HttpStatus.FORBIDDEN;
+            case WORKFLOW_RECORD_LOCKED -> HttpStatus.CONFLICT;
+            case WORKFLOW_STATUS_NOT_CONFIGURED, WORKFLOW_ROLE_NOT_CONFIGURED ->
+                    HttpStatus.INTERNAL_SERVER_ERROR;
+            default -> HttpStatus.BAD_REQUEST;
+        };
+
+        if (status.is5xxServerError()) {
+            log.error("İş akışı yapılandırma hatası: {}", code, ex);
+        }
+
+        return build(code.name(), workflowMessage(code), status);
+    }
+
+    private String workflowMessage(WorkflowErrorCode code) {
+        return switch (code) {
+            case WORKFLOW_INVALID_TRANSITION -> "Bu durumda bu işlem yapılamaz";
+            case WORKFLOW_FORBIDDEN -> "Bu kayıt üzerinde işlem yapma yetkiniz yok";
+            case WORKFLOW_RECORD_LOCKED -> "Kayıt kilitli, üzerinde işlem yapılamaz";
+            case WORKFLOW_COMMENT_REQUIRED -> "Bu işlem için açıklama zorunludur";
+            case WORKFLOW_TARGET_REQUIRED -> "Hedef kullanıcı seçilmelidir";
+            case WORKFLOW_TARGET_NOT_ALLOWED -> "Seçilen hedef kullanıcı bu işlem için uygun değil";
+            case WORKFLOW_TARGET_ROLE_INVALID -> "Seçilen hedef kullanıcının rolü uygun değil";
+            case WORKFLOW_TARGET_INACTIVE -> "Seçilen hedef kullanıcı pasif durumda";
+            case WORKFLOW_ROLE_NOT_ALLOWED -> "Rolünüz bu işlemi yapamaz";
+            case WORKFLOW_STATUS_NOT_CONFIGURED, WORKFLOW_ROLE_NOT_CONFIGURED ->
+                    "İş akışı yapılandırması eksik";
+        };
+    }
+
+    // ---------- Dogrulama ----------
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException ex) {
+        List<ApiError.FieldError> fieldErrors = ex.getBindingResult().getFieldErrors().stream()
+                .map(fe -> new ApiError.FieldError(fe.getField(), fe.getDefaultMessage()))
+                .toList();
+
+        ApiError error = new ApiError(
+                "VALIDATION_ERROR",
+                "Girilen veriler geçersiz",
+                HttpStatus.BAD_REQUEST.value(),
+                LocalDateTime.now(),
+                fieldErrors);
+
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * Servis katmani gecersiz girdi icin bu tipi kullaniyor. Sunucu hatasi degil,
+     * istemci hatasidir; 400 donmeli.
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiError> handleIllegalArgument(IllegalArgumentException ex) {
+        return build("BAD_REQUEST", ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * Spring MVC'nin istek cozumleme hatalari. Bunlar acikca ele alinmazsa genel
+     * Exception handler'ina duser ve istemci hatalari 500 olarak donerdi.
+     */
+    @ExceptionHandler({
+            MissingServletRequestParameterException.class,
+            MissingServletRequestPartException.class,
+            MethodArgumentTypeMismatchException.class,
+            HttpMessageNotReadableException.class
+    })
+    public ResponseEntity<ApiError> handleBadRequest(Exception ex) {
+        return build("BAD_REQUEST", "İstek geçersiz: " + ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiError> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
+        return build("METHOD_NOT_ALLOWED", ex.getMessage(), HttpStatus.METHOD_NOT_ALLOWED);
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ApiError> handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException ex) {
+        return build("UNSUPPORTED_MEDIA_TYPE", ex.getMessage(), HttpStatus.UNSUPPORTED_MEDIA_TYPE);
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiError> handleNoResource(NoResourceFoundException ex) {
+        return build("NOT_FOUND", "Böyle bir uç bulunamadı", HttpStatus.NOT_FOUND);
+    }
+
+    // ---------- Son care ----------
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiError> handleGeneric(Exception ex) {
+        // Beklenmeyen hatanin izi kaybolmasin; istemciye ayrinti sizdirilmaz.
+        log.error("Beklenmeyen hata", ex);
+        return build("INTERNAL_ERROR", "Beklenmeyen bir hata oluştu", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    private ResponseEntity<ApiError> build(String code, String message, HttpStatus status) {
+        return new ResponseEntity<>(
+                new ApiError(code, message, status.value(), LocalDateTime.now()), status);
+    }
+}

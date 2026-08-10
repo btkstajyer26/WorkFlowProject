@@ -44,6 +44,8 @@ describe('App authorization boundaries', () => {
     window.sessionStorage.setItem(mockSessionKey, JSON.stringify(getDemoUserByRole('ADMIN')))
     renderApp('/admin')
     expect(await screen.findByRole('heading', { name: 'Yönetim Özeti' })).toBeInTheDocument()
+    expect(screen.getByText('Onay bekleyen')).toBeInTheDocument()
+    expect(screen.queryByText('Pasif hesap')).not.toBeInTheDocument()
   })
 
   it('Admin olmayan kullanıcının yönetim ekranını açmasını engeller', async () => {

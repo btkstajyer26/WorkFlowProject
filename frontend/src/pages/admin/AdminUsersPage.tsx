@@ -1,22 +1,23 @@
-import { ChevronLeft, ChevronRight, Search, ShieldAlert, UserPlus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ClipboardCheck, Search, ShieldAlert } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { AccountStatusDialog } from '../../components/admin/AccountStatusDialog'
 import { ChangeRoleDialog } from '../../components/admin/ChangeRoleDialog'
-import { CreateUserDialog } from '../../components/admin/CreateUserDialog'
+import { RegistrationReviewDialog } from '../../components/admin/RegistrationReviewDialog'
 import { UserAvatar } from '../../components/users/UserAvatar'
 import { useAdmin } from '../../context/adminState'
 import { useDebouncedSearchParam } from '../../hooks/useDebouncedSearchParam'
 import { roleLabels, type UserRole } from '../../types/auth'
 import type { ManagedUser } from '../../types/admin'
+import type { RegistrationRequest } from '../../types/registration'
 
 const pageSize = 6
 const roleValues: UserRole[] = ['CALISAN', 'BASKAN_YARDIMCISI', 'BASKAN', 'ADMIN']
 
 export function AdminUsersPage() {
-  const { users } = useAdmin()
+  const { users, registrationRequests } = useAdmin()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [createOpen, setCreateOpen] = useState(false)
+  const [reviewRequest, setReviewRequest] = useState<RegistrationRequest | null>(null)
   const [roleUser, setRoleUser] = useState<ManagedUser | null>(null)
   const [statusUser, setStatusUser] = useState<ManagedUser | null>(null)
   const query = searchParams.get('q')?.trim().toLocaleLowerCase('tr-TR') ?? ''
@@ -69,17 +70,66 @@ export function AdminUsersPage() {
 
   return (
     <div className="space-y-5">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <header>
         <div>
           <p className="text-sm font-semibold text-brand-600 dark:text-brand-400">Sistem Yönetimi</p>
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-app-text sm:text-3xl">Kullanıcılar</h1>
-          <p className="mt-2 text-sm leading-6 text-app-text-muted">Hesap açın, iş akışı rolünü değiştirin veya erişimi kapatın.</p>
+          <p className="mt-2 text-sm leading-6 text-app-text-muted">Yeni kayıt taleplerini karara bağlayın; onaylı kullanıcıların rollerini ve erişimini yönetin.</p>
         </div>
-        <button onClick={() => setCreateOpen(true)} type="button" className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-700 px-4 text-sm font-bold text-white hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500">
-          <UserPlus className="size-4" aria-hidden="true" />
-          Yeni Hesap
-        </button>
       </header>
+
+      <section className="overflow-hidden rounded-2xl border border-app-border bg-app-surface shadow-sm" aria-labelledby="registration-requests-title">
+        <div className="flex items-center justify-between gap-3 border-b border-app-border-subtle px-4 py-4 sm:px-6">
+          <div>
+            <div className="flex items-center gap-2">
+              <ClipboardCheck className="size-5 text-brand-600 dark:text-brand-300" aria-hidden="true" />
+              <h2 id="registration-requests-title" className="font-bold text-app-text">Onay bekleyen kayıtlar</h2>
+            </div>
+            <p className="mt-1 text-xs leading-5 text-app-text-subtle">Başvuru bilgilerini inceleyerek onaylayın veya reddedin.</p>
+          </div>
+          <span className="inline-flex min-w-8 items-center justify-center rounded-full bg-brand-50 px-2.5 py-1 text-xs font-extrabold text-brand-700 ring-1 ring-inset ring-brand-100 dark:bg-brand-900/30 dark:text-brand-300 dark:ring-brand-800/60">
+            {registrationRequests.length}
+          </span>
+        </div>
+
+        {registrationRequests.length ? (
+          <div className="divide-y divide-app-border-subtle">
+            {registrationRequests.map((request) => (
+              <article
+                key={request.id}
+                aria-label={`${request.firstName} ${request.lastName} kayıt talebi`}
+                className="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6"
+              >
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-bold text-app-text-strong">{request.firstName} {request.lastName}</h3>
+                    <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-800 ring-1 ring-inset ring-amber-200 dark:bg-amber-950/40 dark:text-amber-200 dark:ring-amber-800/70">
+                      Onay bekliyor
+                    </span>
+                  </div>
+                  <p className="mt-1 truncate text-sm text-app-text-muted">{request.email}</p>
+                  <time className="mt-1 block text-xs text-app-text-subtle" dateTime={request.createdAt}>
+                    {formatDateTime(request.createdAt)}
+                  </time>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setReviewRequest(request)}
+                  className="min-h-10 shrink-0 rounded-xl border border-brand-200 bg-brand-50 px-4 text-sm font-bold text-brand-700 transition hover:bg-brand-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 dark:border-brand-800/70 dark:bg-brand-900/30 dark:text-brand-300 dark:hover:bg-brand-900/50"
+                >
+                  Başvuruyu İncele
+                </button>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="px-5 py-10 text-center">
+            <ClipboardCheck className="mx-auto size-8 text-app-text-disabled" aria-hidden="true" />
+            <h3 className="mt-3 font-bold text-app-text-strong">Bekleyen kayıt talebi yok</h3>
+            <p className="mt-1 text-sm text-app-text-subtle">Yeni bir başvuru geldiğinde burada görüntülenecek.</p>
+          </div>
+        )}
+      </section>
 
       <section className="rounded-2xl border border-app-border bg-app-surface p-4 shadow-sm" aria-label="Kullanıcı filtreleri">
         <div className="grid gap-3 lg:grid-cols-[minmax(16rem,1fr)_14rem_12rem]">
@@ -130,11 +180,18 @@ export function AdminUsersPage() {
         <Pagination page={currentPage} pageCount={pageCount} onPage={setPage} />
       </section>
 
-      <CreateUserDialog open={createOpen} onClose={() => setCreateOpen(false)} />
+      <RegistrationReviewDialog request={reviewRequest} open={Boolean(reviewRequest)} onClose={() => setReviewRequest(null)} />
       <ChangeRoleDialog user={roleUser} open={Boolean(roleUser)} onClose={() => setRoleUser(null)} />
       <AccountStatusDialog user={statusUser} open={Boolean(statusUser)} onClose={() => setStatusUser(null)} />
     </div>
   )
+}
+
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat('tr-TR', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(value))
 }
 
 function UserTableRow({ user, onRole, onStatus }: UserActionsProps) {

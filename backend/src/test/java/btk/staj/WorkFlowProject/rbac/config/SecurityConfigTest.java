@@ -1,6 +1,8 @@
 package btk.staj.WorkFlowProject.rbac.config;
 
 import btk.staj.WorkFlowProject.attachment.repository.FileRepository;
+import btk.staj.WorkFlowProject.record.repository.CategoryRepository;
+import btk.staj.WorkFlowProject.record.repository.RecordRepository;
 import btk.staj.WorkFlowProject.user.repository.RoleRepository;
 import btk.staj.WorkFlowProject.user.repository.TokenRepository;
 import btk.staj.WorkFlowProject.user.repository.UserRepository;
@@ -47,6 +49,12 @@ class SecurityConfigTest {
 
     @MockitoBean
     private TokenRepository tokenRepository;
+
+    @MockitoBean
+    private RecordRepository recordRepository;
+
+    @MockitoBean
+    private CategoryRepository categoryRepository;
 
     @Test
     @DisplayName("swagger-ui.html giris istemeden yonlendirme doner")

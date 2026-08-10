@@ -3,6 +3,7 @@ import { ArrowRightLeft } from 'lucide-react'
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { useAdmin } from '../../context/adminState'
+import { useToast } from '../../context/toastState'
 import { changeRoleSchema, type ChangeRoleFormValues } from '../../schemas/admin'
 import { roleLabels } from '../../types/auth'
 import type { ManagedUser } from '../../types/admin'
@@ -19,6 +20,7 @@ export function ChangeRoleDialog({
   onClose: () => void
 }) {
   const { users, changeUserRole } = useAdmin()
+  const { showToast } = useToast()
   const { busy: mutationBusy, run: runMutation } = useSingleFlight()
   const { register, handleSubmit, reset, watch, setError, formState: { errors } } = useForm<ChangeRoleFormValues>({
     resolver: zodResolver(changeRoleSchema),
@@ -38,6 +40,11 @@ export function ChangeRoleDialog({
     if (!user) return
     try {
       changeUserRole(user.id, values.role)
+      showToast({
+        title: 'Kullanıcı rolü güncellendi',
+        description: `${user.firstName} ${user.lastName} artık ${roleLabels[values.role]} rolünde.`,
+        tone: 'success',
+      })
       onClose()
     } catch (error) {
       setError('root', { message: error instanceof Error ? error.message : 'Rol değiştirilemedi.' })

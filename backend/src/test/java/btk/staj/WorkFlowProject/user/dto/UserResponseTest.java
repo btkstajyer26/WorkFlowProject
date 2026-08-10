@@ -2,11 +2,9 @@ package btk.staj.WorkFlowProject.user.dto;
 
 import btk.staj.WorkFlowProject.rbac.Role;
 import btk.staj.WorkFlowProject.user.entity.User;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.json.JsonMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -16,11 +14,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("Kullanici yaniti")
 class UserResponseTest {
 
-    // Spring Boot'un yapilandirdigi mapper gibi JSR-310 modulunu kaydeder;
-    // aksi halde LocalDateTime alanlari serilestirilemez.
-    private final ObjectMapper objectMapper = JsonMapper.builder()
-            .addModule(new JavaTimeModule())
-            .build();
+    // Spring Boot 4 Jackson 3 kullanir; test de uretimdeki mapper'la ayni olsun ki
+    // @JsonIgnore korumasi gercekten dogrulanmis olsun.
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     private User ornekKullanici() {
         Role role = new Role();

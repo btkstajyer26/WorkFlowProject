@@ -4,8 +4,8 @@ package btk.staj.WorkFlowProject.workflow.statemachine;
  * Sistemdeki rol adlari. Degerler veritabanindaki {@code roles.name} kolonuyla
  * birebir ayni yazilmistir; sayisal rol ID'leri koda tasinmaz.
  *
- * <p>Not: Bu enum su an workflow modulunde tutulmaktadir. user/rbac modulu ortak
- * bir rol tipi tanimladiginda buradaki tanim kaldirilip o tip kullanilmalidir.
+ * <p>Not: Projedeki tek rol tipidir. rbac modulu de bu tipi kullanir; ayri bir
+ * rol enum'u tanimlanmamalidir.
  */
 public enum RoleName {
 

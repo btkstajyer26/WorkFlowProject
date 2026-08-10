@@ -3,7 +3,6 @@ import {
   ArrowLeftRight,
   CheckCircle2,
   FilePenLine,
-  MessageSquareText,
   Send,
   ShieldCheck,
   X,
@@ -11,6 +10,7 @@ import {
 } from 'lucide-react'
 import { Link } from 'react-router'
 import { useWorkflow } from '../../context/workflowState'
+import { useToast } from '../../context/toastState'
 import { getDemoUserByRole } from '../../mocks/users'
 import { useModalDialog } from '../../hooks/useModalDialog'
 import { useSingleFlight } from '../../hooks/useSingleFlight'
@@ -48,17 +48,24 @@ const actionCopy: Record<ReviewAction, { title: string; description: string; con
 }
 
 export function RecordActionPanel({ record, role }: { record: WorkflowRecord; role: UserRole }) {
-  const { addNote, applyAction } = useWorkflow()
-  const [note, setNote] = useState('')
+  const { applyAction, user } = useWorkflow()
+  const { showToast } = useToast()
+  const [actionComment, setActionComment] = useState('')
   const [returnReason, setReturnReason] = useState('')
   const [returnTarget, setReturnTarget] = useState<'CALISAN' | 'BASKAN_YARDIMCISI'>('CALISAN')
   const [activeAction, setActiveAction] = useState<ReviewAction | null>(null)
-  const [feedback, setFeedback] = useState<string | null>(null)
   const { busy: mutationBusy, run: runMutation } = useSingleFlight()
 
   const employeeCanEdit = role === 'CALISAN' && (record.status === 'TASLAK' || record.status === 'DUZENLEME_BEKLIYOR')
   const viceChairCanReview = role === 'BASKAN_YARDIMCISI' && record.status === 'BSK_YRD_INCELEMESINDE'
   const chairCanReview = role === 'BASKAN' && record.status === 'BASKAN_INCELEMESINDE'
+
+  const openAction = (action: ReviewAction) => {
+    const workingNote = record.notes.find((note) => note.authorId === user.id)?.body ?? ''
+    setActionComment(['forward', 'approve', 'reject'].includes(action) ? workingNote : '')
+    setReturnReason(action === 'return' ? workingNote : '')
+    setActiveAction(action)
+  }
 
   if (!employeeCanEdit && !viceChairCanReview && !chairCanReview) return null
 
@@ -70,20 +77,44 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
     const workflowInput = activeAction === 'submit'
       ? { action: record.status === 'TASLAK' ? 'GONDER' as const : 'TEKRAR_GONDER' as const, targetUser: deputy }
       : activeAction === 'forward'
-        ? { action: 'BASKANA_ILET' as const, targetUser: chair, comment: note }
+        ? { action: 'BASKANA_ILET' as const, targetUser: chair, comment: actionComment }
         : activeAction === 'return'
           ? returnTarget === 'CALISAN'
             ? { action: 'CALISANA_GERI_GONDER' as const, comment: returnReason }
             : { action: 'BASKAN_YARDIMCISINA_GERI_GONDER' as const, comment: returnReason, targetUser: deputy }
           : activeAction === 'approve'
-            ? { action: 'ONAYLA' as const, comment: note }
-            : { action: 'REDDET' as const, comment: note }
+            ? { action: 'ONAYLA' as const, comment: actionComment }
+            : { action: 'REDDET' as const, comment: actionComment }
 
-    applyAction(record.id, workflowInput)
+    try {
+      applyAction(record.id, workflowInput)
+      const successCopy: Record<ReviewAction, string> = {
+        submit: record.status === 'TASLAK' ? 'Kayıt incelemeye gönderildi' : 'Kayıt yeniden incelemeye gönderildi',
+        forward: 'Kayıt Başkana iletildi',
+        return: returnTarget === 'CALISAN'
+          ? 'Kayıt Çalışana geri gönderildi'
+          : 'Kayıt Başkan Yardımcısına geri gönderildi',
+        approve: 'Kayıt onaylandı',
+        reject: 'Kayıt reddedildi',
+      }
+      showToast({ title: successCopy[activeAction], tone: 'success' })
+      setActiveAction(null)
+      setReturnReason('')
+      setActionComment('')
+    } catch (caughtError) {
+      showToast({
+        title: 'İşlem tamamlanamadı',
+        description: caughtError instanceof Error ? caughtError.message : 'Kayıt işlemi sırasında bir hata oluştu.',
+        tone: 'error',
+      })
+    }
+  })
+
+  const closeActionDialog = () => {
     setActiveAction(null)
     setReturnReason('')
-    setNote('')
-  })
+    setActionComment('')
+  }
 
   if (employeeCanEdit) {
     return (
@@ -102,8 +133,6 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
           </div>
         </div>
 
-        {feedback ? <FeedbackMessage message={feedback} /> : null}
-
         <div className="mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
           <Link
             to={`/kayitlar/${record.id}/duzenle`}
@@ -114,7 +143,7 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
           </Link>
           <button
             type="button"
-            onClick={() => setActiveAction('submit')}
+            onClick={() => openAction('submit')}
             className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-700 px-4 text-sm font-bold text-white shadow-lg shadow-brand-200 dark:shadow-black/20 transition hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
           >
             <Send className="size-4" aria-hidden="true" />
@@ -124,13 +153,14 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
 
         <ActionDialog
           action={activeAction}
-          note=""
+          comment={actionComment}
           returnReason={returnReason}
           returnTarget={returnTarget}
           role={role}
+          onCommentChange={setActionComment}
           onReasonChange={setReturnReason}
           onTargetChange={setReturnTarget}
-          onClose={() => setActiveAction(null)}
+          onClose={closeActionDialog}
           onConfirm={completeAction}
           busy={mutationBusy}
         />
@@ -146,41 +176,14 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
         </span>
         <div>
           <h2 className="font-bold text-app-text">İnceleme İşlemleri</h2>
-          <p className="mt-1 text-xs leading-5 text-app-text-muted">Not ekleyebilir veya süreç aksiyonu alabilirsiniz.</p>
+          <p className="mt-1 text-xs leading-5 text-app-text-muted">Kaydı değerlendirin ve uygun süreç işlemini seçin.</p>
         </div>
       </div>
-
-      <label className="mt-5 block">
-        <span className="mb-1.5 block text-xs font-bold text-app-text-secondary">İnceleme notu</span>
-        <textarea
-          value={note}
-          onChange={(event) => setNote(event.target.value)}
-          rows={4}
-          placeholder="Değerlendirmenizi veya yönlendirmenizi yazın…"
-          className="w-full resize-none rounded-xl border border-app-border bg-app-surface px-3.5 py-3 text-sm leading-6 text-app-text-strong outline-none transition placeholder:text-app-text-faint focus:border-brand-400 focus:ring-4 focus:ring-brand-100 dark:focus:ring-brand-800/60"
-        />
-      </label>
-
-      <button
-        type="button"
-        disabled={!note.trim() || mutationBusy}
-        onClick={() => runMutation(() => {
-          addNote(record.id, note)
-          setFeedback('İnceleme notu işlem geçmişine eklendi.')
-          setNote('')
-        })}
-        className="mt-2 flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-app-border px-3 text-xs font-bold text-app-text-secondary transition hover:border-brand-200 dark:hover:border-brand-700/60 hover:bg-brand-50 dark:hover:bg-brand-900/30 hover:text-brand-700 dark:hover:text-brand-300 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
-      >
-        <MessageSquareText className="size-4" aria-hidden="true" />
-        Notu Kaydet
-      </button>
-
-      {feedback ? <FeedbackMessage message={feedback} /> : null}
 
       <div className="mt-5 grid gap-2">
         <button
           type="button"
-          onClick={() => setActiveAction('return')}
+          onClick={() => openAction('return')}
           className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-rose-200 dark:border-rose-800/70 bg-rose-50 dark:bg-rose-950/40 px-4 text-sm font-bold text-rose-700 dark:text-rose-300 transition hover:bg-rose-100 dark:hover:bg-rose-900/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"
         >
           <ArrowLeftRight className="size-4" aria-hidden="true" />
@@ -190,7 +193,7 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
         {viceChairCanReview ? (
           <button
             type="button"
-            onClick={() => setActiveAction('forward')}
+            onClick={() => openAction('forward')}
             className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-700 px-4 text-sm font-bold text-white transition hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
           >
             <Send className="size-4" aria-hidden="true" />
@@ -202,7 +205,7 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={() => setActiveAction('reject')}
+              onClick={() => openAction('reject')}
               className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-rose-200 dark:border-rose-800/70 px-3 text-sm font-bold text-rose-700 dark:text-rose-300 transition hover:bg-rose-50 dark:hover:bg-rose-950/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"
             >
               <XCircle className="size-4" aria-hidden="true" />
@@ -210,7 +213,7 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
             </button>
             <button
               type="button"
-              onClick={() => setActiveAction('approve')}
+              onClick={() => openAction('approve')}
               className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 text-sm font-bold text-white transition hover:bg-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
             >
               <CheckCircle2 className="size-4" aria-hidden="true" />
@@ -222,13 +225,14 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
 
       <ActionDialog
         action={activeAction}
-        note={note}
+        comment={actionComment}
         returnReason={returnReason}
         returnTarget={returnTarget}
         role={role}
+        onCommentChange={setActionComment}
         onReasonChange={setReturnReason}
         onTargetChange={setReturnTarget}
-        onClose={() => setActiveAction(null)}
+        onClose={closeActionDialog}
         onConfirm={completeAction}
         busy={mutationBusy}
       />
@@ -236,20 +240,13 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
   )
 }
 
-function FeedbackMessage({ message }: { message: string }) {
-  return (
-    <p className="mt-4 rounded-xl border border-emerald-100 dark:border-emerald-900/70 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-2.5 text-xs font-semibold leading-5 text-emerald-800 dark:text-emerald-200" role="status">
-      {message}
-    </p>
-  )
-}
-
 function ActionDialog({
   action,
-  note,
+  comment,
   returnReason,
   returnTarget,
   role,
+  onCommentChange,
   onReasonChange,
   onTargetChange,
   onClose,
@@ -257,10 +254,11 @@ function ActionDialog({
   busy,
 }: {
   action: ReviewAction | null
-  note: string
+  comment: string
   returnReason: string
   returnTarget: 'CALISAN' | 'BASKAN_YARDIMCISI'
   role: UserRole
+  onCommentChange: (value: string) => void
   onReasonChange: (value: string) => void
   onTargetChange: (value: 'CALISAN' | 'BASKAN_YARDIMCISI') => void
   onClose: () => void
@@ -270,16 +268,22 @@ function ActionDialog({
   const dialogRef = useRef<HTMLElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const returnReasonRef = useRef<HTMLTextAreaElement>(null)
+  const commentRef = useRef<HTMLTextAreaElement>(null)
   useModalDialog({
     open: Boolean(action),
     onClose,
     dialogRef,
-    initialFocusRef: action === 'return' ? returnReasonRef : closeButtonRef,
+    initialFocusRef: action === 'return'
+      ? returnReasonRef
+      : action && ['forward', 'approve', 'reject'].includes(action)
+        ? commentRef
+        : closeButtonRef,
   })
 
   if (!action) return null
   const copy = actionCopy[action]
   const isReturn = action === 'return'
+  const hasCommentField = ['forward', 'approve', 'reject'].includes(action)
 
   return (
     <div className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-950/35 p-0 backdrop-blur-[2px] sm:items-center sm:p-4" role="presentation">
@@ -315,7 +319,7 @@ function ActionDialog({
                 <select
                   value={returnTarget}
                   onChange={(event) => onTargetChange(event.target.value as 'CALISAN' | 'BASKAN_YARDIMCISI')}
-                  className="h-11 w-full rounded-xl border border-app-border bg-app-surface px-3 text-sm text-app-text-strong outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100 dark:focus:ring-brand-800/60"
+                  className="h-11 w-full rounded-xl border border-app-border bg-app-surface px-3 text-sm text-app-text-strong outline-none focus:border-brand-500"
                 >
                   <option value="CALISAN">Çalışan</option>
                   <option value="BASKAN_YARDIMCISI">Başkan Yardımcısı</option>
@@ -331,15 +335,26 @@ function ActionDialog({
                 required
                 rows={4}
                 placeholder="Eksik veya düzeltilmesi gereken alanları açıklayın…"
-                className="w-full resize-none rounded-xl border border-app-border bg-app-surface px-3.5 py-3 text-sm leading-6 text-app-text-strong outline-none placeholder:text-app-text-faint focus:border-rose-400 focus:ring-4 focus:ring-rose-100 dark:focus:ring-rose-900/70"
+                className="w-full resize-none rounded-xl border border-app-border bg-app-surface px-3.5 py-3 text-sm leading-6 text-app-text-strong outline-none placeholder:text-app-text-faint focus:border-rose-500"
               />
             </label>
           </div>
-        ) : note.trim() ? (
-          <div className="mt-5 rounded-xl bg-app-surface-muted px-4 py-3">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-app-text-subtle">İşleme eklenecek not</p>
-            <p className="mt-1 text-sm leading-6 text-app-text-secondary">{note}</p>
-          </div>
+        ) : hasCommentField ? (
+          <label className="mt-5 block">
+            <span className="mb-1.5 block text-xs font-bold text-app-text-secondary">
+              {action === 'reject' ? 'Ret açıklaması *' : 'İşlem açıklaması (isteğe bağlı)'}
+            </span>
+            <textarea
+              ref={commentRef}
+              value={comment}
+              onChange={(event) => onCommentChange(event.target.value)}
+              required={action === 'reject'}
+              rows={4}
+              maxLength={1000}
+              placeholder={action === 'reject' ? 'Kaydın neden reddedildiğini açıklayın…' : 'Bu işleme ilişkin kısa bir açıklama ekleyin…'}
+              className={`w-full resize-none rounded-xl border border-app-border bg-app-surface px-3.5 py-3 text-sm leading-6 text-app-text-strong outline-none placeholder:text-app-text-faint ${action === 'reject' ? 'focus:border-rose-500' : 'focus:border-brand-500'}`}
+            />
+          </label>
         ) : null}
 
         <div className="mt-6 grid grid-cols-2 gap-3">
@@ -352,7 +367,7 @@ function ActionDialog({
           </button>
           <button
             type="button"
-            disabled={busy || (isReturn && !returnReason.trim()) || (action === 'reject' && !note.trim())}
+            disabled={busy || (isReturn && !returnReason.trim()) || (action === 'reject' && !comment.trim())}
             onClick={onConfirm}
             className={`min-h-11 rounded-xl px-4 text-sm font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 ${
               action === 'approve'
