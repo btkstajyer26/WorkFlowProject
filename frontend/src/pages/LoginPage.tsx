@@ -211,7 +211,7 @@ export function LoginPage({ user, onLogin, onRegister }: LoginPageProps) {
         </p>
       </section>
 
-      <section className={`relative min-h-screen overflow-clip px-4 py-8 sm:px-8 lg:px-12 xl:px-16 ${mode === 'register' && !registrationRequest ? 'block' : 'flex items-center justify-center'}`}>
+      <section className="relative flex min-h-screen items-center justify-center overflow-clip px-4 py-8 sm:px-8 lg:px-12 xl:px-16">
         <div className="pointer-events-none absolute -right-40 -top-40 size-[30rem] rounded-full bg-brand-100/70 dark:bg-brand-900/45 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-40 left-10 size-[26rem] rounded-full bg-blue-100/55 dark:bg-blue-900/60 blur-3xl" />
 
@@ -434,7 +434,7 @@ export function LoginPage({ user, onLogin, onRegister }: LoginPageProps) {
                   <button
                     type="button"
                     onClick={mode === 'login' ? showRegistration : showLogin}
-                    className="rounded-md px-1 py-0.5 font-bold text-brand-700 transition hover:text-brand-800 hover:underline focus-visible:outline-2 focus-visible:outline-brand-500 dark:text-brand-300"
+                    className="rounded-md px-1.5 py-1 font-bold text-brand-700 transition hover:bg-brand-50 hover:text-brand-900 hover:underline focus-visible:outline-2 focus-visible:outline-brand-500 dark:text-brand-300 dark:hover:bg-brand-900/40 dark:hover:text-brand-100"
                   >
                     {mode === 'login' ? 'Kayıt Ol' : 'Giriş Yap'}
                   </button>
