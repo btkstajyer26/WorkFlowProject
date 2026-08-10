@@ -48,7 +48,7 @@ const actionCopy: Record<ReviewAction, { title: string; description: string; con
 }
 
 export function RecordActionPanel({ record, role }: { record: WorkflowRecord; role: UserRole }) {
-  const { applyAction } = useWorkflow()
+  const { applyAction, user } = useWorkflow()
   const { showToast } = useToast()
   const [actionComment, setActionComment] = useState('')
   const [returnReason, setReturnReason] = useState('')
@@ -59,6 +59,13 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
   const employeeCanEdit = role === 'CALISAN' && (record.status === 'TASLAK' || record.status === 'DUZENLEME_BEKLIYOR')
   const viceChairCanReview = role === 'BASKAN_YARDIMCISI' && record.status === 'BSK_YRD_INCELEMESINDE'
   const chairCanReview = role === 'BASKAN' && record.status === 'BASKAN_INCELEMESINDE'
+
+  const openAction = (action: ReviewAction) => {
+    const workingNote = record.notes.find((note) => note.authorId === user.id)?.body ?? ''
+    setActionComment(['forward', 'approve', 'reject'].includes(action) ? workingNote : '')
+    setReturnReason(action === 'return' ? workingNote : '')
+    setActiveAction(action)
+  }
 
   if (!employeeCanEdit && !viceChairCanReview && !chairCanReview) return null
 
@@ -136,7 +143,7 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
           </Link>
           <button
             type="button"
-            onClick={() => setActiveAction('submit')}
+            onClick={() => openAction('submit')}
             className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-700 px-4 text-sm font-bold text-white shadow-lg shadow-brand-200 dark:shadow-black/20 transition hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
           >
             <Send className="size-4" aria-hidden="true" />
@@ -176,7 +183,7 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
       <div className="mt-5 grid gap-2">
         <button
           type="button"
-          onClick={() => setActiveAction('return')}
+          onClick={() => openAction('return')}
           className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-rose-200 dark:border-rose-800/70 bg-rose-50 dark:bg-rose-950/40 px-4 text-sm font-bold text-rose-700 dark:text-rose-300 transition hover:bg-rose-100 dark:hover:bg-rose-900/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"
         >
           <ArrowLeftRight className="size-4" aria-hidden="true" />
@@ -186,7 +193,7 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
         {viceChairCanReview ? (
           <button
             type="button"
-            onClick={() => setActiveAction('forward')}
+            onClick={() => openAction('forward')}
             className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-700 px-4 text-sm font-bold text-white transition hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
           >
             <Send className="size-4" aria-hidden="true" />
@@ -198,7 +205,7 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={() => setActiveAction('reject')}
+              onClick={() => openAction('reject')}
               className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-rose-200 dark:border-rose-800/70 px-3 text-sm font-bold text-rose-700 dark:text-rose-300 transition hover:bg-rose-50 dark:hover:bg-rose-950/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"
             >
               <XCircle className="size-4" aria-hidden="true" />
@@ -206,7 +213,7 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
             </button>
             <button
               type="button"
-              onClick={() => setActiveAction('approve')}
+              onClick={() => openAction('approve')}
               className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 text-sm font-bold text-white transition hover:bg-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
             >
               <CheckCircle2 className="size-4" aria-hidden="true" />
@@ -312,7 +319,7 @@ function ActionDialog({
                 <select
                   value={returnTarget}
                   onChange={(event) => onTargetChange(event.target.value as 'CALISAN' | 'BASKAN_YARDIMCISI')}
-                  className="h-11 w-full rounded-xl border border-app-border bg-app-surface px-3 text-sm text-app-text-strong outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100 dark:focus:ring-brand-800/60"
+                  className="h-11 w-full rounded-xl border border-app-border bg-app-surface px-3 text-sm text-app-text-strong outline-none focus:border-brand-500"
                 >
                   <option value="CALISAN">Çalışan</option>
                   <option value="BASKAN_YARDIMCISI">Başkan Yardımcısı</option>
@@ -328,7 +335,7 @@ function ActionDialog({
                 required
                 rows={4}
                 placeholder="Eksik veya düzeltilmesi gereken alanları açıklayın…"
-                className="w-full resize-none rounded-xl border border-app-border bg-app-surface px-3.5 py-3 text-sm leading-6 text-app-text-strong outline-none placeholder:text-app-text-faint focus:border-rose-400 focus:ring-4 focus:ring-rose-100 dark:focus:ring-rose-900/70"
+                className="w-full resize-none rounded-xl border border-app-border bg-app-surface px-3.5 py-3 text-sm leading-6 text-app-text-strong outline-none placeholder:text-app-text-faint focus:border-rose-500"
               />
             </label>
           </div>
@@ -345,7 +352,7 @@ function ActionDialog({
               rows={4}
               maxLength={1000}
               placeholder={action === 'reject' ? 'Kaydın neden reddedildiğini açıklayın…' : 'Bu işleme ilişkin kısa bir açıklama ekleyin…'}
-              className={`w-full resize-none rounded-xl border border-app-border bg-app-surface px-3.5 py-3 text-sm leading-6 text-app-text-strong outline-none placeholder:text-app-text-faint focus:ring-4 ${action === 'reject' ? 'focus:border-rose-400 focus:ring-rose-100 dark:focus:ring-rose-900/70' : 'focus:border-brand-400 focus:ring-brand-100 dark:focus:ring-brand-800/60'}`}
+              className={`w-full resize-none rounded-xl border border-app-border bg-app-surface px-3.5 py-3 text-sm leading-6 text-app-text-strong outline-none placeholder:text-app-text-faint ${action === 'reject' ? 'focus:border-rose-500' : 'focus:border-brand-500'}`}
             />
           </label>
         ) : null}

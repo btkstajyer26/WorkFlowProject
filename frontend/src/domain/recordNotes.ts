@@ -7,6 +7,18 @@ function fullName(user: AuthUser) {
   return `${user.firstName} ${user.lastName}`
 }
 
+export function canManageRecordNote(record: WorkflowRecord, user: AuthUser) {
+  if (user.role === 'BASKAN_YARDIMCISI') {
+    return record.status === 'BSK_YRD_INCELEMESINDE' && record.assignedToId === user.id
+  }
+
+  if (user.role === 'BASKAN') {
+    return record.status === 'BASKAN_INCELEMESINDE' && record.assignedToId === user.id
+  }
+
+  return false
+}
+
 export function upsertRecordNote(
   record: WorkflowRecord,
   user: AuthUser,
@@ -15,9 +27,8 @@ export function upsertRecordNote(
 ): WorkflowRecord {
   const trimmedBody = body.trim()
 
-  if (user.role === 'ADMIN') throw new Error('Sistem yöneticileri kayıt notu ekleyemez.')
-  if (['ONAYLANDI', 'REDDEDILDI'].includes(record.status)) {
-    throw new Error('Sonuçlanmış kayıtlardaki notlar değiştirilemez.')
+  if (!canManageRecordNote(record, user)) {
+    throw new Error('Yalnızca mevcut aşamadaki atanmış incelemeci not ekleyebilir veya düzenleyebilir.')
   }
   if (!trimmedBody) throw new Error('Not boş bırakılamaz.')
   if (trimmedBody.length > recordNoteMaxLength) {

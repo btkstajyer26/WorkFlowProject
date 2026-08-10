@@ -70,30 +70,7 @@ export const mockRecords: WorkflowRecord[] = [
     createdAt: '2026-07-30T11:20:00',
     updatedAt: '2026-08-03T11:05:00',
     attachments: [{ id: 'file-003', name: 'tadilat-plani.pdf', size: '3.2 MB' }],
-    notes: [
-      {
-        id: 'note-001',
-        recordId: 'rec-003',
-        authorId: 'user-demo-001',
-        author: 'John Doe',
-        authorRole: 'CALISAN',
-        body: 'Tadilatın kurum içi toplantı takvimini aksatmaması için çalışmaların ağustos ayı içinde tamamlanması önemlidir.',
-        createdAt: '2026-07-30T11:28:00',
-        updatedAt: '2026-07-30T11:28:00',
-        version: 1,
-      },
-      {
-        id: 'note-002',
-        recordId: 'rec-003',
-        authorId: 'user-demo-002',
-        author: 'Ayşe Kaya',
-        authorRole: 'BASKAN_YARDIMCISI',
-        body: 'Teknik plan ve bütçe kalemleri kontrol edildi. Nihai değerlendirme için Başkanlığa iletilmesi uygundur.',
-        createdAt: '2026-08-03T10:45:00',
-        updatedAt: '2026-08-03T10:58:00',
-        version: 2,
-      },
-    ],
+    notes: [],
     history: [
       { id: 'h-005', action: 'Kayıt oluşturuldu', actor: 'John Doe', role: 'Çalışan', date: '2026-07-30T11:20:00' },
       {
@@ -104,7 +81,14 @@ export const mockRecords: WorkflowRecord[] = [
         note: 'Onayınıza sunulmuştur.',
         date: '2026-07-30T11:35:00',
       },
-      { id: 'h-006', action: 'Başkana gönderildi', actor: 'Ayşe Kaya', role: 'Başkan Yardımcısı', date: '2026-08-03T11:05:00' },
+      {
+        id: 'h-006',
+        action: 'Başkana gönderildi',
+        actor: 'Ayşe Kaya',
+        role: 'Başkan Yardımcısı',
+        note: 'Teknik plan ve bütçe kalemleri kontrol edildi. Nihai değerlendirme için Başkanlığa iletilmesi uygundur.',
+        date: '2026-08-03T11:05:00',
+      },
     ],
   },
   {

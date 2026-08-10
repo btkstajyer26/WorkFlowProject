@@ -254,8 +254,8 @@ Backend ayrı `/submit`, `/forward`, `/approve`, `/reject`, `/return` endpointle
 | Metot | Önerilen adres | Amaç |
 |---|---|---|
 | `GET` | `/api/records/{id}/history` | Kullanıcının görmeye yetkili olduğu kaydın geçmişi |
-| `GET` | `/api/records/{id}/notes` | Kullanıcının görmeye yetkili olduğu kaydın notları |
-| `PUT` | `/api/records/{id}/notes/me` | JWT kullanıcısının kayıttaki tek notunu oluşturma veya güncelleme |
+| `GET` | `/api/records/{id}/notes/me` | JWT kullanıcısının kayıttaki özel çalışma notu |
+| `PUT` | `/api/records/{id}/notes/me` | JWT kullanıcısının özel çalışma notunu oluşturma veya güncelleme |
 
 Geçmiş cevabı en az şu alanları taşımalıdır:
 
@@ -278,9 +278,16 @@ Geçmiş cevabı en az şu alanları taşımalıdır:
 
 Audit kayıtlarını güncelleyen veya silen endpoint olmamalıdır. Kullanıcı yalnız görmeye yetkili olduğu kaydın ilgili geçmişini görebilir; sistem genelindeki audit logları ayrı bir idari yetkidir.
 
-Bağımsız kayıt notları audit geçmişinden ayrı tutulur. Çalışan, Başkan Yardımcısı ve Başkan, görmeye yetkili oldukları her kayıt için en fazla bir not tutabilir. `PUT /notes/me` aynı kullanıcı ve kayıt için yeni satır üretmek yerine mevcut notu günceller. `ONAYLANDI` veya `REDDEDILDI` durumundaki kayıtların notları salt okunurdur.
+Çalışma notu süreç açıklamasından ayrı, geçici ve yazara özel tutulur. Her incelemeci bir kayıtta en fazla bir çalışma notu tutar; `PUT /notes/me` aynı kullanıcı ve kayıt için yeni satır üretmek yerine mevcut notu günceller. Başka bir kullanıcının çalışma notunu okuyan endpoint bulunmaz.
 
-Not kaydetme isteği:
+Notu yalnız kaydın mevcut inceleme aşamasındaki atanmış kullanıcı ekleyebilir:
+
+- `BSK_YRD_INCELEMESINDE`: atanmış `BASKAN_YARDIMCISI`
+- `BASKAN_INCELEMESINDE`: atanmış `BASKAN`
+
+Çalışan, Admin, geçmiş aşamalardaki aktörler ve kaydın mevcut atanmış kullanıcısı olmayan yöneticiler çalışma notu ekleyemez veya güncelleyemez. `ONAYLANDI`, `REDDEDILDI`, `TASLAK` ve `DUZENLEME_BEKLIYOR` durumlarında çalışma notu yönetilemez. Kayıt görünürlüğü başka kullanıcının özel çalışma notunu okumaya yetki vermez.
+
+Çalışma notu kaydetme isteği:
 
 ```json
 {
@@ -289,7 +296,7 @@ Not kaydetme isteği:
 }
 ```
 
-Yeni not oluşturulurken `version` gönderilmez. Güncellemede istemci son okuduğu `version` değerini gönderir; eşleşmiyorsa backend `409 NOTE_VERSION_CONFLICT` döndürür. Başarılı cevap şu alanları taşır:
+Yeni not oluşturulurken `version` gönderilmez. Güncellemede istemci son okuduğu `version` değerini gönderir; eşleşmiyorsa backend `409 NOTE_VERSION_CONFLICT` döndürür. Başarılı cevap güncel notu taşır:
 
 ```json
 {
@@ -308,7 +315,11 @@ Yeni not oluşturulurken `version` gönderilmez. Güncellemede istemci son okudu
 }
 ```
 
-Not gövdesi boş olamaz ve en fazla 1000 karakterdir. Veritabanındaki `(record_id, author_id)` benzersiz kısıtı bu kuralın yarış durumlarında da korunmasını sağlar. Not oluşturma/güncelleme `records.updated_at`, `records.last_action` veya append-only `audit_logs` satırlarını değiştirmez; süreç aksiyonuna yazılan `comment` ise yalnız işlem geçmişinde kalır ve güncellenemez.
+Not gövdesi boş olamaz ve en fazla 1000 karakterdir. Veritabanındaki `(record_id, author_id)` benzersiz kısıtı yarış durumlarında da tek çalışma notu kuralını korur. Not oluşturma ve güncelleme teknik denetim izi üretebilir; içerik kullanıcıya gösterilen `GET /history` zaman çizelgesine eklenmez.
+
+Workflow işlem penceresi yazarın çalışma notuyla önceden doldurulur. Kullanıcı metni son kez değiştirebilir ve workflow isteğinin `comment` alanında gönderir. Başarılı işlem tek backend transaction'ında durum/atama güncellemesini, append-only audit kaydını, bildirimi ve çalışma notunun temizlenmesini tamamlar. İşlem başarısızsa çalışma notu korunur. Frontend audit endpoint'ine ikinci bir yazma isteği göndermez.
+
+Başkana iletme ve onay açıklaması isteğe bağlı; ret ve tüm geri gönderme açıklamaları zorunludur. Kesinleşen `comment` yalnız ilgili audit olayında kalır, güncellenemez ve sonraki kullanıcı tarafından İşlem Geçmişi'nde okunur.
 
 ## 7. Kategoriler
 

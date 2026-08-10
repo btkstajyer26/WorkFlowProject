@@ -1,8 +1,8 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import { WorkflowProvider } from '../../context/WorkflowContext'
 import { ToastProvider } from '../../context/ToastContext'
+import { WorkflowProvider } from '../../context/WorkflowContext'
 import { useWorkflow } from '../../context/workflowState'
 import { getDemoUserByRole } from '../../mocks/users'
 import { RecordNotesPanel } from './RecordNotesPanel'
@@ -14,55 +14,47 @@ function NotesHarness({ recordId = 'rec-003' }: { recordId?: string }) {
   return <RecordNotesPanel record={record} />
 }
 
+function renderNotesHarness(role: 'CALISAN' | 'BASKAN') {
+  const user = getDemoUserByRole(role)
+  return render(
+    <ToastProvider>
+      <WorkflowProvider user={user}>
+        <NotesHarness />
+      </WorkflowProvider>
+    </ToastProvider>,
+  )
+}
+
 describe('RecordNotesPanel', () => {
-  it('aynı kullanıcının notunu tek kartta oluşturup günceller', async () => {
+  it('atanmış incelemecinin özel çalışma notunu ekleyip düzenlemesini sağlar', async () => {
     const user = userEvent.setup()
-    const chair = getDemoUserByRole('BASKAN')
-    render(
-      <ToastProvider>
-        <WorkflowProvider user={chair}>
-          <NotesHarness />
-        </WorkflowProvider>
-      </ToastProvider>,
-    )
+    renderNotesHarness('BASKAN')
 
-    expect(screen.getByText('John Doe')).toBeInTheDocument()
-    expect(screen.getByText('Ayşe Kaya')).toBeInTheDocument()
-
+    expect(screen.getByRole('region', { name: 'Çalışma Notu' })).toBeInTheDocument()
+    expect(screen.getByText('Henüz bir çalışma notunuz bulunmuyor.')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Not Ekle' }))
-    await user.type(screen.getByRole('textbox', { name: 'Notunuzu yazın' }), 'Başkan değerlendirmesi')
+    await user.type(screen.getByRole('textbox', { name: 'İnceleme notunuzu yazın' }), 'Başkan değerlendirmesi')
     await user.click(screen.getByRole('button', { name: 'Notu Kaydet' }))
 
     expect(await screen.findByText('Başkan değerlendirmesi')).toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent('Notunuz kaydedildi')
-    expect(screen.getAllByText('Sizin notunuz')).toHaveLength(1)
-
+    expect(screen.getByRole('status')).toHaveTextContent('Çalışma notunuz kaydedildi')
+    expect(screen.getByText('Özel taslağınız')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Notumu Düzenle' }))
-    const editor = screen.getByRole('textbox', { name: 'Notunuzu güncelleyin' })
-    await user.clear(editor)
-    await user.type(editor, 'Güncellenmiş Başkan değerlendirmesi')
+    const textbox = screen.getByRole('textbox', { name: 'Notunuzu düzenleyin' })
+    await user.clear(textbox)
+    await user.type(textbox, 'Düzeltilmiş Başkan değerlendirmesi')
     const saveButton = screen.getByRole('button', { name: 'Değişiklikleri Kaydet' })
     await waitFor(() => expect(saveButton).toBeEnabled())
     await user.click(saveButton)
 
-    const updatedNote = await screen.findByText('Güncellenmiş Başkan değerlendirmesi')
-    expect(updatedNote).toBeInTheDocument()
+    expect(await screen.findByText('Düzeltilmiş Başkan değerlendirmesi')).toBeInTheDocument()
     expect(screen.queryByText('Başkan değerlendirmesi')).not.toBeInTheDocument()
-    expect(screen.getAllByText('Sizin notunuz')).toHaveLength(1)
-    expect(within(updatedNote.closest('li')!).getByText('Düzenlendi')).toBeInTheDocument()
+    expect(screen.getAllByText('Düzeltilmiş Başkan değerlendirmesi')).toHaveLength(1)
   })
 
-  it('sonuçlanmış kayıtlardaki not alanını salt okunur gösterir', () => {
-    const chair = getDemoUserByRole('BASKAN')
-    render(
-      <ToastProvider>
-        <WorkflowProvider user={chair}>
-          <NotesHarness recordId="rec-004" />
-        </WorkflowProvider>
-      </ToastProvider>,
-    )
+  it('çalışana başka kullanıcıların çalışma notu panelini göstermez', () => {
+    const { container } = renderNotesHarness('CALISAN')
 
-    expect(screen.getByText('Sonuçlanan kayıtlarda notlar görüntülenebilir ancak değiştirilemez.')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Not Ekle' })).not.toBeInTheDocument()
+    expect(container.querySelector('[aria-labelledby="record-notes-title"]')).not.toBeInTheDocument()
   })
 })
