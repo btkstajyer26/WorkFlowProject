@@ -1,6 +1,7 @@
 import { UserCheck, UserX } from 'lucide-react'
 import { useState } from 'react'
 import { useAdmin } from '../../context/adminState'
+import { useToast } from '../../context/toastState'
 import type { ManagedUser } from '../../types/admin'
 import { AdminDialog } from './AdminDialog'
 import { useSingleFlight } from '../../hooks/useSingleFlight'
@@ -15,6 +16,7 @@ export function AccountStatusDialog({
   onClose: () => void
 }) {
   const { setUserActive } = useAdmin()
+  const { showToast } = useToast()
   const [error, setError] = useState<string | null>(null)
   const { busy: mutationBusy, run: runMutation } = useSingleFlight()
   const willActivate = !user?.isActive
@@ -50,6 +52,11 @@ export function AccountStatusDialog({
             if (!user) return
             try {
               setUserActive(user.id, willActivate)
+              showToast({
+                title: willActivate ? 'Hesap etkinleştirildi' : 'Hesap pasifleştirildi',
+                description: `${user.firstName} ${user.lastName} kullanıcısının erişim durumu güncellendi.`,
+                tone: 'success',
+              })
               closeDialog()
             } catch (caught) {
               setError(caught instanceof Error ? caught.message : 'Hesap durumu değiştirilemedi.')

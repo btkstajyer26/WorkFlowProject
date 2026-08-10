@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { Link, Navigate, useParams } from 'react-router'
 import { RecordActionPanel } from '../components/records/RecordActionPanel'
+import { RecordNotesPanel } from '../components/records/RecordNotesPanel'
 import { RecordStatusBadge } from '../components/records/RecordStatusBadge'
 import { useWorkflow } from '../context/workflowState'
 import type { UserRole } from '../types/auth'
@@ -115,6 +116,7 @@ export function RecordDetailPage({ role }: { role: UserRole }) {
 
         <div className="space-y-5">
           <RecordActionPanel record={record} role={role} />
+          <RecordNotesPanel key={record.id} record={record} />
 
           <section className="rounded-2xl border border-app-border bg-app-surface p-5 shadow-sm sm:p-6">
             <div className="flex items-center gap-3">
@@ -135,7 +137,12 @@ export function RecordDetailPage({ role }: { role: UserRole }) {
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-app-text-emphasis">{item.action}</p>
                     <p className="mt-1 text-xs text-app-text-subtle">{item.actor} · {item.role}</p>
-                    {item.note ? <p className="mt-2 rounded-lg bg-app-surface-muted px-3 py-2 text-xs leading-5 text-app-text-muted">{item.note}</p> : null}
+                    {item.note ? (
+                      <div className="mt-2 rounded-lg border border-app-border-subtle bg-app-surface-muted px-3 py-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-app-text-faint">İşlem açıklaması</p>
+                        <p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-app-text-muted">{item.note}</p>
+                      </div>
+                    ) : null}
                     <time className="mt-2 block text-[11px] font-medium text-app-text-subtle">{dateTimeFormatter.format(new Date(item.date))}</time>
                   </div>
                 </li>

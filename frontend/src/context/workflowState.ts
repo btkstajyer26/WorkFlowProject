@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react'
 import type { WorkflowActionInput } from '../domain/workflow'
+import type { AuthUser } from '../types/auth'
 import type { NotificationItem } from '../types/notification'
 import type { WorkflowRecord } from '../types/record'
 
@@ -13,6 +14,7 @@ export type RecordDraftInput = {
 }
 
 export type WorkflowContextValue = {
+  user: AuthUser
   records: WorkflowRecord[]
   visibleRecords: WorkflowRecord[]
   notifications: NotificationItem[]
@@ -23,7 +25,7 @@ export type WorkflowContextValue = {
   updateAndSubmit: (recordId: string, input: RecordDraftInput) => WorkflowRecord
   deleteDraft: (recordId: string) => void
   applyAction: (recordId: string, input: Omit<WorkflowActionInput, 'actor'>) => WorkflowRecord
-  addNote: (recordId: string, note: string) => WorkflowRecord
+  saveNote: (recordId: string, body: string) => WorkflowRecord
   markNotificationRead: (notificationId: string) => void
   markAllNotificationsRead: () => void
 }

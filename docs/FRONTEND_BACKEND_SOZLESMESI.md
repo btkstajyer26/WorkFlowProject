@@ -54,12 +54,12 @@ REDDET
 
 | Mevcut durum | Rol | Aksiyon | Hedef durum | Ek kural |
 |---|---|---|---|---|
-| `TASLAK` | Çalışan | `GONDER` | `BSK_YRD_INCELEMESINDE` | Backend tek aktif Başkan Yardımcısını otomatik bulur |
-| `DUZENLEME_BEKLIYOR` | Çalışan | `TEKRAR_GONDER` | `BSK_YRD_INCELEMESINDE` | Backend tek aktif Başkan Yardımcısını otomatik bulur |
-| `BSK_YRD_INCELEMESINDE` | Başkan Yardımcısı | `BASKANA_ILET` | `BASKAN_INCELEMESINDE` | Başkan hedefini backend organizasyon kuralıyla belirleyebilir |
-| `BSK_YRD_INCELEMESINDE` | Başkan Yardımcısı | `CALISANA_GERI_GONDER` | `DUZENLEME_BEKLIYOR` | `comment` zorunlu |
-| `BASKAN_INCELEMESINDE` | Başkan | `CALISANA_GERI_GONDER` | `DUZENLEME_BEKLIYOR` | `comment` zorunlu |
-| `BASKAN_INCELEMESINDE` | Başkan | `BASKAN_YARDIMCISINA_GERI_GONDER` | `BSK_YRD_INCELEMESINDE` | `comment` zorunlu |
+| `TASLAK` | Çalışan | `GONDER` | `BSK_YRD_INCELEMESINDE` | Mevcut backend sözleşmesinde `targetUserId` zorunlu; hedefleme kararı aşağıdaki açık maddede netleştirilecek |
+| `DUZENLEME_BEKLIYOR` | Çalışan | `TEKRAR_GONDER` | `BSK_YRD_INCELEMESINDE` | Mevcut backend sözleşmesinde `targetUserId` zorunlu; hedefleme kararı aşağıdaki açık maddede netleştirilecek |
+| `BSK_YRD_INCELEMESINDE` | Başkan Yardımcısı | `BASKANA_ILET` | `BASKAN_INCELEMESINDE` | Backend sistemdeki tek aktif Başkanı bulur; `targetUserId` gönderilmez |
+| `BSK_YRD_INCELEMESINDE` | Başkan Yardımcısı | `CALISANA_GERI_GONDER` | `DUZENLEME_BEKLIYOR` | Backend hedefi `createdBy` alanından bulur; `comment` zorunlu |
+| `BASKAN_INCELEMESINDE` | Başkan | `CALISANA_GERI_GONDER` | `DUZENLEME_BEKLIYOR` | Backend hedefi `createdBy` alanından bulur; `comment` zorunlu |
+| `BASKAN_INCELEMESINDE` | Başkan | `BASKAN_YARDIMCISINA_GERI_GONDER` | `BSK_YRD_INCELEMESINDE` | Backend hedefi `lastDeputyId` alanından bulur; `comment` zorunlu |
 | `BASKAN_INCELEMESINDE` | Başkan | `ONAYLA` | `ONAYLANDI` | Not isteğe bağlı |
 | `BASKAN_INCELEMESINDE` | Başkan | `REDDET` | `REDDEDILDI` | `comment` zorunlu |
 
@@ -198,13 +198,15 @@ Backend tarafından üretilmesi gereken alanlar: `id`, benzersiz ve değişmez `
 
 ### İş akışı aksiyonu
 
-Tek bir aksiyon endpointi mevcut backend enum yapısına daha doğrudan uyar:
+Backend workflow uygulama katmanının mevcut HTTP sözleşmesi tek bir aksiyon endpointi tanımlar:
 
 ```http
-POST /api/records/{id}/actions
+POST /api/records/{recordId}/workflow/actions
 Authorization: Bearer <accessToken>
 Content-Type: application/json
 ```
+
+İstek modeli:
 
 ```json
 {
@@ -213,9 +215,43 @@ Content-Type: application/json
 }
 ```
 
-Backend ayrı `/submit`, `/forward`, `/approve`, `/reject`, `/return` endpointleri kullanırsa frontend servis adaptörü buna uyarlanabilir. Ancak request/response ve hata davranışı Swagger'da tek anlamlı biçimde belgelenmelidir.
+| Alan | Zorunluluk | Kural |
+|---|---|---|
+| `action` | Her zaman zorunlu | `WorkflowAction` enum değerlerinden biri |
+| `targetUserId` | Yalnız `GONDER` ve `TEKRAR_GONDER` için zorunlu | Seçilen aktif Başkan Yardımcısının UUID değeri; diğer aksiyonlarda gönderilmez |
+| `comment` | Geri gönderme ve `REDDET` için zorunlu | En fazla 2000 karakter; diğer aksiyonlarda isteğe bağlı |
 
-### Kayıt cevap modeli
+`GONDER` ve `TEKRAR_GONDER` için mevcut backend isteği şu biçimdedir:
+
+```json
+{
+  "action": "GONDER",
+  "targetUserId": "baskan-yardimcisi-uuid",
+  "comment": "İncelemeye gönderildi."
+}
+```
+
+> **Açık karar — Başkan Yardımcısı hedefleme:** Backend'in mevcut `WorkflowAction` ve `TargetUserResolver` kodu, `GONDER` ile `TEKRAR_GONDER` işlemlerinde `targetUserId` alanını istemciden zorunlu bekliyor. Proje kuralı tek aktif Başkan Yardımcısı kullanılmasını garanti ediyorsa hedefin backend tarafından otomatik çözülmesi de mümkündür. Backend ekibi, `targetUserId` zorunluluğunun kalıcı olup olmadığını netleştirecek. Karar verilene kadar frontend API adaptörü ve olası hedef seçim arayüzü kesinleştirilmemelidir.
+
+Başarılı aksiyon cevabı tam kayıt modeli değil, backend tarafından hesaplanan geçiş özetidir:
+
+```json
+{
+  "recordId": "record-uuid",
+  "action": "CALISANA_GERI_GONDER",
+  "previousStatus": "BASKAN_INCELEMESINDE",
+  "newStatus": "DUZENLEME_BEKLIYOR",
+  "assignedTo": "calisan-uuid",
+  "performedBy": "baskan-uuid",
+  "performedAt": "2026-08-10T12:30:00Z"
+}
+```
+
+Frontend başarılı cevaptan sonra bu geçiş özetini merkezi kayıt önbelleğine uygulayabilir veya kayıt detayını yeniden isteyebilir. Tercih, kayıt sorgu endpointleri ve OpenAPI sözleşmesi tamamlandığında API adaptörü içinde verilmelidir; component katmanına doğrudan `fetch` çağrısı eklenmemelidir.
+
+Bu endpoint şu anda `WorkflowActionApi` arayüzüyle HTTP sözleşmesi olarak tanımlanmıştır. Somut Spring controller, transaction sınırı, güvenlik aktörü, kalıcılık portları ve ortak hata eşlemesi tamamlanmadan frontend entegrasyonu çalışır kabul edilmemelidir.
+
+### Kayıt detay cevap modeli
 
 ```json
 {
@@ -254,7 +290,8 @@ Backend ayrı `/submit`, `/forward`, `/approve`, `/reject`, `/return` endpointle
 | Metot | Önerilen adres | Amaç |
 |---|---|---|
 | `GET` | `/api/records/{id}/history` | Kullanıcının görmeye yetkili olduğu kaydın geçmişi |
-| `POST` | `/api/records/{id}/notes` | Başkan Yardımcısı veya Başkan için bağımsız inceleme notu |
+| `GET` | `/api/records/{id}/notes/me` | JWT kullanıcısının kayıttaki özel çalışma notu |
+| `PUT` | `/api/records/{id}/notes/me` | JWT kullanıcısının özel çalışma notunu oluşturma veya güncelleme |
 
 Geçmiş cevabı en az şu alanları taşımalıdır:
 
@@ -276,6 +313,49 @@ Geçmiş cevabı en az şu alanları taşımalıdır:
 ```
 
 Audit kayıtlarını güncelleyen veya silen endpoint olmamalıdır. Kullanıcı yalnız görmeye yetkili olduğu kaydın ilgili geçmişini görebilir; sistem genelindeki audit logları ayrı bir idari yetkidir.
+
+Çalışma notu süreç açıklamasından ayrı, geçici ve yazara özel tutulur. Her incelemeci bir kayıtta en fazla bir çalışma notu tutar; `PUT /notes/me` aynı kullanıcı ve kayıt için yeni satır üretmek yerine mevcut notu günceller. Başka bir kullanıcının çalışma notunu okuyan endpoint bulunmaz.
+
+Notu yalnız kaydın mevcut inceleme aşamasındaki atanmış kullanıcı ekleyebilir:
+
+- `BSK_YRD_INCELEMESINDE`: atanmış `BASKAN_YARDIMCISI`
+- `BASKAN_INCELEMESINDE`: atanmış `BASKAN`
+
+Çalışan, Admin, geçmiş aşamalardaki aktörler ve kaydın mevcut atanmış kullanıcısı olmayan yöneticiler çalışma notu ekleyemez veya güncelleyemez. `ONAYLANDI`, `REDDEDILDI`, `TASLAK` ve `DUZENLEME_BEKLIYOR` durumlarında çalışma notu yönetilemez. Kayıt görünürlüğü başka kullanıcının özel çalışma notunu okumaya yetki vermez.
+
+Çalışma notu kaydetme isteği:
+
+```json
+{
+  "body": "Teknik plan ve bütçe kalemleri kontrol edildi.",
+  "version": 1
+}
+```
+
+Yeni not oluşturulurken `version` gönderilmez. Güncellemede istemci son okuduğu `version` değerini gönderir; eşleşmiyorsa backend `409 NOTE_VERSION_CONFLICT` döndürür. Başarılı cevap güncel notu taşır:
+
+```json
+{
+  "id": "note-uuid",
+  "recordId": "record-uuid",
+  "author": {
+    "id": "user-uuid",
+    "firstName": "Ayşe",
+    "lastName": "Kaya",
+    "role": "BASKAN_YARDIMCISI"
+  },
+  "body": "Teknik plan ve bütçe kalemleri kontrol edildi.",
+  "createdAt": "2026-08-04T10:15:00Z",
+  "updatedAt": "2026-08-04T10:30:00Z",
+  "version": 2
+}
+```
+
+Not gövdesi boş olamaz ve en fazla 1000 karakterdir. Veritabanındaki `(record_id, author_id)` benzersiz kısıtı yarış durumlarında da tek çalışma notu kuralını korur. Not oluşturma ve güncelleme teknik denetim izi üretebilir; içerik kullanıcıya gösterilen `GET /history` zaman çizelgesine eklenmez.
+
+Workflow işlem penceresi yazarın çalışma notuyla önceden doldurulur. Kullanıcı metni son kez değiştirebilir ve workflow isteğinin `comment` alanında gönderir. Başarılı işlem tek backend transaction'ında durum/atama güncellemesini, append-only audit kaydını, bildirimi ve çalışma notunun temizlenmesini tamamlar. İşlem başarısızsa çalışma notu korunur. Frontend audit endpoint'ine ikinci bir yazma isteği göndermez.
+
+Başkana iletme ve onay açıklaması isteğe bağlı; ret ve tüm geri gönderme açıklamaları zorunludur. Kesinleşen `comment` yalnız ilgili audit olayında kalır, güncellenemez ve sonraki kullanıcı tarafından İşlem Geçmişi'nde okunur.
 
 ## 7. Kategoriler
 
@@ -379,7 +459,6 @@ Frontend ekibinin veritabanı bağlantı bilgisine veya şifresine ihtiyacı yok
 ## 13. Açık ürün kararları
 
 - `records` tablosunda kullanıcıya gösterilecek benzersiz `record_no` alanı kesinleşmeli.
-- Bağımsız inceleme notunun ayrı endpoint/tablo mu yoksa audit action mı olacağı kararlaştırılmalı.
 - `notifications.record_id` zorunluysa kayıttan bağımsız sistem duyuruları desteklenmeyecek; gerekiyorsa şema değişmeli.
 - Profil güncelleme ve şifre değiştirme kapsamı şartnamede olmadığı için bu işlemler için endpoint talep edilmemiştir.
 - Self-service kayıt/signup ekranı kapsam dışıdır; kullanıcı hesaplarını yetkili sistem yöneticisi oluşturur.
