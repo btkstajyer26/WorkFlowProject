@@ -254,7 +254,8 @@ Backend ayrı `/submit`, `/forward`, `/approve`, `/reject`, `/return` endpointle
 | Metot | Önerilen adres | Amaç |
 |---|---|---|
 | `GET` | `/api/records/{id}/history` | Kullanıcının görmeye yetkili olduğu kaydın geçmişi |
-| `POST` | `/api/records/{id}/notes` | Başkan Yardımcısı veya Başkan için bağımsız inceleme notu |
+| `GET` | `/api/records/{id}/notes` | Kullanıcının görmeye yetkili olduğu kaydın notları |
+| `PUT` | `/api/records/{id}/notes/me` | JWT kullanıcısının kayıttaki tek notunu oluşturma veya güncelleme |
 
 Geçmiş cevabı en az şu alanları taşımalıdır:
 
@@ -276,6 +277,38 @@ Geçmiş cevabı en az şu alanları taşımalıdır:
 ```
 
 Audit kayıtlarını güncelleyen veya silen endpoint olmamalıdır. Kullanıcı yalnız görmeye yetkili olduğu kaydın ilgili geçmişini görebilir; sistem genelindeki audit logları ayrı bir idari yetkidir.
+
+Bağımsız kayıt notları audit geçmişinden ayrı tutulur. Çalışan, Başkan Yardımcısı ve Başkan, görmeye yetkili oldukları her kayıt için en fazla bir not tutabilir. `PUT /notes/me` aynı kullanıcı ve kayıt için yeni satır üretmek yerine mevcut notu günceller. `ONAYLANDI` veya `REDDEDILDI` durumundaki kayıtların notları salt okunurdur.
+
+Not kaydetme isteği:
+
+```json
+{
+  "body": "Teknik plan ve bütçe kalemleri kontrol edildi.",
+  "version": 1
+}
+```
+
+Yeni not oluşturulurken `version` gönderilmez. Güncellemede istemci son okuduğu `version` değerini gönderir; eşleşmiyorsa backend `409 NOTE_VERSION_CONFLICT` döndürür. Başarılı cevap şu alanları taşır:
+
+```json
+{
+  "id": "note-uuid",
+  "recordId": "record-uuid",
+  "author": {
+    "id": "user-uuid",
+    "firstName": "Ayşe",
+    "lastName": "Kaya",
+    "role": "BASKAN_YARDIMCISI"
+  },
+  "body": "Teknik plan ve bütçe kalemleri kontrol edildi.",
+  "createdAt": "2026-08-04T10:15:00Z",
+  "updatedAt": "2026-08-04T10:30:00Z",
+  "version": 2
+}
+```
+
+Not gövdesi boş olamaz ve en fazla 1000 karakterdir. Veritabanındaki `(record_id, author_id)` benzersiz kısıtı bu kuralın yarış durumlarında da korunmasını sağlar. Not oluşturma/güncelleme `records.updated_at`, `records.last_action` veya append-only `audit_logs` satırlarını değiştirmez; süreç aksiyonuna yazılan `comment` ise yalnız işlem geçmişinde kalır ve güncellenemez.
 
 ## 7. Kategoriler
 
@@ -379,7 +412,6 @@ Frontend ekibinin veritabanı bağlantı bilgisine veya şifresine ihtiyacı yok
 ## 13. Açık ürün kararları
 
 - `records` tablosunda kullanıcıya gösterilecek benzersiz `record_no` alanı kesinleşmeli.
-- Bağımsız inceleme notunun ayrı endpoint/tablo mu yoksa audit action mı olacağı kararlaştırılmalı.
 - `notifications.record_id` zorunluysa kayıttan bağımsız sistem duyuruları desteklenmeyecek; gerekiyorsa şema değişmeli.
 - Profil güncelleme ve şifre değiştirme kapsamı şartnamede olmadığı için bu işlemler için endpoint talep edilmemiştir.
 - Self-service kayıt/signup ekranı kapsam dışıdır; kullanıcı hesaplarını yetkili sistem yöneticisi oluşturur.

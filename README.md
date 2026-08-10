@@ -44,9 +44,9 @@ Sistemde üç iş akışı rolü ve bir yönetim rolü bulunur:
 
 | Rol | Görünürlük ve işlemler |
 | --- | --- |
-| **Çalışan** | Varsayılan kullanıcı rolüdür. Yalnız kendi kayıtlarını görür; kayıt ve ek oluşturur, kendi taslağını düzenler/siler, Başkan Yardımcısına gönderir, geri dönen kaydı düzenleyip yeniden gönderir. |
-| **Başkan Yardımcısı** | Atanan veya kendisine gelen kayıtları görür; not ekler, zorunlu açıklamayla Çalışana geri gönderir veya uygun bulduğu kayda ara kademe onayı vererek Başkana iletir. Nihai onay/ret yapamaz. |
-| **Başkan** | Başkan incelemesine ulaşan kayıtları görür; not ekler, onaylar, reddeder veya Çalışana/Başkan Yardımcısına geri gönderir. |
+| **Çalışan** | Varsayılan kullanıcı rolüdür. Yalnız kendi kayıtlarını görür; kayıt ve ek oluşturur, kayıt başına tek notunu ekler/düzenler, kendi taslağını düzenler/siler, Başkan Yardımcısına gönderir, geri dönen kaydı düzenleyip yeniden gönderir. |
+| **Başkan Yardımcısı** | Atanan veya kendisine gelen kayıtları görür; kayıt başına tek notunu ekler/düzenler, zorunlu açıklamayla Çalışana geri gönderir veya uygun bulduğu kayda ara kademe onayı vererek Başkana iletir. Nihai onay/ret yapamaz. |
+| **Başkan** | Başkan incelemesine ulaşan kayıtları görür; kayıt başına tek notunu ekler/düzenler, onaylar, reddeder veya Çalışana/Başkan Yardımcısına geri gönderir. |
 | **Admin** | Kullanıcı hesabı oluşturur ve kullanıcıların rollerini kurumsal görevlendirmeye göre değiştirir. Onay akışına kendiliğinden katılmaz ve yalnızca Admin olması nedeniyle evraklara erişim kazanmaz. |
 
 Rol yönetimi kuralları:
@@ -94,7 +94,8 @@ Temel kurallar:
 
 - Desteklenen dosyalar: `.pdf`, `.docx`, `.doc`, `.xlsx`, `.xls`, `.png`, `.jpeg`, `.jpg`.
 - Dosyalar GUID tabanlı adla saklanmalı; boyut, uzantı ve gerçek MIME type doğrulanmalıdır.
-- Kayıt oluşturma, taslak düzenleme/silme, dosya ekleme/kaldırma, durum değişiklikleri, notlar, ara kademe onayı, nihai onay, ret ve geri gönderme işlemleri kullanıcı/rol/zaman bilgisiyle append-only `audit_logs` kaydı üretmelidir.
+- Kayıt oluşturma, taslak düzenleme/silme, dosya ekleme/kaldırma, durum değişiklikleri, ara kademe onayı, nihai onay, ret ve geri gönderme işlemleri kullanıcı/rol/zaman bilgisiyle append-only `audit_logs` kaydı üretmelidir.
+- Düzenlenebilir kayıt notları `record_notes` tablosunda, kullanıcı ve kayıt başına tek satır olarak tutulur; süreç aksiyonlarına ait değişmez açıklamalar ise `audit_logs.comment` alanında kalır.
 - Audit Log kayıtları uygulama üzerinden değiştirilememeli veya silinememeli; kayıt detayında kronolojik işlem geçmişi olarak görüntülenebilmelidir.
 - Gönderme ve iletmede ilgili yetkiliye; geri göndermede ilgili çalışan/yöneticiye; onay ve rette tüm ilgililere uygulama içi ve e-posta bildirimi gönderilmelidir.
 - E-posta içeriği kayıt özeti, mevcut durum, son not ve kayıt detayına deep link içermelidir.
