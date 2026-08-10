@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -21,12 +20,8 @@ public class FileService {
 
     private final FileRepository fileRepository;
     private final FileStorageService fileStorageService;
-
-    private static final List<String> ALLOWED_TYPES = List.of(
-            "application/pdf",
-            "image/png",
-            "image/jpeg"
-    );
+    private final FileContentValidator fileContentValidator;
+    private final RecordLockValidator recordLockValidator; // yeni eklendi
 
     public FileEntity uploadFile(MultipartFile file, UUID recordId, UUID uploadedBy) {
 
@@ -34,10 +29,9 @@ public class FileService {
             throw new IllegalArgumentException("Dosya boş olamaz");
         }
 
-        String contentType = file.getContentType();
-        if (contentType == null || !ALLOWED_TYPES.contains(contentType)) {
-            throw new IllegalArgumentException("Desteklenmeyen dosya formatı: " + contentType);
-        }
+        recordLockValidator.assertUploadAllowed(recordId); // TODO yerine geldi
+
+        String detectedType = fileContentValidator.detectAndValidate(file);
 
         String originalFilename = file.getOriginalFilename();
         String storedFilename = UUID.randomUUID() + "_" + originalFilename;
@@ -48,12 +42,23 @@ public class FileService {
         entity.setRecordId(recordId);
         entity.setOriginalName(originalFilename);
         entity.setStoredName(storedFilename);
-        entity.setMimeType(contentType);
+        entity.setMimeType(detectedType);
         entity.setFileSize((int) file.getSize());
         entity.setUploadedBy(uploadedBy);
         entity.setUploadedAt(LocalDateTime.now());
 
         return fileRepository.save(entity);
+    }
+
+    public void deleteFile(UUID id, UUID deletedBy) {
+        FileEntity fileEntity = fileRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new IllegalArgumentException("Dosya bulunamadı: " + id));
+
+        fileEntity.setDeletedAt(LocalDateTime.now());
+        fileEntity.setDeletedBy(deletedBy);
+
+        fileRepository.save(fileEntity);
+        // Fiziksel dosya diskten silinmiyor - soft delete'in amacı geri dönüşü mümkün kılmak.
     }
 
     public ResponseEntity<Resource> downloadFile(UUID id) {
@@ -66,7 +71,7 @@ public class FileService {
 
     private ResponseEntity<Resource> buildFileResponse(UUID id, String dispositionType) {
 
-        FileEntity fileEntity = fileRepository.findById(id)
+        FileEntity fileEntity = fileRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new IllegalArgumentException("Dosya bulunamadı: " + id));
 
         Resource resource = fileStorageService.loadAsResource(fileEntity.getStoredName());

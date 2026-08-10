@@ -3,7 +3,7 @@ package btk.staj.WorkFlowProject.attachment.controller;
 import btk.staj.WorkFlowProject.attachment.dto.FileResponseDto;
 import btk.staj.WorkFlowProject.attachment.entity.FileEntity;
 import btk.staj.WorkFlowProject.attachment.service.FileService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,10 +13,10 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/files")
+@RequiredArgsConstructor
 public class FileController {
 
-    @Autowired
-    private FileService fileService;
+    private final FileService fileService;
 
     @PostMapping("/upload")
     public ResponseEntity<?> uploadFile(
@@ -41,6 +41,19 @@ public class FileController {
     @GetMapping("/{id}/preview")
     public ResponseEntity<Resource> previewFile(@PathVariable UUID id) {
         return fileService.previewFile(id);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteFile(
+            @PathVariable UUID id,
+            @RequestParam("deletedBy") UUID deletedBy) { // ileride oturumdan alınacak
+
+        try {
+            fileService.deleteFile(id, deletedBy);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(404).body(e.getMessage());
+        }
     }
 
     private FileResponseDto toDto(FileEntity entity) {
