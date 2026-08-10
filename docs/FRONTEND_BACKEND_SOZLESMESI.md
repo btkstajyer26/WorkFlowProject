@@ -54,12 +54,12 @@ REDDET
 
 | Mevcut durum | Rol | Aksiyon | Hedef durum | Ek kural |
 |---|---|---|---|---|
-| `TASLAK` | Çalışan | `GONDER` | `BSK_YRD_INCELEMESINDE` | Backend tek aktif Başkan Yardımcısını otomatik bulur |
-| `DUZENLEME_BEKLIYOR` | Çalışan | `TEKRAR_GONDER` | `BSK_YRD_INCELEMESINDE` | Backend tek aktif Başkan Yardımcısını otomatik bulur |
-| `BSK_YRD_INCELEMESINDE` | Başkan Yardımcısı | `BASKANA_ILET` | `BASKAN_INCELEMESINDE` | Başkan hedefini backend organizasyon kuralıyla belirleyebilir |
-| `BSK_YRD_INCELEMESINDE` | Başkan Yardımcısı | `CALISANA_GERI_GONDER` | `DUZENLEME_BEKLIYOR` | `comment` zorunlu |
-| `BASKAN_INCELEMESINDE` | Başkan | `CALISANA_GERI_GONDER` | `DUZENLEME_BEKLIYOR` | `comment` zorunlu |
-| `BASKAN_INCELEMESINDE` | Başkan | `BASKAN_YARDIMCISINA_GERI_GONDER` | `BSK_YRD_INCELEMESINDE` | `comment` zorunlu |
+| `TASLAK` | Çalışan | `GONDER` | `BSK_YRD_INCELEMESINDE` | Mevcut backend sözleşmesinde `targetUserId` zorunlu; hedefleme kararı aşağıdaki açık maddede netleştirilecek |
+| `DUZENLEME_BEKLIYOR` | Çalışan | `TEKRAR_GONDER` | `BSK_YRD_INCELEMESINDE` | Mevcut backend sözleşmesinde `targetUserId` zorunlu; hedefleme kararı aşağıdaki açık maddede netleştirilecek |
+| `BSK_YRD_INCELEMESINDE` | Başkan Yardımcısı | `BASKANA_ILET` | `BASKAN_INCELEMESINDE` | Backend sistemdeki tek aktif Başkanı bulur; `targetUserId` gönderilmez |
+| `BSK_YRD_INCELEMESINDE` | Başkan Yardımcısı | `CALISANA_GERI_GONDER` | `DUZENLEME_BEKLIYOR` | Backend hedefi `createdBy` alanından bulur; `comment` zorunlu |
+| `BASKAN_INCELEMESINDE` | Başkan | `CALISANA_GERI_GONDER` | `DUZENLEME_BEKLIYOR` | Backend hedefi `createdBy` alanından bulur; `comment` zorunlu |
+| `BASKAN_INCELEMESINDE` | Başkan | `BASKAN_YARDIMCISINA_GERI_GONDER` | `BSK_YRD_INCELEMESINDE` | Backend hedefi `lastDeputyId` alanından bulur; `comment` zorunlu |
 | `BASKAN_INCELEMESINDE` | Başkan | `ONAYLA` | `ONAYLANDI` | Not isteğe bağlı |
 | `BASKAN_INCELEMESINDE` | Başkan | `REDDET` | `REDDEDILDI` | `comment` zorunlu |
 
@@ -198,13 +198,15 @@ Backend tarafından üretilmesi gereken alanlar: `id`, benzersiz ve değişmez `
 
 ### İş akışı aksiyonu
 
-Tek bir aksiyon endpointi mevcut backend enum yapısına daha doğrudan uyar:
+Backend workflow uygulama katmanının mevcut HTTP sözleşmesi tek bir aksiyon endpointi tanımlar:
 
 ```http
-POST /api/records/{id}/actions
+POST /api/records/{recordId}/workflow/actions
 Authorization: Bearer <accessToken>
 Content-Type: application/json
 ```
+
+İstek modeli:
 
 ```json
 {
@@ -213,9 +215,43 @@ Content-Type: application/json
 }
 ```
 
-Backend ayrı `/submit`, `/forward`, `/approve`, `/reject`, `/return` endpointleri kullanırsa frontend servis adaptörü buna uyarlanabilir. Ancak request/response ve hata davranışı Swagger'da tek anlamlı biçimde belgelenmelidir.
+| Alan | Zorunluluk | Kural |
+|---|---|---|
+| `action` | Her zaman zorunlu | `WorkflowAction` enum değerlerinden biri |
+| `targetUserId` | Yalnız `GONDER` ve `TEKRAR_GONDER` için zorunlu | Seçilen aktif Başkan Yardımcısının UUID değeri; diğer aksiyonlarda gönderilmez |
+| `comment` | Geri gönderme ve `REDDET` için zorunlu | En fazla 2000 karakter; diğer aksiyonlarda isteğe bağlı |
 
-### Kayıt cevap modeli
+`GONDER` ve `TEKRAR_GONDER` için mevcut backend isteği şu biçimdedir:
+
+```json
+{
+  "action": "GONDER",
+  "targetUserId": "baskan-yardimcisi-uuid",
+  "comment": "İncelemeye gönderildi."
+}
+```
+
+> **Açık karar — Başkan Yardımcısı hedefleme:** Backend'in mevcut `WorkflowAction` ve `TargetUserResolver` kodu, `GONDER` ile `TEKRAR_GONDER` işlemlerinde `targetUserId` alanını istemciden zorunlu bekliyor. Proje kuralı tek aktif Başkan Yardımcısı kullanılmasını garanti ediyorsa hedefin backend tarafından otomatik çözülmesi de mümkündür. Backend ekibi, `targetUserId` zorunluluğunun kalıcı olup olmadığını netleştirecek. Karar verilene kadar frontend API adaptörü ve olası hedef seçim arayüzü kesinleştirilmemelidir.
+
+Başarılı aksiyon cevabı tam kayıt modeli değil, backend tarafından hesaplanan geçiş özetidir:
+
+```json
+{
+  "recordId": "record-uuid",
+  "action": "CALISANA_GERI_GONDER",
+  "previousStatus": "BASKAN_INCELEMESINDE",
+  "newStatus": "DUZENLEME_BEKLIYOR",
+  "assignedTo": "calisan-uuid",
+  "performedBy": "baskan-uuid",
+  "performedAt": "2026-08-10T12:30:00Z"
+}
+```
+
+Frontend başarılı cevaptan sonra bu geçiş özetini merkezi kayıt önbelleğine uygulayabilir veya kayıt detayını yeniden isteyebilir. Tercih, kayıt sorgu endpointleri ve OpenAPI sözleşmesi tamamlandığında API adaptörü içinde verilmelidir; component katmanına doğrudan `fetch` çağrısı eklenmemelidir.
+
+Bu endpoint şu anda `WorkflowActionApi` arayüzüyle HTTP sözleşmesi olarak tanımlanmıştır. Somut Spring controller, transaction sınırı, güvenlik aktörü, kalıcılık portları ve ortak hata eşlemesi tamamlanmadan frontend entegrasyonu çalışır kabul edilmemelidir.
+
+### Kayıt detay cevap modeli
 
 ```json
 {
