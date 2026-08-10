@@ -46,7 +46,7 @@ export function ToastViewport({
 
   return (
     <div
-      className="pointer-events-none fixed inset-x-4 top-4 z-[100] flex flex-col items-end gap-2 sm:left-auto sm:right-5 sm:w-full sm:max-w-sm"
+      className="pointer-events-none fixed inset-x-4 bottom-4 z-[100] flex flex-col items-end gap-2 sm:left-auto sm:right-5 sm:w-full sm:max-w-sm"
       aria-label="Bildirimler"
     >
       {toasts.map((toast) => {
