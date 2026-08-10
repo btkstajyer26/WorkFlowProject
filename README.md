@@ -2,8 +2,8 @@
 
 Kurum içindeki belge, kayıt ve onay süreçlerini dijitalleştirmeyi amaçlayan web tabanlı bir EBYS modülüdür.
 
-> Proje şu anda altyapı ve modül iskeleti aşamasındadır.
-> İşlevsel REST API'ler, güvenlik akışları ve kullanıcı arayüzü henüz geliştirilmemiştir.
+> Backend şu anda altyapı ve modül iskeleti aşamasındadır.
+> React kullanıcı arayüzü çalışır durumdadır; işlevsel REST API'ler ve güvenlik entegrasyonu tamamlandığında mock veri katmanı gerçek API istemcileriyle değiştirilecektir.
 
 ## Mevcut Durum
 
@@ -18,7 +18,7 @@ Kurum içindeki belge, kayıt ve onay süreçlerini dijitalleştirmeyi amaçlaya
 | Admin kontrollü kullanıcı oluşturma ve rol atama | Hedef kapsam |
 | Kayıt, iş akışı, dosya, audit ve bildirim API'leri | Hedef kapsam |
 | Outlook e-posta entegrasyonu | Hedef kapsam |
-| React frontend | Teknoloji olarak seçildi; uygulama iskeleti henüz oluşturulmadı |
+| React frontend | Vite tabanlı uygulama, rol ekranları ve frontend testleri hazır; backend API entegrasyonu bekleniyor |
 
 ## Faz I Hedefi
 
@@ -111,7 +111,7 @@ Temel kurallar:
 | Güvenlik | Spring Security | Altyapı mevcut; kimlik doğrulama yaklaşımı için ekip kararı bekleniyor |
 | E-posta | Spring Mail, Outlook SMTP/Exchange | Hedef |
 | Yerel e-posta testi | Mailpit | Mevcut |
-| Frontend | React | Teknoloji seçildi; iskelet henüz oluşturulmadı |
+| Frontend | React, TypeScript, Vite | Uygulama ve frontend testleri mevcut; backend API entegrasyonu bekleniyor |
 | Test | JUnit 5, Spring Test, Mockito | Temel test altyapısı mevcut |
 
 ## Proje Yapısı
@@ -153,7 +153,10 @@ WorkFlowProject/
 ├── frontend/
 │   ├── .dockerignore
 │   ├── Dockerfile
-│   └── index.html
+│   ├── package.json
+│   ├── index.html
+│   ├── public/
+│   └── src/
 └── docs/
     ├── architecture.md
     ├── database.md
@@ -162,7 +165,7 @@ WorkFlowProject/
         └── README.md
 ```
 
-Modül ve test klasörlerindeki `.gitkeep` dosyaları okunabilirlik için gösterilmemiştir. Frontend dizini henüz çalıştırılabilir React iskeletini içermez.
+Modül ve test klasörlerindeki `.gitkeep` dosyaları okunabilirlik için gösterilmemiştir. Frontend dizini çalıştırılabilir React/Vite uygulamasını içerir.
 
 ## Backend Modülleri
 
@@ -214,7 +217,7 @@ Linux/macOS ortamında `.env` dosyası `cp .env.example .env` komutuyla oluştur
 | Mailpit Web UI | `http://localhost:8025` |
 | Mailpit SMTP | `localhost:1025` |
 
-Backend içinde henüz işlevsel API veya health endpoint'i yoktur. Frontend servisi, `package.json` ve uygulama iskeleti bulunmadığı için çalıştırılabilir durumda değildir.
+Backend içinde henüz işlevsel API veya health endpoint'i yoktur. Frontend servisi `docker compose --profile frontend up` komutuyla çalıştırılabilir; bu aşamada arayüz mock veriler kullanır.
 
 Servisleri durdurmak için `docker compose down` kullanılır. `docker compose down -v` ayrıca yerel veritabanı ve yükleme volume'lerini kalıcı olarak siler.
 

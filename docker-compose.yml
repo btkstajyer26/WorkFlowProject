@@ -51,8 +51,8 @@ services:
       - uploads:/app/uploads
     restart: unless-stopped
 
-  # Frontend iskeleti (package.json) henüz oluşturulmadığı için profil arkasında.
-  # Hazır olunca: docker compose --profile frontend up
+  # Frontend geliştirme servisini gerektiğinde profille başlatın:
+  # docker compose --profile frontend up
   frontend:
     profiles: ["frontend"]
     build:
