@@ -1,6 +1,7 @@
 import { CheckCircle2, ClipboardCheck, LockKeyhole, UserX } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useAdmin } from '../../context/adminState'
+import { useToast } from '../../context/toastState'
 import { useSingleFlight } from '../../hooks/useSingleFlight'
 import { roleLabels, type WorkflowRole } from '../../types/auth'
 import type { RegistrationRequest } from '../../types/registration'
@@ -18,6 +19,7 @@ export function RegistrationReviewDialog({
   onClose: () => void
 }) {
   const { users, approveRegistration, rejectRegistration } = useAdmin()
+  const { showToast } = useToast()
   const [role, setRole] = useState<WorkflowRole>('CALISAN')
   const [error, setError] = useState<string | null>(null)
   const { busy, run } = useSingleFlight()
@@ -35,8 +37,21 @@ export function RegistrationReviewDialog({
     void run(() => {
       if (!request) return
       try {
-        if (decision === 'approve') approveRegistration(request.id, role)
-        else rejectRegistration(request.id)
+        if (decision === 'approve') {
+          approveRegistration(request.id, role)
+          showToast({
+            title: 'Hesap onaylandı',
+            description: `${request.firstName} ${request.lastName} için ${roleLabels[role]} hesabı açıldı.`,
+            tone: 'success',
+          })
+        } else {
+          rejectRegistration(request.id)
+          showToast({
+            title: 'Kayıt talebi reddedildi',
+            description: `${request.firstName} ${request.lastName} kullanıcısının başvurusu reddedildi.`,
+            tone: 'success',
+          })
+        }
         onClose()
       } catch (actionError) {
         setError(actionError instanceof Error ? actionError.message : 'Kayıt talebi işlenemedi.')

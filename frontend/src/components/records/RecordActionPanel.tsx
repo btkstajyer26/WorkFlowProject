@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { Link } from 'react-router'
 import { useWorkflow } from '../../context/workflowState'
+import { useToast } from '../../context/toastState'
 import { getDemoUserByRole } from '../../mocks/users'
 import { useModalDialog } from '../../hooks/useModalDialog'
 import { useSingleFlight } from '../../hooks/useSingleFlight'
@@ -48,6 +49,7 @@ const actionCopy: Record<ReviewAction, { title: string; description: string; con
 
 export function RecordActionPanel({ record, role }: { record: WorkflowRecord; role: UserRole }) {
   const { applyAction } = useWorkflow()
+  const { showToast } = useToast()
   const [actionComment, setActionComment] = useState('')
   const [returnReason, setReturnReason] = useState('')
   const [returnTarget, setReturnTarget] = useState<'CALISAN' | 'BASKAN_YARDIMCISI'>('CALISAN')
@@ -77,10 +79,28 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
             ? { action: 'ONAYLA' as const, comment: actionComment }
             : { action: 'REDDET' as const, comment: actionComment }
 
-    applyAction(record.id, workflowInput)
-    setActiveAction(null)
-    setReturnReason('')
-    setActionComment('')
+    try {
+      applyAction(record.id, workflowInput)
+      const successCopy: Record<ReviewAction, string> = {
+        submit: record.status === 'TASLAK' ? 'Kayıt incelemeye gönderildi' : 'Kayıt yeniden incelemeye gönderildi',
+        forward: 'Kayıt Başkana iletildi',
+        return: returnTarget === 'CALISAN'
+          ? 'Kayıt Çalışana geri gönderildi'
+          : 'Kayıt Başkan Yardımcısına geri gönderildi',
+        approve: 'Kayıt onaylandı',
+        reject: 'Kayıt reddedildi',
+      }
+      showToast({ title: successCopy[activeAction], tone: 'success' })
+      setActiveAction(null)
+      setReturnReason('')
+      setActionComment('')
+    } catch (caughtError) {
+      showToast({
+        title: 'İşlem tamamlanamadı',
+        description: caughtError instanceof Error ? caughtError.message : 'Kayıt işlemi sırasında bir hata oluştu.',
+        tone: 'error',
+      })
+    }
   })
 
   const closeActionDialog = () => {

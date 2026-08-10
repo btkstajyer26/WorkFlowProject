@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { WorkflowProvider } from '../../context/WorkflowContext'
+import { ToastProvider } from '../../context/ToastContext'
 import { useWorkflow } from '../../context/workflowState'
 import { getDemoUserByRole } from '../../mocks/users'
 import { RecordNotesPanel } from './RecordNotesPanel'
@@ -18,9 +19,11 @@ describe('RecordNotesPanel', () => {
     const user = userEvent.setup()
     const chair = getDemoUserByRole('BASKAN')
     render(
-      <WorkflowProvider user={chair}>
-        <NotesHarness />
-      </WorkflowProvider>,
+      <ToastProvider>
+        <WorkflowProvider user={chair}>
+          <NotesHarness />
+        </WorkflowProvider>
+      </ToastProvider>,
     )
 
     expect(screen.getByText('John Doe')).toBeInTheDocument()
@@ -31,6 +34,7 @@ describe('RecordNotesPanel', () => {
     await user.click(screen.getByRole('button', { name: 'Notu Kaydet' }))
 
     expect(await screen.findByText('Başkan değerlendirmesi')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Notunuz kaydedildi')
     expect(screen.getAllByText('Sizin notunuz')).toHaveLength(1)
 
     await user.click(screen.getByRole('button', { name: 'Notumu Düzenle' }))
@@ -51,9 +55,11 @@ describe('RecordNotesPanel', () => {
   it('sonuçlanmış kayıtlardaki not alanını salt okunur gösterir', () => {
     const chair = getDemoUserByRole('BASKAN')
     render(
-      <WorkflowProvider user={chair}>
-        <NotesHarness recordId="rec-004" />
-      </WorkflowProvider>,
+      <ToastProvider>
+        <WorkflowProvider user={chair}>
+          <NotesHarness recordId="rec-004" />
+        </WorkflowProvider>
+      </ToastProvider>,
     )
 
     expect(screen.getByText('Sonuçlanan kayıtlarda notlar görüntülenebilir ancak değiştirilemez.')).toBeInTheDocument()

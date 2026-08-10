@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { WorkflowProvider } from '../../context/WorkflowContext'
+import { ToastProvider } from '../../context/ToastContext'
 import { useWorkflow } from '../../context/workflowState'
 import { getDemoUserByRole } from '../../mocks/users'
 import { RecordActionPanel } from './RecordActionPanel'
@@ -18,9 +19,11 @@ describe('RecordActionPanel', () => {
     const user = userEvent.setup()
     const chair = getDemoUserByRole('BASKAN')
     render(
-      <WorkflowProvider user={chair}>
-        <ActionPanelHarness />
-      </WorkflowProvider>,
+      <ToastProvider>
+        <WorkflowProvider user={chair}>
+          <ActionPanelHarness />
+        </WorkflowProvider>
+      </ToastProvider>,
     )
 
     expect(screen.queryByText('İnceleme notu')).not.toBeInTheDocument()

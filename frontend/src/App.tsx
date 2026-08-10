@@ -6,6 +6,7 @@ import { WorkflowProvider } from './context/WorkflowContext'
 import { useWorkflow } from './context/workflowState'
 import { AdminProvider } from './context/AdminContext'
 import { ThemeProvider } from './context/ThemeContext'
+import { ToastProvider } from './context/ToastContext'
 import { getDemoUserByRole } from './mocks/users'
 import { createMockRegistrationRequest } from './mocks/registrationRequests'
 import { DashboardPage } from './pages/DashboardPage'
@@ -65,32 +66,34 @@ function App() {
 
   return (
     <ThemeProvider>
-      <AppErrorBoundary>
-        <Routes>
-          <Route
-            path="/giris"
-            element={(
-              <LoginPage
-                user={user}
-                onLogin={handleLogin}
-                onRegister={createMockRegistrationRequest}
-              />
-            )}
-          />
-          <Route
-            path="/*"
-            element={
-              <ProtectedApplication
-                user={user}
-                onUserChange={(nextUser) => {
-                  persistMockSession(nextUser)
-                  setUser(nextUser)
-                }}
-              />
-            }
-          />
-        </Routes>
-      </AppErrorBoundary>
+      <ToastProvider>
+        <AppErrorBoundary>
+          <Routes>
+            <Route
+              path="/giris"
+              element={(
+                <LoginPage
+                  user={user}
+                  onLogin={handleLogin}
+                  onRegister={createMockRegistrationRequest}
+                />
+              )}
+            />
+            <Route
+              path="/*"
+              element={
+                <ProtectedApplication
+                  user={user}
+                  onUserChange={(nextUser) => {
+                    persistMockSession(nextUser)
+                    setUser(nextUser)
+                  }}
+                />
+              }
+            />
+          </Routes>
+        </AppErrorBoundary>
+      </ToastProvider>
     </ThemeProvider>
   )
 }

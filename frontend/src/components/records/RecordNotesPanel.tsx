@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react'
-import { CheckCircle2, MessageSquareText, PencilLine, Save, X } from 'lucide-react'
+import { MessageSquareText, PencilLine, Save, X } from 'lucide-react'
 import { recordNoteMaxLength } from '../../domain/recordNotes'
 import { useWorkflow } from '../../context/workflowState'
+import { useToast } from '../../context/toastState'
 import { useSingleFlight } from '../../hooks/useSingleFlight'
 import { roleLabels } from '../../types/auth'
 import type { WorkflowRecord } from '../../types/record'
@@ -16,9 +17,9 @@ const noteDateFormatter = new Intl.DateTimeFormat('tr-TR', {
 
 export function RecordNotesPanel({ record }: { record: WorkflowRecord }) {
   const { user, saveNote } = useWorkflow()
+  const { showToast } = useToast()
   const [isEditing, setIsEditing] = useState(false)
   const [draft, setDraft] = useState('')
-  const [feedback, setFeedback] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const { busy, run } = useSingleFlight()
   const ownNote = record.notes.find((note) => note.authorId === user.id)
@@ -27,7 +28,6 @@ export function RecordNotesPanel({ record }: { record: WorkflowRecord }) {
 
   const openEditor = () => {
     setDraft(ownNote?.body ?? '')
-    setFeedback(null)
     setError(null)
     setIsEditing(true)
   }
@@ -43,7 +43,11 @@ export function RecordNotesPanel({ record }: { record: WorkflowRecord }) {
     void run(() => {
       try {
         saveNote(record.id, draft)
-        setFeedback(ownNote ? 'Notunuz güncellendi.' : 'Notunuz kaydedildi.')
+        showToast({
+          title: ownNote ? 'Notunuz güncellendi' : 'Notunuz kaydedildi',
+          description: 'Değişiklik kayıt detayında görüntüleniyor.',
+          tone: 'success',
+        })
         setError(null)
         setIsEditing(false)
       } catch (caughtError) {
@@ -75,13 +79,6 @@ export function RecordNotesPanel({ record }: { record: WorkflowRecord }) {
           </button>
         ) : null}
       </div>
-
-      {feedback ? (
-        <p className="mt-4 flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2.5 text-xs font-semibold text-emerald-800 dark:border-emerald-900/70 dark:bg-emerald-950/40 dark:text-emerald-200" role="status">
-          <CheckCircle2 className="size-4 shrink-0" aria-hidden="true" />
-          {feedback}
-        </p>
-      ) : null}
 
       {isEditing ? (
         <form className="mt-5 rounded-2xl border border-violet-200 bg-violet-50/60 p-4 dark:border-violet-800/70 dark:bg-violet-950/20" onSubmit={handleSubmit}>
