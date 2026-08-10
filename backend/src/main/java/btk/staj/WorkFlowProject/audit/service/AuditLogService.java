@@ -1,11 +1,13 @@
 package btk.staj.WorkFlowProject.audit.service;
 
+import btk.staj.WorkFlowProject.audit.dto.AuditLogResponse;
 import btk.staj.WorkFlowProject.audit.entity.AuditLog;
 import btk.staj.WorkFlowProject.audit.repository.AuditLogRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class AuditLogService {
@@ -40,7 +42,24 @@ public class AuditLogService {
     /**
      * Bir evrağın detay sayfasındaki "İşlem Geçmişi" tablosunu doldurmak için.
      */
-    public List<AuditLog> getGecmis(UUID recordId) {
-        return auditLogRepository.findByRecordIdOrderByCreatedAtAsc(recordId);
+    public List<AuditLogResponse> getGecmis(UUID recordId) {
+        return auditLogRepository.findByRecordIdOrderByCreatedAtAsc(recordId)
+                .stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    private AuditLogResponse toResponse(AuditLog log) {
+        return AuditLogResponse.builder()
+                .id(log.getId())
+                .recordId(log.getRecordId())
+                .userId(log.getUserId())
+                .roleId(log.getRoleId())
+                .action(log.getAction())
+                .previousStatus(log.getPreviousStatus())
+                .newStatus(log.getNewStatus())
+                .comment(log.getComment())
+                .createdAt(log.getCreatedAt())
+                .build();
     }
 }
