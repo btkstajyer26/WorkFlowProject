@@ -45,6 +45,7 @@ services:
       MAIL_HOST: mailpit
       MAIL_PORT: 1025
       UPLOAD_DIR: /app/uploads
+      JWT_SECRET: ${JWT_SECRET:-yerel-gelistirme-icin-en-az-32-karakter-uzunlugunda-gecici-anahtar}
     ports:
       - "8080:8080"
     volumes:

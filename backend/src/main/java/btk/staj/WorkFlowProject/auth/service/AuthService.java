@@ -9,6 +9,7 @@ import btk.staj.WorkFlowProject.user.repository.TokenRepository;
 import btk.staj.WorkFlowProject.user.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
@@ -28,6 +29,7 @@ public class AuthService {
         this.jwtUtil = jwtUtil;
     }
 
+    @Transactional
     public LoginResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("Email veya şifre hatalı"));
@@ -50,6 +52,7 @@ public class AuthService {
         return new LoginResponse(accessToken, refreshToken);
     }
 
+    @Transactional(readOnly = true)
     public LoginResponse refresh(String refreshToken) {
         Token storedToken = tokenRepository.findByToken(refreshToken)
                 .orElseThrow(() -> new RuntimeException("Geçersiz refresh token"));
@@ -64,6 +67,7 @@ public class AuthService {
         return new LoginResponse(newAccessToken, refreshToken);
     }
 
+    @Transactional
     public void logout(String refreshToken) {
         tokenRepository.findByToken(refreshToken).ifPresent(token -> {
             token.setRevoked(true);

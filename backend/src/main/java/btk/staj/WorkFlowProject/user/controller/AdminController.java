@@ -1,7 +1,7 @@
 package btk.staj.WorkFlowProject.user.controller;
 
 import btk.staj.WorkFlowProject.user.dto.CreateUserRequest;
-import btk.staj.WorkFlowProject.user.entity.User;
+import btk.staj.WorkFlowProject.user.dto.UserResponse;
 import btk.staj.WorkFlowProject.user.service.UserService;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,13 +16,13 @@ public class AdminController {
     }
 
     @PostMapping("/users")
-    public User createUser(@RequestBody CreateUserRequest request) {
-        return userService.createUser(
+    public UserResponse createUser(@RequestBody CreateUserRequest request) {
+        return UserResponse.from(userService.createUser(
                 request.getFirstName(),
                 request.getLastName(),
                 request.getEmail(),
                 request.getPassword(),
                 request.getRoleName()
-        );
+        ));
     }
 }

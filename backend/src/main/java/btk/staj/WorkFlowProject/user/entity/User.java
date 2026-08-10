@@ -1,5 +1,6 @@
 package btk.staj.WorkFlowProject.user.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -22,6 +23,9 @@ public class User {
     @Column(nullable = false, unique = true, length = 150)
     private String email;
 
+    // Entity yanlislikla dogrudan donulurse bile sifre ozeti JSON'a yazilmaz.
+    // Asil koruma yanit DTO'sudur (bkz. UserResponse); bu ikinci katmandir.
+    @JsonIgnore
     @Column(name = "password_hash", nullable = false, length = 255)
     private String passwordHash;
 
