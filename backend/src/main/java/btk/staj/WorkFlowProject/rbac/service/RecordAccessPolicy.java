@@ -1,8 +1,8 @@
 package btk.staj.WorkFlowProject.rbac.service;
 
 import btk.staj.WorkFlowProject.common.exception.ForbiddenException;
-import btk.staj.WorkFlowProject.rbac.RoleName;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
+import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import org.springframework.stereotype.Component;
 
 import java.util.UUID;

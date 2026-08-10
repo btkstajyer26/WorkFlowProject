@@ -1,7 +1,7 @@
 package btk.staj.WorkFlowProject.rbac.service;
 
-import btk.staj.WorkFlowProject.rbac.RoleName;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
+import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
