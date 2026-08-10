@@ -7,7 +7,6 @@ import {
   Eye,
   EyeOff,
   FileClock,
-  FileText,
   LockKeyhole,
   Mail,
   ShieldCheck,
@@ -23,6 +22,7 @@ import {
 } from '../schemas/auth'
 import { defaultDemoAccount, demoAccounts } from '../mocks/users'
 import { readMockRegistrationRequests } from '../mocks/registrationRequests'
+import { Brand } from '../components/layout/Brand'
 import type { AuthUser } from '../types/auth'
 import type {
   CreateRegistrationRequestInput,
@@ -179,14 +179,8 @@ export function LoginPage({ user, onLogin, onRegister }: LoginPageProps) {
         <div className="pointer-events-none absolute -bottom-64 right-[-4rem] size-[34rem] rounded-full border border-white/10" />
         <div className="pointer-events-none absolute right-8 top-1/3 size-64 rounded-full bg-brand-500/15 blur-3xl" />
 
-        <div className="relative flex items-center gap-3">
-          <span className="flex size-13 items-center justify-center rounded-2xl border border-white/25 bg-white/5 shadow-lg shadow-black/10">
-            <FileText className="size-7" aria-hidden="true" />
-          </span>
-          <div>
-            <p className="text-2xl font-extrabold tracking-tight">EBYS</p>
-            <p className="text-sm text-violet-100/80">İş Akışı ve Onay Yönetim Sistemi</p>
-          </div>
+        <div className="relative">
+          <Brand tone="inverse" size="large" />
         </div>
 
         <div className="relative max-w-xl">
@@ -217,15 +211,7 @@ export function LoginPage({ user, onLogin, onRegister }: LoginPageProps) {
 
         <div className="relative mx-auto w-full max-w-2xl rounded-[1.75rem] border border-white/80 bg-app-surface/90 p-5 shadow-2xl shadow-slate-900/[0.08] backdrop-blur sm:p-8 lg:p-10 xl:p-12">
           <div className="mb-8 lg:hidden">
-            <div className="flex items-center gap-3">
-              <span className="flex size-11 items-center justify-center rounded-2xl bg-brand-700 text-white shadow-lg shadow-brand-200 dark:shadow-black/20">
-                <FileText className="size-6" aria-hidden="true" />
-              </span>
-              <div>
-                <p className="text-lg font-bold text-app-text">EBYS</p>
-                <p className="text-[11px] text-app-text-subtle">İş Akışı ve Onay Yönetim Sistemi</p>
-              </div>
-            </div>
+            <Brand />
           </div>
 
           <div className="mx-auto max-w-xl">
