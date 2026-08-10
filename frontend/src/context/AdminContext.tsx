@@ -1,10 +1,15 @@
 import { useState, type ReactNode } from 'react'
 import { mockAdminAuditLogs, mockManagedUsers } from '../mocks/admin'
-import { roleLabels, type AuthUser, type UserRole } from '../types/auth'
-import type { AdminAuditLog, CreateManagedUserInput, ManagedUser } from '../types/admin'
+import {
+  readMockRegistrationRequests,
+  updateMockRegistrationRequestStatus,
+} from '../mocks/registrationRequests'
+import { roleLabels, type AuthUser, type UserRole, type WorkflowRole } from '../types/auth'
+import type { AdminAuditLog, ManagedUser } from '../types/admin'
+import type { RegistrationRequest } from '../types/registration'
 import { AdminContext, type AdminContextValue } from './adminState'
 
-function fullName(user: Pick<ManagedUser | AuthUser, 'firstName' | 'lastName'>) {
+function fullName(user: Pick<ManagedUser | AuthUser | RegistrationRequest, 'firstName' | 'lastName'>) {
   return `${user.firstName} ${user.lastName}`
 }
 
@@ -15,6 +20,9 @@ function createId(prefix: string) {
 export function AdminProvider({ actor, children }: { actor: AuthUser; children: ReactNode }) {
   const [users, setUsers] = useState<ManagedUser[]>(mockManagedUsers)
   const [logs, setLogs] = useState<AdminAuditLog[]>(mockAdminAuditLogs)
+  const [registrationRequests, setRegistrationRequests] = useState<RegistrationRequest[]>(
+    () => readMockRegistrationRequests().filter((request) => request.status === 'PENDING'),
+  )
 
   const addLog = (log: Omit<AdminAuditLog, 'id' | 'createdAt' | 'type'>) => {
     setLogs((current) => [{
@@ -25,34 +33,63 @@ export function AdminProvider({ actor, children }: { actor: AuthUser; children: 
     }, ...current])
   }
 
-  const createUser = (input: CreateManagedUserInput) => {
-    const normalizedEmail = input.email.trim().toLowerCase()
-    if (users.some((user) => user.email.toLowerCase() === normalizedEmail)) {
+  const resolveRegistration = (
+    requestId: string,
+    status: 'APPROVED' | 'REJECTED',
+  ) => {
+    updateMockRegistrationRequestStatus(requestId, status)
+    setRegistrationRequests((current) => current.filter((request) => request.id !== requestId))
+  }
+
+  const approveRegistration = (requestId: string, role: WorkflowRole) => {
+    const request = registrationRequests.find((item) => item.id === requestId)
+    if (!request) throw new Error('Kayıt talebi bulunamadı.')
+    if (users.some((user) => user.email.toLowerCase() === request.email.toLowerCase())) {
       throw new Error('Bu e-posta adresiyle kayıtlı bir kullanıcı zaten var.')
     }
+
     const now = new Date().toISOString()
-    const created: ManagedUser = {
+    const approvedUser: ManagedUser = {
       id: createId('user'),
-      firstName: input.firstName.trim(),
-      lastName: input.lastName.trim(),
-      email: normalizedEmail,
-      role: 'CALISAN',
+      firstName: request.firstName,
+      lastName: request.lastName,
+      email: request.email,
+      role,
       isActive: true,
-      mustChangePassword: true,
+      mustChangePassword: false,
       createdAt: now,
       updatedAt: now,
       version: 1,
     }
-    setUsers((current) => [created, ...current])
-    addLog({
-      action: 'USER_CREATED',
-      actionLabel: 'Hesap oluşturuldu',
-      actor: fullName(actor),
-      target: fullName(created),
-      description: `${roleLabels[created.role]} rolüyle yeni kullanıcı hesabı oluşturuldu.`,
-    })
 
-    return { temporaryPassword: `Ebys!${Math.floor(100000 + Math.random() * 900000)}` }
+    const currentDeputy = role === 'BASKAN_YARDIMCISI'
+      ? users.find((user) => user.isActive && user.role === 'BASKAN_YARDIMCISI')
+      : undefined
+
+    setUsers((current) => [approvedUser, ...current.map((user) => currentDeputy?.id === user.id
+      ? { ...user, role: 'CALISAN' as const, updatedAt: now, version: user.version + 1 }
+      : user)])
+    resolveRegistration(requestId, 'APPROVED')
+    addLog({
+      action: 'REGISTRATION_APPROVED',
+      actionLabel: 'Kayıt talebi onaylandı',
+      actor: fullName(actor),
+      target: fullName(approvedUser),
+      description: `${roleLabels[approvedUser.role]} rolüyle kullanıcı hesabı etkinleştirildi${currentDeputy ? `; ${fullName(currentDeputy)} Çalışan rolüne alındı` : ''}.`,
+    })
+  }
+
+  const rejectRegistration = (requestId: string) => {
+    const request = registrationRequests.find((item) => item.id === requestId)
+    if (!request) throw new Error('Kayıt talebi bulunamadı.')
+    resolveRegistration(requestId, 'REJECTED')
+    addLog({
+      action: 'REGISTRATION_REJECTED',
+      actionLabel: 'Kayıt talebi reddedildi',
+      actor: fullName(actor),
+      target: fullName(request),
+      description: `${request.email} adresiyle gönderilen hesap talebi reddedildi.`,
+    })
   }
 
   const changeUserRole = (userId: string, role: UserRole) => {
@@ -125,7 +162,9 @@ export function AdminProvider({ actor, children }: { actor: AuthUser; children: 
   const value: AdminContextValue = {
     users,
     logs,
-    createUser,
+    registrationRequests,
+    approveRegistration,
+    rejectRegistration,
     changeUserRole,
     setUserActive,
   }

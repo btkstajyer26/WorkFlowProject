@@ -7,6 +7,7 @@ import { useWorkflow } from './context/workflowState'
 import { AdminProvider } from './context/AdminContext'
 import { ThemeProvider } from './context/ThemeContext'
 import { getDemoUserByRole } from './mocks/users'
+import { createMockRegistrationRequest } from './mocks/registrationRequests'
 import { DashboardPage } from './pages/DashboardPage'
 import { ErrorStatePage } from './pages/ErrorStatePage'
 import { LoginPage } from './pages/LoginPage'
@@ -66,7 +67,16 @@ function App() {
     <ThemeProvider>
       <AppErrorBoundary>
         <Routes>
-          <Route path="/giris" element={<LoginPage user={user} onLogin={handleLogin} />} />
+          <Route
+            path="/giris"
+            element={(
+              <LoginPage
+                user={user}
+                onLogin={handleLogin}
+                onRegister={createMockRegistrationRequest}
+              />
+            )}
+          />
           <Route
             path="/*"
             element={

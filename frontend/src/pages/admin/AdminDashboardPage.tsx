@@ -1,14 +1,15 @@
-import { FileClock, UserCheck, UsersRound, UserX } from 'lucide-react'
+import { ClipboardCheck, FileClock, UserCheck, UsersRound, UserX } from 'lucide-react'
 import { Link } from 'react-router'
 import { useAdmin } from '../../context/adminState'
 import { roleLabels } from '../../types/auth'
 
 export function AdminDashboardPage() {
-  const { users, logs } = useAdmin()
+  const { users, logs, registrationRequests } = useAdmin()
   const activeUsers = users.filter((user) => user.isActive)
   const inactiveUsers = users.filter((user) => !user.isActive)
   const cards = [
     { label: 'Toplam kullanıcı', value: users.length, icon: UsersRound, tone: 'bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300' },
+    { label: 'Onay bekleyen', value: registrationRequests.length, icon: ClipboardCheck, tone: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300' },
     { label: 'Aktif hesap', value: activeUsers.length, icon: UserCheck, tone: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300' },
     { label: 'Pasif hesap', value: inactiveUsers.length, icon: UserX, tone: 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300' },
     { label: 'Denetim kaydı', value: logs.length, icon: FileClock, tone: 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300' },
@@ -20,14 +21,14 @@ export function AdminDashboardPage() {
         <div>
           <p className="text-sm font-semibold text-brand-600 dark:text-brand-400">Sistem Yönetimi</p>
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-app-text sm:text-3xl">Yönetim Özeti</h1>
-          <p className="mt-2 text-sm leading-6 text-app-text-muted">Kullanıcı durumlarını ve son denetim hareketlerini takip edin.</p>
+          <p className="mt-2 text-sm leading-6 text-app-text-muted">Kayıt taleplerini, kullanıcı durumlarını ve son denetim hareketlerini takip edin.</p>
         </div>
         <Link to="/admin/kullanicilar" className="flex min-h-11 items-center justify-center rounded-xl bg-brand-700 px-4 text-sm font-bold text-white hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500">
-          Kullanıcıları Yönet
+          Kayıt Taleplerini Yönet
         </Link>
       </header>
 
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Yönetim özeti">
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-5" aria-label="Yönetim özeti">
         {cards.map((card) => {
           const Icon = card.icon
           return (
