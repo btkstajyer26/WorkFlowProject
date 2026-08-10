@@ -1,5 +1,6 @@
 package btk.staj.WorkFlowProject.attachment.controller;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import btk.staj.WorkFlowProject.attachment.dto.FileResponseDto;
 import btk.staj.WorkFlowProject.attachment.entity.FileEntity;
 import btk.staj.WorkFlowProject.attachment.service.FileService;
@@ -18,6 +19,7 @@ public class FileController {
 
     private final FileService fileService;
 
+    @PreAuthorize("hasRole('CALISAN')")
     @PostMapping("/upload")
     public ResponseEntity<?> uploadFile(
             @RequestParam("file") MultipartFile file,
@@ -43,6 +45,7 @@ public class FileController {
         return fileService.previewFile(id);
     }
 
+    @PreAuthorize("hasRole('CALISAN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteFile(
             @PathVariable UUID id,

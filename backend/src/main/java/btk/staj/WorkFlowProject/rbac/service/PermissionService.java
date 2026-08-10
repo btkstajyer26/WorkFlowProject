@@ -1,9 +1,17 @@
 package btk.staj.WorkFlowProject.rbac.service;
 
 import btk.staj.WorkFlowProject.rbac.RoleName;
-import btk.staj.WorkFlowProject.rbac.RecordStatus;
+import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import org.springframework.stereotype.Component;
 
+/**
+ * Sartnamedeki rol bazli yetki matrisinin kaba kontrolleri.
+ *
+ * <p>Durum bagimli metotlar, gecis kurallarini durum makinesiyle ayni bilgiyi ikinci
+ * kez ifade eder. Nihai karar mercii her zaman
+ * {@code WorkflowTransitionValidator}'dir; burasi controller seviyesinde erken
+ * eleme icin kullanilir.
+ */
 @Component
 public class PermissionService {
 
@@ -51,7 +59,11 @@ public class PermissionService {
         return role == RoleName.CALISAN || role == RoleName.BASKAN_YARDIMCISI || role == RoleName.BASKAN;
     }
 
+    /**
+     * Kilitleme kurali durum makinesinde tek noktada tutulur; burada tekrar
+     * tanimlanmaz (bkz. {@link RecordStatus#isTerminal()}).
+     */
     public boolean isRecordLocked(RecordStatus currentStatus) {
-        return currentStatus == RecordStatus.ONAYLANDI || currentStatus == RecordStatus.REDDEDILDI;
+        return currentStatus.isTerminal();
     }
 }

@@ -1,5 +1,6 @@
 package btk.staj.WorkFlowProject.user.controller;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import btk.staj.WorkFlowProject.user.dto.CreateUserRequest;
 import btk.staj.WorkFlowProject.user.dto.UserResponse;
 import btk.staj.WorkFlowProject.user.service.UserService;
@@ -7,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/admin")
+@PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
 
     private final UserService userService;

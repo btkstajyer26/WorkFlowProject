@@ -11,7 +11,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-// import org.springframework.security.access.prepost.PreAuthorize; // Auth paketi hazır olunca aç
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.UUID;
 
@@ -28,7 +28,7 @@ public class RecordController {
     /**
      * Yeni Kayıt (Taslak) Oluşturma — Sadece Çalışan.
      */
-    // @PreAuthorize("hasRole('CALISAN')")
+    @PreAuthorize("hasRole('CALISAN')")
     @PostMapping
     public ResponseEntity<RecordResponse> createRecord(@Valid @RequestBody RecordCreateRequest request) {
         RecordResponse response = recordService.createRecord(request);
@@ -62,7 +62,7 @@ public class RecordController {
      * Taslak veya Düzenleme Bekliyor durumundaki kaydı düzenleme.
      * Yalnızca kaydı oluşturan Çalışan yapabilir (isEditableByCreator() kontrolü service'te).
      */
-    // @PreAuthorize("hasRole('CALISAN')")
+    @PreAuthorize("hasRole('CALISAN')")
     @PutMapping("/{id}")
     public ResponseEntity<RecordResponse> updateRecord(
             @PathVariable UUID id,
@@ -74,7 +74,7 @@ public class RecordController {
     /**
      * Taslak halindeki kaydı silme (soft delete — deletedAt set edilir).
      */
-    // @PreAuthorize("hasRole('CALISAN')")
+    @PreAuthorize("hasRole('CALISAN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteRecord(@PathVariable UUID id) {
         recordService.deleteRecord(id);
