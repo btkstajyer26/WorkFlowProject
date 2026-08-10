@@ -1,6 +1,6 @@
 package btk.staj.WorkFlowProject.rbac;
 
-public enum Role {
+public enum RoleName {
     CALISAN,
     BASKAN_YARDIMCISI,
     BASKAN

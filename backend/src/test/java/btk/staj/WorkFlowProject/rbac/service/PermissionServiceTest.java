@@ -1,6 +1,6 @@
 package btk.staj.WorkFlowProject.rbac.service;
 
-import btk.staj.WorkFlowProject.rbac.Role;
+import btk.staj.WorkFlowProject.rbac.RoleName;
 import btk.staj.WorkFlowProject.rbac.RecordStatus;
 import org.junit.jupiter.api.Test;
 
@@ -13,62 +13,62 @@ class PermissionServiceTest {
 
     @Test
     void calisanKayitOlusturabilmeli() {
-        assertTrue(permissionService.canCreateRecord(Role.CALISAN));
+        assertTrue(permissionService.canCreateRecord(RoleName.CALISAN));
     }
 
     @Test
     void baskanKayitOlusturamamali() {
-        assertFalse(permissionService.canCreateRecord(Role.BASKAN));
+        assertFalse(permissionService.canCreateRecord(RoleName.BASKAN));
     }
 
     @Test
     void baskanYardimcisiKayitOlusturamamali() {
-        assertFalse(permissionService.canCreateRecord(Role.BASKAN_YARDIMCISI));
+        assertFalse(permissionService.canCreateRecord(RoleName.BASKAN_YARDIMCISI));
     }
 
     @Test
     void calisanTaslagiIncelemeyeGonderebilmeli() {
-        assertTrue(permissionService.canSendToReview(Role.CALISAN, RecordStatus.TASLAK));
+        assertTrue(permissionService.canSendToReview(RoleName.CALISAN, RecordStatus.TASLAK));
     }
 
     @Test
     void calisanOnaylanmisKaydiTekrarGonderemeMeli() {
-        assertFalse(permissionService.canSendToReview(Role.CALISAN, RecordStatus.ONAYLANDI));
+        assertFalse(permissionService.canSendToReview(RoleName.CALISAN, RecordStatus.ONAYLANDI));
     }
 
     @Test
     void baskanNihaiOnayVerebilmeli() {
-        assertTrue(permissionService.canApprove(Role.BASKAN, RecordStatus.BASKAN_INCELEMESINDE));
+        assertTrue(permissionService.canApprove(RoleName.BASKAN, RecordStatus.BASKAN_INCELEMESINDE));
     }
 
     @Test
     void calisanNihaiOnayVeremeMeli() {
-        assertFalse(permissionService.canApprove(Role.CALISAN, RecordStatus.BASKAN_INCELEMESINDE));
+        assertFalse(permissionService.canApprove(RoleName.CALISAN, RecordStatus.BASKAN_INCELEMESINDE));
     }
 
     @Test
     void baskanYardimcisiCalisanaGeriGonderebilmeli() {
-        assertTrue(permissionService.canReturnToCalisan(Role.BASKAN_YARDIMCISI));
+        assertTrue(permissionService.canReturnToCalisan(RoleName.BASKAN_YARDIMCISI));
     }
 
     @Test
     void calisanBaskaCalisanaGeriGonderemeMeli() {
-        assertFalse(permissionService.canReturnToCalisan(Role.CALISAN));
+        assertFalse(permissionService.canReturnToCalisan(RoleName.CALISAN));
     }
 
     @Test
     void calisanTasladiDuzenleyebilmeli() {
-        assertTrue(permissionService.canEditOrDeleteDraft(Role.CALISAN, RecordStatus.TASLAK));
+        assertTrue(permissionService.canEditOrDeleteDraft(RoleName.CALISAN, RecordStatus.TASLAK));
     }
 
     @Test
     void calisanOnaylanmisTasladiDuzenleyemeMeli() {
-        assertFalse(permissionService.canEditOrDeleteDraft(Role.CALISAN, RecordStatus.ONAYLANDI));
+        assertFalse(permissionService.canEditOrDeleteDraft(RoleName.CALISAN, RecordStatus.ONAYLANDI));
     }
 
     @Test
     void calisanGeriGonderilenKaydiDuzenleyipGonderebilmeli() {
-        assertTrue(permissionService.canEditAndResendReturnedRecord(Role.CALISAN, RecordStatus.DUZENLEME_BEKLIYOR));
+        assertTrue(permissionService.canEditAndResendReturnedRecord(RoleName.CALISAN, RecordStatus.DUZENLEME_BEKLIYOR));
     }
 
     @Test
