@@ -10,7 +10,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
-public class AuditLogService {
+public class AuditLogService implements AuditService {
 
     private final AuditLogRepository auditLogRepository;
 
@@ -23,6 +23,7 @@ public class AuditLogService {
      * workflow ekibinin (Esra & Burak) her durum değişikliğinden
      * sonra bunu tetiklemesi gerekiyor.
      */
+    @Override
     public void logIslem(UUID recordId, UUID userId, Integer roleId, String action,
                          String previousStatus, String newStatus, String comment) {
 
