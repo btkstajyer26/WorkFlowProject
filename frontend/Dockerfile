@@ -1,7 +1,6 @@
 # syntax=docker/dockerfile:1
 
-# Geliştirme imajı. Frontend ekibi Vite/React iskeletini kurup package.json
-# ekledikten sonra çalışır hale gelir (bkz. docker-compose.yml -> frontend profili).
+# Vite/React geliştirme imajı (bkz. docker-compose.yml -> frontend profili).
 FROM node:22-alpine
 WORKDIR /app
 
