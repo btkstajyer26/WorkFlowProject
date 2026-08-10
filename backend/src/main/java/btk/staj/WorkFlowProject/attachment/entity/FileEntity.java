@@ -39,4 +39,17 @@ public class FileEntity {
 
     @Column(name = "uploaded_at", nullable = false)
     private LocalDateTime uploadedAt;
+
+    // --- Soft delete alanları (records tablosuyla aynı desen) ---
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @Column(name = "deleted_by")
+    private UUID deletedBy;
+
+    // Yardımcı metod: entity içinde silinmiş mi kontrolü
+    @Transient
+    public boolean isDeleted() {
+        return deletedAt != null;
+    }
 }

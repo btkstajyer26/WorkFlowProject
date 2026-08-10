@@ -15,7 +15,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
-import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -24,21 +23,8 @@ public class FileService {
 
     private final FileRepository fileRepository;
     private final FileStorageService fileStorageService;
-
-    /**
-     * Sartnamedeki desteklenen formatlar. Ayni tablo hem izin listesi olarak hem de
-     * diskteki uzantinin kaynagi olarak kullanilir; uzanti kullanicinin gonderdigi
-     * dosya adindan turetilmez.
-     */
-    private static final Map<String, String> ALLOWED_TYPES = Map.of(
-            "application/pdf", ".pdf",
-            "application/msword", ".doc",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document", ".docx",
-            "application/vnd.ms-excel", ".xls",
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".xlsx",
-            "image/png", ".png",
-            "image/jpeg", ".jpg"
-    );
+    private final FileContentValidator fileContentValidator;
+    private final RecordLockValidator recordLockValidator;
 
     @Transactional
     public FileEntity uploadFile(MultipartFile file, UUID recordId, UUID uploadedBy) {
@@ -47,17 +33,17 @@ public class FileService {
             throw new IllegalArgumentException("Dosya boş olamaz");
         }
 
-        String contentType = file.getContentType();
-        String extension = contentType == null ? null : ALLOWED_TYPES.get(contentType);
-        if (extension == null) {
-            throw new IllegalArgumentException("Desteklenmeyen dosya formatı: " + contentType);
-        }
+        recordLockValidator.assertUploadAllowed(recordId);
+
+        // Tur, istemcinin gonderdigi Content-Type'a degil dosya icerigine bakilarak belirlenir.
+        String detectedType = fileContentValidator.detectAndValidate(file);
 
         String originalFilename = file.getOriginalFilename();
 
-        // Diskteki ad yalnizca GUID'den uretilir. Kullanicinin gonderdigi dosya adi
-        // yola hic karismaz; yalnizca veritabaninda saklanip indirmede geri verilir.
-        String storedFilename = UUID.randomUUID() + extension;
+        // Diskteki ad yalnizca GUID'den uretilir; uzanti da dogrulanmis turden gelir.
+        // Kullanicinin gonderdigi dosya adi yola hic karismaz, yalnizca veritabaninda
+        // saklanip indirmede geri verilir.
+        String storedFilename = UUID.randomUUID() + fileContentValidator.extensionFor(detectedType);
 
         fileStorageService.store(file, storedFilename);
 
@@ -65,12 +51,24 @@ public class FileService {
         entity.setRecordId(recordId);
         entity.setOriginalName(originalFilename);
         entity.setStoredName(storedFilename);
-        entity.setMimeType(contentType);
+        entity.setMimeType(detectedType);
         entity.setFileSize((int) file.getSize());
         entity.setUploadedBy(uploadedBy);
         entity.setUploadedAt(LocalDateTime.now());
 
         return fileRepository.save(entity);
+    }
+
+    @Transactional
+    public void deleteFile(UUID id, UUID deletedBy) {
+        FileEntity fileEntity = fileRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new IllegalArgumentException("Dosya bulunamadı: " + id));
+
+        fileEntity.setDeletedAt(LocalDateTime.now());
+        fileEntity.setDeletedBy(deletedBy);
+
+        fileRepository.save(fileEntity);
+        // Fiziksel dosya diskten silinmiyor - soft delete'in amacı geri dönüşü mümkün kılmak.
     }
 
     @Transactional(readOnly = true)
@@ -85,7 +83,7 @@ public class FileService {
 
     private ResponseEntity<Resource> buildFileResponse(UUID id, String dispositionType) {
 
-        FileEntity fileEntity = fileRepository.findById(id)
+        FileEntity fileEntity = fileRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new IllegalArgumentException("Dosya bulunamadı: " + id));
 
         Resource resource = fileStorageService.loadAsResource(fileEntity.getStoredName());

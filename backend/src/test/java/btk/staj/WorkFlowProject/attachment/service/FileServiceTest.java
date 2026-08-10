@@ -6,8 +6,6 @@ import btk.staj.WorkFlowProject.attachment.storage.FileStorageService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -19,6 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -33,20 +32,29 @@ class FileServiceTest {
     @Mock
     private FileStorageService fileStorageService;
 
+    @Mock
+    private FileContentValidator fileContentValidator;
+
+    @Mock
+    private RecordLockValidator recordLockValidator;
+
     private static final UUID RECORD_ID = UUID.randomUUID();
     private static final UUID UPLOADER_ID = UUID.randomUUID();
 
     private FileService fileService() {
-        return new FileService(fileRepository, fileStorageService);
+        return new FileService(fileRepository, fileStorageService, fileContentValidator, recordLockValidator);
     }
 
-    private String storedNameFor(String originalName, String contentType) {
+    private MockMultipartFile dosya(String originalName) {
+        return new MockMultipartFile("file", originalName, "application/octet-stream", "icerik".getBytes());
+    }
+
+    private String storedNameFor(String originalName) {
         when(fileRepository.save(any(FileEntity.class))).thenAnswer(call -> call.getArgument(0));
+        when(fileContentValidator.detectAndValidate(any())).thenReturn("application/pdf");
+        when(fileContentValidator.extensionFor("application/pdf")).thenReturn(".pdf");
 
-        MockMultipartFile file = new MockMultipartFile(
-                "file", originalName, contentType, "icerik".getBytes());
-
-        fileService().uploadFile(file, RECORD_ID, UPLOADER_ID);
+        fileService().uploadFile(dosya(originalName), RECORD_ID, UPLOADER_ID);
 
         ArgumentCaptor<String> storedName = ArgumentCaptor.forClass(String.class);
         verify(fileStorageService).store(any(), storedName.capture());
@@ -56,7 +64,7 @@ class FileServiceTest {
     @Test
     @DisplayName("diskteki ad yalnizca GUID'den uretilir, orijinal ad karismaz")
     void diskAdiSadeceGuidOlur() {
-        String storedName = storedNameFor("Butce Raporu 2026.pdf", "application/pdf");
+        String storedName = storedNameFor("Butce Raporu 2026.pdf");
 
         assertThat(storedName).doesNotContain("Butce", "Raporu", " ");
         assertThat(storedName).matches(
@@ -66,35 +74,48 @@ class FileServiceTest {
     @Test
     @DisplayName("dosya adindaki dizin asimi denemesi diskteki ada tasinmaz")
     void dizinAsimiDenemesiAdaTasinmaz() {
-        String storedName = storedNameFor("../../../etc/passwd.pdf", "application/pdf");
+        String storedName = storedNameFor("../../../etc/passwd.pdf");
 
         assertThat(storedName).doesNotContain("..", "/", "\\");
     }
 
-    @ParameterizedTest(name = "{1} -> {2}")
-    @DisplayName("sartnamedeki formatlar kabul edilir ve uzanti MIME'dan turetilir")
-    @CsvSource({
-            "rapor.pdf,  application/pdf,                                                            .pdf",
-            "yazi.doc,   application/msword,                                                         .doc",
-            "yazi.docx,  application/vnd.openxmlformats-officedocument.wordprocessingml.document,    .docx",
-            "tablo.xls,  application/vnd.ms-excel,                                                   .xls",
-            "tablo.xlsx, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,          .xlsx",
-            "resim.png,  image/png,                                                                  .png",
-            "resim.jpg,  image/jpeg,                                                                 .jpg"
-    })
-    void desteklenenFormatlarKabulEdilir(String originalName, String contentType, String expectedExtension) {
-        assertThat(storedNameFor(originalName, contentType)).endsWith(expectedExtension);
+    @Test
+    @DisplayName("uzanti dosya adindan degil dogrulanmis turden gelir")
+    void uzantiTurdenTuretilir() {
+        when(fileRepository.save(any(FileEntity.class))).thenAnswer(call -> call.getArgument(0));
+        when(fileContentValidator.detectAndValidate(any())).thenReturn("image/png");
+        when(fileContentValidator.extensionFor("image/png")).thenReturn(".png");
+
+        fileService().uploadFile(dosya("aslinda-resim.pdf"), RECORD_ID, UPLOADER_ID);
+
+        ArgumentCaptor<String> storedName = ArgumentCaptor.forClass(String.class);
+        verify(fileStorageService).store(any(), storedName.capture());
+        assertThat(storedName.getValue()).endsWith(".png");
     }
 
     @Test
     @DisplayName("desteklenmeyen format reddedilir ve diske hicbir sey yazilmaz")
     void desteklenmeyenFormatReddedilir() {
-        MockMultipartFile file = new MockMultipartFile(
-                "file", "zararli.exe", "application/x-msdownload", "icerik".getBytes());
+        when(fileContentValidator.detectAndValidate(any()))
+                .thenThrow(new IllegalArgumentException("Desteklenmeyen dosya formatı: application/x-msdownload"));
 
-        assertThatThrownBy(() -> fileService().uploadFile(file, RECORD_ID, UPLOADER_ID))
+        assertThatThrownBy(() -> fileService().uploadFile(dosya("zararli.exe"), RECORD_ID, UPLOADER_ID))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Desteklenmeyen dosya formatı");
+
+        verify(fileStorageService, never()).store(any(), anyString());
+        verify(fileRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("kilitli kayda dosya eklenemez")
+    void kilitliKaydaEklenemez() {
+        doThrow(new IllegalArgumentException("Bu kayıt 'ONAYLANDI' durumunda, dosya eklenemez"))
+                .when(recordLockValidator).assertUploadAllowed(RECORD_ID);
+
+        assertThatThrownBy(() -> fileService().uploadFile(dosya("rapor.pdf"), RECORD_ID, UPLOADER_ID))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("dosya eklenemez");
 
         verify(fileStorageService, never()).store(any(), anyString());
         verify(fileRepository, never()).save(any());
@@ -104,11 +125,10 @@ class FileServiceTest {
     @DisplayName("orijinal ad veritabaninda korunur")
     void orijinalAdVeritabaninaYazilir() {
         when(fileRepository.save(any(FileEntity.class))).thenAnswer(call -> call.getArgument(0));
+        when(fileContentValidator.detectAndValidate(any())).thenReturn("application/pdf");
+        when(fileContentValidator.extensionFor("application/pdf")).thenReturn(".pdf");
 
-        MockMultipartFile file = new MockMultipartFile(
-                "file", "Butce Raporu 2026.pdf", "application/pdf", "icerik".getBytes());
-
-        FileEntity saved = fileService().uploadFile(file, RECORD_ID, UPLOADER_ID);
+        FileEntity saved = fileService().uploadFile(dosya("Butce Raporu 2026.pdf"), RECORD_ID, UPLOADER_ID);
 
         assertThat(saved.getOriginalName()).isEqualTo("Butce Raporu 2026.pdf");
         assertThat(saved.getMimeType()).isEqualTo("application/pdf");
