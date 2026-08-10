@@ -2,6 +2,8 @@ package btk.staj.WorkFlowProject.auth.controller;
 
 import btk.staj.WorkFlowProject.auth.dto.LoginRequest;
 import btk.staj.WorkFlowProject.auth.dto.LoginResponse;
+import btk.staj.WorkFlowProject.auth.dto.LogoutRequest;
+import btk.staj.WorkFlowProject.auth.dto.RefreshTokenRequest;
 import btk.staj.WorkFlowProject.auth.service.AuthService;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,13 +23,13 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public LoginResponse refresh(@RequestBody String refreshToken) {
-        return authService.refresh(refreshToken);
+    public LoginResponse refresh(@RequestBody RefreshTokenRequest request) {
+        return authService.refresh(request.getRefreshToken());
     }
 
     @PostMapping("/logout")
-    public String logout(@RequestBody String refreshToken) {
-        authService.logout(refreshToken);
+    public String logout(@RequestBody LogoutRequest request) {
+        authService.logout(request.getRefreshToken());
         return "Çıkış yapıldı";
     }
 }

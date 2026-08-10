@@ -1,39 +1,59 @@
 package btk.staj.WorkFlowProject.rbac.config;
 
+import btk.staj.WorkFlowProject.auth.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
-    // GECICI: Gelistirme asamasinda Swagger uzerinden endpoint denemek icin
-    // kimlik dogrulama tamamen kapali. Bu haliyle PRODUCTION'A CIKMAMALI.
+    /** Kimlik dogrulama disinda tutulan uclar: giris akisi ve API dokumantasyonu. */
+    private static final String[] PUBLIC_ENDPOINTS = {
+            "/api/auth/**",
+            "/swagger-ui.html",
+            "/swagger-ui/**",
+            "/v3/api-docs",
+            "/v3/api-docs/**",
+            "/v3/api-docs.yaml"
+    };
+
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+    }
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
-                // JWT kullanilacagi icin sunucuda oturum tutulmaz.
+                // JWT kullanildigi icin sunucuda oturum tutulmaz.
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                // TODO: Nisan/Sümeyye'nin auth/login, auth/refresh gibi public endpoint'leri netleşince
-                // buraya .requestMatchers("/api/auth/**").permitAll() eklenecek
-                // TODO: JwtAuthenticationFilter zincire eklenene kadar geçici olarak açık
-                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
-                // Hicbir ucta giris ekrani cikmasin diye kapatildi.
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+                        .anyRequest().authenticated())
+                // Giris ekrani yerine 401 donsun; bu bir REST API.
                 .httpBasic(basic -> basic.disable())
                 .formLogin(form -> form.disable())
-                .logout(logout -> logout.disable());
-
-        // TODO: Nisan/Sümeyye'nin JwtAuthenticationFilter'ı tamamlanınca şu satır eklenecek:
-        // http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .logout(logout -> logout.disable())
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
     }
 
     // UserService ve AuthService sifre hash'lemek icin bu bean'e ihtiyac duyuyor.
