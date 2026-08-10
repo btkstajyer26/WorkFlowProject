@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { upsertRecordNote } from '../domain/recordNotes'
 import { canUserViewRecord, transitionRecord, type WorkflowActionInput } from '../domain/workflow'
 import { mockNotifications } from '../mocks/notifications'
 import { mockRecords } from '../mocks/records'
@@ -29,6 +30,7 @@ function hydrateRecord(record: WorkflowRecord): WorkflowRecord {
     createdById: record.createdById ?? employee.id,
     assignedToId: record.assignedToId ?? assignedToId,
     lastDeputyId: record.lastDeputyId ?? deputy.id,
+    notes: record.notes ?? [],
   }
 }
 
@@ -64,6 +66,7 @@ export function WorkflowProvider({ user, children }: { user: AuthUser; children:
       createdAt: now,
       updatedAt: now,
       attachments: input.attachments,
+      notes: [],
       history: [{
         id: crypto.randomUUID(),
         action: 'Taslak kaydedildi',
@@ -155,34 +158,19 @@ export function WorkflowProvider({ user, children }: { user: AuthUser; children:
     return transition.record
   }
 
-  const addNote = (recordId: string, note: string) => {
+  const saveNote = (recordId: string, body: string) => {
     const existing = records.find((record) => record.id === recordId)
-    const trimmedNote = note.trim()
     if (!existing) throw new Error('Kayıt bulunamadı.')
-    if (!trimmedNote) throw new Error('Not boş bırakılamaz.')
-    if (!['BASKAN_YARDIMCISI', 'BASKAN'].includes(user.role)) throw new Error('Bu kayda not ekleme yetkiniz yok.')
+    if (!canUserViewRecord(existing, user)) throw new Error('Bu kayda not ekleme yetkiniz yok.')
 
-    const now = new Date().toISOString()
-    const updated: WorkflowRecord = {
-      ...existing,
-      updatedAt: now,
-      lastAction: 'İnceleme notu eklendi',
-      history: [...existing.history, {
-        id: crypto.randomUUID(),
-        action: 'İnceleme notu eklendi',
-        actor: nameOf(user),
-        actorId: user.id,
-        role: roleLabels[user.role],
-        note: trimmedNote,
-        date: now,
-      }],
-    }
+    const updated = upsertRecordNote(existing, user, body)
     setRecords((current) => current.map((record) => record.id === recordId ? updated : record))
     return updated
   }
 
   const notifications = allNotifications.filter((notification) => notification.userId === user.id)
   const value: WorkflowContextValue = {
+    user,
     records,
     visibleRecords: records.filter((record) => canUserViewRecord(record, user)),
     notifications,
@@ -193,7 +181,7 @@ export function WorkflowProvider({ user, children }: { user: AuthUser; children:
     updateAndSubmit,
     deleteDraft,
     applyAction,
-    addNote,
+    saveNote,
     markNotificationRead: (notificationId) => {
       setAllNotifications((current) => current.map((notification) =>
         notification.id === notificationId && notification.userId === user.id

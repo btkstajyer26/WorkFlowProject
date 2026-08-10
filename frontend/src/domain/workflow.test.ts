@@ -24,6 +24,7 @@ function makeRecord(status: WorkflowRecord['status']): WorkflowRecord {
     createdAt: '2026-08-01T08:00:00.000Z',
     updatedAt: '2026-08-01T08:00:00.000Z',
     attachments: [],
+    notes: [],
     history: [],
   }
 }
