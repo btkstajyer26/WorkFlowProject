@@ -13,7 +13,8 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-public interface RecordRepository extends JpaRepository<Record, UUID> {
+public interface RecordRepository extends JpaRepository<Record, UUID>, JpaSpecificationExecutor<Record> {
+// ...
     
     // 1. Oluşturan kullanıcıya göre arama (Kayıtlarım Listesi)
     Page<Record> findByCreatedByAndDeletedAtIsNull(UUID userId, Pageable pageable);

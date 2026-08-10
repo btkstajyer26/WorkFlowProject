@@ -1,16 +1,9 @@
 package btk.staj.WorkFlowProject.record.dto;
 
-/**
- * Başkan bir kaydı geri gönderirken hedefi seçebilir (Çalışan ya da Başkan Yardımcısı).
- * Başkan Yardımcısı için hedef her zaman Çalışan olduğundan bu DTO'yu kullanmaz,
- * RecordActionRequest yeterlidir.
- */
-public record RecordReturnRequest(
-    String note,
-    ReturnTarget target
-) {
-    public enum ReturnTarget {
-        CALISAN,
-        BASKAN_YARDIMCISI
-    }
+import lombok.Data;
+
+@Data
+public class RecordReturnRequest {
+    private String target; // "CALISAN" veya "BASKAN_YARDIMCISI"
+    private String comment; // Başkan'ın geri gönderme açıklaması
 }
