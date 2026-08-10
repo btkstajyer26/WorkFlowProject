@@ -61,7 +61,6 @@ export function RecordNotesPanel({ record }: { record: WorkflowRecord }) {
           </span>
           <div>
             <h2 id="record-notes-title" className="font-bold text-app-text">Notlar</h2>
-            <p className="mt-0.5 text-xs leading-5 text-app-text-subtle">Her kullanıcı bu kayda tek bir not ekleyebilir.</p>
           </div>
         </div>
 
