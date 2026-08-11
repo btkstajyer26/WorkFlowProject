@@ -29,11 +29,14 @@ kalite maddeleri**.
 > Yeni modül kalmadı. Buradan sonrası şartnamenin §6.2 kod kalitesi
 > kriterleri; her modül sahibi kendi alanında yapar.
 
-| İş | Tür | Açıklama |
+| İş | Sorumlu | Açıklama |
 |---|---|---|
-| `attachment/service/FileService`<br>`attachment/controller/FileController` | 🟡 Değişiklik | `uploadedBy` ve `deletedBy` hâlâ `@RequestParam` ile isteyenin kendi beyanı; oturumdan alınmalı. Şu hâliyle bir kullanıcı başkası adına dosya yükleyebilir/silebilir. — *Ecesu* |
-| `*ServiceTest` · `*ControllerTest` | 🟢 Yeni | 246 testin çoğu `workflow`, `rbac` ve `audit`'te. `record`, `auth`, `user` modüllerinin iş kuralları test edilmemiş. |
-| `*Request` DTO'ları | 🟡 Değişiklik | `@Valid`/`@NotBlank` yalnızca `RecordCreateRequest`, `RecordUpdateRequest` ve `WorkflowActionRequest`'te var. `auth` ve `user` DTO'larında doğrulama yok. |
+| `common/config/CorsConfig` 🟢 | *Hacer* | **Projede hiç CORS yapılandırması yok.** Frontend `5173`, backend `8080` — ayrı origin. Frontend şu an mock veriyle çalıştığı için sorun görünmüyor; ilk gerçek istekte her uç tarayıcıda bloklanır. İzinli origin ortam değişkeninden okunmalı, `*` verilmemeli (kimlik doğrulamalı istekler için zaten geçersiz). |
+| `attachment/service/FileService`<br>`attachment/controller/FileController` 🟡 | *Ecesu* | `uploadedBy` ve `deletedBy` hâlâ `@RequestParam` ile isteyenin kendi beyanı; oturumdan alınmalı. Şu hâliyle bir kullanıcı başkası adına dosya yükleyebilir/silebilir. |
+| `record/service/RecordServiceImpl` 🟡 | *Alperen · Fevzi* | `getCurrentUserId()` sabit bir UUID döndürüyor (`11111111-…`). CRUD'un tamamı bu sahte kullanıcı üzerinden çalışıyor: sahiplik kontrolleri anlamsız. Arama modülünde aynı sorun düzeltildi, örnek orada. |
+| `templates/mail/*.html` 🟢 | *Melih* | `MailService` ~130 satırlık HTML'i metin bloğu olarak içinde taşıyor. Şablon dosyaya çıkarılmalı (thymeleaf bağımlılığı eklenecek). İşlevsel bir eksik değil, Clean Code maddesi. |
+| `record` · `auth` · `common` testleri 🟢 | *ilgili sahipler* | 246 testin çoğu `workflow`, `rbac`, `audit` ve `search`'te. Bu üç modülün hiç testi yok. |
+| `*Request` DTO'ları 🟡 | *ilgili sahipler* | `@Valid`/`@NotBlank` yalnızca `RecordCreateRequest`, `RecordUpdateRequest` ve `WorkflowActionRequest`'te var. `auth` ve `user` DTO'larında doğrulama yok. |
 
 ---
 
