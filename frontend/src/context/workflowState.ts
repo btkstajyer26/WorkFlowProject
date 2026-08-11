@@ -25,7 +25,6 @@ export type WorkflowContextValue = {
   updateAndSubmit: (recordId: string, input: RecordDraftInput) => WorkflowRecord
   deleteDraft: (recordId: string) => void
   applyAction: (recordId: string, input: Omit<WorkflowActionInput, 'actor'>) => WorkflowRecord
-  saveNote: (recordId: string, body: string) => WorkflowRecord
   markNotificationRead: (notificationId: string) => void
   markAllNotificationsRead: () => void
 }

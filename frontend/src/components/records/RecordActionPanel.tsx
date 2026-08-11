@@ -47,11 +47,33 @@ const actionCopy: Record<ReviewAction, { title: string; description: string; con
   },
 }
 
+const commentCopy: Record<ReviewAction, { label: string; placeholder: string }> = {
+  submit: {
+    label: 'Gönderim açıklaması (isteğe bağlı)',
+    placeholder: 'İnceleme ekibine iletmek istediğiniz açıklamayı yazın…',
+  },
+  forward: {
+    label: 'İletme açıklaması (isteğe bağlı)',
+    placeholder: 'Başkana iletmek istediğiniz değerlendirmeyi yazın…',
+  },
+  return: {
+    label: 'Geri gönderme açıklaması *',
+    placeholder: 'Eksik veya düzeltilmesi gereken alanları açıklayın…',
+  },
+  approve: {
+    label: 'Onay açıklaması (isteğe bağlı)',
+    placeholder: 'Onaya ilişkin kısa bir açıklama ekleyin…',
+  },
+  reject: {
+    label: 'Ret açıklaması *',
+    placeholder: 'Kaydın neden reddedildiğini açıklayın…',
+  },
+}
+
 export function RecordActionPanel({ record, role }: { record: WorkflowRecord; role: UserRole }) {
-  const { applyAction, user } = useWorkflow()
+  const { applyAction } = useWorkflow()
   const { showToast } = useToast()
-  const [actionComment, setActionComment] = useState('')
-  const [returnReason, setReturnReason] = useState('')
+  const [comment, setComment] = useState('')
   const [returnTarget, setReturnTarget] = useState<'CALISAN' | 'BASKAN_YARDIMCISI'>('CALISAN')
   const [activeAction, setActiveAction] = useState<ReviewAction | null>(null)
   const { busy: mutationBusy, run: runMutation } = useSingleFlight()
@@ -61,9 +83,7 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
   const chairCanReview = role === 'BASKAN' && record.status === 'BASKAN_INCELEMESINDE'
 
   const openAction = (action: ReviewAction) => {
-    const workingNote = record.notes.find((note) => note.authorId === user.id)?.body ?? ''
-    setActionComment(['forward', 'approve', 'reject'].includes(action) ? workingNote : '')
-    setReturnReason(action === 'return' ? workingNote : '')
+    setComment('')
     setActiveAction(action)
   }
 
@@ -75,16 +95,20 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
     const deputy = getDemoUserByRole('BASKAN_YARDIMCISI')
     const chair = getDemoUserByRole('BASKAN')
     const workflowInput = activeAction === 'submit'
-      ? { action: record.status === 'TASLAK' ? 'GONDER' as const : 'TEKRAR_GONDER' as const, targetUser: deputy }
+      ? {
+          action: record.status === 'TASLAK' ? 'GONDER' as const : 'TEKRAR_GONDER' as const,
+          targetUser: deputy,
+          comment,
+        }
       : activeAction === 'forward'
-        ? { action: 'BASKANA_ILET' as const, targetUser: chair, comment: actionComment }
+        ? { action: 'BASKANA_ILET' as const, targetUser: chair, comment }
         : activeAction === 'return'
           ? returnTarget === 'CALISAN'
-            ? { action: 'CALISANA_GERI_GONDER' as const, comment: returnReason }
-            : { action: 'BASKAN_YARDIMCISINA_GERI_GONDER' as const, comment: returnReason, targetUser: deputy }
+            ? { action: 'CALISANA_GERI_GONDER' as const, comment }
+            : { action: 'BASKAN_YARDIMCISINA_GERI_GONDER' as const, comment, targetUser: deputy }
           : activeAction === 'approve'
-            ? { action: 'ONAYLA' as const, comment: actionComment }
-            : { action: 'REDDET' as const, comment: actionComment }
+            ? { action: 'ONAYLA' as const, comment }
+            : { action: 'REDDET' as const, comment }
 
     try {
       applyAction(record.id, workflowInput)
@@ -99,8 +123,7 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
       }
       showToast({ title: successCopy[activeAction], tone: 'success' })
       setActiveAction(null)
-      setReturnReason('')
-      setActionComment('')
+      setComment('')
     } catch (caughtError) {
       showToast({
         title: 'İşlem tamamlanamadı',
@@ -112,8 +135,7 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
 
   const closeActionDialog = () => {
     setActiveAction(null)
-    setReturnReason('')
-    setActionComment('')
+    setComment('')
   }
 
   if (employeeCanEdit) {
@@ -153,12 +175,10 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
 
         <ActionDialog
           action={activeAction}
-          comment={actionComment}
-          returnReason={returnReason}
+          comment={comment}
           returnTarget={returnTarget}
           role={role}
-          onCommentChange={setActionComment}
-          onReasonChange={setReturnReason}
+          onCommentChange={setComment}
           onTargetChange={setReturnTarget}
           onClose={closeActionDialog}
           onConfirm={completeAction}
@@ -225,12 +245,10 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
 
       <ActionDialog
         action={activeAction}
-        comment={actionComment}
-        returnReason={returnReason}
+        comment={comment}
         returnTarget={returnTarget}
         role={role}
-        onCommentChange={setActionComment}
-        onReasonChange={setReturnReason}
+        onCommentChange={setComment}
         onTargetChange={setReturnTarget}
         onClose={closeActionDialog}
         onConfirm={completeAction}
@@ -243,11 +261,9 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
 function ActionDialog({
   action,
   comment,
-  returnReason,
   returnTarget,
   role,
   onCommentChange,
-  onReasonChange,
   onTargetChange,
   onClose,
   onConfirm,
@@ -255,11 +271,9 @@ function ActionDialog({
 }: {
   action: ReviewAction | null
   comment: string
-  returnReason: string
   returnTarget: 'CALISAN' | 'BASKAN_YARDIMCISI'
   role: UserRole
   onCommentChange: (value: string) => void
-  onReasonChange: (value: string) => void
   onTargetChange: (value: 'CALISAN' | 'BASKAN_YARDIMCISI') => void
   onClose: () => void
   onConfirm: () => void | Promise<unknown>
@@ -267,23 +281,19 @@ function ActionDialog({
 }) {
   const dialogRef = useRef<HTMLElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
-  const returnReasonRef = useRef<HTMLTextAreaElement>(null)
   const commentRef = useRef<HTMLTextAreaElement>(null)
   useModalDialog({
     open: Boolean(action),
     onClose,
     dialogRef,
-    initialFocusRef: action === 'return'
-      ? returnReasonRef
-      : action && ['forward', 'approve', 'reject'].includes(action)
-        ? commentRef
-        : closeButtonRef,
+    initialFocusRef: action ? commentRef : closeButtonRef,
   })
 
   if (!action) return null
   const copy = actionCopy[action]
   const isReturn = action === 'return'
-  const hasCommentField = ['forward', 'approve', 'reject'].includes(action)
+  const commentRequired = isReturn || action === 'reject'
+  const commentFieldCopy = commentCopy[action]
 
   return (
     <div className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-950/35 p-0 backdrop-blur-[2px] sm:items-center sm:p-4" role="presentation">
@@ -311,9 +321,8 @@ function ActionDialog({
           </button>
         </div>
 
-        {isReturn ? (
-          <div className="mt-5 space-y-4">
-            {role === 'BASKAN' ? (
+        <div className="mt-5 space-y-4">
+          {isReturn && role === 'BASKAN' ? (
               <label className="block">
                 <span className="mb-1.5 block text-xs font-bold text-app-text-secondary">Geri gönderilecek kişi</span>
                 <select
@@ -325,37 +334,24 @@ function ActionDialog({
                   <option value="BASKAN_YARDIMCISI">Başkan Yardımcısı</option>
                 </select>
               </label>
-            ) : null}
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-bold text-app-text-secondary">Geri gönderme açıklaması *</span>
-              <textarea
-                ref={returnReasonRef}
-                value={returnReason}
-                onChange={(event) => onReasonChange(event.target.value)}
-                required
-                rows={4}
-                placeholder="Eksik veya düzeltilmesi gereken alanları açıklayın…"
-                className="w-full resize-none rounded-xl border border-app-border bg-app-surface px-3.5 py-3 text-sm leading-6 text-app-text-strong outline-none placeholder:text-app-text-faint focus:border-rose-500"
-              />
-            </label>
-          </div>
-        ) : hasCommentField ? (
-          <label className="mt-5 block">
+          ) : null}
+          <label className="block">
             <span className="mb-1.5 block text-xs font-bold text-app-text-secondary">
-              {action === 'reject' ? 'Ret açıklaması *' : 'İşlem açıklaması (isteğe bağlı)'}
+              {commentFieldCopy.label}
             </span>
             <textarea
               ref={commentRef}
               value={comment}
               onChange={(event) => onCommentChange(event.target.value)}
-              required={action === 'reject'}
+              required={commentRequired}
               rows={4}
-              maxLength={1000}
-              placeholder={action === 'reject' ? 'Kaydın neden reddedildiğini açıklayın…' : 'Bu işleme ilişkin kısa bir açıklama ekleyin…'}
-              className={`w-full resize-none rounded-xl border border-app-border bg-app-surface px-3.5 py-3 text-sm leading-6 text-app-text-strong outline-none placeholder:text-app-text-faint ${action === 'reject' ? 'focus:border-rose-500' : 'focus:border-brand-500'}`}
+              maxLength={2000}
+              placeholder={commentFieldCopy.placeholder}
+              className={`w-full resize-y rounded-xl border border-app-border bg-app-surface px-3.5 py-3 text-sm leading-6 text-app-text-strong outline-none placeholder:text-app-text-faint ${commentRequired ? 'focus:border-rose-500' : 'focus:border-brand-500'}`}
             />
           </label>
-        ) : null}
+          <p className="text-right text-[11px] font-medium text-app-text-subtle">{comment.length}/2000</p>
+        </div>
 
         <div className="mt-6 grid grid-cols-2 gap-3">
           <button
@@ -367,7 +363,7 @@ function ActionDialog({
           </button>
           <button
             type="button"
-            disabled={busy || (isReturn && !returnReason.trim()) || (action === 'reject' && !comment.trim())}
+            disabled={busy || (commentRequired && !comment.trim())}
             onClick={onConfirm}
             className={`min-h-11 rounded-xl px-4 text-sm font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 ${
               action === 'approve'

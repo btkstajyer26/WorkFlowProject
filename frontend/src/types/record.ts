@@ -1,5 +1,3 @@
-import type { WorkflowRole } from './auth'
-
 export type RecordStatus =
   | 'TASLAK'
   | 'BSK_YRD_INCELEMESINDE'
@@ -18,18 +16,6 @@ export type RecordHistoryItem = {
   date: string
 }
 
-export type RecordNote = {
-  id: string
-  recordId: string
-  authorId: string
-  author: string
-  authorRole: WorkflowRole
-  body: string
-  createdAt: string
-  updatedAt: string
-  version: number
-}
-
 export type WorkflowRecord = {
   id: string
   recordNumber: string
@@ -46,6 +32,5 @@ export type WorkflowRecord = {
   createdAt: string
   updatedAt: string
   attachments: { id: string; name: string; size: string }[]
-  notes: RecordNote[]
   history: RecordHistoryItem[]
 }

@@ -58,7 +58,7 @@ Login cevabında kullanıcı adı ve rolü bulunmadığından kullanıcı görü
 
 ## Bilinçli olarak UI'a bağlanmayan alanlar
 
-Mevcut ekranların domain modeli, backend `RecordResponse` modelinden daha zengindir. Backend şu anda kayıt için yalnızca `id`, `title`, `description`, `categoryId`, `status` ve `createdAt` döndürür. UI ise ayrıca kayıt numarası, oluşturan, atanan, dosyalar, notlar ve geçmiş bilgilerini kullanır.
+Mevcut ekranların domain modeli, backend `RecordResponse` modelinden daha zengindir. Backend şu anda kayıt için yalnızca `id`, `title`, `description`, `categoryId`, `status` ve `createdAt` döndürür. UI ise ayrıca kayıt numarası, oluşturan, atanan, dosyalar ve geçmiş bilgilerini kullanır.
 
 Bu nedenle kayıt ekranlarının mevcut `WorkflowContext` state'i hemen kaldırılmamıştır. Eksik alanları local fixture ile API cevabına eklemek iki doğruluk kaynağı oluşturacağı için yasaktır. Aşağıdaki sözleşmeler tamamlandıkça ilgili domain state'i MSW/API katmanına taşınacaktır:
 
@@ -66,7 +66,6 @@ Bu nedenle kayıt ekranlarının mevcut `WorkflowContext` state'i hemen kaldır�
 - signup ve kayıt talebi yönetimi;
 - zengin kayıt detay cevabı ya da gerekli ayrı endpointler;
 - kayda ait dosyaları listeleme;
-- inceleme notları;
 - bildirimler.
 
 ## Mevcut OpenAPI açıklıkları

@@ -146,7 +146,6 @@ export function transitionRecord(record: WorkflowRecord, input: WorkflowActionIn
 
   next.updatedAt = now
   next.lastAction = actionLabels[input.action]
-  next.notes = record.notes.filter((note) => note.authorId !== input.actor.id)
   next.history = [
     ...record.history,
     {

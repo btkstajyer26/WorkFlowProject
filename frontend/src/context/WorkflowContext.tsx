@@ -1,5 +1,4 @@
 import { useState, type ReactNode } from 'react'
-import { upsertRecordNote } from '../domain/recordNotes'
 import { canUserViewRecord, transitionRecord, type WorkflowActionInput } from '../domain/workflow'
 import { mockNotifications } from '../mocks/notifications'
 import { mockRecords } from '../mocks/records'
@@ -30,7 +29,6 @@ function hydrateRecord(record: WorkflowRecord): WorkflowRecord {
     createdById: record.createdById ?? employee.id,
     assignedToId: record.assignedToId ?? assignedToId,
     lastDeputyId: record.lastDeputyId ?? deputy.id,
-    notes: record.notes ?? [],
   }
 }
 
@@ -66,7 +64,6 @@ export function WorkflowProvider({ user, children }: { user: AuthUser; children:
       createdAt: now,
       updatedAt: now,
       attachments: input.attachments,
-      notes: [],
       history: [{
         id: crypto.randomUUID(),
         action: 'Taslak kaydedildi',
@@ -158,16 +155,6 @@ export function WorkflowProvider({ user, children }: { user: AuthUser; children:
     return transition.record
   }
 
-  const saveNote = (recordId: string, body: string) => {
-    const existing = records.find((record) => record.id === recordId)
-    if (!existing) throw new Error('Kayıt bulunamadı.')
-    if (!canUserViewRecord(existing, user)) throw new Error('Bu kayda not ekleme yetkiniz yok.')
-
-    const updated = upsertRecordNote(existing, user, body)
-    setRecords((current) => current.map((record) => record.id === recordId ? updated : record))
-    return updated
-  }
-
   const notifications = allNotifications.filter((notification) => notification.userId === user.id)
   const value: WorkflowContextValue = {
     user,
@@ -181,7 +168,6 @@ export function WorkflowProvider({ user, children }: { user: AuthUser; children:
     updateAndSubmit,
     deleteDraft,
     applyAction,
-    saveNote,
     markNotificationRead: (notificationId) => {
       setAllNotifications((current) => current.map((notification) =>
         notification.id === notificationId && notification.userId === user.id

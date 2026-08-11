@@ -10,7 +10,6 @@ import {
 } from 'lucide-react'
 import { Link, Navigate, useParams } from 'react-router'
 import { RecordActionPanel } from '../components/records/RecordActionPanel'
-import { RecordNotesPanel } from '../components/records/RecordNotesPanel'
 import { RecordStatusBadge } from '../components/records/RecordStatusBadge'
 import { useWorkflow } from '../context/workflowState'
 import type { UserRole } from '../types/auth'
@@ -116,7 +115,6 @@ export function RecordDetailPage({ role }: { role: UserRole }) {
 
         <div className="space-y-5">
           <RecordActionPanel record={record} role={role} />
-          <RecordNotesPanel key={record.id} record={record} />
 
           <section className="rounded-2xl border border-app-border bg-app-surface p-5 shadow-sm sm:p-6">
             <div className="flex items-center gap-3">
