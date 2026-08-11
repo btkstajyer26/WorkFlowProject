@@ -16,7 +16,6 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 public class Record {
-
     // 🔑 id: Primary Key, UUID.
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

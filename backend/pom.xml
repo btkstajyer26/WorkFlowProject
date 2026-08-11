@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<parent>
 		<groupId>org.springframework.boot</groupId>
@@ -47,6 +47,13 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-security</artifactId>
 		</dependency>
+		<!-- DUZELTME: spring-boot-starter-web KALDIRILDI.
+		     Spring Boot 4'te web starter'i spring-boot-starter-webmvc olarak
+		     modulerlestirildi; eski spring-boot-starter-web artik onun
+		     lehine deprecated durumda. Ikisini ayni anda eklemek ayni
+		     islevi goren (embedded Tomcat, Spring MVC) starter'larin
+		     cakismasina / gereksiz siniflarin classpath'e girmesine yol
+		     acabiliyordu. Sadece webmvc birakildi. -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc</artifactId>
@@ -90,11 +97,7 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-web</artifactId>
-</dependency>
-		<dependency>
-		<groupId>org.projectlombok</groupId>
+			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
 			<optional>true</optional>
 		</dependency>
@@ -126,21 +129,11 @@
 
 	<build>
 		<plugins>
-			<!-- JDK 23+ artik classpath'te bulunan anotasyon islemcilerini kendiliginden
-			     calistirmiyor; Lombok'un uretecini acikca bildirmek gerekiyor. -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<configuration>
-					<annotationProcessorPaths>
-						<path>
-							<groupId>org.projectlombok</groupId>
-							<artifactId>lombok</artifactId>
-							<version>${lombok.version}</version>
-						</path>
-					</annotationProcessorPaths>
-				</configuration>
-			</plugin>
+			<!-- DUZELTME: maven-compiler-plugin iki kere tanimlanmisti
+			     (ayni ayarla), tekrar eden blok silindi. JDK 23+ artik
+			     classpath'teki anotasyon islemcilerini kendiliginden
+			     calistirmiyor; Lombok'un uretecini acikca bildirmek
+			     gerekiyor, o yuzden bu plugin gerekli. -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>

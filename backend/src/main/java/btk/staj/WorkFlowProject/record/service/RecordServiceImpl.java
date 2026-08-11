@@ -1,13 +1,21 @@
 package btk.staj.WorkFlowProject.record.service;
 
+import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
+import btk.staj.WorkFlowProject.common.exception.BusinessRuleException;
+import btk.staj.WorkFlowProject.common.exception.ForbiddenException;
+import btk.staj.WorkFlowProject.common.exception.ResourceNotFoundException;
+import btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy;
 import btk.staj.WorkFlowProject.record.dto.*;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.mapper.RecordMapper;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
+import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import jakarta.persistence.criteria.Predicate;
@@ -21,24 +29,45 @@ public class RecordServiceImpl implements RecordService {
 
     private final RecordRepository recordRepository;
     private final RecordMapper recordMapper;
+    private final RecordAccessPolicy recordAccessPolicy;
 
-    public RecordServiceImpl(RecordRepository recordRepository, RecordMapper recordMapper) {
+    public RecordServiceImpl(RecordRepository recordRepository,
+                             RecordMapper recordMapper,
+                             RecordAccessPolicy recordAccessPolicy) {
         this.recordRepository = recordRepository;
         this.recordMapper = recordMapper;
+        this.recordAccessPolicy = recordAccessPolicy;
     }
 
     /**
-     * DİKKAT: Auth (Güvenlik) paketi tamamlanana kadar sistemi test edebilmen için
-     * geçici bir kullanıcı ID'si üreten yardımcı metot.
-     * İleride burası SecurityContextHolder üzerinden giriş yapmış kullanıcıyı alacak.
+     * SecurityContextHolder'daki giris yapmis kullaniciyi doner.
+     *
+     * <p>Bu noktaya ulasilmesi icin istek zaten SecurityConfig'teki
+     * anyRequest().authenticated() kuralindan gecmis olmalidir; buradaki
+     * kontrol savunma amaclidir.
      */
+    private AuthenticatedUser getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
+            throw new ForbiddenException("Kullanıcı oturumu bulunamadı veya yetkisiz erişim!");
+        }
+
+        return (AuthenticatedUser) authentication.getPrincipal();
+    }
+
     private UUID getCurrentUserId() {
-        return UUID.fromString("11111111-1111-1111-1111-111111111111"); 
+        return getCurrentUser().getId();
+    }
+
+    private RoleName getCurrentUserRole() {
+        return RoleName.valueOf(getCurrentUser().getRoleName());
     }
 
     private Record findRecordOrThrow(UUID id) {
         return recordRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Kayıt bulunamadı! ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Kayıt bulunamadı! ID: " + id));
     }
 
     // ---------------------------------------------------------------
@@ -49,7 +78,7 @@ public class RecordServiceImpl implements RecordService {
     public RecordResponse createRecord(RecordCreateRequest request) {
         Record record = recordMapper.toEntity(request, getCurrentUserId());
         record.setCreatedAt(LocalDateTime.now());
-        
+
         Record savedRecord = recordRepository.save(record);
         return recordMapper.toResponse(savedRecord);
     }
@@ -57,16 +86,39 @@ public class RecordServiceImpl implements RecordService {
     @Override
     public RecordResponse getRecordById(UUID id) {
         Record record = findRecordOrThrow(id);
+
+        recordAccessPolicy.assertCanView(
+                getCurrentUserRole(),
+                getCurrentUserId(),
+                record.getCreatedBy(),
+                record.getAssignedTo(),
+                record.getStatus());
+
         return recordMapper.toResponse(record);
     }
 
     @Override
     public Page<RecordResponse> getFilteredRecords(RecordStatus status, Integer categoryId, String keyword, Pageable pageable) {
+        RoleName role = getCurrentUserRole();
+        UUID currentUserId = getCurrentUserId();
+
         Specification<Record> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
-            
+
             // Soft delete kuralı: Silinmiş olanları getirme
             predicates.add(cb.isNull(root.get("deletedAt")));
+
+            // Gorunurluk kapsami: RecordAccessPolicy.canView ile ayni kural,
+            // burada listeleme sorgusuna predicate olarak uygulanir.
+            switch (role) {
+                case CALISAN -> predicates.add(cb.equal(root.get("createdBy"), currentUserId));
+                case BASKAN_YARDIMCISI -> predicates.add(cb.equal(root.get("assignedTo"), currentUserId));
+                case BASKAN -> predicates.add(cb.or(
+                        cb.equal(root.get("status"), RecordStatus.BASKAN_INCELEMESINDE),
+                        cb.equal(root.get("assignedTo"), currentUserId)));
+                // ADMIN yalnizca kullanici/rol yonetiminden sorumludur; evrak goremez.
+                case ADMIN -> predicates.add(cb.disjunction());
+            }
 
             if (status != null) {
                 predicates.add(cb.equal(root.get("status"), status));
@@ -93,11 +145,11 @@ public class RecordServiceImpl implements RecordService {
         Record record = findRecordOrThrow(id);
 
         if (!record.getStatus().isEditableByCreator()) {
-            throw new RuntimeException("Bu kayıt şu anki durumunda düzenlenemez!");
+            throw new BusinessRuleException("Bu kayıt şu anki durumunda düzenlenemez!");
         }
 
         if (!record.getCreatedBy().equals(getCurrentUserId())) {
-            throw new RuntimeException("Bu kaydı düzenleme yetkiniz yok!");
+            throw new ForbiddenException("Bu kaydı düzenleme yetkiniz yok!");
         }
 
         // Standart Lombok getter kullanımları
@@ -115,11 +167,11 @@ public class RecordServiceImpl implements RecordService {
         Record record = findRecordOrThrow(id);
 
         if (record.getStatus() != RecordStatus.TASLAK) {
-            throw new RuntimeException("Sadece taslak durumundaki kayıtlar silinebilir!");
+            throw new BusinessRuleException("Sadece taslak durumundaki kayıtlar silinebilir!");
         }
 
         if (!record.getCreatedBy().equals(getCurrentUserId())) {
-            throw new RuntimeException("Sadece kendi oluşturduğunuz taslakları silebilirsiniz!");
+            throw new ForbiddenException("Sadece kendi oluşturduğunuz taslakları silebilirsiniz!");
         }
 
         record.setDeletedAt(LocalDateTime.now());

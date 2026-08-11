@@ -61,6 +61,17 @@ public class GlobalExceptionHandler {
         return build("UNAUTHORIZED", "Kimlik doğrulaması gerekli", HttpStatus.UNAUTHORIZED);
     }
 
+    /**
+     * Login sirasinda hatali email/sifre veya refresh sirasinda gecersiz/suresi
+     * dolmus token icin AuthService tarafindan firlatilir. Bu handler olmasaydi
+     * genel Exception handler'ina duser ve normal bir giris hatasi 500 olarak
+     * donerdi (ayrica log.error ile gereksiz yere loglanirdi).
+     */
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<ApiError> handleInvalidCredentials(InvalidCredentialsException ex) {
+        return build("UNAUTHORIZED", ex.getMessage(), HttpStatus.UNAUTHORIZED);
+    }
+
     // ---------- Is akisi ----------
 
     @ExceptionHandler(WorkflowRecordNotFoundException.class)
