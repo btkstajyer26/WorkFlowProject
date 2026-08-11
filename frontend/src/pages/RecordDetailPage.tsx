@@ -6,7 +6,6 @@ import {
   FolderOpen,
   History,
   type LucideIcon,
-  UserRound,
 } from 'lucide-react'
 import { Link, Navigate, useParams } from 'react-router'
 import { RecordActionPanel } from '../components/records/RecordActionPanel'
@@ -49,10 +48,8 @@ export function RecordDetailPage({ role }: { role: UserRole }) {
           </div>
         </div>
 
-        <div className="mt-6 grid gap-3 border-t border-app-border-subtle pt-5 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-6 grid gap-3 border-t border-app-border-subtle pt-5 sm:grid-cols-2">
           <DetailMeta icon={FolderOpen} label="Kategori" value={record.category} />
-          <DetailMeta icon={UserRound} label="Oluşturan" value={record.createdBy} />
-          <DetailMeta icon={UserRound} label="Atanan" value={record.assignedTo ?? 'İşlem tamamlandı'} />
           <DetailMeta icon={CalendarDays} label="Oluşturulma" value={dateTimeFormatter.format(new Date(record.createdAt))} />
         </div>
       </header>
