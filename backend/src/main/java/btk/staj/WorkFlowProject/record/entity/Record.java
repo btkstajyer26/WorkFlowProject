@@ -2,6 +2,9 @@ package btk.staj.WorkFlowProject.record.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -14,7 +17,7 @@ import java.util.UUID;
 @Builder
 public class Record {
 
-    // 🔑 id: Anahtar işareti var, Primary Key ve UUID.
+    // 🔑 id: Primary Key, UUID.
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id", updatable = false, nullable = false)
@@ -24,58 +27,48 @@ public class Record {
     @Column(name = "title", nullable = false, length = 255)
     private String title;
 
-    // description: text
+    // description: text, boş bırakılabilir
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
-    // 🔑 category_id: Başka bir tabloya bağlı (Foreign Key) olduğu için Integer
+    // 🔑 category_id: Foreign Key (Integer)
     @Column(name = "category_id", nullable = false)
     private Integer categoryId;
 
-    // 🔑 status: varchar(50) - Taslak, Onaylandı vb. durumlar için.
+    // 🔑 status: tip güvenli enum olarak tutuluyor, varchar(50)
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 50)
-    private String status;
+    private RecordStatus status;
 
-    // 🔑 created_by: Evrağı kim oluşturdu? User tablosunun UUID'si.
+    // 🔑 created_by: Evrağı oluşturan kullanıcının UUID'si
     @Column(name = "created_by", nullable = false)
     private UUID createdBy;
 
-    // 🔑 assigned_to (uuid?): Soru işareti var, yani boş olabilir (nullable = true)
+    // 🔑 assigned_to: nullable
     @Column(name = "assigned_to")
     private UUID assignedTo;
 
-    // 🔑 last_deputy_id (uuid?): Soru işareti var, boş olabilir.
+    // 🔑 last_deputy_id: nullable
     @Column(name = "last_deputy_id")
     private UUID lastDeputyId;
 
-    // version: Aynı anda iki kişi güncellerse veri ezilmesin diye versiyon kontrolü
+    // version: Optimistic Locking için, default 0
     @Version
-    @Column(name = "version")
-    private Integer version;
+    @Column(name = "version", nullable = false)
+    @Builder.Default
+    private Integer version = 0;
 
-    // 📍 created_at: Ne zaman oluşturuldu?
-    @Column(name = "created_at", updatable = false, nullable = false)
+    // 📍 created_at: Hibernate otomatik atar, sonradan değiştirilemez
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    // updated_at (timestamp?): Ne zaman güncellendi? Boş olabilir.
+    // updated_at: Hibernate her güncellemede otomatik değiştirir
+    @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    // deleted_at (timestamp?): Soft delete (kalıcı silmeme) için kullanılıyor.
+    // deleted_at: Soft delete için
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
-
-    // --- OTOMATİK İŞLEMLER ---
-
-    // Veritabanına ilk kez kaydedilmeden HEMEN ÖNCE çalışır
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-    }
-
-    // Veritabanında bir güncelleme yapılmadan HEMEN ÖNCE çalışır
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
-    }
 }
