@@ -1,169 +1,150 @@
 # Eksik Sınıflar ve Öncelik Sırası
 
-**Tarih:** 10 Ağustos 2026
+**Tarih:** 11 Ağustos 2026
 **Kapsam:** Yalnızca backend — frontend hariç
-**Kaynak:** `integration/tum-feature-branchleri` dalı (mevcut: 55 sınıf, 112 test)
+**Kaynak:** `integration/tum-feature-branchleri` dalı (mevcut: 100 sınıf, 211 test)
 
-Backend'de yazılması gereken **50 yeni sınıf**, sahipleriyle birlikte bağımlılık sırasına
-dizilmiş hâlde. Sıra keyfî değil: her faz bir sonrakinin önünü açıyor.
+Bir önceki sürüm 10 Ağustos'ta 50 eksik sınıf sayıyordu. O tarihten bu yana
+`auth`, `user`, `record`, `common`, `rbac`, `audit` modülleri ve onay akışının
+adaptörleri geldi. **Kalan 14 yeni sınıf** aşağıda; ayrıca sınıf sayısıyla
+ölçülmeyen iki yapısal sorun var ve bunlar yeni sınıf yazmaktan daha
+önceliklidir.
 
 > Sınıf adları öneridir; paket yerleşimi projenin modül bazlı yapısına uyar.
 
 ---
 
-## Sıra neden böyle
+## Önce bunlar: yeni sınıf değil, bağlantı sorunu
 
-**İki sınıf bütün projeyi bekletiyor.** Biri JWT doğrulama filtresi: o gelmeden hiçbir
-istekte "bu işlemi kim yapıyor" sorusu cevaplanamıyor. Diğeri kayıt repository'si: o
-olmadan onay akışı kayda erişemiyor, arama modülü de sorgulayacak bir şey bulamıyor.
+Bu iki madde yeni kod yazmayı değil, **var olan kodu birbirine bağlamayı**
+gerektiriyor. İkisi de teslim kalitesini doğrudan etkiliyor.
 
-**İki modül ise bugün beklemeden başlayabilir.** Denetim izi ve bildirim modüllerinin
-bağlanacağı arayüzler (`AuditService`, `WorkflowEventPublisher`) zaten yazılmış durumda.
-Ebrar ve Melih kimseyi beklemeden kendi sınıflarını yazabilir.
+### 1. Onay akışı iki kere yazılmış durumda 🔴
 
-**Veritabanı hiçbir fazı bekletmiyor.** Dokuz tablo, indeksleri ve kısıtlarıyla hazır;
-yazılacak entity'lerin tamamının karşılığı şemada mevcut.
+Şartnamedeki durum makinesi `workflow` modülünde tam ve doğrulanmış hâlde
+duruyor (`TransitionRules`, `WorkflowTransitionValidator`, 90+ test). Ama
+uçlara bağlı olan bu değil: [`RecordServiceImpl`](../backend/src/main/java/btk/staj/WorkFlowProject/record/service/RecordServiceImpl.java)
+durumları doğrudan `record.setStatus(...)` ile değiştiriyor ve
+[`RecordWorkflowController`](../backend/src/main/java/btk/staj/WorkFlowProject/record/controller/RecordWorkflowController.java)
+bu yolu kullanıyor.
 
-### İşaretler
+Sonuçları:
+
+- Geçiş kuralları (kim, hangi durumda, hangi aksiyonu alabilir) çalışmıyor —
+  yalnızca `@PreAuthorize` ile rol bakılıyor, **durum** bakılmıyor.
+- Denetim izi yazılmıyor. Şartname §4.2 tüm durum değişikliklerinin Audit Log'a
+  yazılmasını istiyor; bu yoldan geçen hiçbir işlem loglanmıyor.
+- Zorunlu açıklama kuralı (§3 "geri gönderirken açıklama zorunludur")
+  uygulanmıyor.
+- Kilitli/terminal durumdaki kayıt korunmuyor.
+
+**Yapılacak:** `RecordWorkflowController` + `RecordServiceImpl`'deki geçiş
+metotları kaldırılıp uçlar `WorkflowApplicationService` üzerinden
+`WorkflowActionApi` sözleşmesine bağlanmalı. — *Esra & Burak, Alperen & Fevzi
+birlikte*
+
+### 2. Onay akışı sınıfları Spring bean'i değil 🟡
+
+`WorkflowApplicationService`, `TargetUserResolver` ve
+`WorkflowTransitionValidator` üzerinde `@Service` / `@Component` yok, dolayısıyla
+Spring bunları hiç oluşturmuyor. 1. madde bunlar olmadan çözülemez. Bağımlılığı
+yok, bugün yapılabilir. — *Esra & Burak*
+
+---
+
+## İşaretler
 
 | İşaret | Anlamı |
 |---|---|
 | 🟢 **Yeni** | Sıfırdan yazılacak sınıf |
 | 🟡 **Değişiklik** | Mevcut sınıfa ekleme |
-| 🔴 **Silinecek** | Kaldırılması gereken |
+| 🔴 **Sorun** | Kaldırılması / düzeltilmesi gereken |
 
 ---
 
-## Faz 1 — Kilidi açanlar
-
-> Diğer her şey bunları bekliyor. Bu fazda üç ekip paralel çalışabilir.
-
-### Nisan Tat · Sümeyye Baykan — `auth` / `user`
-
-| Sınıf | Tür | Açıklama |
-|---|---|---|
-| `auth/security/JwtAuthenticationFilter` | 🟢 Yeni | Her istekte Bearer token'ı okur, doğrular ve SecurityContext'i doldurur. **Projedeki en kritik eksik.** |
-| `auth/security/AuthenticatedUser` | 🟢 Yeni | `UserDetails` implementasyonu; kullanıcı ID'sini ve rolünü taşır. Onay akışının aktörü buradan okuyacak. |
-| `auth/service/CustomUserDetailsService` | 🟢 Yeni | E-postadan kullanıcıyı DB'den yükler. Şu an bu sınıf olmadığı için Spring'in bozuk varsayılan kullanıcısı devrede. |
-| `auth/dto/RefreshTokenRequest` | 🟢 Yeni | Ham `String` gövde yerine tipli istek. `LogoutRequest` ile birlikte. |
-| `user/entity/User` | 🟡 Değişiklik | `is_active`, `must_change_password`, `updated_at` alanları şemada var ama entity'de yok. **`is_active` olmadan onay akışı pasif kullanıcıya kayıt atanmasını engelleyemez.** |
-| `user/repository/UserRepository` | 🟡 Değişiklik | Role ve aktiflik durumuna göre kullanıcı sorgusu — onay akışının hedef çözümlemesi için gerekli. |
-
-### Alperen Kara · Fevzi Berke Urganioğlu — `record`
-
-| Sınıf | Tür | Açıklama |
-|---|---|---|
-| `record/repository/RecordRepository` | 🟢 Yeni | `JpaRepository` + `JpaSpecificationExecutor` — ikincisi arama modülü için şart. |
-| `record/service/RecordService` | 🟢 Yeni | Oluşturma, düzenleme, taslak silme (soft delete), "kayıtlarım" listesi. |
-| `record/controller/RecordController` | 🟢 Yeni | CRUD uçları. Onay akışı uçları ayrı controller'da kalacak. |
-| `record/dto/CreateRecordRequest`<br>`record/dto/UpdateRecordRequest`<br>`record/dto/RecordResponse`<br>`record/dto/RecordSummaryResponse` | 🟢 Yeni | Entity dışa açılmamalı; liste ve detay için ayrı yanıt tipleri. |
-| `record/entity/Category`<br>`record/repository/CategoryRepository`<br>`record/controller/CategoryController`<br>`record/dto/CategoryResponse` | 🟢 Yeni | Kategori yönetimi. `categories` tablosu hazır, tarafta hiç kod yok. |
-| `record/entity/Record` | 🟡 Değişiklik | `status` alanı `String` yerine `@Enumerated(EnumType.STRING)` ile durum makinesi enum'una bağlanmalı. |
-| `record/entity/RecordStatus` | 🔴 Silinecek | Durum makinesindeki enum'un kopyası; kilitleme kurallarını taşımıyor ve hiçbir yerde kullanılmıyor. |
-
-### Hacer Bengü Ünal — `common`
-
-| Sınıf | Tür | Açıklama |
-|---|---|---|
-| `common/exception/GlobalExceptionHandler` | 🟢 Yeni | `@RestControllerAdvice`. **Erken yazılmalı:** herkes controller yazmadan önce hata formatı belli olsun. |
-| `common/exception/ApiError` | 🟢 Yeni | Standart hata gövdesi — kod, mesaj, alan hataları, zaman damgası. |
-| `common/exception/ResourceNotFoundException`<br>`common/exception/BusinessRuleException`<br>`common/exception/ForbiddenException` | 🟢 Yeni | Ortak hata tipleri. Şu an her modül `RuntimeException` fırlatıyor, hepsi 500 dönüyor. |
-
----
-
-## Faz 2 — Onay akışını sisteme bağlama
-
-> Faz 1'den sonra. Onay akışı çekirdeği hazır ve 93 testle doğrulanmış; eksik olan
-> yalnızca dış dünyaya bakan beş adaptör.
+## Faz 1 — Onay akışını tamamlayan son parçalar
 
 ### Esra Öncü · Burak Kaya — `workflow`
 
 | Sınıf | Tür | Açıklama |
 |---|---|---|
-| `workflow/adapter/RecordPortAdapter` | 🟢 Yeni | `WorkflowRecordPort` implementasyonu — `RecordRepository`'yi bekliyor. |
-| `workflow/adapter/UserPortAdapter` | 🟢 Yeni | `WorkflowUserPort` implementasyonu — kullanıcıyı ve role göre aktif kullanıcıları çözer. |
-| `workflow/adapter/SecurityCurrentActorProvider` | 🟢 Yeni | `CurrentActorProvider` implementasyonu — `JwtAuthenticationFilter`'ı bekliyor. |
-| `workflow/adapter/SpringWorkflowEventPublisher` | 🟢 Yeni | `WorkflowEventPublisher` implementasyonu — durum değişikliğini Spring event'i olarak yayınlar, bildirim modülü dinler. **Başka modüle bağımlı değil, hemen yazılabilir.** |
-| `workflow/controller/WorkflowActionController` | 🟢 Yeni | Mevcut `WorkflowActionApi` arayüzünü uygulayan somut controller. |
-| `WorkflowApplicationService`<br>`TargetUserResolver`<br>`WorkflowTransitionValidator` | 🟡 Değişiklik | Spring bean'i değiller; `@Service` / `@Component` eklenmeli. **Bu da beklemiyor.** |
+| `workflow/adapter/RecordPortAdapter` | 🟢 Yeni | `WorkflowRecordPort` implementasyonu. Diğer üç adaptör (`UserPortAdapter`, `SecurityCurrentActorProvider`, `SpringWorkflowEventPublisher`) hazır; eksik olan tek adaptör bu. `RecordRepository` hazır, bekleyen bir şey yok. |
+| `workflow/controller/WorkflowActionController` | 🟢 Yeni | Mevcut `WorkflowActionApi` arayüzünü uygulayan somut controller. Yukarıdaki 1. maddenin uygulanacağı yer. |
+| `WorkflowApplicationService`<br>`TargetUserResolver`<br>`WorkflowTransitionValidator` | 🟡 Değişiklik | `@Service` / `@Component` eklenmeli (bkz. 2. madde). |
 
-### Hacer Bengü Ünal — `rbac`
+### Alperen Kara · Fevzi Berke Urganioğlu — `record`
 
 | Sınıf | Tür | Açıklama |
 |---|---|---|
-| `rbac/RoleName` | 🟢 Yeni | Ortak rol tipi. Şu an onay akışı kendi geçici tanımını taşıyor ve Javadoc'unda bu devrin planlandığı yazılı. |
-| `rbac/service/RecordAccessPolicy` | 🟢 Yeni | Şartnamedeki kayıt görünürlük kapsamı: Çalışan yalnızca kendi kayıtları, Bşk. Yrd. kendisine gelenler, Başkan onay aşamasındakiler. |
-| `rbac/config/MethodSecurityConfig` | 🟢 Yeni | `@EnableMethodSecurity` — yetki matrisinin `@PreAuthorize` ile uygulanabilmesi için. |
-| `rbac/config/SecurityConfig` | 🟡 Değişiklik | Şu an her istek `permitAll` — geçici. Gerçek kurallar ve JWT filtresi zincire eklenmeli. |
-
-### Ebrar Şeyma Karakuş — `audit` · **bugün başlayabilir**
-
-| Sınıf | Tür | Açıklama |
-|---|---|---|
-| `audit/service/AuditLogService` | 🟢 Yeni | Onay akışının `AuditService` portunu doldurur. Arayüz hazır, beklemeye gerek yok. |
-| `audit/entity/AuditLog`<br>`audit/repository/AuditLogRepository` | 🟢 Yeni | Silinemez işlem kaydı. `audit_logs` tablosu ve üç indeksi hazır. |
-| `audit/controller/AuditLogController`<br>`audit/dto/AuditLogResponse` | 🟢 Yeni | Kayıt detayındaki işlem geçmişi tablosunu besleyen uç. |
-| `audit/entity/UserAuditLog`<br>`audit/repository/UserAuditLogRepository`<br>`audit/service/UserAuditLogService` | 🟢 Yeni | Kullanıcı ve rol değişikliklerinin ayrı izi. `user_audit_logs` tablosu hazır. |
+| `record/service/RecordServiceImpl` | 🔴 Sorun | Durum değiştiren metotlar (`submitToDeputy`, `forwardToChairman`, `approve`, `reject`, geri gönderme) durum makinesini atlıyor. Kaldırılıp workflow'a devredilmeli. |
+| `record/controller/RecordWorkflowController` | 🔴 Sorun | Aynı sebeple kaldırılacak; yerini `WorkflowActionController` alacak. |
 
 ---
 
-## Faz 3 — Bağımsız modüller
+## Faz 2 — Bağımsız modüller
 
-> Bildirim modülü bugün başlayabilir; arama modülü `RecordRepository`'yi beklemek zorunda.
+> İkisi de kimseyi beklemiyor.
 
-### Melih Kocaman — `notification` · **bugün başlayabilir**
+### Melih Kocaman — `notification` · **hiç başlanmadı**
 
 | Sınıf | Tür | Açıklama |
 |---|---|---|
-| `notification/listener/WorkflowStatusChangedListener` | 🟢 Yeni | Durum değişikliği event'ini dinler, bildirim ve e-postayı tetikler. |
-| `notification/service/MailService` | 🟢 Yeni | `JavaMailSender` ile Outlook/SMTP gönderimi, `@Async`. Docker'daki Mailpit ile denenebilir. |
+| `notification/listener/WorkflowStatusChangedListener` | 🟢 Yeni | Durum değişikliği event'ini dinler. Yayıncı taraf (`SpringWorkflowEventPublisher`) ve event tipi (`WorkflowStatusChangedEvent`) **hazır** — dinleyici yazılır yazılmaz çalışır. |
+| `notification/service/MailService` | 🟢 Yeni | `JavaMailSender` ile Outlook/SMTP gönderimi, `@Async` (§6.2). Docker'daki Mailpit ile denenebilir. |
 | `notification/entity/Notification`<br>`notification/repository/NotificationRepository`<br>`notification/service/NotificationService` | 🟢 Yeni | Uygulama içi bildirimler. `notifications` tablosu ve okunmamış indeksi hazır. |
 | `notification/controller/NotificationController`<br>`notification/dto/NotificationResponse` | 🟢 Yeni | Bildirim listeleme ve okundu işaretleme. |
-| `templates/mail/*.html` | 🟢 Yeni | Kayıt özeti, güncel durum, son açıklama ve kayda giden derin bağlantı butonu. Klasör açılmış, boş. |
+| `templates/mail/*.html` | 🟢 Yeni | §4.5: kayıt özeti, güncel durum, son açıklama ve kayda giden derin bağlantı butonu. Klasör açılmış, boş. |
 
-### Irmak Tanrıverdi — `search`
+### Irmak Tanrıverdi — `search` · **hiç başlanmadı**
 
 | Sınıf | Tür | Açıklama |
 |---|---|---|
-| `search/specification/RecordSpecifications` | 🟢 Yeni | Duruma, kategoriye, kullanıcıya, tarihe ve metne göre dinamik kriterler. |
+| `search/specification/RecordSpecifications` | 🟢 Yeni | Duruma, kategoriye, kullanıcıya, tarihe ve metne göre dinamik kriterler (§4.4). `RecordRepository` zaten `JpaSpecificationExecutor` genişletiyor. |
 | `search/dto/RecordSearchCriteria` | 🟢 Yeni | Filtre parametrelerini taşıyan tip. |
-| `search/service/RecordSearchService` | 🟢 Yeni | Sayfalama ile arama. **Yetki kapsamı burada uygulanmalı** — kimse yetkisi olmayan kaydı sonuçta görmemeli. |
+| `search/service/RecordSearchService` | 🟢 Yeni | Sayfalama ile arama. **Yetki kapsamı burada uygulanmalı** — `RecordAccessPolicy` hazır, kimse yetkisi olmayan kaydı sonuçta görmemeli. |
 | `search/controller/RecordSearchController`<br>`common/dto/PagedResponse` | 🟢 Yeni | Arama ucu ve ortak sayfalama yanıtı. |
-
-### Ecesu Başak — `attachment`
-
-| Sınıf | Tür | Açıklama |
-|---|---|---|
-| `attachment/service/FileContentValidator` | 🟢 Yeni | Gerçek içerik doğrulaması. Şu an yalnızca istemcinin gönderdiği `Content-Type`'a güveniliyor. |
-| `attachment/service/FileService` | 🟡 Değişiklik | Silme işlemi; kilitli veya terminal durumdaki kayda ek eklenmesini engelleme; `uploadedBy`'ı istek parametresi yerine oturumdan alma. |
-| `application.properties` | 🟡 Değişiklik | `spring.servlet.multipart.max-file-size` — şu an dosya boyutu sınırı yok. |
 
 ---
 
-## Faz 4 — Teslim öncesi kalite
+## Faz 3 — Teslim öncesi kalite
 
-> Modüller bittikçe. Şartname değerlendirmeyi yalnızca işlevselliğe değil kod kalitesine
-> de bağlıyor. Bu maddeler tek kişinin değil, her modül sahibinin kendi alanında yapacağı iş.
+> Şartname değerlendirmeyi yalnızca işlevselliğe değil kod kalitesine de bağlıyor
+> (§6.2). Her modül sahibi kendi alanında yapar.
 
 | İş | Tür | Açıklama |
 |---|---|---|
-| `*ServiceTest` · `*ControllerTest` | 🟢 Yeni | Şu an 112 testin 93'ü onay akışında. Diğer yedi modülün kritik iş kuralları test edilmemiş. |
-| `logback-spring.xml` | 🟢 Yeni | Structured log formatı. Projede tek bir `Logger` tanımı yok — *Ebrar* |
-| Tüm `*Request` DTO'ları | 🟡 Değişiklik | `@Valid`, `@NotBlank`, `@Email` doğrulamaları. Onay akışı dışında hiçbir istekte doğrulama yok. |
-| Entity dönen uçlar | 🟡 Değişiklik | Katmanlı mimari kriteri: hiçbir controller entity dönmemeli. Yanıt DTO'ları tamamlanmalı. |
+| `attachment/service/FileService`<br>`attachment/controller/FileController` | 🟡 Değişiklik | `uploadedBy` ve `deletedBy` hâlâ `@RequestParam` ile isteyenin kendi beyanı; oturumdan alınmalı. Şu hâliyle bir kullanıcı başkası adına dosya yükleyebilir/silebilir. — *Ecesu* |
+| `*ServiceTest` · `*ControllerTest` | 🟢 Yeni | 211 testin çoğu `workflow`, `rbac` ve `audit`'te. `record`, `auth`, `user` modüllerinin iş kuralları test edilmemiş. |
+| `*Request` DTO'ları | 🟡 Değişiklik | `@Valid`/`@NotBlank` yalnızca `RecordCreateRequest`, `RecordUpdateRequest` ve `WorkflowActionRequest`'te var. `auth` ve `user` DTO'larında doğrulama yok. |
 
 ---
 
-## Kişi başı dağılım
+## 10 Ağustos'tan bu yana tamamlananlar
 
-| Sorumlu | Paket | Yeni sınıf | İlk faz |
+| Modül | Durum |
+|---|---|
+| `common` — hata yönetimi | ✅ `GlobalExceptionHandler`, `ApiError`, üç hata tipi |
+| `auth` / `user` | ✅ JWT filtresi, `AuthenticatedUser`, `CustomUserDetailsService`, entity alanları |
+| `record` — CRUD | ✅ Repository, service, controller, DTO'lar, kategori yönetimi |
+| `rbac` | ✅ `RecordAccessPolicy`, `MethodSecurityConfig`, `SecurityConfig`, yetki matrisi |
+| `audit` | ✅ Tamamı; onay akışı portuna bağlandı, silinemezlik ve görünürlük kapsamı uygulandı |
+| Loglama | ✅ `logback-spring.xml`, ECS JSON structured format |
+| `workflow` adaptörleri | ✅ 4 adaptörün 3'ü (`RecordPortAdapter` kaldı) |
+
+Not: Önceki listedeki `rbac/RoleName` maddesi farklı çözüldü — ayrı bir rol tipi
+eklenmedi, `workflow/statemachine/RoleName` projenin tek rol tipi olarak
+benimsendi ve `rbac` de onu kullanıyor.
+
+---
+
+## Kişi başı kalan iş
+
+| Sorumlu | Paket | Kalan sınıf | Öncelik |
 |---|---|---:|---|
-| Nisan Tat · Sümeyye Baykan | `auth`, `user` | 5 | Faz 1 |
-| Alperen Kara · Fevzi B. Urganioğlu | `record` | 11 | Faz 1 |
-| Hacer Bengü Ünal | `common`, `rbac` | 8 | Faz 1 |
-| Esra Öncü · Burak Kaya | `workflow` | 5 | Faz 2 |
-| Ebrar Şeyma Karakuş | `audit` | 8 | Hemen |
-| Melih Kocaman | `notification` | 7 | Hemen |
-| Irmak Tanrıverdi | `search` | 5 | Faz 1 sonrası |
-| Ecesu Başak | `attachment` | 1 | Faz 3 |
-| **Toplam** | | **50** | |
+| Melih Kocaman | `notification` | 7 | Hemen başlayabilir |
+| Irmak Tanrıverdi | `search` | 5 | Hemen başlayabilir |
+| Esra Öncü · Burak Kaya | `workflow` | 2 + 3 değişiklik | **Faz 1 — en kritik** |
+| Alperen Kara · Fevzi B. Urganioğlu | `record` | 2 kaldırma | **Faz 1 — workflow ile birlikte** |
+| Ecesu Başak | `attachment` | 2 değişiklik | Faz 3 |
+| Herkes | kendi modülü | test + doğrulama | Faz 3 |
+| **Toplam yeni sınıf** | | **14** | |
