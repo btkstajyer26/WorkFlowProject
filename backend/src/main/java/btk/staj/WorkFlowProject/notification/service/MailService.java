@@ -1,4 +1,4 @@
-package btk.staj.WorkFlowProject.service;
+package btk.staj.WorkFlowProject.notification.service;
 
 import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
@@ -18,12 +18,11 @@ public class MailService {
 
     private final JavaMailSender mailSender;
 
-    @Value("${app.frontend-url:http://localhost:3000}")
+    @Value("${app.frontend-url:http://localhost:5173}")
     private String frontendUrl;
 
-    // Backend sunucu adresimiz (Hızlı onay API isteği için)
-    @Value("${app.backend-url:http://localhost:8086}")
-    private String backendUrl;
+    @Value("${app.mail-from:ebys@ornek.local}")
+    private String mailFrom;
 
     public MailService(JavaMailSender mailSender) {
         this.mailSender = mailSender;
@@ -38,9 +37,9 @@ public class MailService {
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "utf-8");
 
             String deepLink = frontendUrl + "/records/" + recordId;
-            
-            // Doğrudan onaylama yapacak backend adresi
-            String quickApproveUrl = backendUrl + "/api/records/quick-approve?recordId=" + recordId + "&userEmail=" + toEmail;
+
+            // Aciklama her aksiyonda zorunlu degil; bosken sablonda "null" gorunmemeli.
+            String explanation = (reason == null || reason.isBlank()) ? "—" : reason;
 
             String htmlContent = """
 <table role="presentation" width="100%%" cellpadding="0" cellspacing="0" border="0" style="background-color:#eef1f5; padding:32px 0; font-family:Segoe UI, Arial, sans-serif;">
@@ -119,15 +118,6 @@ public class MailService {
                 <td align="center" style="padding-top:32px;">
                   <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                     <tr>
-                      <td align="center" bgcolor="#107c41" style="border-radius:4px; padding-right:10px;">
-                        <a href="%s"
-                           target="_blank"
-                           style="display:inline-block; padding:12px 22px; font-family:Segoe UI, Arial, sans-serif; font-size:14px; font-weight:bold; color:#ffffff; text-decoration:none; border-radius:4px;">
-                          Evrağı Onayla
-                        </a>
-                      </td>
-                      <td width="16" style="width:16px; font-size:0; line-height:0;">&nbsp;</td>
-
                       <td align="center" bgcolor="#0078d4" style="border-radius:4px;">
                         <a href="%s"
                            target="_blank"
@@ -165,9 +155,9 @@ public class MailService {
     </td>
   </tr>
 </table>
-""".formatted(recipientName, recordId.toString(), title, status, reason, quickApproveUrl, deepLink);
+""".formatted(recipientName, recordId.toString(), title, status, explanation, deepLink);
 
-            helper.setFrom("hello@demomailtrap.co");
+            helper.setFrom(mailFrom);
             helper.setTo(toEmail);
             helper.setSubject("EBYS - Evrak Durum Değişikliği Bildirimi [#" + recordId.toString().substring(0, 8) + "]");
             helper.setText(htmlContent, true);

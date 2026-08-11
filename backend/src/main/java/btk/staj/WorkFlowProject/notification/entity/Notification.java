@@ -1,43 +1,51 @@
-package btk.staj.WorkFlowProject.entity;
+package btk.staj.WorkFlowProject.notification.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import org.hibernate.annotations.CreationTimestamp;
-import btk.staj.WorkFlowProject.enums.NotificationType;
 
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+/** Uygulama ici bildirim (sartname §4.5). */
 @Entity
 @Table(name = "notifications")
 public class Notification {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    private java.util.UUID id;
+    private UUID id;
 
     @Column(name = "user_id", nullable = false)
-    private java.util.UUID userId;
+    private UUID userId;
 
     @Column(name = "record_id", nullable = false)
-    private java.util.UUID recordId;
+    private UUID recordId;
 
     @Column(nullable = false, length = 500)
     private String message;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "notification_type", nullable = false)
-    private btk.staj.WorkFlowProject.enums.NotificationType notificationType;
+    @Column(name = "notification_type", nullable = false, length = 50)
+    private NotificationType notificationType;
 
     @Column(name = "is_read", nullable = false)
     private boolean isRead = false;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
-    private java.time.LocalDateTime createdAt;
+    private LocalDateTime createdAt;
 
-    // 1. Boş Constructor (JPA için zorunlu)
-    public Notification() {
+    protected Notification() {
     }
 
-    // 2. Dolu Constructor
-    public Notification(java.util.UUID userId, java.util.UUID recordId, String message, btk.staj.WorkFlowProject.enums.NotificationType notificationType) {
+    public Notification(UUID userId, UUID recordId, String message, NotificationType notificationType) {
         this.userId = userId;
         this.recordId = recordId;
         this.message = message;
@@ -45,25 +53,35 @@ public class Notification {
         this.isRead = false;
     }
 
-    // 3. Getter ve Setter Metotları
-    public java.util.UUID getId() { return id; }
-    public void setId(java.util.UUID id) { this.id = id; }
+    public UUID getId() {
+        return id;
+    }
 
-    public java.util.UUID getUserId() { return userId; }
-    public void setUserId(java.util.UUID userId) { this.userId = userId; }
+    public UUID getUserId() {
+        return userId;
+    }
 
-    public java.util.UUID getRecordId() { return recordId; }
-    public void setRecordId(java.util.UUID recordId) { this.recordId = recordId; }
+    public UUID getRecordId() {
+        return recordId;
+    }
 
-    public String getMessage() { return message; }
-    public void setMessage(String message) { this.message = message; }
+    public String getMessage() {
+        return message;
+    }
 
-    public btk.staj.WorkFlowProject.enums.NotificationType getNotificationType() { return notificationType; }
-    public void setNotificationType(btk.staj.WorkFlowProject.enums.NotificationType notificationType) { this.notificationType = notificationType; }
+    public NotificationType getNotificationType() {
+        return notificationType;
+    }
 
-    public boolean isRead() { return isRead; }
-    public void setRead(boolean read) { isRead = read; }
+    public boolean isRead() {
+        return isRead;
+    }
 
-    public java.time.LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(java.time.LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public void markAsRead() {
+        this.isRead = true;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
 }

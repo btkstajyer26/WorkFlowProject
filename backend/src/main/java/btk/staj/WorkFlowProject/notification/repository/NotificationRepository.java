@@ -1,18 +1,20 @@
-package btk.staj.WorkFlowProject.repository;
+package btk.staj.WorkFlowProject.notification.repository;
 
-import btk.staj.WorkFlowProject.entity.Notification;
+import btk.staj.WorkFlowProject.notification.entity.Notification;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.UUID;
 
-@Repository
 public interface NotificationRepository extends JpaRepository<Notification, UUID> {
 
-    List<Notification> findByUserIdOrderByCreatedAtDesc(UUID userId);
-
+    /** Okunmamislar; okundukca listeden dustugu icin sinirli kalir. */
     List<Notification> findByUserIdAndIsReadFalseOrderByCreatedAtDesc(UUID userId);
+
+    /** Tum bildirim gecmisi zamanla buyur, sayfalanarak donulur (sartname §6.2). */
+    Page<Notification> findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
 
     long countByUserIdAndIsReadFalse(UUID userId);
 }
