@@ -1,12 +1,14 @@
 package btk.staj.WorkFlowProject.attachment.controller;
 
-import org.springframework.security.access.prepost.PreAuthorize;
 import btk.staj.WorkFlowProject.attachment.dto.FileResponseDto;
 import btk.staj.WorkFlowProject.attachment.entity.FileEntity;
 import btk.staj.WorkFlowProject.attachment.service.FileService;
+import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -24,10 +26,10 @@ public class FileController {
     public ResponseEntity<?> uploadFile(
             @RequestParam("file") MultipartFile file,
             @RequestParam("recordId") UUID recordId,
-            @RequestParam("uploadedBy") UUID uploadedBy) {
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
 
         try {
-            FileEntity saved = fileService.uploadFile(file, recordId, uploadedBy);
+            FileEntity saved = fileService.uploadFile(file, recordId, currentUser.getId());
             FileResponseDto response = toDto(saved);
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
@@ -49,10 +51,10 @@ public class FileController {
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteFile(
             @PathVariable UUID id,
-            @RequestParam("deletedBy") UUID deletedBy) { // ileride oturumdan alınacak
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
 
         try {
-            fileService.deleteFile(id, deletedBy);
+            fileService.deleteFile(id, currentUser.getId());
             return ResponseEntity.noContent().build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(404).body(e.getMessage());
