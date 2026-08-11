@@ -1,6 +1,8 @@
 package btk.staj.WorkFlowProject.rbac.config;
 
 import btk.staj.WorkFlowProject.attachment.repository.FileRepository;
+import btk.staj.WorkFlowProject.audit.repository.AuditLogRepository;
+import btk.staj.WorkFlowProject.audit.repository.UserAuditLogRepository;
 import btk.staj.WorkFlowProject.record.repository.CategoryRepository;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
 import btk.staj.WorkFlowProject.user.repository.RoleRepository;
@@ -52,6 +54,8 @@ class AuthorizationMatrixTest {
     @MockitoBean private TokenRepository tokenRepository;
     @MockitoBean private RecordRepository recordRepository;
     @MockitoBean private CategoryRepository categoryRepository;
+    @MockitoBean private AuditLogRepository auditLogRepository;
+    @MockitoBean private UserAuditLogRepository userAuditLogRepository;
 
     private static final String RECORD_JSON = """
             {"title":"Test","description":"Test","categoryId":1}

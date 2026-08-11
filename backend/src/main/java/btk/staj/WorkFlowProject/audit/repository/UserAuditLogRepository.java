@@ -1,16 +1,27 @@
 package btk.staj.WorkFlowProject.audit.repository;
 
 import btk.staj.WorkFlowProject.audit.entity.UserAuditLog;
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.repository.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
-public interface UserAuditLogRepository extends JpaRepository<UserAuditLog, UUID> {
+/**
+ * {@code audit_logs} gibi append-only'dir; silme metotlari bilerek
+ * tanimlanmamistir (bkz. {@link AuditLogRepository}).
+ */
+public interface UserAuditLogRepository extends Repository<UserAuditLog, UUID> {
 
-    // Belirli bir kullanıcı üzerinde yapılan tüm işlemleri getirir
+    UserAuditLog save(UserAuditLog userAuditLog);
+
+    Optional<UserAuditLog> findById(UUID id);
+
+    /** Belirli bir kullanici uzerinde yapilan tum islemler, eskiden yeniye. */
     List<UserAuditLog> findByTargetUserIdOrderByCreatedAtAsc(UUID targetUserId);
 
-    // Belirli bir yöneticinin yaptığı tüm işlemler
-    List<UserAuditLog> findByPerformedByOrderByCreatedAtDesc(UUID performedBy);
+    /** Belirli bir yoneticinin yaptigi islemler; sinirsiz buyuyebilir, sayfalanir. */
+    Page<UserAuditLog> findByPerformedByOrderByCreatedAtDesc(UUID performedBy, Pageable pageable);
 }
