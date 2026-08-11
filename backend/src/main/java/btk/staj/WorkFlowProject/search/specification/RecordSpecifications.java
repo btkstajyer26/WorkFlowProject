@@ -3,163 +3,102 @@ package btk.staj.WorkFlowProject.search.specification;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.search.dto.RecordSearchCriteria;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
+import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 public final class RecordSpecifications {
 
-        private RecordSpecifications() {
-        }
+    private RecordSpecifications() {
+    }
 
-        public static Specification<Record> withFilters(
-                        RecordSearchCriteria criteria,
-                        UUID currentUserId,
-                        String currentUserRole) {
+    /**
+     * Arama kriterlerini, kullanicinin gorme yetkisiyle birlestirir.
+     *
+     * <p>Yetki kosulu her zaman eklenir ve kriterlerle AND'lenir; kullanici
+     * filtreleri gevseterek kapsaminin disina cikamaz.
+     */
+    public static Specification<Record> withFilters(
+            RecordSearchCriteria criteria,
+            UUID currentUserId,
+            RoleName currentUserRole) {
 
-                return (root, query, criteriaBuilder) -> {
+        Objects.requireNonNull(criteria, "criteria");
+        Objects.requireNonNull(currentUserId, "currentUserId");
+        Objects.requireNonNull(currentUserRole, "currentUserRole");
 
-                        List<Predicate> predicates = new ArrayList<>();
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
 
-                        // =========================
-                        // YETKİ FİLTRESİ (RBAC)
-                        // =========================
+            predicates.add(visibilityScope(root, cb, currentUserId, currentUserRole));
 
-                        if (currentUserId != null && currentUserRole != null) {
+            if (criteria.getText() != null && !criteria.getText().isBlank()) {
+                String text = "%" + criteria.getText().toLowerCase() + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("title")), text),
+                        cb.like(cb.lower(root.get("description")), text)));
+            }
 
-                                switch (currentUserRole.toUpperCase()) {
+            if (criteria.getStatus() != null) {
+                predicates.add(cb.equal(root.get("status"), criteria.getStatus()));
+            }
 
-                                        // ÇALIŞAN
-                                        // Sadece kendi oluşturduğu kayıtları görebilir.
-                                        case "CALISAN":
-                                                predicates.add(
-                                                                criteriaBuilder.equal(
-                                                                                root.get("createdBy"),
-                                                                                currentUserId));
-                                                break;
+            if (criteria.getCategoryId() != null) {
+                predicates.add(cb.equal(root.get("categoryId"), criteria.getCategoryId()));
+            }
 
-                                        // BAŞKAN YARDIMCISI
-                                        // Sadece kendisine atanan/gelen kayıtları görebilir.
-                                        case "BASKAN_YARDIMCISI":
-                                                predicates.add(
-                                                                criteriaBuilder.equal(
-                                                                                root.get("assignedTo"),
-                                                                                currentUserId));
-                                                break;
+            if (criteria.getUserId() != null) {
+                predicates.add(cb.equal(root.get("createdBy"), criteria.getUserId()));
+            }
 
-                                        // BAŞKAN
-                                        // Onay aşamasına gelen kayıtları görebilir.
-                                        case "BASKAN":
-                                                predicates.add(
-                                                                criteriaBuilder.equal(
-                                                                                root.get("status"),
-                                                                                RecordStatus.BASKAN_INCELEMESINDE));
-                                                break;
+            if (criteria.getStartDate() != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), criteria.getStartDate()));
+            }
 
-                                        // ADMIN
-                                        // Tüm kayıtları görebilir.
-                                        case "ADMIN":
-                                                break;
+            if (criteria.getEndDate() != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), criteria.getEndDate()));
+            }
 
-                                        // Tanımsız rol:
-                                        // Güvenli tarafta kal ve hiçbir kayıt gösterme.
-                                        default:
-                                                predicates.add(
-                                                                criteriaBuilder.disjunction());
-                                                break;
-                                }
+            predicates.add(cb.isNull(root.get("deletedAt")));
 
-                        } else {
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+    }
 
-                                // Kullanıcı veya rol bilgisi yoksa
-                                // hiçbir kayıt gösterme.
-                                predicates.add(
-                                                criteriaBuilder.disjunction());
-                        }
+    /**
+     * Sartnamedeki "Kayit Gorunurlugu Kapsami" (§2) kuralinin SQL karsiligi.
+     *
+     * <p>Tek kayit icin ayni kural
+     * {@code btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy} icinde
+     * duruyor. Ayni kuralin iki bicimi olmasinin sebebi teknik: orasi tek kayda
+     * bakan bir boolean, burasi sorguya giren bir kosul. <strong>Biri
+     * degisirse digeri de degismeli.</strong>
+     */
+    private static Predicate visibilityScope(
+            jakarta.persistence.criteria.Root<Record> root,
+            jakarta.persistence.criteria.CriteriaBuilder cb,
+            UUID currentUserId,
+            RoleName role) {
 
-                        // =========================
-                        // NORMAL ARAMA FİLTRELERİ
-                        // =========================
+        return switch (role) {
+            // Calisan yalnizca kendi olusturdugu kayitlari gorur.
+            case CALISAN -> cb.equal(root.get("createdBy"), currentUserId);
 
-                        // Başlık / açıklama içinde metin araması
-                        if (criteria.getText() != null
-                                        && !criteria.getText().isBlank()) {
+            // Bsk. Yrd. kendisine atanan kayitlari gorur.
+            case BASKAN_YARDIMCISI -> cb.equal(root.get("assignedTo"), currentUserId);
 
-                                String text = "%" + criteria.getText().toLowerCase() + "%";
+            // Baskan onay asamasina gelenleri ve kendisine atananlari gorur.
+            case BASKAN -> cb.or(
+                    cb.equal(root.get("status"), RecordStatus.BASKAN_INCELEMESINDE),
+                    cb.equal(root.get("assignedTo"), currentUserId));
 
-                                Predicate titlePredicate = criteriaBuilder.like(
-                                                criteriaBuilder.lower(root.get("title")),
-                                                text);
-
-                                Predicate descriptionPredicate = criteriaBuilder.like(
-                                                criteriaBuilder.lower(root.get("description")),
-                                                text);
-
-                                predicates.add(
-                                                criteriaBuilder.or(
-                                                                titlePredicate,
-                                                                descriptionPredicate));
-                        }
-
-                        // Durum filtresi
-                        if (criteria.getStatus() != null) {
-
-                                predicates.add(
-                                                criteriaBuilder.equal(
-                                                                root.get("status"),
-                                                                criteria.getStatus()));
-                        }
-
-                        // Kategori filtresi
-                        if (criteria.getCategoryId() != null) {
-
-                                predicates.add(
-                                                criteriaBuilder.equal(
-                                                                root.get("categoryId"),
-                                                                criteria.getCategoryId()));
-                        }
-
-                        // Oluşturan kullanıcı filtresi
-                        if (criteria.getUserId() != null) {
-
-                                predicates.add(
-                                                criteriaBuilder.equal(
-                                                                root.get("createdBy"),
-                                                                criteria.getUserId()));
-                        }
-
-                        // Başlangıç tarihi
-                        if (criteria.getStartDate() != null) {
-
-                                predicates.add(
-                                                criteriaBuilder.greaterThanOrEqualTo(
-                                                                root.get("createdAt"),
-                                                                criteria.getStartDate()));
-                        }
-
-                        // Bitiş tarihi
-                        if (criteria.getEndDate() != null) {
-
-                                predicates.add(
-                                                criteriaBuilder.lessThanOrEqualTo(
-                                                                root.get("createdAt"),
-                                                                criteria.getEndDate()));
-                        }
-
-                        // =========================
-                        // SOFT DELETE
-                        // =========================
-
-                        predicates.add(
-                                        criteriaBuilder.isNull(
-                                                        root.get("deletedAt")));
-
-                        // Tüm koşullar AND ile birleşir.
-                        return criteriaBuilder.and(
-                                        predicates.toArray(new Predicate[0]));
-                };
-        }
+            // ADMIN yalnizca kullanici ve rol yonetiminden sorumludur; evrak goremez.
+            case ADMIN -> cb.disjunction();
+        };
+    }
 }

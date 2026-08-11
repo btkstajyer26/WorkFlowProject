@@ -6,121 +6,55 @@ import btk.staj.WorkFlowProject.record.repository.RecordRepository;
 import btk.staj.WorkFlowProject.search.dto.RecordSearchCriteria;
 import btk.staj.WorkFlowProject.search.dto.RecordSearchResponse;
 import btk.staj.WorkFlowProject.search.specification.RecordSpecifications;
+import btk.staj.WorkFlowProject.workflow.model.CurrentActor;
+import btk.staj.WorkFlowProject.workflow.port.CurrentActorProvider;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
-import java.util.UUID;
+import java.util.Objects;
 
 @Service
 public class RecordSearchServiceImpl implements RecordSearchService {
 
     private final RecordRepository recordRepository;
+    private final CurrentActorProvider currentActorProvider;
 
-    public RecordSearchServiceImpl(RecordRepository recordRepository) {
-        this.recordRepository = recordRepository;
+    public RecordSearchServiceImpl(RecordRepository recordRepository,
+                                   CurrentActorProvider currentActorProvider) {
+        this.recordRepository = Objects.requireNonNull(recordRepository, "recordRepository");
+        this.currentActorProvider = Objects.requireNonNull(
+                currentActorProvider, "currentActorProvider");
     }
 
+    /**
+     * Yetki kapsami sorgunun icinde uygulanir: kullanici gormeye yetkili
+     * olmadigi kaydi sonucta hic gormez, sayfa sayilarinda da yer almaz.
+     *
+     * <p>Kullanici kimligi yalnizca dogrulanmis oturumdan gelir. Kimlik
+     * okunamiyorsa arama calismaz; varsayilan bir kullaniciya dusmek, kapsami
+     * baskasinin kayitlarina acardi.
+     */
     @Override
     public PagedResponse<RecordSearchResponse> search(
             RecordSearchCriteria criteria,
             Pageable pageable) {
 
-        // =========================
-        // SECURITY CONTEXT
-        // =========================
-
-        SecurityContext context = SecurityContextHolder.getContext();
-
-        Authentication authentication = context.getAuthentication();
-
-        // Mevcut kullanıcı bilgilerini al
-        UUID currentUserId = extractUserId(authentication);
-
-        String currentUserRole = extractUserRole(authentication);
-
-        // =========================
-        // SEARCH
-        // =========================
+        CurrentActor actor = currentActorProvider.currentActor();
 
         Page<Record> recordPage = recordRepository.findAll(
-                RecordSpecifications.withFilters(
-                        criteria,
-                        currentUserId,
-                        currentUserRole),
+                RecordSpecifications.withFilters(criteria, actor.id(), actor.role()),
                 pageable);
 
-        // =========================
-        // RESPONSE
-        // =========================
-
         return new PagedResponse<>(
-                recordPage.getContent()
-                        .stream()
-                        .map(this::toResponse)
-                        .toList(),
-
+                recordPage.getContent().stream().map(RecordSearchServiceImpl::toResponse).toList(),
                 recordPage.getNumber(),
                 recordPage.getSize(),
                 recordPage.getTotalElements(),
                 recordPage.getTotalPages());
     }
 
-    /**
-     * Authentication içerisinden kullanıcı ID'sini alır.
-     * Auth sistemi henüz tamamen entegre değilse,
-     * mevcut RecordServiceImpl'deki geçici kullanıcı ID'si kullanılır.
-     */
-    private UUID extractUserId(Authentication authentication) {
-
-        if (authentication != null
-                && authentication.isAuthenticated()
-                && authentication.getPrincipal() != null
-                && !"anonymousUser".equals(authentication.getPrincipal())) {
-
-            try {
-                return UUID.fromString(
-                        authentication.getName());
-            } catch (Exception ignored) {
-                // Authentication henüz UUID dönmüyorsa
-                // geçici kullanıcıya düşülür.
-            }
-        }
-
-        return UUID.fromString(
-                "11111111-1111-1111-1111-111111111111");
-    }
-
-    /**
-     * Authentication içerisinden kullanıcının rolünü alır.
-     */
-    private String extractUserRole(Authentication authentication) {
-
-        if (authentication != null
-                && authentication.isAuthenticated()
-                && authentication.getAuthorities() != null
-                && !authentication.getAuthorities().isEmpty()) {
-
-            return authentication.getAuthorities()
-                    .iterator()
-                    .next()
-                    .getAuthority()
-                    .replace("ROLE_", "");
-        }
-
-        // Auth sistemi tamamlanana kadar
-        // mevcut test kullanıcısını çalışan kabul ediyoruz.
-        return "CALISAN";
-    }
-
-    /**
-     * Record Entity -> Search Response DTO
-     */
-    private RecordSearchResponse toResponse(Record record) {
-
+    private static RecordSearchResponse toResponse(Record record) {
         RecordSearchResponse response = new RecordSearchResponse();
 
         response.setId(record.getId());
