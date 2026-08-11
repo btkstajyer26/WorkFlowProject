@@ -9,6 +9,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import jakarta.persistence.criteria.Predicate;
 import java.time.LocalDateTime;
@@ -27,13 +30,19 @@ public class RecordServiceImpl implements RecordService {
         this.recordMapper = recordMapper;
     }
 
-    /**
-     * DİKKAT: Auth (Güvenlik) paketi tamamlanana kadar sistemi test edebilmen için
-     * geçici bir kullanıcı ID'si üreten yardımcı metot.
-     * İleride burası SecurityContextHolder üzerinden giriş yapmış kullanıcıyı alacak.
-     */
     private UUID getCurrentUserId() {
-        return UUID.fromString("11111111-1111-1111-1111-111111111111"); 
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        // Güvenlik Kontrolü: Oturum yoksa veya anonim bir kullanıcıysa hata fırlat
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            throw new RuntimeException("Kullanıcı oturumu bulunamadı veya yetkisiz erişim!");
+        }
+
+        // Spring Security'nin tuttuğu oturum bilgisini takım arkadaşının yazdığı formata çeviriyoruz
+        AuthenticatedUser authenticatedUser = (AuthenticatedUser) authentication.getPrincipal();
+        
+        // Sınıfın içindeki hazır getId() metodunu kullanarak UUID'yi dönüyoruz
+        return authenticatedUser.getId();
     }
 
     private Record findRecordOrThrow(UUID id) {
