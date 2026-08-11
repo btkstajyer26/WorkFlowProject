@@ -1,18 +1,10 @@
 import { http, HttpResponse } from 'msw'
 import type { PageRecordResponse, RecordCreateRequest, RecordUpdateRequest } from '../../../api/generated/data-contracts'
 import { apiBaseUrl } from '../../../api/config'
-import { getAuthenticatedMockUser, type MockApiUser } from '../auth'
+import { getAuthenticatedMockUser } from '../auth'
 import { mockApiCategories, mockApiDb, toRecordResponse, type StoredMockRecord } from '../db'
+import { canViewMockRecord } from '../recordAccess'
 import { apiErrorResponse, forbiddenResponse, unauthorizedResponse } from '../responses'
-
-function canViewRecord(user: MockApiUser, record: StoredMockRecord) {
-  if (user.role === 'CALISAN') return record.createdBy === user.id
-  if (user.role === 'BASKAN_YARDIMCISI') return record.assignedTo === user.id
-  if (user.role === 'BASKAN') {
-    return record.status === 'BASKAN_INCELEMESINDE' || record.assignedTo === user.id
-  }
-  return false
-}
 
 function parseNonNegativeInt(value: string | null, fallback: number) {
   const parsed = Number(value)
@@ -42,7 +34,7 @@ export const recordHandlers = [
     const size = Math.max(1, parseNonNegativeInt(url.searchParams.get('size'), 10))
 
     const filtered = mockApiDb.records.filter((record) => (
-      canViewRecord(user, record) &&
+      canViewMockRecord(user, record) &&
       (!status || record.status === status) &&
       (!categoryId || record.categoryId === Number(categoryId)) &&
       (!keyword || `${record.title} ${record.description}`.toLocaleLowerCase('tr-TR').includes(keyword))
@@ -78,7 +70,7 @@ export const recordHandlers = [
     if (!user) return unauthorizedResponse()
     const record = mockApiDb.records.find((item) => item.id === params.id)
     if (!record) return apiErrorResponse(404, 'RESOURCE_NOT_FOUND', `Kayıt bulunamadı: ${params.id}`)
-    if (!canViewRecord(user, record)) return forbiddenResponse('Bu kaydı görüntüleme yetkiniz yok')
+    if (!canViewMockRecord(user, record)) return forbiddenResponse('Bu kaydı görüntüleme yetkiniz yok')
     return HttpResponse.json(toRecordResponse(record))
   }),
 
@@ -93,13 +85,15 @@ export const recordHandlers = [
       return apiErrorResponse(400, 'VALIDATION_ERROR', 'Girilen veriler geçersiz', fieldErrors)
     }
 
+    const now = new Date().toISOString()
     const record: StoredMockRecord = {
       id: crypto.randomUUID(),
       title: body.title.trim(),
       description: body.description.trim(),
       categoryId: body.categoryId,
       status: 'TASLAK',
-      createdAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
       createdBy: user.id,
       assignedTo: null,
       lastDeputyId: null,
@@ -129,6 +123,7 @@ export const recordHandlers = [
       title: body.title.trim(),
       description: body.description.trim(),
       categoryId: body.categoryId,
+      updatedAt: new Date().toISOString(),
     }
     mockApiDb.records = mockApiDb.records.map((item) => item.id === record.id ? updated : item)
     return HttpResponse.json(toRecordResponse(updated))

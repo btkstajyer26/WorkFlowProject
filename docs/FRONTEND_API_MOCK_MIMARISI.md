@@ -51,6 +51,7 @@ Handler'lar JWT yerine yalnızca test amaçlı opaque token kullanır; istemcini
 - Çıkış onayı `POST /api/auth/logout` çağrısını başlatır ve ağ sonucu ne olursa olsun yerel oturumu kapatır.
 - Kategori dropdown ve filtreleri `GET /api/v1/categories` cevabını tek bir merkezi provider üzerinden kullanır; frontend içinde ikinci bir sabit kategori listesi tutulmaz.
 - Bildirimlerin `GET /api/notifications/unread`, `GET /api/notifications/unread/count` ve `PUT /api/notifications/{id}/read` sözleşmeleri ortak MSW veritabanı üzerinden çalışır ve sahiplik kontrolünü taklit eder.
+- `GET /api/records/search` için RBAC kapsamı, metin/durum/kategori/oluşturulma tarihi filtreleri ve sayfalama aynı MSW kayıt durumundan üretilir. API adapterı `categoryId` değerini merkezi kategori listesindeki adla eşleştirir.
 - Token yenileme uygulama açılışına bağlı ve testlidir; henüz korumalı isteklerde otomatik 401 retry akışına bağlanmamıştır.
 
 Login cevabında kullanıcı adı ve rolü bulunmadığından kullanıcı görünümü geçici olarak mevcut demo profiliyle e-posta üzerinden eşleştirilir. Backend kullanıcı özeti döndürdüğünde bu geçici eşleştirme kaldırılacaktır.
@@ -74,6 +75,7 @@ Bu nedenle kayıt ekranlarının mevcut `WorkflowContext` state'i hemen kaldır�
 - Spring `Pageable`, OpenAPI'de tek `pageable` nesnesi olarak çıkıyor; gerçek HTTP query biçimi `page`, `size`, `sort`. Bu fark `src/api/records.ts` içindeki tek bir adapterda tutulur.
 - Controller hata cevapları OpenAPI'de tanımlı değil; Swagger çoğunlukla yalnızca `200` gösteriyor. Ortak `ApiError` gövdesi backend kodundan modellenmiştir.
 - `RecordResponse` alanları OpenAPI'de zorunlu olarak işaretlenmediği için üretilen TypeScript alanları optionaldır.
+- `RecordSearchResponse`, kayıt numarası ve son işlem metni döndürmez; liste UI'ı bu alanları göstermez. Tarih filtresi backend davranışıyla uyumlu olarak `createdAt` alanını kullanır.
 - `DELETE /api/v1/records/{id}` controller kodunda `204` döndürürken Swagger `200` gösteriyor.
 - Dosya upload cevabı yalnızca genel `object` olarak tanımlı ve bir kayda ait dosya listesi endpoint'i yok. Bu yüzden dosya handler'ları bu aşamada eklenmedi.
 

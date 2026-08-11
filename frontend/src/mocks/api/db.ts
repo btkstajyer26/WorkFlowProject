@@ -10,6 +10,7 @@ export type StoredMockRecord = Required<Pick<
   RecordResponse,
   'id' | 'title' | 'description' | 'categoryId' | 'status' | 'createdAt'
 >> & {
+  updatedAt: string
   createdBy: string
   assignedTo: string | null
   lastDeputyId: string | null
@@ -43,6 +44,7 @@ function initialRecords(): StoredMockRecord[] {
       categoryId: 4,
       status: 'TASLAK',
       createdAt: '2026-08-01T09:15:00Z',
+      updatedAt: '2026-08-01T09:15:00Z',
       createdBy: employee.id,
       assignedTo: null,
       lastDeputyId: null,
@@ -54,6 +56,7 @@ function initialRecords(): StoredMockRecord[] {
       categoryId: 3,
       status: 'BSK_YRD_INCELEMESINDE',
       createdAt: '2026-08-02T10:00:00Z',
+      updatedAt: '2026-08-04T14:20:00Z',
       createdBy: employee.id,
       assignedTo: deputy.id,
       lastDeputyId: deputy.id,
@@ -65,6 +68,7 @@ function initialRecords(): StoredMockRecord[] {
       categoryId: 1,
       status: 'BASKAN_INCELEMESINDE',
       createdAt: '2026-08-03T11:30:00Z',
+      updatedAt: '2026-08-05T09:45:00Z',
       createdBy: employee.id,
       assignedTo: chair.id,
       lastDeputyId: deputy.id,

@@ -115,8 +115,7 @@ function EditableRecordForm({ record }: { record: WorkflowRecord }) {
 
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-bold text-brand-600 dark:text-brand-400">{record.recordNumber}</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-app-text sm:text-3xl">
+          <h1 className="text-2xl font-bold tracking-tight text-app-text sm:text-3xl">
             {record.status === 'TASLAK' ? 'Taslağı Düzenle' : 'Düzeltmeleri Tamamla'}
           </h1>
           <p className="mt-2 text-sm text-app-text-muted">Kaydı kaydedebilir veya Başkan Yardımcısı incelemesine gönderebilirsiniz.</p>

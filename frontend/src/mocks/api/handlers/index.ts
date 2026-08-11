@@ -4,6 +4,7 @@ import { authHandlers } from './authHandlers'
 import { categoryHandlers } from './categoryHandlers'
 import { notificationHandlers } from './notificationHandlers'
 import { recordHandlers } from './recordHandlers'
+import { recordSearchHandlers } from './recordSearchHandlers'
 import { workflowHandlers } from './workflowHandlers'
 
 export const apiHandlers = [
@@ -11,6 +12,7 @@ export const apiHandlers = [
   ...categoryHandlers,
   ...notificationHandlers,
   ...recordHandlers,
+  ...recordSearchHandlers,
   ...workflowHandlers,
   ...auditHandlers,
   ...adminHandlers,

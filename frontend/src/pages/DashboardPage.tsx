@@ -111,7 +111,6 @@ export function DashboardPage({ user }: { user: AuthUser }) {
                 >
                   {record.title}
                 </Link>
-                <p className="mt-1 text-xs text-app-text-subtle">{record.recordNumber}</p>
               </div>
               <span className="hidden sm:inline-flex"><RecordStatusBadge status={record.status} /></span>
             </div>

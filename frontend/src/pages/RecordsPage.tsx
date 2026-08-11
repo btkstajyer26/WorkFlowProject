@@ -137,11 +137,11 @@ export function RecordsPage({ role }: { role: UserRole }) {
     if (!matchesView(record, view, role)) return false
     if (category !== 'ALL' && record.category !== category) return false
     if (status !== 'ALL' && record.status !== status) return false
-    if (!dateRangeInvalid && dateFrom && record.updatedAt.slice(0, 10) < dateFrom) return false
-    if (!dateRangeInvalid && dateTo && record.updatedAt.slice(0, 10) > dateTo) return false
+    if (!dateRangeInvalid && dateFrom && record.createdAt.slice(0, 10) < dateFrom) return false
+    if (!dateRangeInvalid && dateTo && record.createdAt.slice(0, 10) > dateTo) return false
 
     if (!searchValue) return true
-    const haystack = normalizeSearchValue(`${record.recordNumber} ${record.title} ${record.description}`)
+    const haystack = normalizeSearchValue(`${record.title} ${record.description}`)
     return haystack.includes(searchValue)
   })
 
@@ -183,13 +183,13 @@ export function RecordsPage({ role }: { role: UserRole }) {
         <div className="border-b border-app-border p-4 sm:p-5">
           <div className="flex flex-col gap-3 sm:flex-row">
             <label className="relative min-w-0 flex-1">
-              <span className="sr-only">Başlık, içerik veya kayıt numarasıyla ara</span>
+              <span className="sr-only">Başlık veya içerikle ara</span>
               <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-app-text-faint" aria-hidden="true" />
               <input
                 type="search"
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
-                placeholder="Başlık, içerik veya kayıt no ile ara..."
+                placeholder="Başlık veya içerikte ara..."
                 className="h-11 w-full rounded-xl border border-app-border bg-app-surface pl-10 pr-4 text-sm text-app-text-strong outline-none transition placeholder:text-app-text-faint focus:border-brand-400 focus:ring-4 focus:ring-brand-100 dark:focus:ring-brand-800/60"
               />
             </label>
@@ -247,7 +247,7 @@ export function RecordsPage({ role }: { role: UserRole }) {
               {lockedStatus ? <span className="mt-1 block text-[11px] text-app-text-subtle">Bu görünümde durum sabittir.</span> : null}
             </label>
             <label>
-              <span className="mb-1.5 block text-xs font-bold text-app-text-muted">Başlangıç tarihi</span>
+              <span className="mb-1.5 block text-xs font-bold text-app-text-muted">Oluşturulma başlangıcı</span>
               <div className="relative">
                 <CalendarDays className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-app-text-faint" aria-hidden="true" />
                 <input
@@ -262,7 +262,7 @@ export function RecordsPage({ role }: { role: UserRole }) {
               </div>
             </label>
             <label>
-              <span className="mb-1.5 block text-xs font-bold text-app-text-muted">Bitiş tarihi</span>
+              <span className="mb-1.5 block text-xs font-bold text-app-text-muted">Oluşturulma bitişi</span>
               <div className="relative">
                 <CalendarDays className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-app-text-faint" aria-hidden="true" />
                 <input
@@ -286,7 +286,7 @@ export function RecordsPage({ role }: { role: UserRole }) {
             </button>
             {dateRangeInvalid ? (
               <p id="record-date-range-error" className="text-xs font-semibold text-rose-700 dark:text-rose-300 md:col-span-2 xl:col-span-4" role="alert">
-                Başlangıç tarihi bitiş tarihinden sonra olamaz.
+                Oluşturulma başlangıcı bitiş tarihinden sonra olamaz.
               </p>
             ) : null}
           </div>
@@ -295,14 +295,13 @@ export function RecordsPage({ role }: { role: UserRole }) {
         {visibleRecords.length > 0 ? (
           <>
             <div className="hidden overflow-x-auto lg:block">
-              <table className="w-full min-w-[960px] border-collapse text-left">
+              <table className="w-full min-w-[780px] border-collapse text-left">
                 <thead className="bg-app-surface-muted/80 text-xs font-bold text-app-text-subtle">
                   <tr>
                     <th className="px-5 py-3.5">Kayıt</th>
                     <th className="px-4 py-3.5">Kategori</th>
                     <th className="px-4 py-3.5">Durum</th>
-                    <th className="px-4 py-3.5">Son işlem</th>
-                    <th className="px-4 py-3.5">Güncellenme</th>
+                    <th className="px-4 py-3.5">Oluşturulma</th>
                     <th className="px-5 py-3.5 text-right">İşlem</th>
                   </tr>
                 </thead>
@@ -313,12 +312,10 @@ export function RecordsPage({ role }: { role: UserRole }) {
                         <Link to={`/kayitlar/${record.id}`} className="font-bold text-app-text-strong transition hover:text-brand-700 dark:hover:text-brand-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500">
                           {record.title}
                         </Link>
-                        <p className="mt-1 text-xs font-medium text-app-text-subtle">{record.recordNumber}</p>
                       </td>
                       <td className="px-4 py-4 text-sm font-medium text-app-text-muted">{record.category}</td>
                       <td className="px-4 py-4"><RecordStatusBadge status={record.status} /></td>
-                      <td className="max-w-52 px-4 py-4 text-sm leading-5 text-app-text-muted">{record.lastAction}</td>
-                      <td className="whitespace-nowrap px-4 py-4 text-xs font-medium text-app-text-subtle">{dateFormatter.format(new Date(record.updatedAt))}</td>
+                      <td className="whitespace-nowrap px-4 py-4 text-xs font-medium text-app-text-subtle">{dateFormatter.format(new Date(record.createdAt))}</td>
                       <td className="px-5 py-4 text-right">
                         <Link
                           to={canEditRecord(role, record) ? `/kayitlar/${record.id}/duzenle` : `/kayitlar/${record.id}`}
@@ -339,8 +336,7 @@ export function RecordsPage({ role }: { role: UserRole }) {
                 <article key={record.id} className="p-4 sm:p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-xs font-semibold text-brand-600 dark:text-brand-400">{record.recordNumber}</p>
-                      <h2 className="mt-1 text-sm font-bold leading-5 text-app-text">{record.title}</h2>
+                      <h2 className="text-sm font-bold leading-5 text-app-text">{record.title}</h2>
                     </div>
                     <RecordStatusBadge status={record.status} />
                   </div>
@@ -350,11 +346,10 @@ export function RecordsPage({ role }: { role: UserRole }) {
                       <dd className="mt-1 font-bold text-app-text-emphasis">{record.category}</dd>
                     </div>
                     <div>
-                      <dt className="font-semibold text-app-text-subtle">Güncellenme</dt>
-                      <dd className="mt-1 font-bold text-app-text-emphasis">{dateFormatter.format(new Date(record.updatedAt))}</dd>
+                      <dt className="font-semibold text-app-text-subtle">Oluşturulma</dt>
+                      <dd className="mt-1 font-bold text-app-text-emphasis">{dateFormatter.format(new Date(record.createdAt))}</dd>
                     </div>
                   </dl>
-                  <p className="mt-3 text-xs leading-5 text-app-text-muted">{record.lastAction}</p>
                   <Link
                     to={canEditRecord(role, record) ? `/kayitlar/${record.id}/duzenle` : `/kayitlar/${record.id}`}
                     className="mt-4 flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-app-border text-xs font-bold text-app-text-secondary transition hover:border-brand-200 dark:hover:border-brand-700/60 hover:bg-brand-50 dark:hover:bg-brand-900/30 hover:text-brand-700 dark:hover:text-brand-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"

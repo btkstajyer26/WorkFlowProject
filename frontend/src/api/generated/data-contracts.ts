@@ -195,6 +195,18 @@ export interface PageableObject {
   unpaged?: boolean;
 }
 
+export interface PagedResponseRecordSearchResponse {
+  content?: RecordSearchResponse[];
+  /** @format int32 */
+  page?: number;
+  /** @format int32 */
+  size?: number;
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
 export type PerformActionData = WorkflowActionResponse;
 
 export interface PerformActionParams {
@@ -237,6 +249,49 @@ export interface RecordResponse {
   title?: string;
 }
 
+export interface RecordSearchCriteria {
+  /** @format int32 */
+  categoryId?: number;
+  /** @format date-time */
+  endDate?: string;
+  /** @format date-time */
+  startDate?: string;
+  status?:
+    | "TASLAK"
+    | "BSK_YRD_INCELEMESINDE"
+    | "BASKAN_INCELEMESINDE"
+    | "DUZENLEME_BEKLIYOR"
+    | "ONAYLANDI"
+    | "REDDEDILDI";
+  text?: string;
+  /** @format uuid */
+  userId?: string;
+}
+
+export interface RecordSearchResponse {
+  /** @format uuid */
+  assignedTo?: string;
+  /** @format int32 */
+  categoryId?: number;
+  /** @format date-time */
+  createdAt?: string;
+  /** @format uuid */
+  createdBy?: string;
+  description?: string;
+  /** @format uuid */
+  id?: string;
+  status?:
+    | "TASLAK"
+    | "BSK_YRD_INCELEMESINDE"
+    | "BASKAN_INCELEMESINDE"
+    | "DUZENLEME_BEKLIYOR"
+    | "ONAYLANDI"
+    | "REDDEDILDI";
+  title?: string;
+  /** @format date-time */
+  updatedAt?: string;
+}
+
 export interface RecordUpdateRequest {
   /** @format int32 */
   categoryId: number;
@@ -250,6 +305,13 @@ export type RefreshData = LoginResponse;
 
 export interface RefreshTokenRequest {
   refreshToken?: string;
+}
+
+export type SearchData = PagedResponseRecordSearchResponse;
+
+export interface SearchParams {
+  criteria: RecordSearchCriteria;
+  pageable: Pageable;
 }
 
 export interface SortObject {

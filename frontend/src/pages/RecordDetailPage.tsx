@@ -42,9 +42,7 @@ export function RecordDetailPage({ role }: { role: UserRole }) {
       <header className="rounded-2xl border border-app-border bg-app-surface p-5 shadow-sm sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
-            <p className="text-sm font-bold text-brand-600 dark:text-brand-400">{record.recordNumber}</p>
-            <h1 className="mt-2 text-2xl font-bold tracking-tight text-app-text sm:text-3xl">{record.title}</h1>
-            <p className="mt-3 text-sm text-app-text-muted">Son işlem: {record.lastAction}</p>
+            <h1 className="text-2xl font-bold tracking-tight text-app-text sm:text-3xl">{record.title}</h1>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <RecordStatusBadge status={record.status} />

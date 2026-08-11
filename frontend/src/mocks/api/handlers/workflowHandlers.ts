@@ -121,6 +121,7 @@ export const workflowHandlers = [
       status: rule.to,
       assignedTo,
       lastDeputyId: target?.role === 'BASKAN_YARDIMCISI' ? target.id : record.lastDeputyId,
+      updatedAt: performedAt,
     }
     mockApiDb.records = mockApiDb.records.map((item) => item.id === record.id ? updatedRecord : item)
     mockApiDb.auditLogs = [{

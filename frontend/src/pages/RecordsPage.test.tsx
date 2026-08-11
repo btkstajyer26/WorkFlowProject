@@ -60,6 +60,15 @@ describe('RecordsPage filters', () => {
     await waitFor(() => expect(screen.getByTestId('location-search')).toHaveTextContent('q=sunucu'), { timeout: 1000 })
   })
 
+  it('yalnız backend arama sözleşmesinde bulunan liste alanlarını gösterir', async () => {
+    await renderEmployeeRecords('/kayitlar')
+
+    expect(screen.getByPlaceholderText('Başlık veya içerikte ara...')).toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: 'Son işlem' })).not.toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Oluşturulma' })).toBeInTheDocument()
+    expect(screen.queryByText('EBYS-2026-000023')).not.toBeInTheDocument()
+  })
+
   it('geçersiz filtreleri temizler ve taşan sayfayı son geçerli sayfaya çeker', async () => {
     await renderEmployeeRecords('/kayitlar?gorunum=bilinmeyen&kategori=Yok&durum=BOZUK&baslangic=2026-99-99&bitis=x&sayfa=999&boyut=7')
 
@@ -72,7 +81,7 @@ describe('RecordsPage filters', () => {
   it('başlangıç tarihi bitiş tarihinden sonraysa açık doğrulama hatası gösterir', async () => {
     await renderEmployeeRecords('/kayitlar?baslangic=2026-08-05&bitis=2026-08-01')
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Başlangıç tarihi bitiş tarihinden sonra olamaz')
+    expect(screen.getByRole('alert')).toHaveTextContent('Oluşturulma başlangıcı bitiş tarihinden sonra olamaz')
   })
 
   it('kategori isteği başarısız olursa tekrar deneyerek listeyi yükler', async () => {

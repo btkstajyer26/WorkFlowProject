@@ -5,6 +5,7 @@ import {
   listUnreadNotifications,
   markNotificationAsRead,
 } from './notifications'
+import { searchRecords } from './recordSearch'
 import { listRecords } from './records'
 
 const employeeCredentials = {
@@ -55,6 +56,33 @@ describe('OpenAPI istemcisi ve MSW sözleşmesi', () => {
       status: 'TASLAK',
     })
     expect(result.totalElements).toBe(1)
+  })
+
+  it('RBAC kapsamındaki kayıtları arar ve kategori kimliğini merkezi kategori adıyla eşleştirir', async () => {
+    await loginAs(employeeCredentials.email)
+
+    const result = await searchRecords({
+      text: 'sunucu',
+      categoryId: 4,
+      page: 0,
+      size: 5,
+    })
+
+    expect(result).toMatchObject({
+      page: 0,
+      size: 5,
+      totalElements: 1,
+      totalPages: 1,
+    })
+    expect(result.content).toEqual([
+      expect.objectContaining({
+        title: 'Sunucu alım talebi',
+        category: { id: 4, name: 'Bilgi İşlem' },
+        status: 'TASLAK',
+      }),
+    ])
+    expect(result.content[0]).not.toHaveProperty('recordNumber')
+    expect(result.content[0]).not.toHaveProperty('lastAction')
   })
 
   it('kayıt oluşturma, güncelleme ve silme cevaplarını OpenAPI modeliyle taşır', async () => {
