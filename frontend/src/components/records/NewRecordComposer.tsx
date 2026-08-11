@@ -19,12 +19,13 @@ import {
   attachmentAcceptValue,
   getAttachmentValidationError,
   maxRecordTitleLength,
-  recordCategories,
 } from '../../config/records'
+import { useCategories } from '../../context/categoryState'
 import { recordFormSchema, type RecordFormValues } from '../../schemas/record'
 import { useWorkflow, type RecordDraftInput } from '../../context/workflowState'
 import { useModalDialog } from '../../hooks/useModalDialog'
 import { useSingleFlight } from '../../hooks/useSingleFlight'
+import { CategoryLoadError } from './CategoryLoadError'
 
 type NewRecordComposerProps = {
   open: boolean
@@ -44,6 +45,7 @@ const emptyRecordFormValues: RecordFormValues = {
 export function NewRecordComposer({ open, requestId, onClose }: NewRecordComposerProps) {
   const navigate = useNavigate()
   const { createDraft, createAndSubmit, updateEditableRecord, updateAndSubmit } = useWorkflow()
+  const { categories, status: categoryStatus, reloadCategories } = useCategories()
   const [minimized, setMinimized] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const [attachments, setAttachments] = useState<File[]>([])
@@ -342,20 +344,28 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
                 <select
                   id="record-category"
                   {...register('category')}
+                  disabled={categoryStatus !== 'ready'}
                   aria-invalid={Boolean(errors.category)}
-                  aria-describedby={errors.category ? 'record-category-error' : undefined}
-                  className={`${fieldClass} appearance-none pr-10`}
+                  aria-describedby={errors.category
+                    ? 'record-category-error'
+                    : categoryStatus === 'error' ? 'record-category-load-error' : undefined}
+                  className={`${fieldClass} appearance-none pr-10 disabled:cursor-wait disabled:bg-app-surface-strong`}
                 >
-                  <option value="">Kaydın kategorisini seçin</option>
-                  {recordCategories.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
+                  <option value="">
+                    {categoryStatus === 'loading' ? 'Kategoriler yükleniyor…' : 'Kaydın kategorisini seçin'}
+                  </option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.name}>
+                      {category.name}
                     </option>
                   ))}
                 </select>
                 <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-app-text-faint" aria-hidden="true" />
               </div>
               {errors.category ? <FieldError id="record-category-error" message={errors.category.message} /> : null}
+              {categoryStatus === 'error' ? (
+                <CategoryLoadError id="record-category-load-error" onRetry={reloadCategories} />
+              ) : null}
             </div>
 
             <div>

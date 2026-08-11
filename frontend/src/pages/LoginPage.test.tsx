@@ -15,6 +15,44 @@ function LocationProbe() {
 }
 
 describe('LoginPage registration flow', () => {
+  it('giriş butonunu MSW auth endpointine bağlar ve kullanıcıyı yönlendirir', async () => {
+    const user = userEvent.setup()
+    const onLogin = vi.fn()
+
+    render(
+      <MemoryRouter initialEntries={['/giris']}>
+        <LoginPage user={null} onLogin={onLogin} onRegister={vi.fn()} />
+        <LocationProbe />
+      </MemoryRouter>,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Giriş Yap' }))
+
+    expect(onLogin).toHaveBeenCalledWith(expect.objectContaining({
+      email: 'john.doe@kurum.gov.tr',
+      role: 'CALISAN',
+    }))
+    expect(screen.getByLabelText('Geçerli adres')).toHaveTextContent('/dashboard')
+  })
+
+  it('MSW auth reddettiğinde API hata mesajını gösterir', async () => {
+    const user = userEvent.setup()
+    const onLogin = vi.fn()
+
+    render(
+      <MemoryRouter initialEntries={['/giris']}>
+        <LoginPage user={null} onLogin={onLogin} onRegister={vi.fn()} />
+      </MemoryRouter>,
+    )
+
+    await user.clear(screen.getByLabelText('Şifre'))
+    await user.type(screen.getByLabelText('Şifre'), 'yanlis123')
+    await user.click(screen.getByRole('button', { name: 'Giriş Yap' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('E-posta adresi veya şifre hatalı.')
+    expect(onLogin).not.toHaveBeenCalled()
+  })
+
   it('aynı sayfada kayıt formuna geçer ve rol seçimi göstermez', async () => {
     const user = userEvent.setup()
     const onRegister = vi.fn()

@@ -1,10 +1,9 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { describe, expect, it } from 'vitest'
 import App from './App'
-import { getDemoUserByRole } from './mocks/users'
-
-const mockSessionKey = 'ebys:mock-session:v1'
+import { seedAuthenticatedUser } from './test/auth'
 
 function renderApp(path: string) {
   return render(
@@ -15,6 +14,19 @@ function renderApp(path: string) {
 }
 
 describe('App authorization boundaries', () => {
+  it('MSW ile açılan oturumu çıkış butonundan kapatır', async () => {
+    const user = userEvent.setup()
+    renderApp('/giris')
+
+    await user.click(await screen.findByRole('button', { name: 'Giriş Yap' }))
+    expect(await screen.findByRole('heading', { name: /Hoş geldiniz/ })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Çıkış' }))
+    await user.click(screen.getByRole('button', { name: 'Çıkış Yap' }))
+
+    expect(await screen.findByRole('heading', { name: 'Hesabınıza giriş yapın' })).toBeInTheDocument()
+  })
+
   it('oturumsuz kullanıcıyı giriş ekranına yönlendirir', async () => {
     renderApp('/dashboard')
     expect(await screen.findByRole('heading', { name: 'Hesabınıza giriş yapın' })).toBeInTheDocument()
@@ -22,26 +34,26 @@ describe('App authorization boundaries', () => {
   })
 
   it('Başkan Yardımcısına yeni kayıt oluşturma kontrolünü göstermez', async () => {
-    window.sessionStorage.setItem(mockSessionKey, JSON.stringify(getDemoUserByRole('BASKAN_YARDIMCISI')))
+    await seedAuthenticatedUser('BASKAN_YARDIMCISI')
     renderApp('/dashboard')
     expect(await screen.findByRole('heading', { name: /Hoş geldiniz/ })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Yeni Kayıt' })).not.toBeInTheDocument()
   })
 
   it('Başkanın kendi kapsamı dışındaki kaydını 403 ile sınırlar', async () => {
-    window.sessionStorage.setItem(mockSessionKey, JSON.stringify(getDemoUserByRole('BASKAN')))
+    await seedAuthenticatedUser('BASKAN')
     renderApp('/kayitlar/rec-001')
     expect(await screen.findByRole('heading', { name: 'Bu sayfayı görüntüleme yetkiniz yok' })).toBeInTheDocument()
   })
 
   it('olmayan kayıt için 404 ekranını gösterir', async () => {
-    window.sessionStorage.setItem(mockSessionKey, JSON.stringify(getDemoUserByRole('CALISAN')))
+    await seedAuthenticatedUser('CALISAN')
     renderApp('/kayitlar/olmayan-kayit')
     expect(await screen.findByRole('heading', { name: 'Aradığınız sayfa bulunamadı' })).toBeInTheDocument()
   })
 
   it('Admin kullanıcısını yönetim ekranına alır', async () => {
-    window.sessionStorage.setItem(mockSessionKey, JSON.stringify(getDemoUserByRole('ADMIN')))
+    await seedAuthenticatedUser('ADMIN')
     renderApp('/admin')
     expect(await screen.findByRole('heading', { name: 'Yönetim Özeti' })).toBeInTheDocument()
     expect(screen.getByText('Onay bekleyen')).toBeInTheDocument()
@@ -49,19 +61,19 @@ describe('App authorization boundaries', () => {
   })
 
   it('Admin olmayan kullanıcının yönetim ekranını açmasını engeller', async () => {
-    window.sessionStorage.setItem(mockSessionKey, JSON.stringify(getDemoUserByRole('CALISAN')))
+    await seedAuthenticatedUser('CALISAN')
     renderApp('/admin/kullanicilar')
     expect(await screen.findByRole('heading', { name: 'Bu sayfayı görüntüleme yetkiniz yok' })).toBeInTheDocument()
   })
 
   it('başka çalışanın taslağına düzenleme URL’siyle girildiğinde erkenden 403 gösterir', async () => {
-    window.sessionStorage.setItem(mockSessionKey, JSON.stringify({
+    await seedAuthenticatedUser('CALISAN', {
       id: 'user-other-employee',
       firstName: 'Elif',
       lastName: 'Akın',
       email: 'elif.akin@kurum.gov.tr',
       role: 'CALISAN',
-    }))
+    })
     renderApp('/kayitlar/rec-006/duzenle')
     expect(await screen.findByRole('heading', { name: 'Bu sayfayı görüntüleme yetkiniz yok' })).toBeInTheDocument()
   })

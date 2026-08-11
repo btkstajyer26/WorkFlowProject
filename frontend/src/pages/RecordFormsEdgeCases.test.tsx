@@ -3,12 +3,10 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { describe, expect, it } from 'vitest'
 import App from '../App'
-import { getDemoUserByRole } from '../mocks/users'
+import { seedAuthenticatedUser } from '../test/auth'
 
-const mockSessionKey = 'ebys:mock-session:v1'
-
-function renderEmployeeApp(path: string) {
-  window.sessionStorage.setItem(mockSessionKey, JSON.stringify(getDemoUserByRole('CALISAN')))
+async function renderEmployeeApp(path: string) {
+  await seedAuthenticatedUser('CALISAN')
   return render(
     <MemoryRouter initialEntries={[path]}>
       <App />
@@ -19,7 +17,7 @@ function renderEmployeeApp(path: string) {
 describe('Kayıt formu edge-case davranışları', () => {
   it('kaydedilen taslaktan sonra yeni kayıt formunu boş açar', async () => {
     const user = userEvent.setup()
-    renderEmployeeApp('/dashboard')
+    await renderEmployeeApp('/dashboard')
 
     await user.click(await screen.findByRole('button', { name: 'Yeni Kayıt' }))
     await user.type(screen.getByLabelText(/Başlık/), 'Yeni talep')
@@ -36,7 +34,7 @@ describe('Kayıt formu edge-case davranışları', () => {
 
   it('kaydedilen taslağı doğrudan incelemeye gönderir', async () => {
     const user = userEvent.setup()
-    renderEmployeeApp('/dashboard')
+    await renderEmployeeApp('/dashboard')
 
     await user.click(await screen.findByRole('button', { name: 'Yeni Kayıt' }))
     await user.type(screen.getByLabelText(/Başlık/), 'Doğrudan gönderilecek taslak')
@@ -58,7 +56,7 @@ describe('Kayıt formu edge-case davranışları', () => {
 
   it('kaydedilmemiş yeni kayıt formu kapatılırken onay ister ve odağı dialog içinde tutar', async () => {
     const user = userEvent.setup()
-    renderEmployeeApp('/dashboard')
+    await renderEmployeeApp('/dashboard')
 
     await user.click(await screen.findByRole('button', { name: 'Yeni Kayıt' }))
     expect(screen.getByRole('heading', { name: /Hoş geldiniz/ })).toBeInTheDocument()
@@ -75,7 +73,7 @@ describe('Kayıt formu edge-case davranışları', () => {
 
   it('düzenleme ekranında aynı dosyayı ikinci kez eklemez', async () => {
     const user = userEvent.setup()
-    renderEmployeeApp('/kayitlar/rec-002/duzenle')
+    await renderEmployeeApp('/kayitlar/rec-002/duzenle')
 
     const fileInput = await screen.findByLabelText('Dosya ekle')
     const file = new File(['teklif'], 'teklif.pdf', { type: 'application/pdf', lastModified: 10 })

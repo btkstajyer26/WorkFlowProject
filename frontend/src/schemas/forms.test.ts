@@ -52,8 +52,8 @@ describe('record form schema', () => {
     if (!result.success) expect(result.error.issues.map((issue) => issue.path[0])).toEqual(['title', 'category', 'description'])
   })
 
-  it('tanımsız kategoriyi reddeder', () => {
-    const result = recordFormSchema.safeParse({ title: 'Talep', category: 'Bilinmeyen', description: 'Açıklama' })
+  it('yalnızca boşluktan oluşan kategori değerini reddeder', () => {
+    const result = recordFormSchema.safeParse({ title: 'Talep', category: '   ', description: 'Açıklama' })
     expect(result.success).toBe(false)
   })
 

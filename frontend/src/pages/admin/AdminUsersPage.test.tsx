@@ -7,12 +7,10 @@ import {
   createMockRegistrationRequest,
   readMockRegistrationRequests,
 } from '../../mocks/registrationRequests'
-import { getDemoUserByRole } from '../../mocks/users'
+import { seedAuthenticatedUser } from '../../test/auth'
 
-const mockSessionKey = 'ebys:mock-session:v1'
-
-function renderAdminUsers() {
-  window.sessionStorage.setItem(mockSessionKey, JSON.stringify(getDemoUserByRole('ADMIN')))
+async function renderAdminUsers() {
+  await seedAuthenticatedUser('ADMIN')
   return render(
     <MemoryRouter initialEntries={['/admin/kullanicilar']}>
       <App />
@@ -31,7 +29,7 @@ describe('Admin kullanıcı yönetimi', () => {
       email: 'deniz.kaya@kurum.gov.tr',
       password: 'guvenli123',
     })
-    renderAdminUsers()
+    await renderAdminUsers()
     expect(screen.queryByRole('button', { name: 'Yeni Hesap' })).not.toBeInTheDocument()
 
     const requestCard = await screen.findByRole('article', { name: 'Deniz Kaya kayıt talebi' })
@@ -62,7 +60,7 @@ describe('Admin kullanıcı yönetimi', () => {
       email: 'selin.demir@kurum.gov.tr',
       password: 'guvenli123',
     })
-    renderAdminUsers()
+    await renderAdminUsers()
 
     const requestCard = await screen.findByRole('article', { name: 'Selin Demir kayıt talebi' })
     await browser.click(within(requestCard).getByRole('button', { name: 'Başvuruyu İncele' }))
@@ -77,7 +75,7 @@ describe('Admin kullanıcı yönetimi', () => {
 
   it('aktif bir kullanıcıya Admin rolü verir', async () => {
     const browser = userEvent.setup()
-    renderAdminUsers()
+    await renderAdminUsers()
     const elifRow = await screen.findByRole('row', { name: /Elif Akın/ })
     await browser.click(within(elifRow).getByRole('button', { name: 'Rolü Değiştir' }))
     await browser.selectOptions(screen.getByRole('combobox', { name: 'Yeni rol' }), 'ADMIN')
@@ -88,7 +86,7 @@ describe('Admin kullanıcı yönetimi', () => {
 
   it('Başkan Yardımcısı rolünü atomik olarak yeni kullanıcıya devreder', async () => {
     const browser = userEvent.setup()
-    renderAdminUsers()
+    await renderAdminUsers()
     const elifRow = await screen.findByRole('row', { name: /Elif Akın/ })
     await browser.click(within(elifRow).getByRole('button', { name: 'Rolü Değiştir' }))
     await browser.selectOptions(screen.getByRole('combobox', { name: 'Yeni rol' }), 'BASKAN_YARDIMCISI')
@@ -102,7 +100,7 @@ describe('Admin kullanıcı yönetimi', () => {
 
   it('Aktif Başkan Yardımcısını rol devredilmeden pasifleştirmez', async () => {
     const browser = userEvent.setup()
-    renderAdminUsers()
+    await renderAdminUsers()
     const deputyRow = await screen.findByRole('row', { name: /Ayşe Kaya/ })
     await browser.click(within(deputyRow).getByRole('button', { name: 'Pasifleştir' }))
     await browser.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Pasifleştir' }))

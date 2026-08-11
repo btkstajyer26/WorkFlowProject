@@ -23,6 +23,8 @@ import {
 import { defaultDemoAccount, demoAccounts } from '../mocks/users'
 import { readMockRegistrationRequests } from '../mocks/registrationRequests'
 import { Brand } from '../components/layout/Brand'
+import { ApiClientError } from '../api/errors'
+import { clearAuthSession, startAuthSession } from '../auth/authSession'
 import type { AuthUser } from '../types/auth'
 import type {
   CreateRegistrationRequestInput,
@@ -104,28 +106,34 @@ export function LoginPage({ user, onLogin, onRegister }: LoginPageProps) {
       (account) => account.email === normalizedEmail,
     )
 
-    if (matchingDemoAccount && values.password !== matchingDemoAccount.password) {
-      setLoginError('password', { type: 'validate', message: 'Demo hesabı için şifre hatalı.' })
+    try {
+      await startAuthSession(normalizedEmail, values.password)
+    } catch (error) {
+      setLoginError('root', {
+        type: 'server',
+        message: error instanceof ApiClientError && error.status === 401
+          ? 'E-posta adresi veya şifre hatalı.'
+          : 'Giriş işlemi tamamlanamadı. Lütfen tekrar deneyin.',
+      })
       return
     }
 
-    await new Promise<void>((resolve) => window.setTimeout(resolve, 350))
+    if (!matchingDemoAccount) {
+      clearAuthSession()
+      setLoginError('root', {
+        type: 'server',
+        message: 'Kullanıcı profil bilgileri henüz API sözleşmesinde bulunmuyor.',
+      })
+      return
+    }
 
-    const authenticatedUser: AuthUser = matchingDemoAccount
-      ? {
-          id: matchingDemoAccount.id,
-          firstName: matchingDemoAccount.firstName,
-          lastName: matchingDemoAccount.lastName,
-          email: matchingDemoAccount.email,
-          role: matchingDemoAccount.role,
-        }
-      : {
-          id: 'user-preview-001',
-          firstName: 'John',
-          lastName: 'Doe',
-          email: normalizedEmail,
-          role: 'CALISAN',
-        }
+    const authenticatedUser: AuthUser = {
+      id: matchingDemoAccount.id,
+      firstName: matchingDemoAccount.firstName,
+      lastName: matchingDemoAccount.lastName,
+      email: matchingDemoAccount.email,
+      role: matchingDemoAccount.role,
+    }
 
     onLogin(authenticatedUser)
 
@@ -295,6 +303,12 @@ export function LoginPage({ user, onLogin, onRegister }: LoginPageProps) {
                       </span>
                       {loginErrors.password ? <FieldError id="login-password-error" message={loginErrors.password.message} /> : null}
                     </label>
+
+                    {loginErrors.root ? (
+                      <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 dark:border-rose-800/70 dark:bg-rose-950/40 dark:text-rose-300" role="alert">
+                        {loginErrors.root.message}
+                      </p>
+                    ) : null}
 
                     <button
                       type="submit"

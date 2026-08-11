@@ -11,8 +11,9 @@ import {
 } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router'
 import { RecordStatusBadge } from '../components/records/RecordStatusBadge'
+import { CategoryLoadError } from '../components/records/CategoryLoadError'
 import { recordStatusMeta } from '../components/records/recordStatus'
-import { isRecordCategory, recordCategories } from '../config/records'
+import { useCategories } from '../context/categoryState'
 import { useWorkflow } from '../context/workflowState'
 import { useDebouncedSearchParam } from '../hooks/useDebouncedSearchParam'
 import type { UserRole } from '../types/auth'
@@ -72,6 +73,7 @@ function canEditRecord(role: UserRole, record: WorkflowRecord) {
 
 export function RecordsPage({ role }: { role: UserRole }) {
   const { visibleRecords: records } = useWorkflow()
+  const { categories, status: categoryStatus, reloadCategories } = useCategories()
   const [searchParams, setSearchParams] = useSearchParams()
   const rawView = searchParams.get('gorunum')
   const view = rawView && rawView in viewConfigs ? rawView : null
@@ -82,7 +84,9 @@ export function RecordsPage({ role }: { role: UserRole }) {
   const search = searchParams.get('q') ?? ''
   const [searchInput, setSearchInput] = useDebouncedSearchParam(searchParams, setSearchParams)
   const categoryParam = searchParams.get('kategori')
-  const category = categoryParam && isRecordCategory(categoryParam) ? categoryParam : 'ALL'
+  const category = categoryParam && categories.some((item) => item.name === categoryParam)
+    ? categoryParam
+    : 'ALL'
   const statusParam = searchParams.get('durum')
   const parsedStatus: RecordStatus | 'ALL' =
     statusParam && statusParam in recordStatusMeta ? (statusParam as RecordStatus) : 'ALL'
@@ -106,7 +110,7 @@ export function RecordsPage({ role }: { role: UserRole }) {
   useEffect(() => {
     const nextParams = new URLSearchParams(searchParams)
     if (rawView && !viewConfig) nextParams.delete('gorunum')
-    if (categoryParam && category === 'ALL') nextParams.delete('kategori')
+    if (categoryStatus === 'ready' && categoryParam && category === 'ALL') nextParams.delete('kategori')
     if (statusParam && status === 'ALL') nextParams.delete('durum')
     if (dateFromParam && !dateFrom) nextParams.delete('baslangic')
     if (dateToParam && !dateTo) nextParams.delete('bitis')
@@ -114,7 +118,7 @@ export function RecordsPage({ role }: { role: UserRole }) {
     if (!pageSizes.includes(pageSizeParam) || pageSizeParam === 10) nextParams.delete('boyut')
 
     if (nextParams.toString() !== searchParams.toString()) setSearchParams(nextParams, { replace: true })
-  }, [category, categoryParam, dateFrom, dateFromParam, dateTo, dateToParam, pageParam, pageSizeParam, rawView, searchParams, setSearchParams, status, statusParam, viewConfig])
+  }, [category, categoryParam, categoryStatus, dateFrom, dateFromParam, dateTo, dateToParam, pageParam, pageSizeParam, rawView, searchParams, setSearchParams, status, statusParam, viewConfig])
 
   const updateQuery = (updates: Record<string, string | null>, resetPage = true) => {
     const nextParams = new URLSearchParams(searchParams)
@@ -204,19 +208,28 @@ export function RecordsPage({ role }: { role: UserRole }) {
           </div>
 
           <div className={`${filtersOpen ? 'grid' : 'hidden'} mt-3 gap-3 md:grid md:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_1fr_auto]`}>
-            <label>
-              <span className="mb-1.5 block text-xs font-bold text-app-text-muted">Kategori</span>
+            <div>
+              <label htmlFor="record-filter-category" className="mb-1.5 block text-xs font-bold text-app-text-muted">Kategori</label>
               <select
+                id="record-filter-category"
+                aria-label="Kategori"
                 value={category}
                 onChange={(event) => updateQuery({ kategori: event.target.value === 'ALL' ? null : event.target.value })}
-                className={filterControlClass}
+                disabled={categoryStatus !== 'ready'}
+                aria-describedby={categoryStatus === 'error' ? 'record-filter-category-load-error' : undefined}
+                className={`${filterControlClass} disabled:cursor-wait disabled:bg-app-surface-strong`}
               >
-                <option value="ALL">Tüm kategoriler</option>
-                {recordCategories.map((item) => (
-                  <option key={item} value={item}>{item}</option>
+                <option value="ALL">
+                  {categoryStatus === 'loading' ? 'Kategoriler yükleniyor…' : 'Tüm kategoriler'}
+                </option>
+                {categories.map((item) => (
+                  <option key={item.id} value={item.name}>{item.name}</option>
                 ))}
               </select>
-            </label>
+              {categoryStatus === 'error' ? (
+                <CategoryLoadError id="record-filter-category-load-error" onRetry={reloadCategories} />
+              ) : null}
+            </div>
             <label>
               <span className="mb-1.5 block text-xs font-bold text-app-text-muted">Durum</span>
               <select

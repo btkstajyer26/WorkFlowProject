@@ -1,11 +1,27 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup } from '@testing-library/react'
-import { afterEach } from 'vitest'
+import { afterAll, afterEach, beforeAll } from 'vitest'
+import { clearAuthSession } from '../auth/authSession'
+import { clearCategoryCache } from '../api/categories'
+import { resetMockApiDb } from '../mocks/api/db'
+import { apiMockServer } from '../mocks/api/server'
+
+beforeAll(() => {
+  apiMockServer.listen({ onUnhandledRequest: 'error' })
+})
 
 afterEach(() => {
   cleanup()
+  apiMockServer.resetHandlers()
+  resetMockApiDb()
+  clearCategoryCache()
+  clearAuthSession()
   window.sessionStorage.clear()
   window.localStorage.clear()
+})
+
+afterAll(() => {
+  apiMockServer.close()
 })
 
 Object.defineProperty(window, 'matchMedia', {
