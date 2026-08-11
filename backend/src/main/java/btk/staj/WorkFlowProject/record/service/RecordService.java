@@ -7,31 +7,23 @@ import org.springframework.data.domain.Pageable;
 
 import java.util.UUID;
 
+/**
+ * Kayitlarin icerik yonetimi (CRUD).
+ *
+ * <p>Durum gecisleri bu arayuze ait degildir. Onay akisi
+ * {@code POST /api/records/{recordId}/workflow/actions} ucundan, durum
+ * makinesini calistiran {@code WorkflowActionService} uzerinden yurur; boylece
+ * gecis kurallari, zorunlu aciklama ve denetim izi tek yoldan gecer.
+ */
 public interface RecordService {
 
-    // --- CRUD İŞLEMLERİ ---
     RecordResponse createRecord(RecordCreateRequest request);
-    
-    RecordResponse getRecordById(UUID id);
-    
-    Page<RecordResponse> getFilteredRecords(RecordStatus status, Integer categoryId, String keyword, Pageable pageable);
-    
-    RecordResponse updateRecord(UUID id, RecordUpdateRequest request);
-    
-    void deleteRecord(UUID id);
 
-    // --- WORKFLOW (DURUM GEÇİŞİ) AKSİYONLARI ---
-    RecordResponse submitToDeputy(UUID id);
-    
-    RecordResponse forwardToChairman(UUID id, RecordActionRequest request);
-    
-    RecordResponse returnToEmployee(UUID id, RecordActionRequest request);
-    
-    RecordResponse returnByChairman(UUID id, RecordReturnRequest request);
-    
-    RecordResponse approve(UUID id, RecordActionRequest request);
-    
-    RecordResponse reject(UUID id, RecordActionRequest request);
-    
-    RecordResponse resubmit(UUID id);
+    RecordResponse getRecordById(UUID id);
+
+    Page<RecordResponse> getFilteredRecords(RecordStatus status, Integer categoryId, String keyword, Pageable pageable);
+
+    RecordResponse updateRecord(UUID id, RecordUpdateRequest request);
+
+    void deleteRecord(UUID id);
 }
