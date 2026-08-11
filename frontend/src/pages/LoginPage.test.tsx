@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, useLocation } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
@@ -32,7 +32,9 @@ describe('LoginPage registration flow', () => {
       email: 'john.doe@kurum.gov.tr',
       role: 'CALISAN',
     }))
-    expect(screen.getByLabelText('Geçerli adres')).toHaveTextContent('/dashboard')
+    await waitFor(() => {
+      expect(screen.getByLabelText('Geçerli adres')).toHaveTextContent('/dashboard')
+    })
   })
 
   it('MSW auth reddettiğinde API hata mesajını gösterir', async () => {

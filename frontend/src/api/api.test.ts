@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { api, clearApiAccessToken, setApiAccessToken } from './client'
+import {
+  getUnreadNotificationCount,
+  listUnreadNotifications,
+  markNotificationAsRead,
+} from './notifications'
 import { listRecords } from './records'
 
 const employeeCredentials = {
@@ -115,6 +120,32 @@ describe('OpenAPI istemcisi ve MSW sözleşmesi', () => {
       'BASKANA_ILET',
       'GONDER',
     ])
+  })
+
+  it('okunmamış bildirim listesini ve sayısını aynı MSW durumundan yönetir', async () => {
+    await loginAs(employeeCredentials.email)
+
+    await expect(listUnreadNotifications()).resolves.toEqual([
+      expect.objectContaining({
+        id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1',
+        notificationType: 'RECORD_APPROVED',
+        read: false,
+      }),
+    ])
+    await expect(getUnreadNotificationCount()).resolves.toBe(1)
+
+    await markNotificationAsRead('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1')
+
+    await expect(listUnreadNotifications()).resolves.toEqual([])
+    await expect(getUnreadNotificationCount()).resolves.toBe(0)
+  })
+
+  it('başka kullanıcıya ait bildirimin okundu yapılmasını reddeder', async () => {
+    await loginAs(employeeCredentials.email)
+
+    await expect(
+      markNotificationAsRead('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2'),
+    ).rejects.toMatchObject({ status: 403 })
   })
 
   it('admin kullanıcı oluşturma endpointini yalnızca Admin tokenıyla çalıştırır', async () => {

@@ -362,13 +362,22 @@ Hesap açma isteği `firstName`, `lastName`, `email`, `role` alanlarını taşı
 
 ## 10. Bildirimler
 
-| Metot | Önerilen adres | Amaç |
-|---|---|---|
-| `GET` | `/api/notifications?page=0&size=20&unread=true` | JWT kullanıcısına ait bildirimler |
-| `PATCH` | `/api/notifications/{id}/read` | Tek bildirimi okundu yapar |
-| `PATCH` | `/api/notifications/read-all` | Kullanıcının tüm bildirimlerini okundu yapar |
+Güncel OpenAPI sözleşmesinde kesinleşen ve MSW ile modellenen işlemler:
 
-Bildirim modeli mevcut diyagramla uyumlu olarak `id`, `userId`, `recordId`, `message`, `isRead`, `createdAt` alanlarını taşımalıdır. İlk sürüm REST/polling ile çalışabilir; SSE veya WebSocket sonraki sürüme bırakılabilir.
+| Metot | Adres | Amaç |
+|---|---|---|
+| `GET` | `/api/notifications/unread` | JWT kullanıcısının okunmamış bildirimlerini alır |
+| `GET` | `/api/notifications/unread/count` | Menü rozeti için okunmamış bildirim sayısını alır |
+| `PUT` | `/api/notifications/{id}/read` | Kullanıcıya ait tek bildirimi okundu yapar |
+
+Frontend bildirim merkezinin mevcut “Tümü” ve “Tümünü okundu yap” davranışlarını gerçek API'ye eksiksiz taşıyabilmek için aşağıdaki iki işlem hâlâ beklenmektedir:
+
+| Metot | Beklenen adres | Amaç |
+|---|---|---|
+| `GET` | `/api/notifications` | JWT kullanıcısının okunmuş ve okunmamış tüm bildirimlerini alır |
+| `PUT` | `/api/notifications/read-all` | Kullanıcının tüm okunmamış bildirimlerini tek istekte okundu yapar |
+
+Mevcut `NotificationResponse`; `id`, `recordId`, `message`, `notificationType`, `read` ve `createdAt` alanlarını taşır. Kullanıcı kimliği JWT'den belirlenir ve cevapta ayrıca gönderilmez. İlk sürüm REST/polling ile çalışabilir; SSE veya WebSocket sonraki sürüme bırakılabilir.
 
 ## 11. Standart hata cevabı
 

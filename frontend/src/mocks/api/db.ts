@@ -1,4 +1,9 @@
-import type { AuditLogResponse, CategoryResponse, RecordResponse } from '../../api/generated/data-contracts'
+import type {
+  AuditLogResponse,
+  CategoryResponse,
+  NotificationResponse,
+  RecordResponse,
+} from '../../api/generated/data-contracts'
 import { getMockUserByRole, type MockApiUser } from './auth'
 
 export type StoredMockRecord = Required<Pick<
@@ -8,6 +13,13 @@ export type StoredMockRecord = Required<Pick<
   createdBy: string
   assignedTo: string | null
   lastDeputyId: string | null
+}
+
+export type StoredMockNotification = Required<Pick<
+  NotificationResponse,
+  'id' | 'recordId' | 'message' | 'notificationType' | 'read' | 'createdAt'
+>> & {
+  userId: string
 }
 
 export const mockApiCategories: Required<CategoryResponse>[] = [
@@ -60,21 +72,69 @@ function initialRecords(): StoredMockRecord[] {
   ]
 }
 
+function initialNotifications(): StoredMockNotification[] {
+  const employee = getMockUserByRole('CALISAN')
+  const deputy = getMockUserByRole('BASKAN_YARDIMCISI')
+  const chair = getMockUserByRole('BASKAN')
+
+  return [
+    {
+      id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1',
+      userId: employee.id,
+      recordId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa3',
+      message: 'Evrağınız onaylandı',
+      notificationType: 'RECORD_APPROVED',
+      read: false,
+      createdAt: '2026-08-05T10:18:00Z',
+    },
+    {
+      id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2',
+      userId: deputy.id,
+      recordId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2',
+      message: 'Bir evrak incelemenize sunuldu',
+      notificationType: 'RECORD_SUBMITTED',
+      read: false,
+      createdAt: '2026-08-05T09:42:00Z',
+    },
+    {
+      id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb3',
+      userId: chair.id,
+      recordId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa3',
+      message: 'Bir evrak onayınıza iletildi',
+      notificationType: 'RECORD_FORWARDED',
+      read: false,
+      createdAt: '2026-08-04T16:24:00Z',
+    },
+    {
+      id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb4',
+      userId: employee.id,
+      recordId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+      message: 'Evrağınız düzeltme için geri gönderildi',
+      notificationType: 'RECORD_RETURNED',
+      read: true,
+      createdAt: '2026-08-03T08:30:00Z',
+    },
+  ]
+}
+
 type MockApiState = {
   records: StoredMockRecord[]
   auditLogs: AuditLogResponse[]
+  notifications: StoredMockNotification[]
   createdUsers: MockApiUser[]
 }
 
 const state: MockApiState = {
   records: [],
   auditLogs: [],
+  notifications: [],
   createdUsers: [],
 }
 
 export function resetMockApiDb() {
   state.records = initialRecords()
   state.auditLogs = []
+  state.notifications = initialNotifications()
   state.createdUsers = []
 }
 
@@ -92,6 +152,12 @@ export const mockApiDb = {
   },
   set auditLogs(logs: AuditLogResponse[]) {
     state.auditLogs = logs
+  },
+  get notifications() {
+    return state.notifications
+  },
+  set notifications(notifications: StoredMockNotification[]) {
+    state.notifications = notifications
   },
   get createdUsers() {
     return state.createdUsers

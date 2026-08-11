@@ -50,6 +50,7 @@ Handler'lar JWT yerine yalnızca test amaçlı opaque token kullanır; istemcini
 - Uygulama yeniden açıldığında `POST /api/auth/refresh` çağrısıyla access token yenilenir. Refresh başarısızsa kalıcı ve bellek içi oturum birlikte temizlenir.
 - Çıkış onayı `POST /api/auth/logout` çağrısını başlatır ve ağ sonucu ne olursa olsun yerel oturumu kapatır.
 - Kategori dropdown ve filtreleri `GET /api/v1/categories` cevabını tek bir merkezi provider üzerinden kullanır; frontend içinde ikinci bir sabit kategori listesi tutulmaz.
+- Bildirimlerin `GET /api/notifications/unread`, `GET /api/notifications/unread/count` ve `PUT /api/notifications/{id}/read` sözleşmeleri ortak MSW veritabanı üzerinden çalışır ve sahiplik kontrolünü taklit eder.
 - Token yenileme uygulama açılışına bağlı ve testlidir; henüz korumalı isteklerde otomatik 401 retry akışına bağlanmamıştır.
 
 Login cevabında kullanıcı adı ve rolü bulunmadığından kullanıcı görünümü geçici olarak mevcut demo profiliyle e-posta üzerinden eşleştirilir. Backend kullanıcı özeti döndürdüğünde bu geçici eşleştirme kaldırılacaktır.
@@ -66,7 +67,7 @@ Bu nedenle kayıt ekranlarının mevcut `WorkflowContext` state'i hemen kaldır�
 - signup ve kayıt talebi yönetimi;
 - zengin kayıt detay cevabı ya da gerekli ayrı endpointler;
 - kayda ait dosyaları listeleme;
-- bildirimler.
+- tüm bildirimleri listeleme ve tümünü tek istekte okundu yapma endpointleri tamamlanana kadar bildirim merkezinin UI state'i.
 
 ## Mevcut OpenAPI açıklıkları
 

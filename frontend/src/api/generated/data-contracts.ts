@@ -35,6 +35,9 @@ export interface CategoryResponse {
   name?: string;
 }
 
+/** @format int64 */
+export type CountUnreadData = number;
+
 export type CreateRecordData = RecordResponse;
 
 export type CreateUserData = UserResponse;
@@ -103,6 +106,8 @@ export interface GetRecordByIdParams {
   id: string;
 }
 
+export type GetUnreadData = NotificationResponse[];
+
 export type LoginData = LoginResponse;
 
 export interface LoginRequest {
@@ -119,6 +124,30 @@ export type LogoutData = string;
 
 export interface LogoutRequest {
   refreshToken?: string;
+}
+
+export type MarkAsReadData = any;
+
+export interface MarkAsReadParams {
+  /** @format uuid */
+  id: string;
+}
+
+export interface NotificationResponse {
+  /** @format date-time */
+  createdAt?: string;
+  /** @format uuid */
+  id?: string;
+  message?: string;
+  notificationType?:
+    | "RECORD_SUBMITTED"
+    | "RECORD_FORWARDED"
+    | "RECORD_APPROVED"
+    | "RECORD_REJECTED"
+    | "RECORD_RETURNED";
+  read?: boolean;
+  /** @format uuid */
+  recordId?: string;
 }
 
 export interface PageRecordResponse {

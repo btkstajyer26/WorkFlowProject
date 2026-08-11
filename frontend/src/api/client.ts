@@ -4,6 +4,7 @@ import { AuthController } from './generated/AuthController'
 import { CategoryController } from './generated/CategoryController'
 import { FileController } from './generated/FileController'
 import { HttpClient } from './generated/http-client'
+import { NotificationController } from './generated/NotificationController'
 import { RecordController } from './generated/RecordController'
 import { WorkflowActionController } from './generated/WorkflowActionController'
 import { apiBaseUrl } from './config'
@@ -31,6 +32,7 @@ export const api = {
   auth: new AuthController(apiHttpClient),
   categories: new CategoryController(apiHttpClient),
   files: new FileController(apiHttpClient),
+  notifications: new NotificationController(apiHttpClient),
   records: new RecordController(apiHttpClient),
   workflow: new WorkflowActionController(apiHttpClient),
 }
