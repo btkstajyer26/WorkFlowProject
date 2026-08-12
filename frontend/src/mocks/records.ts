@@ -25,7 +25,6 @@ export const mockRecords: WorkflowRecord[] = [
         action: 'Başkan Yardımcısına gönderildi',
         actor: 'John Doe',
         role: 'Çalışan',
-        note: 'Onayınıza sunulmuştur.',
         date: '2026-08-04T10:30:00',
       },
     ],
@@ -75,7 +74,6 @@ export const mockRecords: WorkflowRecord[] = [
         action: 'Başkan Yardımcısına gönderildi',
         actor: 'John Doe',
         role: 'Çalışan',
-        note: 'Onayınıza sunulmuştur.',
         date: '2026-07-30T11:35:00',
       },
       {

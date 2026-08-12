@@ -4,7 +4,6 @@ import {
   CheckCircle2,
   FilePenLine,
   Send,
-  ShieldCheck,
   X,
   XCircle,
 } from 'lucide-react'
@@ -47,11 +46,7 @@ const actionCopy: Record<ReviewAction, { title: string; description: string; con
   },
 }
 
-const commentCopy: Record<ReviewAction, { label: string; placeholder: string }> = {
-  submit: {
-    label: 'Gönderim açıklaması (isteğe bağlı)',
-    placeholder: 'İnceleme ekibine iletmek istediğiniz açıklamayı yazın…',
-  },
+const commentCopy: Record<Exclude<ReviewAction, 'submit'>, { label: string; placeholder: string }> = {
   forward: {
     label: 'İletme açıklaması (isteğe bağlı)',
     placeholder: 'Başkana iletmek istediğiniz değerlendirmeyi yazın…',
@@ -140,25 +135,20 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
 
   if (employeeCanEdit) {
     return (
-      <section className="rounded-2xl border border-brand-200 dark:border-brand-700/60 bg-gradient-to-br from-brand-50 dark:from-brand-900/30 to-app-surface p-5 shadow-sm sm:p-6">
-        <div className="flex items-start gap-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-app-surface text-brand-700 dark:text-brand-300 shadow-sm ring-1 ring-brand-100 dark:ring-brand-800/60">
-            <FilePenLine className="size-5" aria-hidden="true" />
-          </span>
-          <div>
-            <h2 className="font-bold text-app-text">Kayıt İşlemleri</h2>
-            <p className="mt-1 text-xs leading-5 text-app-text-muted">
-              {record.status === 'TASLAK'
-                ? 'Taslağınıza devam edebilir veya incelemeye gönderebilirsiniz.'
-                : 'İstenen düzeltmeleri tamamlayıp kaydı yeniden gönderebilirsiniz.'}
-            </p>
-          </div>
+      <section aria-labelledby="record-actions-title" className="rounded-xl border border-app-border bg-app-surface px-4 py-4 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:px-5">
+        <div className="min-w-0">
+          <h2 id="record-actions-title" className="text-base font-bold text-app-text">Kayıt İşlemleri</h2>
+          <p className="mt-1 text-sm leading-5 text-app-text-muted">
+            {record.status === 'TASLAK'
+              ? 'Taslağınıza devam edin veya kaydı incelemeye gönderin.'
+              : 'İstenen düzenlemeleri tamamlayarak kaydı yeniden gönderin.'}
+          </p>
         </div>
 
-        <div className="mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+        <div className="mt-4 flex flex-col gap-2 sm:mt-0 sm:shrink-0 sm:flex-row sm:justify-end">
           <Link
             to={`/kayitlar/${record.id}/duzenle`}
-            className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-brand-200 dark:border-brand-700/60 bg-app-surface px-4 text-sm font-bold text-brand-700 dark:text-brand-300 transition hover:border-brand-300 dark:hover:border-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+            className="flex min-h-10 items-center justify-center gap-2 rounded-lg border border-app-border px-4 text-[15px] font-bold text-app-text-secondary transition hover:bg-app-surface-muted hover:text-app-text-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
           >
             <FilePenLine className="size-4" aria-hidden="true" />
             Düzenlemeye Devam Et
@@ -166,7 +156,7 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
           <button
             type="button"
             onClick={() => openAction('submit')}
-            className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-700 px-4 text-sm font-bold text-white shadow-lg shadow-brand-200 dark:shadow-black/20 transition hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+            className="flex min-h-10 items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 text-[15px] font-bold text-white transition hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
           >
             <Send className="size-4" aria-hidden="true" />
             {record.status === 'TASLAK' ? 'İncelemeye Gönder' : 'Yeniden Gönder'}
@@ -189,22 +179,17 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
   }
 
   return (
-    <section className="rounded-2xl border border-app-border bg-app-surface p-5 shadow-sm sm:p-6">
-      <div className="flex items-start gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300">
-          <ShieldCheck className="size-5" aria-hidden="true" />
-        </span>
-        <div>
-          <h2 className="font-bold text-app-text">İnceleme İşlemleri</h2>
-          <p className="mt-1 text-xs leading-5 text-app-text-muted">Kaydı değerlendirin ve uygun süreç işlemini seçin.</p>
-        </div>
+    <section aria-labelledby="record-decision-title" className="rounded-xl border border-app-border bg-app-surface px-4 py-4 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:px-5">
+      <div className="min-w-0">
+        <h2 id="record-decision-title" className="text-base font-bold text-app-text">Karar</h2>
+        <p className="mt-1 text-sm leading-5 text-app-text-muted">Kaydı inceleyip uygun süreç işlemini seçin.</p>
       </div>
 
-      <div className="mt-5 grid gap-2">
+      <div className="mt-4 flex flex-col gap-2 sm:mt-0 sm:shrink-0 sm:flex-row sm:flex-wrap sm:justify-end">
         <button
           type="button"
           onClick={() => openAction('return')}
-          className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-rose-200 dark:border-rose-800/70 bg-rose-50 dark:bg-rose-950/40 px-4 text-sm font-bold text-rose-700 dark:text-rose-300 transition hover:bg-rose-100 dark:hover:bg-rose-900/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"
+          className="flex min-h-10 items-center justify-center gap-2 rounded-lg border border-app-border px-4 text-[15px] font-bold text-app-text-secondary transition hover:bg-app-surface-muted hover:text-app-text-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
         >
           <ArrowLeftRight className="size-4" aria-hidden="true" />
           Geri Gönder
@@ -214,7 +199,7 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
           <button
             type="button"
             onClick={() => openAction('forward')}
-            className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-700 px-4 text-sm font-bold text-white transition hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+            className="flex min-h-10 items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 text-[15px] font-bold text-white transition hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
           >
             <Send className="size-4" aria-hidden="true" />
             Başkana İlet
@@ -222,11 +207,11 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
         ) : null}
 
         {chairCanReview ? (
-          <div className="grid grid-cols-2 gap-2">
+          <>
             <button
               type="button"
               onClick={() => openAction('reject')}
-              className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-rose-200 dark:border-rose-800/70 px-3 text-sm font-bold text-rose-700 dark:text-rose-300 transition hover:bg-rose-50 dark:hover:bg-rose-950/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"
+              className="flex min-h-10 items-center justify-center gap-2 rounded-lg border border-rose-300 px-4 text-[15px] font-bold text-rose-700 transition hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500 dark:border-rose-800 dark:text-rose-300 dark:hover:bg-rose-950/40"
             >
               <XCircle className="size-4" aria-hidden="true" />
               Reddet
@@ -234,12 +219,12 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
             <button
               type="button"
               onClick={() => openAction('approve')}
-              className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 text-sm font-bold text-white transition hover:bg-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
+              className="flex min-h-10 items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 text-[15px] font-bold text-white transition hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
             >
               <CheckCircle2 className="size-4" aria-hidden="true" />
               Onayla
             </button>
-          </div>
+          </>
         ) : null}
       </div>
 
@@ -286,14 +271,14 @@ function ActionDialog({
     open: Boolean(action),
     onClose,
     dialogRef,
-    initialFocusRef: action ? commentRef : closeButtonRef,
+    initialFocusRef: action && action !== 'submit' ? commentRef : closeButtonRef,
   })
 
   if (!action) return null
   const copy = actionCopy[action]
   const isReturn = action === 'return'
   const commentRequired = isReturn || action === 'reject'
-  const commentFieldCopy = commentCopy[action]
+  const commentFieldCopy = action === 'submit' ? null : commentCopy[action]
 
   return (
     <div className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-950/35 p-0 backdrop-blur-[2px] sm:items-center sm:p-4" role="presentation">
@@ -335,22 +320,26 @@ function ActionDialog({
                 </select>
               </label>
           ) : null}
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-bold text-app-text-secondary">
-              {commentFieldCopy.label}
-            </span>
-            <textarea
-              ref={commentRef}
-              value={comment}
-              onChange={(event) => onCommentChange(event.target.value)}
-              required={commentRequired}
-              rows={4}
-              maxLength={2000}
-              placeholder={commentFieldCopy.placeholder}
-              className={`w-full resize-y rounded-xl border border-app-border bg-app-surface px-3.5 py-3 text-sm leading-6 text-app-text-strong outline-none placeholder:text-app-text-faint ${commentRequired ? 'focus:border-rose-500' : 'focus:border-brand-500'}`}
-            />
-          </label>
-          <p className="text-right text-[11px] font-medium text-app-text-subtle">{comment.length}/2000</p>
+          {commentFieldCopy ? (
+            <>
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-bold text-app-text-secondary">
+                  {commentFieldCopy.label}
+                </span>
+                <textarea
+                  ref={commentRef}
+                  value={comment}
+                  onChange={(event) => onCommentChange(event.target.value)}
+                  required={commentRequired}
+                  rows={4}
+                  maxLength={2000}
+                  placeholder={commentFieldCopy.placeholder}
+                  className={`w-full resize-y rounded-xl border border-app-border bg-app-surface px-3.5 py-3 text-sm leading-6 text-app-text-strong outline-none placeholder:text-app-text-faint ${commentRequired ? 'focus:border-rose-500' : 'focus:border-brand-500'}`}
+                />
+              </label>
+              <p className="text-right text-[11px] font-medium text-app-text-subtle">{comment.length}/2000</p>
+            </>
+          ) : null}
         </div>
 
         <div className="mt-6 grid grid-cols-2 gap-3">

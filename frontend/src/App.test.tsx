@@ -59,7 +59,7 @@ describe('App authorization boundaries', () => {
     expect(await screen.findByRole('heading', { name: 'Sunucu Donanım Alım Talebi' })).toBeInTheDocument()
     expect(screen.queryByText('Oluşturan')).not.toBeInTheDocument()
     expect(screen.queryByText('Atanan')).not.toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Ek Dosyalar' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Ek Dosyalar/ })).toBeInTheDocument()
   })
 
   it('Admin kullanıcısını yönetim ekranına alır', async () => {
