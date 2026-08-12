@@ -15,6 +15,7 @@ public record UserResponse(
         String lastName,
         String email,
         String roleName,
+        boolean active,
         LocalDateTime createdAt) {
 
     public static UserResponse from(User user) {
@@ -24,6 +25,7 @@ public record UserResponse(
                 user.getLastName(),
                 user.getEmail(),
                 user.getRole() != null ? user.getRole().getName() : null,
+                user.isActive(),
                 user.getCreatedAt());
     }
 }

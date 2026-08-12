@@ -14,18 +14,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 
-/**
- * Sistemde hic Admin yoksa ilk Admin hesabini olusturur.
- *
- * <p>Iki kosul birden saglanmadikca hicbir sey yapmaz: ortamda
- * {@code BOOTSTRAP_ADMIN_EMAIL} ve {@code BOOTSTRAP_ADMIN_PASSWORD} acikca
- * verilmis olmalidir. Varsayilan parola bilinmeyecegi icin gomulu bir deger
- * tutulmaz; aksi halde ortam degiskeni verilmeyen her kurulum ayni bilinen
- * parolayla acilan bir Admin hesabi tasirdi.
- *
- * <p>Olusturulan hesapta {@code mustChangePassword} isaretlidir; parola ilk
- * giriste degistirilir.
- */
+
 @Component
 public class BootstrapAdminRunner implements ApplicationRunner {
 

@@ -5,17 +5,18 @@ import btk.staj.WorkFlowProject.audit.entity.UserAuditLog;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/**
- * Kullanici/rol degisikligi denetim izinin API'de donen bicimi. Entity dogrudan
- * donulmez (katmanli mimari kriteri).
- */
+
 public record UserAuditLogResponse(
         UUID id,
         UUID targetUserId,
+        String targetUserFullName,
         UUID performedBy,
+        String performedByFullName,
         String action,
         Integer previousRoleId,
+        String previousRoleName,
         Integer newRoleId,
+        String newRoleName,
         Boolean previousActive,
         Boolean newActive,
         String comment,
@@ -25,10 +26,14 @@ public record UserAuditLogResponse(
         return new UserAuditLogResponse(
                 log.getId(),
                 log.getTargetUserId(),
+                null,
                 log.getPerformedBy(),
+                null,
                 log.getAction(),
                 log.getPreviousRoleId(),
+                null,
                 log.getNewRoleId(),
+                null,
                 log.getPreviousActive(),
                 log.getNewActive(),
                 log.getComment(),

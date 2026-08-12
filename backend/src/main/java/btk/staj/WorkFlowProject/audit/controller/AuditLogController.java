@@ -37,14 +37,7 @@ public class AuditLogController {
                 currentActorProvider, "currentActorProvider");
     }
 
-    /**
-     * Bir evragin islem gecmisi.
-     *
-     * <p>Denetim izi kaydin kendisi kadar gizlidir: kaydi goremeyen kullanici
-     * gecmisini de goremez. Bu yuzden sartnamedeki "Kayit Gorunurlugu Kapsami"
-     * kurali ({@link RecordAccessPolicy}) gecmis donulmeden once uygulanir —
-     * aksi halde Calisan, baskasinin evraginin tum onay/red gecmisini okurdu.
-     */
+
     @GetMapping("/record/{recordId}")
     public List<AuditLogResponse> getGecmis(@PathVariable UUID recordId) {
         CurrentActor actor = currentActorProvider.currentActor();

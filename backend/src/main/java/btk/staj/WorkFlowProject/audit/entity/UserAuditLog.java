@@ -17,13 +17,7 @@ import org.hibernate.annotations.Immutable;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/**
- * Kullanici ve rol degisikliklerinin ayri denetim izi. {@code audit_logs} tablosu
- * {@code record_id} zorunlu oldugu icin evraktan bagimsiz Admin islemleri oraya
- * yazilamaz.
- *
- * <p>{@link AuditLog} ile ayni degismezlik kurallarina tabidir.
- */
+
 @Entity
 @Table(name = "user_audit_logs")
 @Immutable
