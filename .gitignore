@@ -13,4 +13,6 @@ frontend/node_modules/
 *.log
 
 # Yüklenen dosyalar (local çalıştırmada)
-backend/uploads/
+# UPLOAD_DIR göreli olduğu için uygulamanın nereden başlatıldığına göre
+# hem backend/uploads/ hem de kök uploads/ oluşabiliyor; ikisi de yoksayılır.
+uploads/
