@@ -8,8 +8,7 @@ export function ProfilePage({ user }: { user: AuthUser }) {
   return (
     <div className="space-y-5">
       <header>
-        <p className="text-sm font-semibold text-brand-600 dark:text-brand-400">Hesabım</p>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight text-app-text sm:text-3xl">Profil</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-app-text sm:text-3xl">Profil</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-app-text-subtle">
           Temel kullanıcı ve yetki bilgilerinizi görüntüleyin.
         </p>

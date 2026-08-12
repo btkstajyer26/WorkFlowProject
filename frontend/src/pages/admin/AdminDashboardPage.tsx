@@ -17,8 +17,7 @@ export function AdminDashboardPage() {
     <div className="space-y-5">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-semibold text-brand-600 dark:text-brand-400">Sistem Yönetimi</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-app-text sm:text-3xl">Yönetim Özeti</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-app-text sm:text-3xl">Yönetim Özeti</h1>
           <p className="mt-2 text-sm leading-6 text-app-text-muted">Kayıt taleplerini, kullanıcı durumlarını ve son denetim hareketlerini takip edin.</p>
         </div>
         <Link to="/admin/kullanicilar" className="flex min-h-11 items-center justify-center rounded-xl bg-brand-700 px-4 text-sm font-bold text-white hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500">

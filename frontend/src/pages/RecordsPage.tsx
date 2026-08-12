@@ -167,8 +167,7 @@ export function RecordsPage({ role }: { role: UserRole }) {
     <div className="space-y-5">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-semibold text-brand-600 dark:text-brand-400">Kayıtlar</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-app-text sm:text-3xl">{title}</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-app-text sm:text-3xl">{title}</h1>
           <p className="mt-2 text-sm text-app-text-muted">Erişim kapsamınızdaki kayıtları arayın, filtreleyin ve inceleyin.</p>
         </div>
         <div className="flex items-center gap-2 text-sm text-app-text-muted">

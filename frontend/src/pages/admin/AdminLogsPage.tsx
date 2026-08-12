@@ -54,8 +54,7 @@ export function AdminLogsPage() {
     <div className="space-y-5">
       <header>
         <div>
-          <p className="text-sm font-semibold text-brand-600 dark:text-brand-400">Sistem Yönetimi</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-app-text sm:text-3xl">İşlem Kayıtları</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-app-text sm:text-3xl">İşlem Kayıtları</h1>
           <p className="mt-2 text-sm leading-6 text-app-text-muted">Evrak işlemleri ile hesap ve rol değişikliklerini birlikte inceleyin.</p>
         </div>
       </header>
