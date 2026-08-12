@@ -2,7 +2,7 @@
 
 **Tarih:** 12 Ağustos 2026
 **Kapsam:** Yalnızca backend — frontend hariç
-**Kaynak:** `integration/tum-feature-branchleri` dalı (mevcut: 116 sınıf, 272 test)
+**Kaynak:** `integration/tum-feature-branchleri` dalı (mevcut: 116 sınıf, 273 test)
 
 Bir önceki sürüm 10 Ağustos'ta 50 eksik sınıf sayıyordu. O tarihten bu yana
 `auth`, `user`, `record`, `common`, `rbac`, `audit` modülleri, onay akışının
@@ -10,10 +10,14 @@ adaptörleri, onay akışının uca bağlanması, bildirim ve arama modülleri
 tamamlandı. Yeni sınıf listesi bitti; **kalan iş yalnızca teslim öncesi
 kalite maddeleri**.
 
-12 Ağustos'ta `feature/github-ci`, `test`, `feature/record` ve
-`feature/proje-altyapisi` dalları entegre edildi: `attachment` ve `record`
-oturum kimliği sorunları kapandı, GitHub Actions CI eklendi, `auth` modülü
-test kapsamına girdi.
+12 Ağustos'ta `feature/github-ci`, `test`, `feature/record`,
+`feature/proje-altyapisi` ve `feature-ebrar` dalları entegre edildi:
+`attachment` ve `record` oturum kimliği sorunları kapandı, GitHub Actions
+CI eklendi, `auth` modülü test kapsamına girdi.
+
+> `AuditLogRepositoryIntegrationTest` ve `WorkFlowProjectApplicationTests`
+> ayakta bir PostgreSQL ister; ikisi de yalnızca CI'da (veya
+> `docker compose up db` ile) çalışır.
 
 > Sınıf adları öneridir; paket yerleşimi projenin modül bazlı yapısına uyar.
 
@@ -38,7 +42,7 @@ test kapsamına girdi.
 |---|---|---|
 | `common/config/CorsConfig` 🟢 | *Hacer* | **Projede hiç CORS yapılandırması yok.** Frontend `5173`, backend `8080` — ayrı origin. Frontend şu an mock veriyle çalıştığı için sorun görünmüyor; ilk gerçek istekte her uç tarayıcıda bloklanır. İzinli origin ortam değişkeninden okunmalı, `*` verilmemeli (kimlik doğrulamalı istekler için zaten geçersiz). **Entegre edilen dört dalın hiçbirinde yok; Faz 1'in tek açık işlevsel maddesi.** |
 | `templates/mail/*.html` 🟢 | *Melih* | `MailService` ~130 satırlık HTML'i metin bloğu olarak içinde taşıyor. Şablon dosyaya çıkarılmalı (thymeleaf bağımlılığı eklenecek). İşlevsel bir eksik değil, Clean Code maddesi. |
-| `record` · `common` testleri 🟢 | *ilgili sahipler* | 272 testin çoğu `workflow`, `rbac`, `audit`, `search` ve `auth`'ta. Bu iki modülün hiç testi yok. |
+| `record` · `common` testleri 🟢 | *ilgili sahipler* | 273 testin çoğu `workflow`, `rbac`, `audit`, `search` ve `auth`'ta. Bu iki modülün hiç testi yok. |
 | `*Request` DTO'ları 🟡 | *ilgili sahipler* | `@Valid`/`@NotBlank` yalnızca `RecordCreateRequest`, `RecordUpdateRequest` ve `WorkflowActionRequest`'te var. `auth` ve `user` DTO'larında doğrulama yok. |
 
 ---
