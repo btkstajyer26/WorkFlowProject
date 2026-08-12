@@ -1,15 +1,12 @@
 import { useState, type ReactNode } from 'react'
+import { api } from '../api/client'
+import { ApiClientError } from '../api/errors'
 import { mockAdminAuditLogs, mockManagedUsers } from '../mocks/admin'
-import {
-  readMockRegistrationRequests,
-  updateMockRegistrationRequestStatus,
-} from '../mocks/registrationRequests'
-import { roleLabels, type AuthUser, type UserRole, type WorkflowRole } from '../types/auth'
-import type { AdminAuditLog, ManagedUser } from '../types/admin'
-import type { RegistrationRequest } from '../types/registration'
+import { roleLabels, type AuthUser, type UserRole } from '../types/auth'
+import type { AdminAuditLog, CreateManagedUserInput, ManagedUser } from '../types/admin'
 import { AdminContext, type AdminContextValue } from './adminState'
 
-function fullName(user: Pick<ManagedUser | AuthUser | RegistrationRequest, 'firstName' | 'lastName'>) {
+function fullName(user: Pick<ManagedUser | AuthUser, 'firstName' | 'lastName'>) {
   return `${user.firstName} ${user.lastName}`
 }
 
@@ -20,9 +17,6 @@ function createId(prefix: string) {
 export function AdminProvider({ actor, children }: { actor: AuthUser; children: ReactNode }) {
   const [users, setUsers] = useState<ManagedUser[]>(mockManagedUsers)
   const [logs, setLogs] = useState<AdminAuditLog[]>(mockAdminAuditLogs)
-  const [registrationRequests, setRegistrationRequests] = useState<RegistrationRequest[]>(
-    () => readMockRegistrationRequests().filter((request) => request.status === 'PENDING'),
-  )
 
   const addLog = (log: Omit<AdminAuditLog, 'id' | 'createdAt' | 'type'>) => {
     setLogs((current) => [{
@@ -33,63 +27,45 @@ export function AdminProvider({ actor, children }: { actor: AuthUser; children: 
     }, ...current])
   }
 
-  const resolveRegistration = (
-    requestId: string,
-    status: 'APPROVED' | 'REJECTED',
-  ) => {
-    updateMockRegistrationRequestStatus(requestId, status)
-    setRegistrationRequests((current) => current.filter((request) => request.id !== requestId))
-  }
-
-  const approveRegistration = (requestId: string, role: WorkflowRole) => {
-    const request = registrationRequests.find((item) => item.id === requestId)
-    if (!request) throw new Error('Kayıt talebi bulunamadı.')
-    if (users.some((user) => user.email.toLowerCase() === request.email.toLowerCase())) {
-      throw new Error('Bu e-posta adresiyle kayıtlı bir kullanıcı zaten var.')
+  const createUser = async (input: CreateManagedUserInput) => {
+    const response = await api.admin.createUser(input)
+    if (
+      !response.id ||
+      !response.firstName ||
+      !response.lastName ||
+      !response.email ||
+      response.roleName !== 'CALISAN' ||
+      !response.createdAt
+    ) {
+      throw new ApiClientError({
+        code: 'INVALID_USER_RESPONSE',
+        message: 'Sunucu oluşturulan kullanıcı için geçerli bilgiler döndürmedi.',
+        status: 0,
+      })
     }
 
-    const now = new Date().toISOString()
-    const approvedUser: ManagedUser = {
-      id: createId('user'),
-      firstName: request.firstName,
-      lastName: request.lastName,
-      email: request.email,
-      role,
+    const createdUser: ManagedUser = {
+      id: response.id,
+      firstName: response.firstName,
+      lastName: response.lastName,
+      email: response.email,
+      role: response.roleName,
       isActive: true,
       mustChangePassword: false,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: response.createdAt,
+      updatedAt: response.createdAt,
       version: 1,
     }
 
-    const currentDeputy = role === 'BASKAN_YARDIMCISI'
-      ? users.find((user) => user.isActive && user.role === 'BASKAN_YARDIMCISI')
-      : undefined
-
-    setUsers((current) => [approvedUser, ...current.map((user) => currentDeputy?.id === user.id
-      ? { ...user, role: 'CALISAN' as const, updatedAt: now, version: user.version + 1 }
-      : user)])
-    resolveRegistration(requestId, 'APPROVED')
+    setUsers((current) => [createdUser, ...current])
     addLog({
-      action: 'REGISTRATION_APPROVED',
-      actionLabel: 'Kayıt talebi onaylandı',
+      action: 'USER_CREATED',
+      actionLabel: 'Hesap oluşturuldu',
       actor: fullName(actor),
-      target: fullName(approvedUser),
-      description: `${roleLabels[approvedUser.role]} rolüyle kullanıcı hesabı etkinleştirildi${currentDeputy ? `; ${fullName(currentDeputy)} Çalışan rolüne alındı` : ''}.`,
+      target: fullName(createdUser),
+      description: 'Çalışan rolüyle yeni kullanıcı hesabı oluşturuldu.',
     })
-  }
-
-  const rejectRegistration = (requestId: string) => {
-    const request = registrationRequests.find((item) => item.id === requestId)
-    if (!request) throw new Error('Kayıt talebi bulunamadı.')
-    resolveRegistration(requestId, 'REJECTED')
-    addLog({
-      action: 'REGISTRATION_REJECTED',
-      actionLabel: 'Kayıt talebi reddedildi',
-      actor: fullName(actor),
-      target: fullName(request),
-      description: `${request.email} adresiyle gönderilen hesap talebi reddedildi.`,
-    })
+    return createdUser
   }
 
   const changeUserRole = (userId: string, role: UserRole) => {
@@ -162,9 +138,7 @@ export function AdminProvider({ actor, children }: { actor: AuthUser; children: 
   const value: AdminContextValue = {
     users,
     logs,
-    registrationRequests,
-    approveRegistration,
-    rejectRegistration,
+    createUser,
     changeUserRole,
     setUserActive,
   }

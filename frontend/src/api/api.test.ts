@@ -183,7 +183,6 @@ describe('OpenAPI istemcisi ve MSW sözleşmesi', () => {
       lastName: 'Kullanıcı',
       email: 'yeni.kullanici@kurum.gov.tr',
       password: 'demo123',
-      roleName: 'CALISAN',
     })).rejects.toMatchObject({ status: 403 })
 
     await loginAs('admin@kurum.gov.tr')
@@ -192,7 +191,6 @@ describe('OpenAPI istemcisi ve MSW sözleşmesi', () => {
       lastName: 'Kullanıcı',
       email: 'yeni.kullanici@kurum.gov.tr',
       password: 'demo123',
-      roleName: 'CALISAN',
     })
     expect(created).toMatchObject({
       email: 'yeni.kullanici@kurum.gov.tr',

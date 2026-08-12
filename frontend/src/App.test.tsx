@@ -66,7 +66,7 @@ describe('App authorization boundaries', () => {
     await seedAuthenticatedUser('ADMIN')
     renderApp('/admin')
     expect(await screen.findByRole('heading', { name: 'Yönetim Özeti' })).toBeInTheDocument()
-    expect(screen.getByText('Onay bekleyen')).toBeInTheDocument()
+    expect(screen.getByText('Yetkili hesap')).toBeInTheDocument()
     expect(screen.queryByText('Pasif hesap')).not.toBeInTheDocument()
   })
 

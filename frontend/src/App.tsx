@@ -14,7 +14,6 @@ import {
 } from './auth/authSession'
 import { CategoryProvider } from './context/CategoryContext'
 import { getDemoUserByRole } from './mocks/users'
-import { createMockRegistrationRequest } from './mocks/registrationRequests'
 import { DashboardPage } from './pages/DashboardPage'
 import { ErrorStatePage } from './pages/ErrorStatePage'
 import { LoginPage } from './pages/LoginPage'
@@ -62,7 +61,6 @@ function App() {
                 <LoginPage
                   user={user}
                   onLogin={handleLogin}
-                  onRegister={createMockRegistrationRequest}
                 />
               )}
             />

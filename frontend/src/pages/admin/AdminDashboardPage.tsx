@@ -1,15 +1,16 @@
-import { ClipboardCheck, FileClock, UserCheck, UsersRound } from 'lucide-react'
+import { FileClock, ShieldCheck, UserCheck, UsersRound } from 'lucide-react'
 import { Link } from 'react-router'
 import { useAdmin } from '../../context/adminState'
 import { roleLabels } from '../../types/auth'
 
 export function AdminDashboardPage() {
-  const { users, logs, registrationRequests } = useAdmin()
+  const { users, logs } = useAdmin()
   const activeUsers = users.filter((user) => user.isActive)
+  const privilegedUsers = activeUsers.filter((user) => user.role !== 'CALISAN')
   const cards = [
     { label: 'Toplam kullanıcı', value: users.length, icon: UsersRound, tone: 'bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300' },
-    { label: 'Onay bekleyen', value: registrationRequests.length, icon: ClipboardCheck, tone: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300' },
     { label: 'Aktif hesap', value: activeUsers.length, icon: UserCheck, tone: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300' },
+    { label: 'Yetkili hesap', value: privilegedUsers.length, icon: ShieldCheck, tone: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300' },
     { label: 'Denetim kaydı', value: logs.length, icon: FileClock, tone: 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300' },
   ]
 
@@ -18,10 +19,10 @@ export function AdminDashboardPage() {
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-app-text sm:text-3xl">Yönetim Özeti</h1>
-          <p className="mt-2 text-sm leading-6 text-app-text-muted">Kayıt taleplerini, kullanıcı durumlarını ve son denetim hareketlerini takip edin.</p>
+          <p className="mt-2 text-sm leading-6 text-app-text-muted">Kullanıcı hesaplarını, rol dağılımını ve son denetim hareketlerini takip edin.</p>
         </div>
         <Link to="/admin/kullanicilar" className="flex min-h-11 items-center justify-center rounded-xl bg-brand-700 px-4 text-sm font-bold text-white hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500">
-          Kayıt Taleplerini Yönet
+          Kullanıcıları Yönet
         </Link>
       </header>
 
