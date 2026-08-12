@@ -68,7 +68,9 @@ Bu nedenle kayıt ekranlarının mevcut `WorkflowContext` state'i hemen kaldır�
 - signup ve kayıt talebi yönetimi;
 - zengin kayıt detay cevabı ya da gerekli ayrı endpointler;
 - kayda ait dosyaları listeleme;
-- tüm bildirimleri listeleme ve tümünü tek istekte okundu yapma endpointleri tamamlanana kadar bildirim merkezinin UI state'i.
+- okunmuş bildirim geçmişini de sağlayan `GET /api/notifications` listeleme endpointi.
+
+Bildirimleri topluca okundu yapma işlemi kapsam dışıdır. Frontend “Tümü” ve “Okunmamış” görünümlerini korur; `GET /api/notifications` tamamlandığında geçmiş listesi gerçek API'ye taşınır. Okuma işlemi yalnızca `PUT /api/notifications/{id}/read` ile tekil olarak yapılır.
 
 ## Mevcut OpenAPI açıklıkları
 

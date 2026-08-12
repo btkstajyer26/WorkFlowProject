@@ -1,4 +1,4 @@
-import { Bell, BellRing, Check, CheckCheck, ChevronRight, Inbox } from 'lucide-react'
+import { Bell, BellRing, Check, ChevronRight, Inbox } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import type { NotificationItem } from '../types/notification'
@@ -6,7 +6,6 @@ import type { NotificationItem } from '../types/notification'
 type NotificationsPageProps = {
   notifications: NotificationItem[]
   onMarkRead: (notificationId: string) => void
-  onMarkAllRead: () => void
 }
 
 const dateFormatter = new Intl.DateTimeFormat('tr-TR', {
@@ -20,11 +19,13 @@ const dateFormatter = new Intl.DateTimeFormat('tr-TR', {
 export function NotificationsPage({
   notifications,
   onMarkRead,
-  onMarkAllRead,
 }: NotificationsPageProps) {
   const [searchParams, setSearchParams] = useSearchParams()
   const unreadOnly = searchParams.get('gorunum') === 'okunmamis'
-  const unreadCount = notifications.reduce((count, notification) => count + Number(!notification.isRead), 0)
+  const unreadCount = notifications.reduce(
+    (count, notification) => count + Number(!notification.isRead),
+    0,
+  )
   const visibleNotifications = unreadOnly
     ? notifications.filter((notification) => !notification.isRead)
     : notifications
@@ -36,28 +37,17 @@ export function NotificationsPage({
 
   return (
     <div className="space-y-5">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-app-text sm:text-3xl">Bildirimleriniz</h1>
-          <p className="mt-2 text-sm text-app-text-subtle">
-            Kayıtlarınızdaki durum değişikliklerini ve bekleyen işlemleri buradan takip edin.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onMarkAllRead}
-          disabled={unreadCount === 0}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-app-border bg-app-surface px-4 text-sm font-bold text-app-text-secondary shadow-sm transition hover:border-brand-200 dark:hover:border-brand-700/60 hover:text-brand-700 dark:hover:text-brand-300 disabled:cursor-not-allowed disabled:bg-app-surface-muted disabled:text-app-text-faint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
-        >
-          <CheckCheck className="size-[18px]" aria-hidden="true" />
-          Tümünü okundu yap
-        </button>
+      <header>
+        <h1 className="text-2xl font-bold tracking-tight text-app-text sm:text-3xl">Bildirimleriniz</h1>
+        <p className="mt-2 text-sm text-app-text-subtle">
+          Kayıtlarınızdaki durum değişikliklerini ve bekleyen işlemleri buradan takip edin.
+        </p>
       </header>
 
       <section className="overflow-hidden rounded-2xl border border-app-border bg-app-surface shadow-sm">
         <div className="flex flex-col gap-4 border-b border-app-border p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <div className="flex items-center gap-3">
-            <span className="flex size-11 items-center justify-center rounded-xl bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300">
+            <span className="flex size-11 items-center justify-center rounded-xl bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300">
               <BellRing className="size-5" aria-hidden="true" />
             </span>
             <div>
@@ -90,20 +80,22 @@ export function NotificationsPage({
           </ul>
         ) : (
           <div className="flex min-h-80 flex-col items-center justify-center p-6 text-center">
-            <span className="flex size-14 items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
+            <span className="flex size-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
               <Inbox className="size-6" aria-hidden="true" />
             </span>
             <h2 className="mt-4 font-bold text-app-text">Okunmamış bildiriminiz yok</h2>
             <p className="mt-1 max-w-sm text-sm leading-6 text-app-text-subtle">
               Yeni bir kayıt hareketi olduğunda bildirimleriniz burada görüntülenecek.
             </p>
-            <button
-              type="button"
-              onClick={() => setView(false)}
-              className="mt-5 min-h-11 rounded-xl border border-app-border px-4 text-sm font-bold text-app-text-secondary transition hover:bg-app-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
-            >
-              Tüm bildirimleri göster
-            </button>
+            {unreadOnly ? (
+              <button
+                type="button"
+                onClick={() => setView(false)}
+                className="mt-5 min-h-11 rounded-xl border border-app-border px-4 text-sm font-bold text-app-text-secondary transition hover:bg-app-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+              >
+                Tüm bildirimleri göster
+              </button>
+            ) : null}
           </div>
         )}
       </section>
@@ -125,7 +117,9 @@ function NotificationRow({
       ) : null}
       <div className="flex items-start gap-3 sm:gap-4">
         <span className={`mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl ${
-          notification.isRead ? 'bg-app-surface-strong text-app-text-subtle' : 'bg-brand-100 dark:bg-brand-900/45 text-brand-700 dark:text-brand-300'
+          notification.isRead
+            ? 'bg-app-surface-strong text-app-text-subtle'
+            : 'bg-brand-100 text-brand-700 dark:bg-brand-900/45 dark:text-brand-300'
         }`}>
           <Bell className="size-[18px]" aria-hidden="true" />
         </span>
@@ -147,7 +141,7 @@ function NotificationRow({
             <Link
               to={`/kayitlar/${notification.recordId}`}
               onClick={() => onMarkRead(notification.id)}
-              className="inline-flex min-h-9 items-center gap-1 rounded-lg bg-brand-50 dark:bg-brand-900/30 px-3 text-xs font-bold text-brand-700 dark:text-brand-300 transition hover:bg-brand-100 dark:hover:bg-brand-900/45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+              className="inline-flex min-h-9 items-center gap-1 rounded-lg bg-brand-50 px-3 text-xs font-bold text-brand-700 transition hover:bg-brand-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 dark:bg-brand-900/30 dark:text-brand-300 dark:hover:bg-brand-900/45"
             >
               İlgili kaydı görüntüle
               <ChevronRight className="size-3.5" aria-hidden="true" />
@@ -184,7 +178,9 @@ function FilterButton({
       onClick={onClick}
       aria-pressed={active}
       className={`flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-bold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ${
-        active ? 'bg-app-surface text-brand-700 dark:text-brand-300 shadow-sm' : 'text-app-text-subtle hover:text-app-text-strong'
+        active
+          ? 'bg-app-surface text-brand-700 shadow-sm dark:text-brand-300'
+          : 'text-app-text-subtle hover:text-app-text-strong'
       }`}
     >
       {children}

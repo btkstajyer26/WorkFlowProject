@@ -370,12 +370,13 @@ Güncel OpenAPI sözleşmesinde kesinleşen ve MSW ile modellenen işlemler:
 | `GET` | `/api/notifications/unread/count` | Menü rozeti için okunmamış bildirim sayısını alır |
 | `PUT` | `/api/notifications/{id}/read` | Kullanıcıya ait tek bildirimi okundu yapar |
 
-Frontend bildirim merkezinin mevcut “Tümü” ve “Tümünü okundu yap” davranışlarını gerçek API'ye eksiksiz taşıyabilmek için aşağıdaki iki işlem hâlâ beklenmektedir:
+Okunan bildirimlerin geçmişten yeniden görüntülenebilmesi için aşağıdaki listeleme işlemi gereklidir ve backend tarafından hâlâ beklenmektedir:
 
 | Metot | Beklenen adres | Amaç |
 |---|---|---|
-| `GET` | `/api/notifications` | JWT kullanıcısının okunmuş ve okunmamış tüm bildirimlerini alır |
-| `PUT` | `/api/notifications/read-all` | Kullanıcının tüm okunmamış bildirimlerini tek istekte okundu yapar |
+| `GET` | `/api/notifications` | JWT kullanıcısının okunmuş ve okunmamış bildirimlerini tercihen sayfalı olarak getirir |
+
+`PUT /api/notifications/read-all` ilk sürüm kapsamı dışındadır. Frontend “Tümü” ve “Okunmamış” görünümlerini sunar ancak bildirimleri yalnızca tek tek okundu yapar.
 
 Mevcut `NotificationResponse`; `id`, `recordId`, `message`, `notificationType`, `read` ve `createdAt` alanlarını taşır. Kullanıcı kimliği JWT'den belirlenir ve cevapta ayrıca gönderilmez. İlk sürüm REST/polling ile çalışabilir; SSE veya WebSocket sonraki sürüme bırakılabilir.
 

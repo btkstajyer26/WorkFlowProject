@@ -27,7 +27,6 @@ export type WorkflowContextValue = {
   deleteDraft: (recordId: string) => void
   applyAction: (recordId: string, input: Omit<WorkflowActionInput, 'actor'>) => WorkflowRecord
   markNotificationRead: (notificationId: string) => void
-  markAllNotificationsRead: () => void
 }
 
 export const WorkflowContext = createContext<WorkflowContextValue | null>(null)

@@ -25,35 +25,34 @@ const notifications: NotificationItem[] = [
 ]
 
 describe('NotificationsPage', () => {
-  it('tek bildirimi ve tüm bildirimleri okundu yapma aksiyonlarını iletir', async () => {
+  it('tek bildirimi okundu yapma aksiyonunu iletir', async () => {
     const user = userEvent.setup()
     const onMarkRead = vi.fn()
-    const onMarkAllRead = vi.fn()
 
     render(
       <MemoryRouter>
         <NotificationsPage
           notifications={notifications}
           onMarkRead={onMarkRead}
-          onMarkAllRead={onMarkAllRead}
         />
       </MemoryRouter>,
     )
 
     await user.click(screen.getByRole('button', { name: 'Okundu yap' }))
     expect(onMarkRead).toHaveBeenCalledWith('notification-unread')
-
-    await user.click(screen.getByRole('button', { name: 'Tümünü okundu yap' }))
-    expect(onMarkAllRead).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('button', { name: 'Tümünü okundu yap' })).not.toBeInTheDocument()
   })
 
-  it('okunmamış filtresinde yalnız okunmamış bildirimi gösterir', async () => {
+  it('Tümü ve Okunmamış görünümleri arasında geçiş yapar', async () => {
     const user = userEvent.setup()
     render(
       <MemoryRouter>
-        <NotificationsPage notifications={notifications} onMarkRead={() => undefined} onMarkAllRead={() => undefined} />
+        <NotificationsPage notifications={notifications} onMarkRead={() => undefined} />
       </MemoryRouter>,
     )
+
+    expect(screen.getByText('İncelemeniz gereken yeni bir kayıt var.')).toBeInTheDocument()
+    expect(screen.getByText('Kaydınız sonuçlandırıldı.')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /Okunmamış/ }))
     expect(screen.getByText('İncelemeniz gereken yeni bir kayıt var.')).toBeInTheDocument()

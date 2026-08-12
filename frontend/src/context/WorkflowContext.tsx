@@ -164,7 +164,10 @@ export function WorkflowProvider({ user, children }: { user: AuthUser; children:
     records,
     visibleRecords: records.filter((record) => canUserViewRecord(record, user)),
     notifications,
-    unreadNotificationCount: notifications.reduce((count, notification) => count + Number(!notification.isRead), 0),
+    unreadNotificationCount: notifications.reduce(
+      (count, notification) => count + Number(!notification.isRead),
+      0,
+    ),
     createDraft,
     createAndSubmit,
     updateEditableRecord,
@@ -174,13 +177,6 @@ export function WorkflowProvider({ user, children }: { user: AuthUser; children:
     markNotificationRead: (notificationId) => {
       setAllNotifications((current) => current.map((notification) =>
         notification.id === notificationId && notification.userId === user.id
-          ? { ...notification, isRead: true }
-          : notification,
-      ))
-    },
-    markAllNotificationsRead: () => {
-      setAllNotifications((current) => current.map((notification) =>
-        notification.userId === user.id && !notification.isRead
           ? { ...notification, isRead: true }
           : notification,
       ))

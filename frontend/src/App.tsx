@@ -157,7 +157,6 @@ function WorkflowApplication({
     notifications,
     unreadNotificationCount,
     markNotificationRead,
-    markAllNotificationsRead,
   } = useWorkflow()
 
   return (
@@ -173,7 +172,6 @@ function WorkflowApplication({
             <NotificationsPage
               notifications={notifications}
               onMarkRead={markNotificationRead}
-              onMarkAllRead={markAllNotificationsRead}
             />
           }
         />
