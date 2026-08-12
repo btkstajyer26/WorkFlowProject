@@ -264,13 +264,23 @@ class AuthorizationMatrixTest {
     @DisplayName("Kullanici yonetimi yalnizca Admin")
     class KullaniciYonetimi {
 
+        /**
+         * Govde bilerek gecerli: DTO dogrulamasi argüman cozumlemesi sirasinda
+         * calistigi icin gecersiz govde yetki kontrolune hic ulasmadan 400
+         * dondurur. Burada olculmek istenen yetki reddidir.
+         */
+        private static final String GECERLI_GOVDE = """
+                {"firstName":"Test","lastName":"Kullanici",
+                 "email":"test@ornek.test","password":"sifre123"}
+                """;
+
         @Test
         @WithMockUser(roles = "CALISAN")
         @DisplayName("Calisan kullanici olusturamaz")
         void calisanKullaniciOlusturamaz() throws Exception {
             mockMvc.perform(post("/api/admin/users")
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content("{}"))
+                            .content(GECERLI_GOVDE))
                     .andExpect(status().isForbidden());
         }
 
@@ -280,7 +290,7 @@ class AuthorizationMatrixTest {
         void baskanKullaniciOlusturamaz() throws Exception {
             mockMvc.perform(post("/api/admin/users")
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content("{}"))
+                            .content(GECERLI_GOVDE))
                     .andExpect(status().isForbidden());
         }
     }

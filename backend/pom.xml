@@ -129,6 +129,12 @@
 			<artifactId>tika-core</artifactId>
 			<version>2.9.2</version>
 		</dependency>
+
+		<!-- DTO'lardaki @Valid / @NotBlank / @Email dogrulamalari icin. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-validation</artifactId>
+		</dependency>
 	</dependencies>
 
 	<build>

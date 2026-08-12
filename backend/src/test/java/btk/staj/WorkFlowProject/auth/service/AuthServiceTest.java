@@ -72,6 +72,7 @@ class AuthServiceTest {
         when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(user));
         when(user.getPasswordHash()).thenReturn("hashed-pass");
         when(passwordEncoder.matches("sifre123", "hashed-pass")).thenReturn(true);
+        when(user.isActive()).thenReturn(true);
         when(user.getId()).thenReturn(userId);
         when(user.getEmail()).thenReturn("test@example.com");
         when(user.getRole()).thenReturn(role);
@@ -124,6 +125,25 @@ class AuthServiceTest {
         InvalidCredentialsException ex = assertThrows(InvalidCredentialsException.class, () -> authService.login(request));
 
         assertEquals("Email veya şifre hatalı", ex.getMessage());
+        verify(tokenRepository, never()).save(any());
+        verifyNoInteractions(jwtUtil);
+    }
+
+    @Test
+    void login_hesapPasifse_dogruSifreyleBileExceptionFirlatmali() {
+        LoginRequest request = new LoginRequest();
+        request.setEmail("pasif@example.com");
+        request.setPassword("sifre123");
+
+        when(userRepository.findByEmail("pasif@example.com")).thenReturn(Optional.of(user));
+        when(user.getPasswordHash()).thenReturn("hashed-pass");
+        when(passwordEncoder.matches("sifre123", "hashed-pass")).thenReturn(true);
+        when(user.isActive()).thenReturn(false);
+
+        InvalidCredentialsException ex =
+                assertThrows(InvalidCredentialsException.class, () -> authService.login(request));
+
+        assertEquals("Hesap pasif durumda", ex.getMessage());
         verify(tokenRepository, never()).save(any());
         verifyNoInteractions(jwtUtil);
     }

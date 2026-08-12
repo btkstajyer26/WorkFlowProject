@@ -39,6 +39,11 @@ public class AuthService {
             throw new InvalidCredentialsException("Email veya şifre hatalı");
         }
 
+        // Pasif hesap dogru parolayla da giris yapamaz.
+        if (!user.isActive()) {
+            throw new InvalidCredentialsException("Hesap pasif durumda");
+        }
+
         String accessToken = jwtUtil.generateAccessToken(user.getId(), user.getEmail(), user.getRole().getName());
         String refreshToken = jwtUtil.generateRefreshToken(user.getId());
 
@@ -74,5 +79,7 @@ public class AuthService {
             token.setRevoked(true);
             tokenRepository.save(token);
         });
+
     }
+
 }

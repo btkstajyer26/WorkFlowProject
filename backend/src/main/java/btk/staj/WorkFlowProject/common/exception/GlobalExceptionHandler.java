@@ -1,10 +1,13 @@
 package btk.staj.WorkFlowProject.common.exception;
 
+import btk.staj.WorkFlowProject.user.service.AdminLimitExceededException;
+import btk.staj.WorkFlowProject.user.service.RoleNotFoundException;
 import btk.staj.WorkFlowProject.workflow.exception.WorkflowApplicationException;
 import btk.staj.WorkFlowProject.workflow.exception.WorkflowRecordNotFoundException;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowErrorCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -43,6 +46,27 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessRuleException.class)
     public ResponseEntity<ApiError> handleBusinessRule(BusinessRuleException ex) {
         return build("BUSINESS_RULE_VIOLATION", ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
+    // ---------- Kullanici yonetimi ----------
+
+    @ExceptionHandler(RoleNotFoundException.class)
+    public ResponseEntity<ApiError> handleRoleNotFound(RoleNotFoundException ex) {
+        return build("ROLE_NOT_FOUND", ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(AdminLimitExceededException.class)
+    public ResponseEntity<ApiError> handleAdminLimit(AdminLimitExceededException ex) {
+        return build("ADMIN_LIMIT_EXCEEDED", ex.getMessage(), HttpStatus.CONFLICT);
+    }
+
+    /**
+     * Benzersizlik kisiti ihlali; pratikte kayitli bir e-posta ile ikinci
+     * hesap acilmasi. Ayrinti sizdirmamak icin mesaj sabittir.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiError> handleDataIntegrity(DataIntegrityViolationException ex) {
+        return build("CONFLICT", "Bu kayıt zaten mevcut", HttpStatus.CONFLICT);
     }
 
     // ---------- Guvenlik ----------
