@@ -11,6 +11,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.MediaType;
 
 import java.util.UUID;
 
@@ -22,9 +23,9 @@ public class FileController {
     private final FileService fileService;
 
     @PreAuthorize("hasRole('CALISAN')")
-    @PostMapping("/upload")
+    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> uploadFile(
-            @RequestParam("file") MultipartFile file,
+            @RequestPart("file") MultipartFile file, // @RequestParam yerine @RequestPart yapıldı
             @RequestParam("recordId") UUID recordId,
             @AuthenticationPrincipal AuthenticatedUser currentUser) {
 
