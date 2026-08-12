@@ -2,7 +2,7 @@
 
 **Tarih:** 12 Ağustos 2026
 **Kapsam:** Yalnızca backend — frontend hariç
-**Kaynak:** `integration/tum-feature-branchleri` dalı (mevcut: 116 sınıf, 246 test)
+**Kaynak:** `integration/tum-feature-branchleri` dalı (mevcut: 116 sınıf, 272 test)
 
 Bir önceki sürüm 10 Ağustos'ta 50 eksik sınıf sayıyordu. O tarihten bu yana
 `auth`, `user`, `record`, `common`, `rbac`, `audit` modülleri, onay akışının
@@ -11,8 +11,9 @@ tamamlandı. Yeni sınıf listesi bitti; **kalan iş yalnızca teslim öncesi
 kalite maddeleri**.
 
 12 Ağustos'ta `feature/github-ci`, `test`, `feature/record` ve
-`feature/proje-altyapisi` dalları entegre edildi: oturum kimliği sorunları
-(aşağıdaki 2. ve 3. maddeler) kapandı, GitHub Actions CI eklendi.
+`feature/proje-altyapisi` dalları entegre edildi: `attachment` ve `record`
+oturum kimliği sorunları kapandı, GitHub Actions CI eklendi, `auth` modülü
+test kapsamına girdi.
 
 > Sınıf adları öneridir; paket yerleşimi projenin modül bazlı yapısına uyar.
 
@@ -37,7 +38,7 @@ kalite maddeleri**.
 |---|---|---|
 | `common/config/CorsConfig` 🟢 | *Hacer* | **Projede hiç CORS yapılandırması yok.** Frontend `5173`, backend `8080` — ayrı origin. Frontend şu an mock veriyle çalıştığı için sorun görünmüyor; ilk gerçek istekte her uç tarayıcıda bloklanır. İzinli origin ortam değişkeninden okunmalı, `*` verilmemeli (kimlik doğrulamalı istekler için zaten geçersiz). **Entegre edilen dört dalın hiçbirinde yok; Faz 1'in tek açık işlevsel maddesi.** |
 | `templates/mail/*.html` 🟢 | *Melih* | `MailService` ~130 satırlık HTML'i metin bloğu olarak içinde taşıyor. Şablon dosyaya çıkarılmalı (thymeleaf bağımlılığı eklenecek). İşlevsel bir eksik değil, Clean Code maddesi. |
-| `record` · `auth` · `common` testleri 🟢 | *ilgili sahipler* | 246 testin çoğu `workflow`, `rbac`, `audit` ve `search`'te. Bu üç modülün hiç testi yok. |
+| `record` · `common` testleri 🟢 | *ilgili sahipler* | 272 testin çoğu `workflow`, `rbac`, `audit`, `search` ve `auth`'ta. Bu iki modülün hiç testi yok. |
 | `*Request` DTO'ları 🟡 | *ilgili sahipler* | `@Valid`/`@NotBlank` yalnızca `RecordCreateRequest`, `RecordUpdateRequest` ve `WorkflowActionRequest`'te var. `auth` ve `user` DTO'larında doğrulama yok. |
 
 ---
@@ -59,6 +60,7 @@ kalite maddeleri**.
 | `attachment` — oturum kimliği | ✅ `FileController` `uploadedBy`/`deletedBy` yerine `@AuthenticationPrincipal` kullanıyor; kullanıcı başkası adına yükleyip silemiyor |
 | `record` — oturum kimliği | ✅ Sahte UUID kaldırıldı. Oturum `SecurityContextHolder`'dan okunuyor, `getRecordById` `RecordAccessPolicy.assertCanView` ile korunuyor, listeleme sorgusuna rol bazlı kapsam predicate'i eklendi, `RuntimeException`'lar tipli exception'larla değiştirildi |
 | `auth` — hata kodu | ✅ Hatalı giriş 500 yerine 401 dönüyor (`InvalidCredentialsException` → `INVALID_CREDENTIALS`) |
+| `auth` — testler | ✅ 26 test: `AuthControllerTest`, `AuthServiceTest`, `JwtAuthenticationFilterTest`, `CustomUserDetailsServiceTest`. Testler gerçek `GlobalExceptionHandler` üzerinden `ApiError` sözleşmesini doğruluyor |
 | CI | ✅ GitHub Actions: PostgreSQL'li backend `mvn verify` + frontend lint/test/build; Maven Wrapper sabitlendi |
 | `pom.xml` | ✅ Duplike `spring-boot-starter-web` ve ikinci `maven-compiler-plugin` tanımı kaldırıldı |
 
