@@ -2,6 +2,7 @@ package btk.staj.WorkFlowProject.auth.service;
 
 import btk.staj.WorkFlowProject.auth.dto.LoginRequest;
 import btk.staj.WorkFlowProject.auth.dto.LoginResponse;
+import btk.staj.WorkFlowProject.common.exception.InvalidCredentialsException;
 import btk.staj.WorkFlowProject.rbac.config.JwtUtil;
 import btk.staj.WorkFlowProject.rbac.Role;
 import btk.staj.WorkFlowProject.user.entity.Token;
@@ -103,7 +104,7 @@ class AuthServiceTest {
 
         when(userRepository.findByEmail("olmayan@example.com")).thenReturn(Optional.empty());
 
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> authService.login(request));
+        InvalidCredentialsException ex = assertThrows(InvalidCredentialsException.class, () -> authService.login(request));
 
         assertEquals("Email veya şifre hatalı", ex.getMessage());
         verify(tokenRepository, never()).save(any());
@@ -120,7 +121,7 @@ class AuthServiceTest {
         when(user.getPasswordHash()).thenReturn("hashed-pass");
         when(passwordEncoder.matches("yanlis-sifre", "hashed-pass")).thenReturn(false);
 
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> authService.login(request));
+        InvalidCredentialsException ex = assertThrows(InvalidCredentialsException.class, () -> authService.login(request));
 
         assertEquals("Email veya şifre hatalı", ex.getMessage());
         verify(tokenRepository, never()).save(any());
@@ -153,7 +154,7 @@ class AuthServiceTest {
     void refresh_tokenBulunamazsa_exceptionFirlatmali() {
         when(tokenRepository.findByToken("olmayan-token")).thenReturn(Optional.empty());
 
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> authService.refresh("olmayan-token"));
+        InvalidCredentialsException ex = assertThrows(InvalidCredentialsException.class, () -> authService.refresh("olmayan-token"));
 
         assertEquals("Geçersiz refresh token", ex.getMessage());
         verifyNoInteractions(jwtUtil);
@@ -166,7 +167,7 @@ class AuthServiceTest {
         when(tokenRepository.findByToken("revoked-token")).thenReturn(Optional.of(storedToken));
         when(storedToken.isRevoked()).thenReturn(true);
 
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> authService.refresh("revoked-token"));
+        InvalidCredentialsException ex = assertThrows(InvalidCredentialsException.class, () -> authService.refresh("revoked-token"));
 
         assertEquals("Refresh token süresi dolmuş veya geçersiz", ex.getMessage());
         verifyNoInteractions(jwtUtil);
@@ -180,7 +181,7 @@ class AuthServiceTest {
         when(storedToken.isRevoked()).thenReturn(false);
         when(storedToken.getExpiresAt()).thenReturn(LocalDateTime.now().minusDays(1));
 
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> authService.refresh("expired-token"));
+        InvalidCredentialsException ex = assertThrows(InvalidCredentialsException.class, () -> authService.refresh("expired-token"));
 
         assertEquals("Refresh token süresi dolmuş veya geçersiz", ex.getMessage());
         verifyNoInteractions(jwtUtil);

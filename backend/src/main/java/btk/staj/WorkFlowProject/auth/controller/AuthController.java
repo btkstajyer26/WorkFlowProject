@@ -5,6 +5,7 @@ import btk.staj.WorkFlowProject.auth.dto.LoginResponse;
 import btk.staj.WorkFlowProject.auth.dto.LogoutRequest;
 import btk.staj.WorkFlowProject.auth.dto.RefreshTokenRequest;
 import btk.staj.WorkFlowProject.auth.service.AuthService;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -27,7 +28,11 @@ public class AuthController {
         return authService.refresh(request.getRefreshToken());
     }
 
-    @PostMapping("/logout")
+    /**
+     * Charset acikca bildirilmezse Spring'in String donusturucusu ISO-8859-1
+     * kullanir ve mesajdaki Turkce karakterler bozulur.
+     */
+    @PostMapping(value = "/logout", produces = MediaType.TEXT_PLAIN_VALUE + ";charset=UTF-8")
     public String logout(@RequestBody LogoutRequest request) {
         authService.logout(request.getRefreshToken());
         return "Çıkış yapıldı";
