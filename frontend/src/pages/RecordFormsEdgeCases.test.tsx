@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { describe, expect, it } from 'vitest'
@@ -82,5 +82,51 @@ describe('Kayıt formu edge-case davranışları', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('Aynı dosya birden fazla kez eklenemez')
     expect(screen.getAllByText('teklif.pdf')).toHaveLength(1)
+  })
+
+  it('yeni kayıt alanına desteklenen dosyaları sürükleyip bırakır', async () => {
+    const user = userEvent.setup()
+    await renderEmployeeApp('/dashboard')
+
+    await user.click(await screen.findByRole('button', { name: 'Yeni Kayıt' }))
+    const dropZone = screen.getByRole('group', { name: 'Ek dosya yükleme alanı' })
+    const files = [
+      new File(['pdf'], 'belge.pdf', { type: 'application/pdf' }),
+      new File(['docx'], 'rapor.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }),
+      new File(['doc'], 'eski-rapor.doc', { type: 'application/msword' }),
+      new File(['xlsx'], 'tablo.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+      new File(['xls'], 'eski-tablo.xls', { type: 'application/vnd.ms-excel' }),
+      new File(['png'], 'gorsel.png', { type: 'image/png' }),
+      new File(['jpeg'], 'fotograf.jpeg', { type: 'image/jpeg' }),
+      new File(['jpg'], 'tarama.jpg', { type: 'image/jpeg' }),
+    ]
+    const dataTransfer = { files, types: ['Files'], dropEffect: 'none' }
+
+    fireEvent.dragEnter(dropZone, { dataTransfer })
+    expect(screen.getByText('Dosyaları bırakın')).toBeInTheDocument()
+    fireEvent.drop(dropZone, { dataTransfer })
+
+    const attachmentList = screen.getByRole('list', { name: 'Eklenen dosyalar' })
+    files.forEach((file) => expect(within(attachmentList).getByText(file.name)).toBeInTheDocument())
+    expect(screen.queryByText('Dosyaları bırakın')).not.toBeInTheDocument()
+  })
+
+  it('sürüklenen desteklenmeyen dosyayı reddeder ve tekrar dosya eklemez', async () => {
+    const user = userEvent.setup()
+    await renderEmployeeApp('/dashboard')
+
+    await user.click(await screen.findByRole('button', { name: 'Yeni Kayıt' }))
+    const dropZone = screen.getByRole('group', { name: 'Ek dosya yükleme alanı' })
+    const pdf = new File(['pdf'], 'teklif.pdf', { type: 'application/pdf', lastModified: 10 })
+
+    fireEvent.drop(dropZone, { dataTransfer: { files: [pdf], types: ['Files'] } })
+    fireEvent.drop(dropZone, { dataTransfer: { files: [pdf], types: ['Files'] } })
+    expect(screen.getByRole('alert')).toHaveTextContent('Aynı dosya birden fazla kez eklenemez')
+    expect(screen.getAllByText('teklif.pdf')).toHaveLength(1)
+
+    const unsupportedFile = new File(['text'], 'notlar.txt', { type: 'text/plain' })
+    fireEvent.drop(dropZone, { dataTransfer: { files: [unsupportedFile], types: ['Files'] } })
+    expect(screen.getByRole('alert')).toHaveTextContent('“notlar.txt” desteklenmiyor')
+    expect(screen.queryByText('notlar.txt')).not.toBeInTheDocument()
   })
 })

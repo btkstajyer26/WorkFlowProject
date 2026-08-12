@@ -51,6 +51,7 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
   const [attachments, setAttachments] = useState<File[]>([])
   const [attachmentsDirty, setAttachmentsDirty] = useState(false)
   const [attachmentError, setAttachmentError] = useState<string | null>(null)
+  const [attachmentDragActive, setAttachmentDragActive] = useState(false)
   const [feedback, setFeedback] = useState<string | null>(null)
   const [draftSaved, setDraftSaved] = useState(false)
   const [draftId, setDraftId] = useState<string | null>(null)
@@ -63,6 +64,7 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
   const attentionTimerRef = useRef<number | null>(null)
   const discardDialogRef = useRef<HTMLElement>(null)
   const continueEditingRef = useRef<HTMLButtonElement>(null)
+  const attachmentDragDepthRef = useRef(0)
   const wasOpenRef = useRef(false)
   const lastRequestIdRef = useRef(requestId)
   const minimizedRef = useRef(minimized)
@@ -120,6 +122,8 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
     setAttachments([])
     setAttachmentsDirty(false)
     setAttachmentError(null)
+    setAttachmentDragActive(false)
+    attachmentDragDepthRef.current = 0
     setFeedback(null)
     setDraftSaved(false)
     setDraftId(null)
@@ -178,6 +182,8 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
     setAttachments([])
     setAttachmentsDirty(false)
     setAttachmentError(null)
+    setAttachmentDragActive(false)
+    attachmentDragDepthRef.current = 0
     setFeedback(null)
     setDraftSaved(false)
     setDraftId(null)
@@ -188,6 +194,37 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
   const requestClose = () => {
     if (hasUnsavedChanges) setDiscardDialogOpen(true)
     else onClose()
+  }
+
+  const addAttachments = (selectedFiles: File[]) => {
+    if (selectedFiles.length === 0) return
+
+    const validationError = getAttachmentValidationError(selectedFiles)
+    if (validationError) {
+      setAttachmentError(validationError)
+      return
+    }
+
+    const seenFiles = new Set(
+      attachments.map((file) => `${file.name}\u0000${file.size}\u0000${file.lastModified}`),
+    )
+    const uniqueFiles = selectedFiles.filter((file) => {
+      const fileKey = `${file.name}\u0000${file.size}\u0000${file.lastModified}`
+      if (seenFiles.has(fileKey)) return false
+      seenFiles.add(fileKey)
+      return true
+    })
+
+    setAttachmentError(
+      uniqueFiles.length === selectedFiles.length
+        ? null
+        : 'Aynı dosya birden fazla kez eklenemez.',
+    )
+    if (uniqueFiles.length === 0) return
+
+    setAttachmentsDirty(true)
+    setDraftSaved(false)
+    setAttachments((current) => [...current, ...uniqueFiles])
   }
 
   const toDraftInput = (values: RecordFormValues): RecordDraftInput => {
@@ -394,7 +431,9 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
               <div className="mb-2 flex items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-bold text-app-text-secondary">Ek dosyalar</p>
-                  <p className="mt-0.5 text-xs text-app-text-subtle">PDF, Word, Excel, JPG veya PNG</p>
+                  <p id="record-attachment-help" className="mt-0.5 text-xs text-app-text-subtle">
+                    PDF (.pdf), Word (.docx, .doc), Excel (.xlsx, .xls), Resim (.png, .jpeg, .jpg)
+                  </p>
                 </div>
                 <label className="flex min-h-10 cursor-pointer items-center gap-2 rounded-xl border border-app-border bg-app-surface px-3 text-xs font-bold text-app-text-secondary transition hover:border-brand-300 dark:hover:border-brand-600 hover:text-brand-700 dark:hover:text-brand-300 focus-within:outline-2 focus-within:outline-brand-500">
                   <Paperclip className="size-4" aria-hidden="true" />
@@ -404,28 +443,10 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
                     multiple
                     accept={attachmentAcceptValue}
                     aria-invalid={Boolean(attachmentError)}
-                    aria-describedby={attachmentError ? 'record-attachment-error' : undefined}
+                    aria-describedby={`record-attachment-help${attachmentError ? ' record-attachment-error' : ''}`}
                     className="sr-only"
                     onChange={(event) => {
-                      const selectedFiles = Array.from(event.target.files ?? [])
-                      const validationError = getAttachmentValidationError(selectedFiles)
-                      setAttachmentError(validationError)
-                      if (!validationError) {
-                        setAttachmentsDirty(true)
-                        setDraftSaved(false)
-                        setAttachments((current) => {
-                          const uniqueFiles = selectedFiles.filter(
-                            (selectedFile) =>
-                              !current.some(
-                                (existingFile) =>
-                                  existingFile.name === selectedFile.name &&
-                                  existingFile.size === selectedFile.size &&
-                                  existingFile.lastModified === selectedFile.lastModified,
-                              ),
-                          )
-                          return [...current, ...uniqueFiles]
-                        })
-                      }
+                      addAttachments(Array.from(event.target.files ?? []))
                       event.target.value = ''
                     }}
                   />
@@ -434,34 +455,71 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
 
               {attachmentError ? <FieldError id="record-attachment-error" message={attachmentError} /> : null}
 
-              {attachments.length > 0 ? (
-                <ul className="space-y-2" aria-label="Eklenen dosyalar">
-                  {attachments.map((attachment, index) => (
-                    <li key={`${attachment.name}-${attachment.size}-${attachment.lastModified}`} className="flex items-center gap-3 rounded-xl bg-app-surface-muted px-3 py-2.5">
-                      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-app-surface text-brand-600 dark:text-brand-400 ring-1 ring-app-border">
-                        <FileText className="size-4" aria-hidden="true" />
-                      </span>
-                      <span className="min-w-0 flex-1 truncate text-xs font-semibold text-app-text-secondary">{attachment.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDraftSaved(false)
-                          setAttachmentsDirty(true)
-                          setAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))
-                        }}
-                        className="flex size-8 items-center justify-center rounded-lg text-app-text-faint transition hover:bg-app-surface hover:text-rose-600 dark:hover:text-rose-400 focus-visible:outline-2 focus-visible:outline-brand-500"
-                        aria-label={`${attachment.name} dosyasını kaldır`}
-                      >
-                        <Trash2 className="size-4" aria-hidden="true" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="rounded-xl border border-dashed border-app-border bg-app-surface-muted/70 px-4 py-4 text-center text-xs text-app-text-subtle">
-                  Henüz dosya eklenmedi.
-                </div>
-              )}
+              <div
+                role="group"
+                aria-label="Ek dosya yükleme alanı"
+                aria-describedby={`record-attachment-help${attachmentError ? ' record-attachment-error' : ''}`}
+                className="relative rounded-xl"
+                onDragEnter={(event) => {
+                  if (!Array.from(event.dataTransfer.types).includes('Files')) return
+                  event.preventDefault()
+                  attachmentDragDepthRef.current += 1
+                  setAttachmentDragActive(true)
+                }}
+                onDragOver={(event) => {
+                  if (!Array.from(event.dataTransfer.types).includes('Files')) return
+                  event.preventDefault()
+                  event.dataTransfer.dropEffect = 'copy'
+                }}
+                onDragLeave={(event) => {
+                  event.preventDefault()
+                  attachmentDragDepthRef.current = Math.max(0, attachmentDragDepthRef.current - 1)
+                  if (attachmentDragDepthRef.current === 0) setAttachmentDragActive(false)
+                }}
+                onDrop={(event) => {
+                  event.preventDefault()
+                  attachmentDragDepthRef.current = 0
+                  setAttachmentDragActive(false)
+                  addAttachments(Array.from(event.dataTransfer.files))
+                }}
+              >
+                {attachments.length > 0 ? (
+                  <ul className="space-y-2" aria-label="Eklenen dosyalar">
+                    {attachments.map((attachment, index) => (
+                      <li key={`${attachment.name}-${attachment.size}-${attachment.lastModified}`} className="flex items-center gap-3 rounded-xl bg-app-surface-muted px-3 py-2.5">
+                        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-app-surface text-brand-600 dark:text-brand-400 ring-1 ring-app-border">
+                          <FileText className="size-4" aria-hidden="true" />
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-xs font-semibold text-app-text-secondary">{attachment.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDraftSaved(false)
+                            setAttachmentsDirty(true)
+                            setAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))
+                          }}
+                          className="flex size-8 items-center justify-center rounded-lg text-app-text-faint transition hover:bg-app-surface hover:text-rose-600 dark:hover:text-rose-400 focus-visible:outline-2 focus-visible:outline-brand-500"
+                          aria-label={`${attachment.name} dosyasını kaldır`}
+                        >
+                          <Trash2 className="size-4" aria-hidden="true" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="flex min-h-14 items-center justify-center gap-2 rounded-xl border border-dashed border-app-border bg-app-surface-muted/70 px-4 py-4 text-center text-xs text-app-text-subtle">
+                    <FilePlus2 className="size-4 shrink-0" aria-hidden="true" />
+                    Dosyaları buraya sürükleyip bırakın.
+                  </div>
+                )}
+
+                {attachmentDragActive ? (
+                  <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-white/80 bg-brand-700/95 px-4 text-sm font-extrabold text-white">
+                    <FilePlus2 className="size-5" aria-hidden="true" />
+                    Dosyaları bırakın
+                  </div>
+                ) : null}
+              </div>
             </div>
 
             <div className="rounded-xl border border-brand-100 dark:border-brand-800/60 bg-brand-50/70 dark:bg-brand-900/30 px-4 py-3 text-xs leading-5 text-brand-800 dark:text-brand-200">
