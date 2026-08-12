@@ -156,11 +156,14 @@ class AuthorizationMatrixTest {
         @Test
         @DisplayName("giris ucu acik kalir")
         void girisUcuAcik() throws Exception {
-            // 401 DONMEMELI; govde bos oldugu icin baska bir hata donebilir.
+            // Istek filtre zincirinde durdurulmamali, AuthService'e ulasmali.
+            // Bos govde gecerli bir kullaniciya karsilik gelmedigi icin sonuc
+            // yine 401'dir; ancak filtrenin "UNAUTHORIZED" reddinden farkli
+            // olarak is katmaninin "INVALID_CREDENTIALS" kodunu tasir.
             mockMvc.perform(post("/api/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{}"))
-                    .andExpect(status().is(not(401)));
+                    .andExpect(jsonPath("$.code").value(not("UNAUTHORIZED")));
         }
     }
 

@@ -5,10 +5,12 @@ on:
     branches:
       - test
       - main
+      - 'integration/**'
   push:
     branches:
       - test
       - main
+      - 'integration/**'
   workflow_dispatch:
 
 permissions:
