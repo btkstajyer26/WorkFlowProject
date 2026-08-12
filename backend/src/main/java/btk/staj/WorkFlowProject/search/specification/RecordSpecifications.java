@@ -16,9 +16,9 @@ public final class RecordSpecifications {
         }
 
         public static Specification<Record> withFilters(
-                        RecordSearchCriteria criteria,
-                        UUID currentUserId,
-                        String currentUserRole) {
+                RecordSearchCriteria criteria,
+                UUID currentUserId,
+                String currentUserRole) {
 
                 return (root, query, criteriaBuilder) -> {
 
@@ -32,52 +32,40 @@ public final class RecordSpecifications {
 
                                 switch (currentUserRole.toUpperCase()) {
 
-                                        // ÇALIŞAN
-                                        // Sadece kendi oluşturduğu kayıtları görebilir.
                                         case "CALISAN":
                                                 predicates.add(
-                                                                criteriaBuilder.equal(
-                                                                                root.get("createdBy"),
-                                                                                currentUserId));
+                                                        criteriaBuilder.equal(
+                                                                root.get("createdBy"),
+                                                                currentUserId));
                                                 break;
 
-                                        // BAŞKAN YARDIMCISI
-                                        // Sadece kendisine atanan/gelen kayıtları görebilir.
                                         case "BASKAN_YARDIMCISI":
                                                 predicates.add(
-                                                                criteriaBuilder.equal(
-                                                                                root.get("assignedTo"),
-                                                                                currentUserId));
+                                                        criteriaBuilder.equal(
+                                                                root.get("assignedTo"),
+                                                                currentUserId));
                                                 break;
 
-                                        // BAŞKAN
-                                        // Onay aşamasına gelen kayıtları görebilir.
                                         case "BASKAN":
                                                 predicates.add(
-                                                                criteriaBuilder.equal(
-                                                                                root.get("status"),
-                                                                                RecordStatus.BASKAN_INCELEMESINDE));
+                                                        criteriaBuilder.equal(
+                                                                root.get("status"),
+                                                                RecordStatus.BASKAN_INCELEMESINDE));
                                                 break;
 
-                                        // ADMIN
-                                        // Tüm kayıtları görebilir.
                                         case "ADMIN":
                                                 break;
 
-                                        // Tanımsız rol:
-                                        // Güvenli tarafta kal ve hiçbir kayıt gösterme.
                                         default:
                                                 predicates.add(
-                                                                criteriaBuilder.disjunction());
+                                                        criteriaBuilder.disjunction());
                                                 break;
                                 }
 
                         } else {
 
-                                // Kullanıcı veya rol bilgisi yoksa
-                                // hiçbir kayıt gösterme.
                                 predicates.add(
-                                                criteriaBuilder.disjunction());
+                                        criteriaBuilder.disjunction());
                         }
 
                         // =========================
@@ -85,68 +73,59 @@ public final class RecordSpecifications {
                         // =========================
 
                         // Başlık / açıklama içinde metin araması
-                        if (criteria.getText() != null
-                                        && !criteria.getText().isBlank()) {
+                        if (criteria.getQ() != null
+                                && !criteria.getQ().isBlank()) {
 
-                                String text = "%" + criteria.getText().toLowerCase() + "%";
+                                String text = "%" + criteria.getQ().toLowerCase() + "%";
 
                                 Predicate titlePredicate = criteriaBuilder.like(
-                                                criteriaBuilder.lower(root.get("title")),
-                                                text);
+                                        criteriaBuilder.lower(root.get("title")),
+                                        text);
 
                                 Predicate descriptionPredicate = criteriaBuilder.like(
-                                                criteriaBuilder.lower(root.get("description")),
-                                                text);
+                                        criteriaBuilder.lower(root.get("description")),
+                                        text);
 
                                 predicates.add(
-                                                criteriaBuilder.or(
-                                                                titlePredicate,
-                                                                descriptionPredicate));
+                                        criteriaBuilder.or(
+                                                titlePredicate,
+                                                descriptionPredicate));
                         }
 
                         // Durum filtresi
                         if (criteria.getStatus() != null) {
 
                                 predicates.add(
-                                                criteriaBuilder.equal(
-                                                                root.get("status"),
-                                                                criteria.getStatus()));
+                                        criteriaBuilder.equal(
+                                                root.get("status"),
+                                                criteria.getStatus()));
                         }
 
                         // Kategori filtresi
                         if (criteria.getCategoryId() != null) {
 
                                 predicates.add(
-                                                criteriaBuilder.equal(
-                                                                root.get("categoryId"),
-                                                                criteria.getCategoryId()));
-                        }
-
-                        // Oluşturan kullanıcı filtresi
-                        if (criteria.getUserId() != null) {
-
-                                predicates.add(
-                                                criteriaBuilder.equal(
-                                                                root.get("createdBy"),
-                                                                criteria.getUserId()));
+                                        criteriaBuilder.equal(
+                                                root.get("categoryId"),
+                                                criteria.getCategoryId()));
                         }
 
                         // Başlangıç tarihi
-                        if (criteria.getStartDate() != null) {
+                        if (criteria.getFrom() != null) {
 
                                 predicates.add(
-                                                criteriaBuilder.greaterThanOrEqualTo(
-                                                                root.get("createdAt"),
-                                                                criteria.getStartDate()));
+                                        criteriaBuilder.greaterThanOrEqualTo(
+                                                root.get("createdAt"),
+                                                criteria.getFrom()));
                         }
 
                         // Bitiş tarihi
-                        if (criteria.getEndDate() != null) {
+                        if (criteria.getTo() != null) {
 
                                 predicates.add(
-                                                criteriaBuilder.lessThanOrEqualTo(
-                                                                root.get("createdAt"),
-                                                                criteria.getEndDate()));
+                                        criteriaBuilder.lessThanOrEqualTo(
+                                                root.get("createdAt"),
+                                                criteria.getTo()));
                         }
 
                         // =========================
@@ -154,12 +133,11 @@ public final class RecordSpecifications {
                         // =========================
 
                         predicates.add(
-                                        criteriaBuilder.isNull(
-                                                        root.get("deletedAt")));
+                                criteriaBuilder.isNull(
+                                        root.get("deletedAt")));
 
-                        // Tüm koşullar AND ile birleşir.
                         return criteriaBuilder.and(
-                                        predicates.toArray(new Predicate[0]));
+                                predicates.toArray(new Predicate[0]));
                 };
         }
 }
