@@ -21,13 +21,13 @@ describe('Kayıt formu edge-case davranışları', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Yeni Kayıt' }))
     await user.type(screen.getByLabelText(/Başlık/), 'Yeni talep')
-    await user.selectOptions(screen.getByLabelText(/Kategori/), 'Bilgi İşlem')
+    await user.selectOptions(screen.getByLabelText(/Kategori/), '4')
     await user.type(screen.getByLabelText(/Açıklama/), 'Yeni kayıt açıklaması')
     await user.click(screen.getByRole('button', { name: 'Taslak Kaydet' }))
     await user.click(await screen.findByRole('button', { name: 'Yeni Kayıt Oluştur' }))
 
     expect(screen.getByLabelText(/Başlık/)).toHaveValue('')
-    expect(screen.getByLabelText(/Kategori/)).toHaveValue('')
+    expect(screen.getByLabelText(/Kategori/)).toHaveValue('0')
     expect(screen.getByLabelText(/Açıklama/)).toHaveValue('')
     expect(screen.getByRole('button', { name: 'Taslak Kaydet' })).toBeInTheDocument()
   })
@@ -38,7 +38,7 @@ describe('Kayıt formu edge-case davranışları', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Yeni Kayıt' }))
     await user.type(screen.getByLabelText(/Başlık/), 'Doğrudan gönderilecek taslak')
-    await user.selectOptions(screen.getByLabelText(/Kategori/), 'Bilgi İşlem')
+    await user.selectOptions(screen.getByLabelText(/Kategori/), '4')
     await user.type(screen.getByLabelText(/Açıklama/), 'Taslak kaydedildikten sonra incelemeye gönderilecek.')
     await user.click(screen.getByRole('button', { name: 'Taslak Kaydet' }))
     const submitButton = await screen.findByRole('button', { name: 'İncelemeye Gönder' })
@@ -50,7 +50,7 @@ describe('Kayıt formu edge-case davranışları', () => {
 
     await user.click(screen.getByRole('button', { name: 'Yeni Kayıt' }))
     expect(screen.getByLabelText(/Başlık/)).toHaveValue('')
-    expect(screen.getByLabelText(/Kategori/)).toHaveValue('')
+    expect(screen.getByLabelText(/Kategori/)).toHaveValue('0')
     expect(screen.getByLabelText(/Açıklama/)).toHaveValue('')
   })
 

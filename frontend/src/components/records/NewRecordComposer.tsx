@@ -38,7 +38,7 @@ const fieldClass =
 
 const emptyRecordFormValues: RecordFormValues = {
   title: '',
-  category: '',
+  categoryId: 0,
   description: '',
 }
 
@@ -190,14 +190,20 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
     else onClose()
   }
 
-  const toDraftInput = (values: RecordFormValues): RecordDraftInput => ({
-    ...values,
-    attachments: attachments.map((file, index) => ({
-      id: `${draftId ?? 'new'}-${file.lastModified}-${index}`,
-      name: file.name,
-      size: `${Math.max(1, Math.round(file.size / 1024))} KB`,
-    })),
-  })
+  const toDraftInput = (values: RecordFormValues): RecordDraftInput => {
+    const selectedCategory = categories.find((category) => category.id === values.categoryId)
+    if (!selectedCategory) throw new Error('Geçerli bir kategori seçin.')
+
+    return {
+      ...values,
+      categoryName: selectedCategory.name,
+      attachments: attachments.map((file, index) => ({
+        id: `${draftId ?? 'new'}-${file.lastModified}-${index}`,
+        name: file.name,
+        size: `${Math.max(1, Math.round(file.size / 1024))} KB`,
+      })),
+    }
+  }
 
   const saveDraft = handleSubmit((values) => runMutation(() => {
     const input = toDraftInput(values)
@@ -343,26 +349,26 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
               <div className="relative">
                 <select
                   id="record-category"
-                  {...register('category')}
+                  {...register('categoryId', { valueAsNumber: true })}
                   disabled={categoryStatus !== 'ready'}
-                  aria-invalid={Boolean(errors.category)}
-                  aria-describedby={errors.category
+                  aria-invalid={Boolean(errors.categoryId)}
+                  aria-describedby={errors.categoryId
                     ? 'record-category-error'
                     : categoryStatus === 'error' ? 'record-category-load-error' : undefined}
                   className={`${fieldClass} appearance-none pr-10 disabled:cursor-wait disabled:bg-app-surface-strong`}
                 >
-                  <option value="">
+                  <option value={0}>
                     {categoryStatus === 'loading' ? 'Kategoriler yükleniyor…' : 'Kaydın kategorisini seçin'}
                   </option>
                   {categories.map((category) => (
-                    <option key={category.id} value={category.name}>
+                    <option key={category.id} value={category.id}>
                       {category.name}
                     </option>
                   ))}
                 </select>
                 <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-app-text-faint" aria-hidden="true" />
               </div>
-              {errors.category ? <FieldError id="record-category-error" message={errors.category.message} /> : null}
+              {errors.categoryId ? <FieldError id="record-category-error" message={errors.categoryId.message} /> : null}
               {categoryStatus === 'error' ? (
                 <CategoryLoadError id="record-category-load-error" onRetry={reloadCategories} />
               ) : null}

@@ -47,18 +47,18 @@ describe('registration schema', () => {
 
 describe('record form schema', () => {
   it('boş zorunlu alanların tamamını raporlar', () => {
-    const result = recordFormSchema.safeParse({ title: '', category: '', description: '' })
+    const result = recordFormSchema.safeParse({ title: '', categoryId: 0, description: '' })
     expect(result.success).toBe(false)
-    if (!result.success) expect(result.error.issues.map((issue) => issue.path[0])).toEqual(['title', 'category', 'description'])
+    if (!result.success) expect(result.error.issues.map((issue) => issue.path[0])).toEqual(['title', 'categoryId', 'description'])
   })
 
-  it('yalnızca boşluktan oluşan kategori değerini reddeder', () => {
-    const result = recordFormSchema.safeParse({ title: 'Talep', category: '   ', description: 'Açıklama' })
+  it('seçilmemiş kategori kimliğini reddeder', () => {
+    const result = recordFormSchema.safeParse({ title: 'Talep', categoryId: 0, description: 'Açıklama' })
     expect(result.success).toBe(false)
   })
 
   it('geçerli kayıt verisini kırpılmış haliyle döndürür', () => {
-    const result = recordFormSchema.parse({ title: '  Talep  ', category: 'İdari', description: '  Açıklama  ' })
-    expect(result).toEqual({ title: 'Talep', category: 'İdari', description: 'Açıklama' })
+    const result = recordFormSchema.parse({ title: '  Talep  ', categoryId: 1, description: '  Açıklama  ' })
+    expect(result).toEqual({ title: 'Talep', categoryId: 1, description: 'Açıklama' })
   })
 })

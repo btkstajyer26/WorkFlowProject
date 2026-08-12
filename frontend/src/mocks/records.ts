@@ -7,6 +7,7 @@ export const mockRecords: WorkflowRecord[] = [
     title: 'Sunucu Donanım Alım Talebi',
     description:
       'Bilgi İşlem biriminde kullanılan sunucuların kapasite ihtiyacını karşılamak amacıyla iki yeni sunucu temin edilmesi talep edilmektedir.',
+    categoryId: 4,
     category: 'Bilgi İşlem',
     status: 'BSK_YRD_INCELEMESINDE',
     createdBy: 'John Doe',
@@ -34,6 +35,7 @@ export const mockRecords: WorkflowRecord[] = [
     recordNumber: 'EBYS-2026-000022',
     title: 'Yazılım Lisansı Talebi',
     description: 'Tasarım ekibinin kullandığı yazılım lisanslarının yıllık olarak yenilenmesi talep edilmektedir.',
+    categoryId: 4,
     category: 'Bilgi İşlem',
     status: 'DUZENLEME_BEKLIYOR',
     createdBy: 'John Doe',
@@ -59,6 +61,7 @@ export const mockRecords: WorkflowRecord[] = [
     recordNumber: 'EBYS-2026-000021',
     title: 'Toplantı Salonu Tadilat Talebi',
     description: 'Ana toplantı salonunun zemin ve aydınlatma sistemlerinin yenilenmesi talep edilmektedir.',
+    categoryId: 5,
     category: 'Teknik',
     status: 'BASKAN_INCELEMESINDE',
     createdBy: 'John Doe',
@@ -91,6 +94,7 @@ export const mockRecords: WorkflowRecord[] = [
     recordNumber: 'EBYS-2026-000020',
     title: 'Yıllık Bakım Sözleşmesi',
     description: 'Teknik cihazların yıllık periyodik bakım sözleşmesinin yenilenmesi talebidir.',
+    categoryId: 5,
     category: 'Teknik',
     status: 'ONAYLANDI',
     createdBy: 'John Doe',
@@ -109,6 +113,7 @@ export const mockRecords: WorkflowRecord[] = [
     recordNumber: 'EBYS-2026-000019',
     title: 'Kırtasiye Malzemesi Alımı',
     description: 'Birimlerin dönemsel kırtasiye ihtiyaçlarının karşılanmasına ilişkin toplu alım talebidir.',
+    categoryId: 1,
     category: 'İdari',
     status: 'REDDEDILDI',
     createdBy: 'John Doe',
@@ -123,24 +128,24 @@ export const mockRecords: WorkflowRecord[] = [
     ],
   },
   {
-    id: 'rec-006', recordNumber: 'EBYS-2026-000018', title: 'Yeni Personel Görevlendirme Talebi', description: 'Destek biriminde personel görevlendirilmesi talep edilmektedir.', category: 'İnsan Kaynakları', status: 'TASLAK', createdBy: 'John Doe', assignedTo: null, lastAction: 'Taslak kaydedildi', createdAt: '2026-07-24T15:35:00', updatedAt: '2026-07-31T15:35:00', attachments: [], history: [{ id: 'h-011', action: 'Taslak kaydedildi', actor: 'John Doe', role: 'Çalışan', date: '2026-07-31T15:35:00' }],
+    id: 'rec-006', recordNumber: 'EBYS-2026-000018', title: 'Yeni Personel Görevlendirme Talebi', description: 'Destek biriminde personel görevlendirilmesi talep edilmektedir.', categoryId: 3, category: 'İnsan Kaynakları', status: 'TASLAK', createdBy: 'John Doe', assignedTo: null, lastAction: 'Taslak kaydedildi', createdAt: '2026-07-24T15:35:00', updatedAt: '2026-07-31T15:35:00', attachments: [], history: [{ id: 'h-011', action: 'Taslak kaydedildi', actor: 'John Doe', role: 'Çalışan', date: '2026-07-31T15:35:00' }],
   },
   {
-    id: 'rec-007', recordNumber: 'EBYS-2026-000017', title: 'Birim İçi Eğitim Planı', description: 'Çalışanların bilgi güvenliği eğitimine katılım planıdır.', category: 'İnsan Kaynakları', status: 'TASLAK', createdBy: 'John Doe', assignedTo: null, lastAction: 'Taslak güncellendi', createdAt: '2026-07-23T10:10:00', updatedAt: '2026-07-30T12:00:00', attachments: [], history: [{ id: 'h-012', action: 'Taslak güncellendi', actor: 'John Doe', role: 'Çalışan', date: '2026-07-30T12:00:00' }],
+    id: 'rec-007', recordNumber: 'EBYS-2026-000017', title: 'Birim İçi Eğitim Planı', description: 'Çalışanların bilgi güvenliği eğitimine katılım planıdır.', categoryId: 3, category: 'İnsan Kaynakları', status: 'TASLAK', createdBy: 'John Doe', assignedTo: null, lastAction: 'Taslak güncellendi', createdAt: '2026-07-23T10:10:00', updatedAt: '2026-07-30T12:00:00', attachments: [], history: [{ id: 'h-012', action: 'Taslak güncellendi', actor: 'John Doe', role: 'Çalışan', date: '2026-07-30T12:00:00' }],
   },
   {
-    id: 'rec-008', recordNumber: 'EBYS-2026-000016', title: 'Arşiv Dolabı Temini', description: 'Fiziksel evrakların saklanması için kilitli arşiv dolabı talebidir.', category: 'İdari', status: 'BSK_YRD_INCELEMESINDE', createdBy: 'John Doe', assignedTo: 'Başkan Yardımcısı', lastAction: 'İncelemeye gönderildi', createdAt: '2026-07-22T09:05:00', updatedAt: '2026-07-29T09:45:00', attachments: [], history: [{ id: 'h-013', action: 'İncelemeye gönderildi', actor: 'John Doe', role: 'Çalışan', date: '2026-07-29T09:45:00' }],
+    id: 'rec-008', recordNumber: 'EBYS-2026-000016', title: 'Arşiv Dolabı Temini', description: 'Fiziksel evrakların saklanması için kilitli arşiv dolabı talebidir.', categoryId: 1, category: 'İdari', status: 'BSK_YRD_INCELEMESINDE', createdBy: 'John Doe', assignedTo: 'Başkan Yardımcısı', lastAction: 'İncelemeye gönderildi', createdAt: '2026-07-22T09:05:00', updatedAt: '2026-07-29T09:45:00', attachments: [], history: [{ id: 'h-013', action: 'İncelemeye gönderildi', actor: 'John Doe', role: 'Çalışan', date: '2026-07-29T09:45:00' }],
   },
   {
-    id: 'rec-009', recordNumber: 'EBYS-2026-000015', title: 'Bütçe Aktarım Talebi', description: 'Birimler arasında bütçe kalemi aktarımı yapılması talep edilmektedir.', category: 'Mali', status: 'ONAYLANDI', createdBy: 'John Doe', assignedTo: null, lastAction: 'Onaylandı', createdAt: '2026-07-19T14:15:00', updatedAt: '2026-07-28T17:10:00', attachments: [], history: [{ id: 'h-014', action: 'Onaylandı', actor: 'Mehmet Demir', role: 'Başkan', date: '2026-07-28T17:10:00' }],
+    id: 'rec-009', recordNumber: 'EBYS-2026-000015', title: 'Bütçe Aktarım Talebi', description: 'Birimler arasında bütçe kalemi aktarımı yapılması talep edilmektedir.', categoryId: 2, category: 'Mali', status: 'ONAYLANDI', createdBy: 'John Doe', assignedTo: null, lastAction: 'Onaylandı', createdAt: '2026-07-19T14:15:00', updatedAt: '2026-07-28T17:10:00', attachments: [], history: [{ id: 'h-014', action: 'Onaylandı', actor: 'Mehmet Demir', role: 'Başkan', date: '2026-07-28T17:10:00' }],
   },
   {
-    id: 'rec-010', recordNumber: 'EBYS-2026-000014', title: 'Ağ Güvenliği Cihazı Yenileme', description: 'Kullanım ömrünü tamamlayan güvenlik duvarı cihazının yenilenmesi talebidir.', category: 'Bilgi İşlem', status: 'BASKAN_INCELEMESINDE', createdBy: 'John Doe', assignedTo: 'Başkan', lastAction: 'Başkana gönderildi', createdAt: '2026-07-18T11:40:00', updatedAt: '2026-07-27T10:25:00', attachments: [], history: [{ id: 'h-015', action: 'Başkana gönderildi', actor: 'Ayşe Kaya', role: 'Başkan Yardımcısı', date: '2026-07-27T10:25:00' }],
+    id: 'rec-010', recordNumber: 'EBYS-2026-000014', title: 'Ağ Güvenliği Cihazı Yenileme', description: 'Kullanım ömrünü tamamlayan güvenlik duvarı cihazının yenilenmesi talebidir.', categoryId: 4, category: 'Bilgi İşlem', status: 'BASKAN_INCELEMESINDE', createdBy: 'John Doe', assignedTo: 'Başkan', lastAction: 'Başkana gönderildi', createdAt: '2026-07-18T11:40:00', updatedAt: '2026-07-27T10:25:00', attachments: [], history: [{ id: 'h-015', action: 'Başkana gönderildi', actor: 'Ayşe Kaya', role: 'Başkan Yardımcısı', date: '2026-07-27T10:25:00' }],
   },
   {
-    id: 'rec-011', recordNumber: 'EBYS-2026-000013', title: 'Ofis Mobilyası Yenileme', description: 'Kullanım ömrünü tamamlayan çalışma masalarının yenilenmesi talebidir.', category: 'İdari', status: 'DUZENLEME_BEKLIYOR', createdBy: 'John Doe', assignedTo: 'John Doe', lastAction: 'Teklif dosyası eksik', createdAt: '2026-07-16T08:55:00', updatedAt: '2026-07-26T13:30:00', attachments: [], history: [{ id: 'h-016', action: 'Geri gönderildi', actor: 'Ayşe Kaya', role: 'Başkan Yardımcısı', note: 'Teklif dosyası eklenmelidir.', date: '2026-07-26T13:30:00' }],
+    id: 'rec-011', recordNumber: 'EBYS-2026-000013', title: 'Ofis Mobilyası Yenileme', description: 'Kullanım ömrünü tamamlayan çalışma masalarının yenilenmesi talebidir.', categoryId: 1, category: 'İdari', status: 'DUZENLEME_BEKLIYOR', createdBy: 'John Doe', assignedTo: 'John Doe', lastAction: 'Teklif dosyası eksik', createdAt: '2026-07-16T08:55:00', updatedAt: '2026-07-26T13:30:00', attachments: [], history: [{ id: 'h-016', action: 'Geri gönderildi', actor: 'Ayşe Kaya', role: 'Başkan Yardımcısı', note: 'Teklif dosyası eklenmelidir.', date: '2026-07-26T13:30:00' }],
   },
   {
-    id: 'rec-012', recordNumber: 'EBYS-2026-000012', title: 'Seyahat Avansı Talebi', description: 'Görevlendirme kapsamında seyahat avansı oluşturulması talebidir.', category: 'Mali', status: 'ONAYLANDI', createdBy: 'John Doe', assignedTo: null, lastAction: 'Onaylandı', createdAt: '2026-07-14T10:20:00', updatedAt: '2026-07-25T16:00:00', attachments: [], history: [{ id: 'h-017', action: 'Onaylandı', actor: 'Mehmet Demir', role: 'Başkan', date: '2026-07-25T16:00:00' }],
+    id: 'rec-012', recordNumber: 'EBYS-2026-000012', title: 'Seyahat Avansı Talebi', description: 'Görevlendirme kapsamında seyahat avansı oluşturulması talebidir.', categoryId: 2, category: 'Mali', status: 'ONAYLANDI', createdBy: 'John Doe', assignedTo: null, lastAction: 'Onaylandı', createdAt: '2026-07-14T10:20:00', updatedAt: '2026-07-25T16:00:00', attachments: [], history: [{ id: 'h-017', action: 'Onaylandı', actor: 'Mehmet Demir', role: 'Başkan', date: '2026-07-25T16:00:00' }],
   },
 ]

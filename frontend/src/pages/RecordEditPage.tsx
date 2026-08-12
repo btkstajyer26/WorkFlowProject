@@ -64,7 +64,7 @@ function EditableRecordForm({ record }: { record: WorkflowRecord }) {
     resolver: zodResolver(recordFormSchema),
     defaultValues: {
       title: record.title,
-      category: record.category,
+      categoryId: record.categoryId,
       description: record.description,
     },
   })
@@ -87,10 +87,16 @@ function EditableRecordForm({ record }: { record: WorkflowRecord }) {
 
   const latestRevisionNote = [...record.history].reverse().find((item) => item.note)?.note
 
-  const toDraftInput = (values: RecordFormValues) => ({
-    ...values,
-    attachments,
-  })
+  const toDraftInput = (values: RecordFormValues) => {
+    const selectedCategory = categories.find((category) => category.id === values.categoryId)
+    if (!selectedCategory) throw new Error('Geçerli bir kategori seçin.')
+
+    return {
+      ...values,
+      categoryName: selectedCategory.name,
+      attachments,
+    }
+  }
 
   const saveDraft = handleSubmit((values) => runMutation(() => {
     updateEditableRecord(record.id, toDraftInput(values))
@@ -152,21 +158,21 @@ function EditableRecordForm({ record }: { record: WorkflowRecord }) {
               <label htmlFor="edit-record-category" className="mb-1.5 block text-xs font-bold text-app-text-secondary">Kategori *</label>
               <select
                 id="edit-record-category"
-                {...register('category')}
+                {...register('categoryId', { valueAsNumber: true })}
                 disabled={categoryStatus !== 'ready'}
-                aria-invalid={Boolean(errors.category)}
-                aria-describedby={errors.category
+                aria-invalid={Boolean(errors.categoryId)}
+                aria-describedby={errors.categoryId
                   ? 'edit-record-category-error'
                   : categoryStatus === 'error' ? 'edit-record-category-load-error' : undefined}
                 className={`${fieldClass} disabled:cursor-wait disabled:bg-app-surface-strong`}
               >
                 {categoryStatus === 'ready'
                   ? categories.map((category) => (
-                      <option key={category.id} value={category.name}>{category.name}</option>
+                      <option key={category.id} value={category.id}>{category.name}</option>
                     ))
-                  : <option value={record.category}>{record.category}</option>}
+                  : <option value={record.categoryId}>{record.category}</option>}
               </select>
-              {errors.category ? <FieldError id="edit-record-category-error" message={errors.category.message} /> : null}
+              {errors.categoryId ? <FieldError id="edit-record-category-error" message={errors.categoryId.message} /> : null}
               {categoryStatus === 'error' ? (
                 <CategoryLoadError id="edit-record-category-load-error" onRetry={reloadCategories} />
               ) : null}

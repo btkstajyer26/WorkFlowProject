@@ -21,6 +21,7 @@ export type WorkflowRecord = {
   recordNumber: string
   title: string
   description: string
+  categoryId: number
   category: string
   status: RecordStatus
   createdBy: string

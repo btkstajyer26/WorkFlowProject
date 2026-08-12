@@ -52,7 +52,8 @@ export function WorkflowProvider({ user, children }: { user: AuthUser; children:
       id: crypto.randomUUID(),
       recordNumber: nextRecordNumber(records),
       title: input.title.trim(),
-      category: input.category,
+      categoryId: input.categoryId,
+      category: input.categoryName,
       description: input.description.trim(),
       status: 'TASLAK',
       createdBy: nameOf(user),
@@ -101,7 +102,8 @@ export function WorkflowProvider({ user, children }: { user: AuthUser; children:
     const updated: WorkflowRecord = {
       ...existing,
       title: input.title.trim(),
-      category: input.category,
+      categoryId: input.categoryId,
+      category: input.categoryName,
       description: input.description.trim(),
       attachments: input.attachments,
       updatedAt: now,
@@ -121,7 +123,8 @@ export function WorkflowProvider({ user, children }: { user: AuthUser; children:
     const prepared: WorkflowRecord = {
       ...existing,
       title: input.title.trim(),
-      category: input.category,
+      categoryId: input.categoryId,
+      category: input.categoryName,
       description: input.description.trim(),
       attachments: input.attachments,
     }

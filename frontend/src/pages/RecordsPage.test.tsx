@@ -47,8 +47,8 @@ describe('RecordsPage filters', () => {
 
     const categorySelect = screen.getByRole('combobox', { name: 'Kategori' })
     await waitFor(() => expect(categorySelect).toBeEnabled())
-    await user.selectOptions(categorySelect, 'Bilgi İşlem')
-    expect(screen.getByTestId('location-search')).toHaveTextContent('kategori=Bilgi')
+    await user.selectOptions(categorySelect, '4')
+    expect(screen.getByTestId('location-search')).toHaveTextContent('kategori=4')
   })
 
   it('aramayı debounce sonrasında URL sorgusuna yazar', async () => {

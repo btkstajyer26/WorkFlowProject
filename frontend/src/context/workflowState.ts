@@ -8,7 +8,8 @@ export type RecordAttachment = WorkflowRecord['attachments'][number]
 
 export type RecordDraftInput = {
   title: string
-  category: string
+  categoryId: number
+  categoryName: string
   description: string
   attachments: RecordAttachment[]
 }

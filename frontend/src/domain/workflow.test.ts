@@ -13,6 +13,7 @@ function makeRecord(status: WorkflowRecord['status']): WorkflowRecord {
     recordNumber: 'EBYS-2026-000001',
     title: 'Test Kaydı',
     description: 'İş akışı testi',
+    categoryId: 1,
     category: 'İdari',
     status,
     createdBy: 'John Doe',

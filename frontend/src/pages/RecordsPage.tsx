@@ -84,8 +84,9 @@ export function RecordsPage({ role }: { role: UserRole }) {
   const search = searchParams.get('q') ?? ''
   const [searchInput, setSearchInput] = useDebouncedSearchParam(searchParams, setSearchParams)
   const categoryParam = searchParams.get('kategori')
-  const category = categoryParam && categories.some((item) => item.name === categoryParam)
-    ? categoryParam
+  const parsedCategoryId = Number(categoryParam)
+  const categoryId: number | 'ALL' = Number.isInteger(parsedCategoryId) && categories.some((item) => item.id === parsedCategoryId)
+    ? parsedCategoryId
     : 'ALL'
   const statusParam = searchParams.get('durum')
   const parsedStatus: RecordStatus | 'ALL' =
@@ -110,7 +111,7 @@ export function RecordsPage({ role }: { role: UserRole }) {
   useEffect(() => {
     const nextParams = new URLSearchParams(searchParams)
     if (rawView && !viewConfig) nextParams.delete('gorunum')
-    if (categoryStatus === 'ready' && categoryParam && category === 'ALL') nextParams.delete('kategori')
+    if (categoryStatus === 'ready' && categoryParam && categoryId === 'ALL') nextParams.delete('kategori')
     if (statusParam && status === 'ALL') nextParams.delete('durum')
     if (dateFromParam && !dateFrom) nextParams.delete('baslangic')
     if (dateToParam && !dateTo) nextParams.delete('bitis')
@@ -118,7 +119,7 @@ export function RecordsPage({ role }: { role: UserRole }) {
     if (!pageSizes.includes(pageSizeParam) || pageSizeParam === 10) nextParams.delete('boyut')
 
     if (nextParams.toString() !== searchParams.toString()) setSearchParams(nextParams, { replace: true })
-  }, [category, categoryParam, categoryStatus, dateFrom, dateFromParam, dateTo, dateToParam, pageParam, pageSizeParam, rawView, searchParams, setSearchParams, status, statusParam, viewConfig])
+  }, [categoryId, categoryParam, categoryStatus, dateFrom, dateFromParam, dateTo, dateToParam, pageParam, pageSizeParam, rawView, searchParams, setSearchParams, status, statusParam, viewConfig])
 
   const updateQuery = (updates: Record<string, string | null>, resetPage = true) => {
     const nextParams = new URLSearchParams(searchParams)
@@ -135,7 +136,7 @@ export function RecordsPage({ role }: { role: UserRole }) {
   const searchValue = normalizeSearchValue(search)
   const filteredRecords = records.filter((record) => {
     if (!matchesView(record, view, role)) return false
-    if (category !== 'ALL' && record.category !== category) return false
+    if (categoryId !== 'ALL' && record.categoryId !== categoryId) return false
     if (status !== 'ALL' && record.status !== status) return false
     if (!dateRangeInvalid && dateFrom && record.createdAt.slice(0, 10) < dateFrom) return false
     if (!dateRangeInvalid && dateTo && record.createdAt.slice(0, 10) > dateTo) return false
@@ -149,7 +150,7 @@ export function RecordsPage({ role }: { role: UserRole }) {
   const currentPage = Math.min(page, totalPages)
   const pageStart = (currentPage - 1) * pageSize
   const visibleRecords = filteredRecords.slice(pageStart, pageStart + pageSize)
-  const activeFilterCount = [category !== 'ALL', status !== 'ALL', Boolean(dateFrom), Boolean(dateTo)].filter(Boolean).length
+  const activeFilterCount = [categoryId !== 'ALL', status !== 'ALL', Boolean(dateFrom), Boolean(dateTo)].filter(Boolean).length
 
   useEffect(() => {
     if (page <= totalPages) return
@@ -212,7 +213,7 @@ export function RecordsPage({ role }: { role: UserRole }) {
               <select
                 id="record-filter-category"
                 aria-label="Kategori"
-                value={category}
+                value={categoryId}
                 onChange={(event) => updateQuery({ kategori: event.target.value === 'ALL' ? null : event.target.value })}
                 disabled={categoryStatus !== 'ready'}
                 aria-describedby={categoryStatus === 'error' ? 'record-filter-category-load-error' : undefined}
@@ -222,7 +223,7 @@ export function RecordsPage({ role }: { role: UserRole }) {
                   {categoryStatus === 'loading' ? 'Kategoriler yükleniyor…' : 'Tüm kategoriler'}
                 </option>
                 {categories.map((item) => (
-                  <option key={item.id} value={item.name}>{item.name}</option>
+                  <option key={item.id} value={item.id}>{item.name}</option>
                 ))}
               </select>
               {categoryStatus === 'error' ? (
