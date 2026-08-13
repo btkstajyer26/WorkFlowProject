@@ -138,11 +138,13 @@ public class UserService {
 
     /**
      * Hesap etkinlestirme/pasiflestirme. Admin hesabi bu yoldan
-     * pasiflestirilemez; Baskan Yardimcisi de rolu once devredilmeden
-     * pasiflestirilemez (aksi halde o rol bosta kalir). Pasiflestirmede
-     * kullanicinin aktif refresh token'lari da iptal edilir; erisim
-     * token'lari zaten her istekte veritabanindaki guncel duruma bakildigi
-     * icin (JwtAuthenticationFilter) ayrica islem gerektirmez.
+     * pasiflestirilemez. Baskan Yardimcisi veya Baskan dogrudan
+     * pasiflestirilebilir; bu islem rolunu degistirmez, yalnizca erisimini
+     * kapatir (karar 2.3 — rol degisimi yerine pasiflestirme). Bosalan role
+     * gerekiyorsa ayri bir islemle baska bir aktif kullaniciya atanir.
+     * Pasiflestirmede kullanicinin aktif refresh token'lari da iptal edilir;
+     * erisim token'lari zaten her istekte veritabanindaki guncel duruma
+     * bakildigi icin (JwtAuthenticationFilter) ayrica islem gerektirmez.
      */
     @Transactional
     public User setActive(UUID userId, boolean active) {
@@ -155,11 +157,6 @@ public class UserService {
 
         if (user.isActive() == active) {
             return user;
-        }
-
-        if (!active && "BASKAN_YARDIMCISI".equals(user.getRole().getName())) {
-            throw new BusinessRuleException(
-                    "Önce Başkan Yardımcısı rolünü başka bir aktif kullanıcıya devredin");
         }
 
         boolean previousActive = user.isActive();

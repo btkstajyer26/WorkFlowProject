@@ -72,9 +72,9 @@ public class RecordController {
         RecordSearchCriteria criteria = new RecordSearchCriteria();
         criteria.setStatus(status);
         criteria.setCategoryId(categoryId);
-        criteria.setText(q);
-        criteria.setStartDate(from);
-        criteria.setEndDate(to);
+        criteria.setQ(q);
+        criteria.setFrom(from);
+        criteria.setTo(to);
 
         PagedResponse<RecordSearchResponse> response = recordSearchService.search(criteria, pageable);
         return ResponseEntity.ok(response);
