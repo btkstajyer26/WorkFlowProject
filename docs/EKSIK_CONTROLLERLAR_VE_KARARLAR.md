@@ -10,6 +10,12 @@ için ayrı dosya artık tutulmuyor; kalan test boşlukları
 (listeleme birleştirmesi dahil). **Geriye tek yazılacak uç, bir de yeni
 tespit edilen ölü kod kaldı.**
 
+13 Ağustos'un üçüncü turunda `fix/workflow-flush` ve `feature/nisan-sumeyye`
+entegre edildi: kayıt güncellemesi artık `saveAndFlush`, refresh ucu pasif
+hesabı reddediyor, `/api/auth/change-password` artık kimlik doğrulaması
+istiyor, geçersiz `sort` parametresi 500 yerine 400 dönüyor. Bu turda
+Başkan Yardımcısı koltuk devri kararı **bir kez daha** değişti — bkz. 2.4.
+
 ---
 
 ## 1. Kalan işler
@@ -69,7 +75,7 @@ tarafı düzeltildi (bkz. 2.5); bu, aynı kategoriden kalan tek parça.
 | CORS | ✅ `CorsConfig` — izinli origin `CORS_ALLOWED_ORIGINS`'ten, `*` yok |
 | Dosya yükleme adresi | ✅ `POST /api/records/{id}/files` |
 | Kayıt talebi akışı | ✅ Frontend'den kaldırıldı; kullanıcıyı Admin oluşturuyor |
-| Başkan Yrd. / Başkan rol kuralları | ✅ Rol ataması `UserService`'te; pasifleştirme kuralı 2.4'te ayrıca hizalandı |
+| Başkan Yrd. / Başkan rol kuralları | ✅ Rol ataması `UserService`'te; koltuk devri 2.4'te — **karar iki kez değişti, sözleşme geride kaldı** |
 | Çalışma notu modülü | ⛔ Kapsamdan çıktı, sonra kod da geri alındı — bkz. 2.3 |
 | Kayıt geçmişi ucu | ⛔ Kapsamdan çıktı — backend'in mevcut `/api/audit-logs/record/{id}` adresi kabul edildi |
 | Denetim izi cevap modeli | ✅ Karar fiilen verildi: düz alanlar (`userFullName`) korunuyor |
@@ -119,17 +125,29 @@ değişmeyecek.
 > **Küçük tutarsızlık kalıcı:** Sözleşme §6'daki örnek JSON hâlâ `actor{}`
 > nesnesi gösteriyor. Düzeltilmesi *Ebrar · frontend ekibi*'nde.
 
-### 2.4 Başkan Yardımcısı pasifleştirme — backend sözleşmeyle hizalandı
+### 2.4 Başkan Yardımcısı koltuk devri — karar bir kez daha değişti 🔴 *sözleşme geride kaldı*
 
-Sözleşme §8 eskiden "aktif yardımcı rol devredilmeden pasifleştirilemez;
-`409 DEPUTY_TRANSFER_REQUIRED`" diyordu. Bu metin doğrudan pasifleştirmeye
-izin verecek şekilde güncellendi ve frontend buna göre değişti
-(`AdminContext.tsx`'teki engelleyici kontrol kaldırıldı).
+Bu madde iki kez ters yöne döndü, sırasıyla:
 
-Backend bunu yansıtmıyordu: `UserService.setActive` hâlâ eski kuralı
-uyguluyor, aktif Başkan Yardımcısı'nı pasifleştirme denemesinde
-`BusinessRuleException` fırlatıyordu. Kontrol kaldırıldı; pasifleştirme artık
-rolü değiştirmiyor, yalnızca erişimi kapatıyor.
+1. **İlk hâl (sözleşmenin eski metni):** aktif yardımcı rol devredilmeden
+   pasifleştirilemez, `409 DEPUTY_TRANSFER_REQUIRED`.
+2. **Birinci tur:** sözleşme §8 doğrudan pasifleştirmeye izin verecek
+   şekilde güncellendi, frontend buna göre değişti
+   (`AdminContext.tsx`'teki engelleyici kontrol kaldırıldı), backend'deki
+   `UserService.setActive` kontrolü de kaldırıldı.
+3. **İkinci tur (şu anki hâl):** ekip kararı tersine döndü. Devir artık
+   `changeRole` üzerinden yapılıyor — Başkan Yardımcısı başka bir tekil role
+   (Başkan veya Admin) geçerken **aynı istekte** zorunlu bir
+   `replacementBaskanYardimcisiId` gönderilmeli; devir aynı transaction
+   içinde uygulanıyor. `setActive`'deki devirsiz-pasifleştirme engeli geri
+   eklendi.
+
+> **Sözleşme artık geride kaldı:** [§8](FRONTEND_BACKEND_SOZLESMESI.md#L339)
+> hâlâ *"Aktif Başkan Yardımcısı doğrudan pasifleştirilebilir"* diyor —
+> bu, 2. adımın metni, artık geçerli değil. `PATCH .../role` satırı
+> ("Rol değiştirme **veya Başkan Yardımcısı rolünü devretme**") kabaca
+> tutarlı ama devir isteğinin gövdesini (`replacementBaskanYardimcisiId`)
+> tanımlamıyor. Düzeltilmesi *Nisan · Sümeyye · frontend ekibi*'nde.
 
 ### 2.5 `/api/v1` öneki — bir kez düzeltildi, yanlışlıkla geri alındı, tekrar düzeltildi
 
@@ -163,6 +181,7 @@ gerekiyor. Ertelendi.
 | Sıra | İş | Sorumlu |
 |---|---|---|
 | 1 | `GET /api/notifications` (geçmiş bildirimler) | Melih |
-| 2 | Frontend'deki ölü `RecordSearchController.ts` kalıntısının temizlenmesi | Frontend ekibi |
-| 3 | Sözleşme §6 örnek JSON'unun düzeltilmesi | Ebrar · frontend |
-| 4 | §12 netleştirmeleri | Ekip |
+| 2 | Sözleşme §8'in koltuk devri metninin güncel koda göre düzeltilmesi (2.4) | Nisan · Sümeyye · frontend |
+| 3 | Frontend'deki ölü `RecordSearchController.ts` kalıntısının temizlenmesi | Frontend ekibi |
+| 4 | Sözleşme §6 örnek JSON'unun düzeltilmesi | Ebrar · frontend |
+| 5 | §12 netleştirmeleri | Ekip |

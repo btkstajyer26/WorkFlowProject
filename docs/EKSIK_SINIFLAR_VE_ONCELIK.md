@@ -2,18 +2,31 @@
 
 **Tarih:** 13 Ağustos 2026
 **Kapsam:** Yalnızca backend — frontend hariç
-**Kaynak:** `integration/tum-feature-branchleri` dalı (mevcut: 128 sınıf, 289 test)
+**Kaynak:** `integration/tum-feature-branchleri` dalı (mevcut: 130 sınıf, 301 test)
 
 Bir önceki sürüm 10 Ağustos'ta 50 eksik sınıf sayıyordu. Yeni sınıf listesi
 uzun süredir bitmiş durumda. 13 Ağustos'ta CORS eklenerek **Faz 1'in son
 işlevsel maddesi de kapandı**; geriye yalnızca iki Clean Code / test kalitesi
 maddesi kaldı.
 
-13 Ağustos'ta `test`, `feature/record` ve `feature/frontend-uygulamasi`
-dalları entegre edildi: kayıt listeleme tek uca indirildi (görünürlük kuralı
-artık tek yerde), çalışma notu modülü geri alındı (sözleşme zaten kapsam
-dışı bırakmıştı), Başkan Yardımcısı pasifleştirme kuralı sözleşmeyle
-hizalandı, frontend gerçek API adreslerine (`/api/v1` öneksiz) geçti.
+13 Ağustos'ta iki turda entegrasyon yapıldı:
+
+1. `test`, `feature/record` ve `feature/frontend-uygulamasi` dalları:
+   kayıt listeleme tek uca indirildi (görünürlük kuralı artık tek yerde),
+   çalışma notu modülü geri alındı (sözleşme zaten kapsam dışı bırakmıştı),
+   frontend gerçek API adreslerine (`/api/v1` öneksiz) geçti.
+2. `fix/workflow-flush`, `feature/nisan-sumeyye` ve
+   `feature/frontend-uygulamasi` (zorunlu parola değişikliği): kayıt
+   güncellemesi artık `saveAndFlush` ile transaction içinde görünür
+   kılınıyor, refresh ucu pasif hesabı reddediyor, geçersiz `sort`
+   parametresi 500 yerine 400 dönüyor.
+
+> **Politika değişikliği:** Başkan Yardımcısı pasifleştirme kuralı ilk
+> turda "doğrudan pasifleştirilebilir" olarak hizalanmıştı. İkinci turda
+> ekip bunu tersine çevirdi: rol devri artık `changeRole` üzerinden,
+> zorunlu bir yerine atanacak kullanıcı parametresiyle yapılıyor; devirsiz
+> doğrudan pasifleştirme yine engellendi. Ayrıntı için
+> [EKSIK_CONTROLLERLAR_VE_KARARLAR.md §2.4](EKSIK_CONTROLLERLAR_VE_KARARLAR.md).
 
 > `AuditLogRepositoryIntegrationTest` ve `WorkFlowProjectApplicationTests`
 > ayakta bir PostgreSQL ister; ikisi de yalnızca CI'da (veya
@@ -41,8 +54,8 @@ hizalandı, frontend gerçek API adreslerine (`/api/v1` öneksiz) geçti.
 | İş | Sorumlu | Açıklama |
 |---|---|---|
 | `templates/mail/*.html` 🟢 | *Melih* | `MailService` hâlâ ~170 satırlık HTML'i metin bloğu olarak içinde taşıyor. Şablon dosyaya çıkarılmalı (thymeleaf bağımlılığı eklenecek). İşlevsel bir eksik değil, Clean Code maddesi. |
-| `common` testleri 🟢 | *ilgili sahipler* | 289 testin çoğu `workflow`, `rbac`, `audit`, `search`, `record` ve `auth`'ta. `common` paketinin (GlobalExceptionHandler, ApiError vb.) hiç testi yok. |
-| `user` / `auth` test boşlukları 🟡 | *Nisan · Sümeyye* | Uçlar tamamlandı ama üç dar test eksik: aynı e-postayla ikinci kullanıcı denemesinin 409 döndüğü, pasif kullanıcının **elindeki geçerli token'ının** da reddedildiği (`JwtAuthenticationFilter`), `UserService.setActive`/`changeRole` için ayrı bir servis testi (şu an yalnız controller/integration seviyesinde dolaylı kapsanıyor). |
+| `common` testleri 🟢 | *ilgili sahipler* | 301 testin çoğu `workflow`, `rbac`, `audit`, `search`, `record`, `auth` ve `user`'da. `common` paketinin (`GlobalExceptionHandler`, `ApiError` vb.) hâlâ hiç testi yok — yalnız dolaylı olarak `AdminControllerTest` üzerinden bir hata kodu (`INVALID_SORT_FIELD`) kapsanıyor. |
+| `user` / `auth` — kalan iki dar test 🟡 | *Nisan · Sümeyye* | `UserService.setActive`/`changeRole` testi ve refresh token'da pasif hesap reddi artık kapsamda (`UserServiceTest`, `AuthServiceTest`). Kalan iki boşluk: aynı e-postayla ikinci kullanıcı denemesinin 409 döndüğü test edilmiyor; pasif kullanıcının **elindeki geçerli access token'ının** da reddedildiği `JwtAuthenticationFilter` seviyesinde test edilmiyor (kontrol kodda var, testi yok). |
 
 ---
 
@@ -64,7 +77,11 @@ hizalandı, frontend gerçek API adreslerine (`/api/v1` öneksiz) geçti.
 | `record` — oturum kimliği | ✅ Sahte UUID kaldırıldı, `RecordAccessPolicy.assertCanView` ile korunuyor, tipli exception'lar kullanılıyor |
 | `auth` — hata kodu | ✅ Hatalı giriş 401 (`INVALID_CREDENTIALS`), token rotation, `/api/auth/change-password` |
 | `user` — tam kapsam | ✅ `GET /api/users/me`, admin kullanıcı listeleme/arama, `PATCH .../active`, `GET /api/admin/roles`, `GET /api/admin/audit-logs`; `UserAuditLogService` tüm yazma işlemlerine bağlı |
-| `user` — Başkan Yrd. pasifleştirme | ✅ Rol devri şartı kaldırıldı; doğrudan pasifleştirilebilir (sözleşme ve frontend ile hizalı) |
+| `user` — Başkan Yrd. koltuk devri | ✅ Devir `changeRole`'a taşındı (zorunlu `replacementBaskanYardimcisiId`, aynı transaction); devirsiz doğrudan pasifleştirme yine engelli — bkz. yukarıdaki politika değişikliği notu |
+| `auth` — refresh pasif kontrolü | ✅ Token geçerli olsa bile hesap pasifse `refresh()` reddediyor; önceden yalnız login ve erişim token'ı (filtre) kontrol ediyordu |
+| `auth` — parola değiştirme akışı | ✅ Frontend'de zorunlu ilk giriş parola değişikliği eklendi (`PasswordChangePage`); `/api/auth/change-password` artık kimlik doğrulaması istiyor (önceden `/api/auth/**` içinde açıktı, `@AuthenticationPrincipal` null geldiğinde 500 verirdi) |
+| `workflow` — kayıt güncellemesi flush | ✅ `RecordPortAdapter.update` artık `saveAndFlush`; manuel sürüm kontrolünün ürettiği optimistic-lock hatası audit/event çağrılarından önce, aynı metot içinde kesinleşiyor |
+| `common` — geçersiz sıralama alanı | ✅ `?sort=` var olmayan bir alana göre isterse 500 yerine 400 (`INVALID_SORT_FIELD`) dönüyor; tüm sayfalı uçları kapsıyor |
 | İlk Admin | ✅ `BootstrapAdminRunner`; varsayılan parola yok, yalnızca ortam değişkeni açıkça verildiğinde çalışır |
 | CI | ✅ GitHub Actions: PostgreSQL'li backend `mvn verify` + frontend lint/test/build |
 | `pom.xml` | ✅ Duplike bağımlılık ve plugin tanımları kaldırıldı |
@@ -89,7 +106,7 @@ hizalandı, frontend gerçek API adreslerine (`/api/v1` öneksiz) geçti.
 | Sorumlu | Paket | Kalan iş | Öncelik |
 |---|---|---|---|
 | Melih Kocaman | `templates/mail` | Şablon dosyaları | Teslim öncesi |
-| Nisan · Sümeyye | `user` / `auth` | Üç dar test (yukarıda) | Teslim öncesi |
+| Nisan · Sümeyye | `user` / `auth` | İki dar test (yukarıda) | Teslim öncesi |
 | Herkes | `common` | Test kapsamı | Teslim öncesi |
 | Hacer | `common/config` | — | ✅ tamamlandı (CORS) |
 | Ecesu Başak | `attachment` | — | ✅ tamamlandı |
