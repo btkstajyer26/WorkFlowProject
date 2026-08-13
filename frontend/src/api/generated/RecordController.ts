@@ -38,12 +38,12 @@ export class RecordController<SecurityDataType = unknown> {
    *
    * @tags record-controller
    * @name CreateRecord
-   * @request POST:/api/v1/records
+   * @request POST:/api/records
    * @secure
    */
   createRecord = (data: RecordCreateRequest, params: RequestParams = {}) =>
     this.http.request<CreateRecordData, any>({
-      path: `/api/v1/records`,
+      path: `/api/records`,
       method: "POST",
       body: data,
       secure: true,
@@ -55,12 +55,12 @@ export class RecordController<SecurityDataType = unknown> {
    *
    * @tags record-controller
    * @name DeleteRecord
-   * @request DELETE:/api/v1/records/{id}
+   * @request DELETE:/api/records/{id}
    * @secure
    */
   deleteRecord = ({ id }: DeleteRecordParams, params: RequestParams = {}) =>
     this.http.request<DeleteRecordData, any>({
-      path: `/api/v1/records/${id}`,
+      path: `/api/records/${id}`,
       method: "DELETE",
       secure: true,
       ...params,
@@ -70,12 +70,12 @@ export class RecordController<SecurityDataType = unknown> {
    *
    * @tags record-controller
    * @name GetAllRecords
-   * @request GET:/api/v1/records
+   * @request GET:/api/records
    * @secure
    */
   getAllRecords = (query: GetAllRecordsParams, params: RequestParams = {}) =>
     this.http.request<GetAllRecordsData, any>({
-      path: `/api/v1/records`,
+      path: `/api/records`,
       method: "GET",
       query: query,
       secure: true,
@@ -86,12 +86,12 @@ export class RecordController<SecurityDataType = unknown> {
    *
    * @tags record-controller
    * @name GetRecordById
-   * @request GET:/api/v1/records/{id}
+   * @request GET:/api/records/{id}
    * @secure
    */
   getRecordById = ({ id }: GetRecordByIdParams, params: RequestParams = {}) =>
     this.http.request<GetRecordByIdData, any>({
-      path: `/api/v1/records/${id}`,
+      path: `/api/records/${id}`,
       method: "GET",
       secure: true,
       ...params,
@@ -101,7 +101,7 @@ export class RecordController<SecurityDataType = unknown> {
    *
    * @tags record-controller
    * @name UpdateRecord
-   * @request PUT:/api/v1/records/{id}
+   * @request PUT:/api/records/{id}
    * @secure
    */
   updateRecord = (
@@ -110,7 +110,7 @@ export class RecordController<SecurityDataType = unknown> {
     params: RequestParams = {},
   ) =>
     this.http.request<UpdateRecordData, any>({
-      path: `/api/v1/records/${id}`,
+      path: `/api/records/${id}`,
       method: "PUT",
       body: data,
       secure: true,

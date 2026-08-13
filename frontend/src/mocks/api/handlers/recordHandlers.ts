@@ -22,7 +22,7 @@ function validateRecordBody(body: RecordCreateRequest | RecordUpdateRequest) {
 }
 
 export const recordHandlers = [
-  http.get(`${apiBaseUrl}/api/v1/records`, ({ request }) => {
+  http.get(`${apiBaseUrl}/api/records`, ({ request }) => {
     const user = getAuthenticatedMockUser(request)
     if (!user) return unauthorizedResponse()
 
@@ -65,7 +65,7 @@ export const recordHandlers = [
     return HttpResponse.json(response)
   }),
 
-  http.get(`${apiBaseUrl}/api/v1/records/:id`, ({ params, request }) => {
+  http.get(`${apiBaseUrl}/api/records/:id`, ({ params, request }) => {
     const user = getAuthenticatedMockUser(request)
     if (!user) return unauthorizedResponse()
     const record = mockApiDb.records.find((item) => item.id === params.id)
@@ -74,7 +74,7 @@ export const recordHandlers = [
     return HttpResponse.json(toRecordResponse(record))
   }),
 
-  http.post(`${apiBaseUrl}/api/v1/records`, async ({ request }) => {
+  http.post(`${apiBaseUrl}/api/records`, async ({ request }) => {
     const user = getAuthenticatedMockUser(request)
     if (!user) return unauthorizedResponse()
     if (user.role !== 'CALISAN') return forbiddenResponse()
@@ -102,7 +102,7 @@ export const recordHandlers = [
     return HttpResponse.json(toRecordResponse(record), { status: 201 })
   }),
 
-  http.put(`${apiBaseUrl}/api/v1/records/:id`, async ({ params, request }) => {
+  http.put(`${apiBaseUrl}/api/records/:id`, async ({ params, request }) => {
     const user = getAuthenticatedMockUser(request)
     if (!user) return unauthorizedResponse()
     const record = mockApiDb.records.find((item) => item.id === params.id)
@@ -129,7 +129,7 @@ export const recordHandlers = [
     return HttpResponse.json(toRecordResponse(updated))
   }),
 
-  http.delete(`${apiBaseUrl}/api/v1/records/:id`, ({ params, request }) => {
+  http.delete(`${apiBaseUrl}/api/records/:id`, ({ params, request }) => {
     const user = getAuthenticatedMockUser(request)
     if (!user) return unauthorizedResponse()
     const record = mockApiDb.records.find((item) => item.id === params.id)

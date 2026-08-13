@@ -88,7 +88,7 @@ describe('RecordsPage filters', () => {
     const user = userEvent.setup()
     let requestCount = 0
     apiMockServer.use(
-      http.get(`${apiBaseUrl}/api/v1/categories`, () => {
+      http.get(`${apiBaseUrl}/api/categories`, () => {
         requestCount += 1
         return HttpResponse.json({ message: 'Geçici hata' }, { status: 500 })
       }),
