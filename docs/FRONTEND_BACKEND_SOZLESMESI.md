@@ -342,7 +342,7 @@ Admin kuralları:
 - Kullanıcı silinmez veya rolsüz bırakılmaz; erişim `active=false` ile kapatılır.
 - Admin başka bir aktif kullanıcıya `ADMIN` rolü atayabilir; mevcut Admin hesabının rolü ve aktifliği bu arayüzden değiştirilemez.
 - `BASKAN_YARDIMCISI` rolü verildiğinde mevcut aktif yardımcı `CALISAN`, hedef kullanıcı `BASKAN_YARDIMCISI` yapılır. İki güncelleme tek transaction içinde olmalıdır.
-- Aktif yardımcı rol devredilmeden pasifleştirilemez; `409 DEPUTY_TRANSFER_REQUIRED` dönmelidir.
+- Aktif Başkan Yardımcısı doğrudan pasifleştirilebilir. Bu işlem kullanıcının rolünü değiştirmez; gerekiyorsa başka bir aktif kullanıcıya Başkan Yardımcısı rolü ayrı bir işlemle atanır.
 - Pasifleştirilen kullanıcının aktif tokenları iptal edilmelidir.
 - Hesap açma, rol değişikliği/devri ve aktiflik değişikliği append-only `user_audit_logs` kaydı üretmelidir.
 - `audit_logs` ve `user_audit_logs` tek sayfalı API modeliyle sunulur; update/delete audit endpointi olmaz.
