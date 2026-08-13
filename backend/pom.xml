@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<parent>
 		<groupId>org.springframework.boot</groupId>
@@ -52,6 +52,12 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-mail</artifactId>
 		</dependency>
+
+		<!-- Spring Boot 4'te web starter'i spring-boot-starter-webmvc olarak
+		     modulerlestirildi; eski spring-boot-starter-web onun lehine
+		     deprecated. Ikisi birlikte eklendiginde ayni islevi goren
+		     (embedded Tomcat, Spring MVC) starter'lar cakisiyordu; yalnizca
+		     webmvc birakildi. -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc</artifactId>
@@ -95,11 +101,7 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-web</artifactId>
-</dependency>
-		<dependency>
-		<groupId>org.projectlombok</groupId>
+			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
 			<optional>true</optional>
 		</dependency>
@@ -127,25 +129,19 @@
 			<artifactId>tika-core</artifactId>
 			<version>2.9.2</version>
 		</dependency>
+
+		<!-- DTO'lardaki @Valid / @NotBlank / @Email dogrulamalari icin. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-validation</artifactId>
+		</dependency>
 	</dependencies>
 
 	<build>
 		<plugins>
-			<!-- JDK 23+ artik classpath'te bulunan anotasyon islemcilerini kendiliginden
-			     calistirmiyor; Lombok'un uretecini acikca bildirmek gerekiyor. -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<configuration>
-					<annotationProcessorPaths>
-						<path>
-							<groupId>org.projectlombok</groupId>
-							<artifactId>lombok</artifactId>
-							<version>${lombok.version}</version>
-						</path>
-					</annotationProcessorPaths>
-				</configuration>
-			</plugin>
+			<!-- JDK 23+ artik classpath'te bulunan anotasyon islemcilerini
+			     kendiliginden calistirmiyor; Lombok'un uretecini acikca
+			     bildirmek gerekiyor. -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
