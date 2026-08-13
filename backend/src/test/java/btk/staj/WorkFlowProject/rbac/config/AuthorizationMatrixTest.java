@@ -303,11 +303,11 @@ class AuthorizationMatrixTest {
         @WithMockUser(roles = "BASKAN")
         @DisplayName("Baskan dosya yukleyemez")
         void baskanYukleyemez() throws Exception {
-            mockMvc.perform(multipart("/api/files/upload")
+            // Yukleme ucu sozlesmeye uyacak sekilde POST /api/records/{id}/files
+            // adresine tasindi; kayit kimligi artik yoldan geliyor.
+            mockMvc.perform(multipart("/api/records/{id}/files", UUID.randomUUID())
                             .file(new MockMultipartFile("file", "rapor.pdf",
-                                    "application/pdf", "icerik".getBytes()))
-                            .param("recordId", UUID.randomUUID().toString())
-                            .param("uploadedBy", UUID.randomUUID().toString()))
+                                    "application/pdf", "icerik".getBytes())))
                     .andExpect(status().isForbidden());
         }
     }
