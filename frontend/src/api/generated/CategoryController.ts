@@ -26,12 +26,12 @@ export class CategoryController<SecurityDataType = unknown> {
    *
    * @tags category-controller
    * @name GetAllCategories
-   * @request GET:/api/categories
+   * @request GET:/api/v1/categories
    * @secure
    */
   getAllCategories = (params: RequestParams = {}) =>
     this.http.request<GetAllCategoriesData, any>({
-      path: `/api/categories`,
+      path: `/api/v1/categories`,
       method: "GET",
       secure: true,
       ...params,

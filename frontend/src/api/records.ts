@@ -14,7 +14,7 @@ export type RecordListQuery = Omit<GetAllRecordsParams, 'pageable'> & {
  */
 export function listRecords({ page = 0, size = 10, sort, ...filters }: RecordListQuery = {}) {
   return apiHttpClient.request<GetAllRecordsData>({
-    path: '/api/records',
+    path: '/api/v1/records',
     method: 'GET',
     query: { ...filters, page, size, sort },
     secure: true,
