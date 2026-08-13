@@ -2,6 +2,7 @@ package btk.staj.WorkFlowProject.auth.service;
 
 import btk.staj.WorkFlowProject.auth.dto.LoginRequest;
 import btk.staj.WorkFlowProject.auth.dto.LoginResponse;
+import btk.staj.WorkFlowProject.common.exception.InvalidCredentialsException;
 import btk.staj.WorkFlowProject.rbac.config.JwtUtil;
 import btk.staj.WorkFlowProject.user.entity.Token;
 import btk.staj.WorkFlowProject.user.entity.User;
@@ -32,10 +33,15 @@ public class AuthService {
     @Transactional
     public LoginResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("Email veya şifre hatalı"));
+                .orElseThrow(() -> new InvalidCredentialsException("Email veya şifre hatalı"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
-            throw new RuntimeException("Email veya şifre hatalı");
+            throw new InvalidCredentialsException("Email veya şifre hatalı");
+        }
+
+        // Pasif hesap dogru parolayla da giris yapamaz.
+        if (!user.isActive()) {
+            throw new InvalidCredentialsException("Hesap pasif durumda");
         }
 
         String accessToken = jwtUtil.generateAccessToken(user.getId(), user.getEmail(), user.getRole().getName());
@@ -55,10 +61,10 @@ public class AuthService {
     @Transactional(readOnly = true)
     public LoginResponse refresh(String refreshToken) {
         Token storedToken = tokenRepository.findByToken(refreshToken)
-                .orElseThrow(() -> new RuntimeException("Geçersiz refresh token"));
+                .orElseThrow(() -> new InvalidCredentialsException("Geçersiz refresh token"));
 
         if (storedToken.isRevoked() || storedToken.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new RuntimeException("Refresh token süresi dolmuş veya geçersiz");
+            throw new InvalidCredentialsException("Refresh token süresi dolmuş veya geçersiz");
         }
 
         User user = storedToken.getUser();
@@ -73,5 +79,7 @@ public class AuthService {
             token.setRevoked(true);
             tokenRepository.save(token);
         });
+
     }
+
 }

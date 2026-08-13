@@ -156,11 +156,14 @@ class AuthorizationMatrixTest {
         @Test
         @DisplayName("giris ucu acik kalir")
         void girisUcuAcik() throws Exception {
-            // 401 DONMEMELI; govde bos oldugu icin baska bir hata donebilir.
+            // Istek filtre zincirinde durdurulmamali, AuthService'e ulasmali.
+            // Bos govde gecerli bir kullaniciya karsilik gelmedigi icin sonuc
+            // yine 401'dir; ancak filtrenin "UNAUTHORIZED" reddinden farkli
+            // olarak is katmaninin "INVALID_CREDENTIALS" kodunu tasir.
             mockMvc.perform(post("/api/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{}"))
-                    .andExpect(status().is(not(401)));
+                    .andExpect(jsonPath("$.code").value(not("UNAUTHORIZED")));
         }
     }
 
@@ -261,13 +264,23 @@ class AuthorizationMatrixTest {
     @DisplayName("Kullanici yonetimi yalnizca Admin")
     class KullaniciYonetimi {
 
+        /**
+         * Govde bilerek gecerli: DTO dogrulamasi argüman cozumlemesi sirasinda
+         * calistigi icin gecersiz govde yetki kontrolune hic ulasmadan 400
+         * dondurur. Burada olculmek istenen yetki reddidir.
+         */
+        private static final String GECERLI_GOVDE = """
+                {"firstName":"Test","lastName":"Kullanici",
+                 "email":"test@ornek.test","password":"sifre123"}
+                """;
+
         @Test
         @WithMockUser(roles = "CALISAN")
         @DisplayName("Calisan kullanici olusturamaz")
         void calisanKullaniciOlusturamaz() throws Exception {
             mockMvc.perform(post("/api/admin/users")
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content("{}"))
+                            .content(GECERLI_GOVDE))
                     .andExpect(status().isForbidden());
         }
 
@@ -277,7 +290,7 @@ class AuthorizationMatrixTest {
         void baskanKullaniciOlusturamaz() throws Exception {
             mockMvc.perform(post("/api/admin/users")
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content("{}"))
+                            .content(GECERLI_GOVDE))
                     .andExpect(status().isForbidden());
         }
     }
