@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -451,6 +452,89 @@ class WorkflowTransitionValidatorTest {
         assertThatCode(() -> new TransitionContext(null, WorkflowAction.ONAYLA, RoleName.BASKAN,
                 false, false, null, false, null, true))
                 .isInstanceOf(NullPointerException.class);
+    }
+
+    /**
+     * Surum catismasi bir gecis kurali degildir: kayit baskasi tarafindan
+     * degistirildiginde istek durum makinesi acisindan hala gecerlidir, yalnizca
+     * dayandigi surum eskimistir. Kod bu yuzden yalnizca
+     * {@code WorkflowRecordPort} uygulamasindan gelir.
+     *
+     * <p>Bu testler, {@code WORKFLOW_VERSION_CONFLICT} eklendikten sonra da
+     * gecis kurallarinin degismedigini ve kodun kural motoruna sizmadigini
+     * korur.
+     */
+    @Nested
+    @DisplayName("surum catismasi durum makinesinin sozlugunde degildir")
+    class VersionConflictIsNotATransitionRule {
+
+        private final List<Boolean> bayraklar = List.of(true, false);
+        private final List<String> aciklamalar = Arrays.asList(null, "", "   ", "aciklama");
+        private final List<RoleName> hedefRolleri = Arrays.asList(
+                null, RoleName.CALISAN, RoleName.BASKAN_YARDIMCISI, RoleName.BASKAN, RoleName.ADMIN);
+
+        @Test
+        @DisplayName("hicbir girdi birlesimi WORKFLOW_VERSION_CONFLICT uretmez")
+        void hicbirBirlesimSurumCatismasiUretmez() {
+            List<WorkflowErrorCode> uretilenKodlar = tumBirlesimlerinRetKodlari();
+
+            assertThat(uretilenKodlar)
+                    .as("kural motoru en az bir ret uretmeli, aksi halde test bosuna gecer")
+                    .isNotEmpty();
+            assertThat(uretilenKodlar).doesNotContain(WorkflowErrorCode.WORKFLOW_VERSION_CONFLICT);
+        }
+
+        @Test
+        @DisplayName("izinli gecis sayisi surum catismasi eklendikten sonra da sekizdir")
+        void izinliGecisSayisiDegismedi() {
+            long izinliBirlesimSayisi = 0;
+
+            for (RecordStatus status : RecordStatus.values()) {
+                for (WorkflowAction action : WorkflowAction.values()) {
+                    for (RoleName actorRole : RoleName.values()) {
+                        if (TransitionRules.find(status, action, actorRole).isPresent()) {
+                            izinliBirlesimSayisi++;
+                        }
+                    }
+                }
+            }
+
+            assertThat(izinliBirlesimSayisi).isEqualTo(8);
+        }
+
+        private List<WorkflowErrorCode> tumBirlesimlerinRetKodlari() {
+            List<WorkflowErrorCode> kodlar = new ArrayList<>();
+
+            for (RecordStatus status : RecordStatus.values()) {
+                for (WorkflowAction action : WorkflowAction.values()) {
+                    for (RoleName actorRole : RoleName.values()) {
+                        for (boolean olusturan : bayraklar) {
+                            for (boolean atanan : bayraklar) {
+                                for (String aciklama : aciklamalar) {
+                                    for (boolean hedefGonderildi : bayraklar) {
+                                        for (RoleName hedefRol : hedefRolleri) {
+                                            for (boolean hedefAktif : bayraklar) {
+                                                TransitionDecision karar = validator.validate(
+                                                        new TransitionContext(
+                                                                status, action, actorRole,
+                                                                olusturan, atanan, aciklama,
+                                                                hedefGonderildi, hedefRol, hedefAktif));
+
+                                                if (karar instanceof TransitionDecision.Rejected ret) {
+                                                    kodlar.add(ret.errorCode());
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return kodlar;
+        }
     }
 
     /** Testlerde okunabilir baglam olusturmak icin kucuk yardimci. */

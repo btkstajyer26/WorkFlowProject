@@ -486,6 +486,61 @@ class WorkflowApplicationServiceTest {
     }
 
     @Test
+    @DisplayName("surum catismasinda islem durur, audit ve event calismaz")
+    void stopsWhenRecordPortReportsVersionConflict() {
+        WorkflowRecordSnapshot record = activeRecord(
+                RecordStatus.BASKAN_INCELEMESINDE, CREATOR_ID, ACTOR_ID, LAST_DEPUTY_ID);
+        WorkflowActionRequest request = new WorkflowActionRequest(
+                WorkflowAction.ONAYLA, null, null);
+        arrange(record, RoleName.BASKAN);
+        when(targetUserResolver.resolve(WorkflowAction.ONAYLA, null, record))
+                .thenReturn(new TargetResolution.NotProvided());
+        doThrow(new WorkflowApplicationException(WorkflowErrorCode.WORKFLOW_VERSION_CONFLICT))
+                .when(recordPort).update(any(WorkflowRecordUpdate.class));
+
+        WorkflowApplicationException thrown = assertThrows(
+                WorkflowApplicationException.class,
+                () -> service.performAction(RECORD_ID, request));
+
+        // Kod sarmalanmadan yukari tasinmali; istemci catismayi ayirt edebilmeli.
+        assertThat(thrown.errorCode()).isEqualTo(WorkflowErrorCode.WORKFLOW_VERSION_CONFLICT);
+
+        // Kayit yazilamadiysa denetim izi ve bildirim de hic olusmamali:
+        // basarisiz bir gecis gecmiste iz birakmaz.
+        verifyNoInteractions(auditService, eventPublisher);
+    }
+
+    @Test
+    @DisplayName("surum catismasi gecis kurallarindan sonra, yalnizca yazma aninda olusur")
+    void versionConflictSurfacesOnlyAtWriteTime() {
+        WorkflowRecordSnapshot record = activeRecord(
+                RecordStatus.BASKAN_INCELEMESINDE, CREATOR_ID, ACTOR_ID, LAST_DEPUTY_ID);
+        WorkflowActionRequest request = new WorkflowActionRequest(
+                WorkflowAction.ONAYLA, null, null);
+        arrange(record, RoleName.BASKAN);
+        when(targetUserResolver.resolve(WorkflowAction.ONAYLA, null, record))
+                .thenReturn(new TargetResolution.NotProvided());
+        doThrow(new WorkflowApplicationException(WorkflowErrorCode.WORKFLOW_VERSION_CONFLICT))
+                .when(recordPort).update(any(WorkflowRecordUpdate.class));
+
+        assertThrows(
+                WorkflowApplicationException.class,
+                () -> service.performAction(RECORD_ID, request));
+
+        // Gecis kurallari acisindan istek gecerliydi: dogrulama asamasi
+        // gecilmis, hedef cozulmus ve update komutu kaydin okundugu surumle
+        // birlikte porta ulasmistir. Catisma yalnizca yazma aninda ortaya cikar.
+        verify(targetUserResolver).resolve(WorkflowAction.ONAYLA, null, record);
+        verify(recordPort).update(new WorkflowRecordUpdate(
+                RECORD_ID,
+                RecordStatus.ONAYLANDI,
+                null,
+                LAST_DEPUTY_ID,
+                record.version(),
+                PERFORMED_AT));
+    }
+
+    @Test
     @DisplayName("audit hatasinda event yayinlanmaz")
     void doesNotPublishEventWhenAuditFails() {
         WorkflowRecordSnapshot record = activeRecord(

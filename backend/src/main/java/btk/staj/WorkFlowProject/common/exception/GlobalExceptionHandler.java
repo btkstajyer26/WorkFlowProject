@@ -140,6 +140,10 @@ public class GlobalExceptionHandler {
             case WORKFLOW_ROLE_NOT_ALLOWED -> "Rolünüz bu işlemi yapamaz";
             case WORKFLOW_STATUS_NOT_CONFIGURED, WORKFLOW_ROLE_NOT_CONFIGURED ->
                     "İş akışı yapılandırması eksik";
+            // Kural ihlali degil: kayit bu istek hazirlanirken baskasi tarafindan
+            // degistirilmis. Mesaj kullaniciyi tekrar denemeye yonlendirir.
+            case WORKFLOW_VERSION_CONFLICT ->
+                    "Kayıt siz işlem yaparken değişti, sayfayı yenileyip tekrar deneyin";
         };
     }
 

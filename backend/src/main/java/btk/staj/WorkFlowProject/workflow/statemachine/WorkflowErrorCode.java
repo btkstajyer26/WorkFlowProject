@@ -44,5 +44,18 @@ public enum WorkflowErrorCode {
     WORKFLOW_STATUS_NOT_CONFIGURED,
 
     /** Beklenen role seed verisi bulunamadi veya tek Baskan cozulemedi. Servis katmani uretir. */
-    WORKFLOW_ROLE_NOT_CONFIGURED
+    WORKFLOW_ROLE_NOT_CONFIGURED,
+
+    /**
+     * Kayit, okundugu andan beri baska bir islem tarafindan degistirilmis.
+     *
+     * <p>Diger kodlardan farkli olarak bunu <strong>durum makinesi uretmez</strong>:
+     * gecis kurallari acisindan istek gecerlidir, yalnizca dayandigi surum
+     * eskimistir. Kod {@link btk.staj.WorkFlowProject.workflow.port.WorkflowRecordPort}
+     * uygulamasindan gelir ve {@code WorkflowApplicationException} icinde tasinir.
+     *
+     * <p>Istemci ayni istegi guncel veriyle tekrarlayabilir; bu yuzden kalici bir
+     * kural ihlali degil, gecici bir catisma bildirir.
+     */
+    WORKFLOW_VERSION_CONFLICT
 }
