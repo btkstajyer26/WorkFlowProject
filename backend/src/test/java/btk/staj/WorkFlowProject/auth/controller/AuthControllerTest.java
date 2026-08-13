@@ -5,6 +5,8 @@ import btk.staj.WorkFlowProject.auth.dto.LoginResponse;
 import btk.staj.WorkFlowProject.auth.dto.LogoutRequest;
 import btk.staj.WorkFlowProject.auth.dto.RefreshTokenRequest;
 import btk.staj.WorkFlowProject.auth.service.AuthService;
+import btk.staj.WorkFlowProject.common.exception.GlobalExceptionHandler;
+import btk.staj.WorkFlowProject.common.exception.InvalidCredentialsException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -28,10 +30,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * AuthController için MockMvc standalone testleri.
- * GlobalExceptionHandler dahil edilerek, servis katmanından gelen
- * RuntimeException'ların gerçek uygulamadaki gibi 401'e çevrildiği
- * doğrulanır. Spring Security context'i devreye girmez, sadece
- * controller + exception handling katmanı test edilir.
+ *
+ * <p>Uygulamanın gerçek {@link GlobalExceptionHandler}'ı devreye alınır;
+ * böylece testler hata gövdesinin üretimdeki {@code ApiError} sözleşmesiyle
+ * aynı olduğunu doğrular. Spring Security context'i devreye girmez, sadece
+ * controller + hata yönetimi katmanı test edilir.
  */
 @ExtendWith(MockitoExtension.class)
 class AuthControllerTest {
@@ -85,13 +88,16 @@ class AuthControllerTest {
         request.setPassword("yanlis");
 
         when(authService.login(any(LoginRequest.class)))
-                .thenThrow(new RuntimeException("Email veya şifre hatalı"));
+                .thenThrow(new InvalidCredentialsException("Email veya şifre hatalı"));
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized())
-                .andExpect(content().string("Email veya şifre hatalı"));
+                // Filtre zincirinin UNAUTHORIZED reddinden ayrilan is katmani kodu.
+                .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"))
+                .andExpect(jsonPath("$.message").value("Email veya şifre hatalı"))
+                .andExpect(jsonPath("$.status").value(401));
 
         verify(authService, times(1)).login(any(LoginRequest.class));
     }
@@ -116,7 +122,8 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{ bozuk-json"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
 
         verifyNoInteractions(authService);
     }
@@ -150,13 +157,14 @@ class AuthControllerTest {
         request.setRefreshToken("invalid-refresh-token");
 
         when(authService.refresh("invalid-refresh-token"))
-                .thenThrow(new RuntimeException("Geçersiz refresh token"));
+                .thenThrow(new InvalidCredentialsException("Geçersiz refresh token"));
 
         mockMvc.perform(post("/api/auth/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized())
-                .andExpect(content().string("Geçersiz refresh token"));
+                .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"))
+                .andExpect(jsonPath("$.message").value("Geçersiz refresh token"));
 
         verify(authService, times(1)).refresh("invalid-refresh-token");
     }
@@ -168,13 +176,14 @@ class AuthControllerTest {
         request.setRefreshToken("expired-token");
 
         when(authService.refresh("expired-token"))
-                .thenThrow(new RuntimeException("Refresh token süresi dolmuş veya geçersiz"));
+                .thenThrow(new InvalidCredentialsException("Refresh token süresi dolmuş veya geçersiz"));
 
         mockMvc.perform(post("/api/auth/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized())
-                .andExpect(content().string("Refresh token süresi dolmuş veya geçersiz"));
+                .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"))
+                .andExpect(jsonPath("$.message").value("Refresh token süresi dolmuş veya geçersiz"));
     }
 
     // ==================== LOGOUT ====================
@@ -215,18 +224,21 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("logout sırasında servis exception fırlatırsa 401 dönmeli")
-    void logout_servisHataFirlatirsa_401Donmeli() throws Exception {
+    @DisplayName("logout sırasında beklenmeyen hata olursa 500 dönmeli ve ayrıntı sızmamalı")
+    void logout_beklenmeyenHataFirlatirsa_500Donmeli() throws Exception {
         LogoutRequest request = new LogoutRequest();
         request.setRefreshToken("bad-token");
 
+        // AuthService.logout kimlik dogrulamaz, yalnizca token'i iptal eder.
+        // Buradan gelen bir hata kimlik hatasi degil sunucu hatasidir.
         doThrow(new RuntimeException("Token işlenemedi"))
                 .when(authService).logout("bad-token");
 
         mockMvc.perform(post("/api/auth/logout")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isUnauthorized())
-                .andExpect(content().string("Token işlenemedi"));
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.code").value("INTERNAL_ERROR"))
+                .andExpect(jsonPath("$.message").value("Beklenmeyen bir hata oluştu"));
     }
 }

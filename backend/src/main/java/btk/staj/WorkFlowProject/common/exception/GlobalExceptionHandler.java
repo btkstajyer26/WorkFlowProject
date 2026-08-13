@@ -1,10 +1,13 @@
 package btk.staj.WorkFlowProject.common.exception;
 
+import btk.staj.WorkFlowProject.user.service.AdminLimitExceededException;
+import btk.staj.WorkFlowProject.user.service.RoleNotFoundException;
 import btk.staj.WorkFlowProject.workflow.exception.WorkflowApplicationException;
 import btk.staj.WorkFlowProject.workflow.exception.WorkflowRecordNotFoundException;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowErrorCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -45,6 +48,27 @@ public class GlobalExceptionHandler {
         return build("BUSINESS_RULE_VIOLATION", ex.getMessage(), HttpStatus.BAD_REQUEST);
     }
 
+    // ---------- Kullanici yonetimi ----------
+
+    @ExceptionHandler(RoleNotFoundException.class)
+    public ResponseEntity<ApiError> handleRoleNotFound(RoleNotFoundException ex) {
+        return build("ROLE_NOT_FOUND", ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(AdminLimitExceededException.class)
+    public ResponseEntity<ApiError> handleAdminLimit(AdminLimitExceededException ex) {
+        return build("ADMIN_LIMIT_EXCEEDED", ex.getMessage(), HttpStatus.CONFLICT);
+    }
+
+    /**
+     * Benzersizlik kisiti ihlali; pratikte kayitli bir e-posta ile ikinci
+     * hesap acilmasi. Ayrinti sizdirmamak icin mesaj sabittir.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiError> handleDataIntegrity(DataIntegrityViolationException ex) {
+        return build("CONFLICT", "Bu kayıt zaten mevcut", HttpStatus.CONFLICT);
+    }
+
     // ---------- Guvenlik ----------
 
     /**
@@ -59,6 +83,22 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ApiError> handleAuthentication(AuthenticationException ex) {
         return build("UNAUTHORIZED", "Kimlik doğrulaması gerekli", HttpStatus.UNAUTHORIZED);
+    }
+
+    /**
+     * Login sirasinda hatali email/sifre veya refresh sirasinda gecersiz/suresi
+     * dolmus token icin AuthService tarafindan firlatilir. Bu handler olmasaydi
+     * genel Exception handler'ina duser ve normal bir giris hatasi 500 olarak
+     * donerdi (ayrica log.error ile gereksiz yere loglanirdi).
+     *
+     * <p>Kod bilerek {@code UNAUTHORIZED} degil: o kod filtre zincirinin
+     * "token yok/gecersiz" reddine ayrilmistir. Ikisi de 401 doner, ancak
+     * arayuz "tekrar giris yap" ile "email veya sifre hatali" durumlarini
+     * bu kodla ayirt eder.
+     */
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<ApiError> handleInvalidCredentials(InvalidCredentialsException ex) {
+        return build("INVALID_CREDENTIALS", ex.getMessage(), HttpStatus.UNAUTHORIZED);
     }
 
     // ---------- Is akisi ----------
