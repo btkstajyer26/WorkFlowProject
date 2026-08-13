@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { loginSchema, registrationSchema } from './auth'
+import { createUserSchema } from './admin'
+import { loginSchema } from './auth'
 import { recordFormSchema } from './record'
 
 describe('login schema', () => {
@@ -14,51 +15,47 @@ describe('login schema', () => {
   })
 })
 
-describe('registration schema', () => {
-  it('eşleşmeyen şifreleri reddeder', () => {
-    const result = registrationSchema.safeParse({
-      firstName: 'Deniz',
-      lastName: 'Yılmaz',
-      email: 'deniz.yilmaz@kurum.gov.tr',
-      password: 'guvenli123',
-      confirmPassword: 'farkli123',
-    })
-
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(result.error.issues.map((issue) => issue.path[0])).toContain('confirmPassword')
-    }
-  })
-
-  it('kullanıcı bilgilerini kırparak geçerli kayıt talebini kabul eder', () => {
-    const result = registrationSchema.parse({
+describe('admin kullanıcı oluşturma şeması', () => {
+  it('kullanıcı bilgilerini kırparak geçerli isteği kabul eder', () => {
+    const result = createUserSchema.parse({
       firstName: '  Deniz ',
       lastName: ' Yılmaz  ',
       email: ' deniz.yilmaz@kurum.gov.tr ',
-      password: 'guvenli123',
-      confirmPassword: 'guvenli123',
+      password: 'demo123',
     })
 
     expect(result.firstName).toBe('Deniz')
     expect(result.lastName).toBe('Yılmaz')
     expect(result.email).toBe('deniz.yilmaz@kurum.gov.tr')
   })
+
+  it('altı karakterden kısa şifreyi reddeder', () => {
+    const result = createUserSchema.safeParse({
+      firstName: 'Deniz',
+      lastName: 'Yılmaz',
+      email: 'deniz.yilmaz@kurum.gov.tr',
+      password: '12345',
+    })
+
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error.issues.map((issue) => issue.path[0])).toContain('password')
+  })
 })
 
 describe('record form schema', () => {
   it('boş zorunlu alanların tamamını raporlar', () => {
-    const result = recordFormSchema.safeParse({ title: '', category: '', description: '' })
+    const result = recordFormSchema.safeParse({ title: '', categoryId: 0, description: '' })
     expect(result.success).toBe(false)
-    if (!result.success) expect(result.error.issues.map((issue) => issue.path[0])).toEqual(['title', 'category', 'description'])
+    if (!result.success) expect(result.error.issues.map((issue) => issue.path[0])).toEqual(['title', 'categoryId', 'description'])
   })
 
-  it('tanımsız kategoriyi reddeder', () => {
-    const result = recordFormSchema.safeParse({ title: 'Talep', category: 'Bilinmeyen', description: 'Açıklama' })
+  it('seçilmemiş kategori kimliğini reddeder', () => {
+    const result = recordFormSchema.safeParse({ title: 'Talep', categoryId: 0, description: 'Açıklama' })
     expect(result.success).toBe(false)
   })
 
   it('geçerli kayıt verisini kırpılmış haliyle döndürür', () => {
-    const result = recordFormSchema.parse({ title: '  Talep  ', category: 'İdari', description: '  Açıklama  ' })
-    expect(result).toEqual({ title: 'Talep', category: 'İdari', description: 'Açıklama' })
+    const result = recordFormSchema.parse({ title: '  Talep  ', categoryId: 1, description: '  Açıklama  ' })
+    expect(result).toEqual({ title: 'Talep', categoryId: 1, description: 'Açıklama' })
   })
 })

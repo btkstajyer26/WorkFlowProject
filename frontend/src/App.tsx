@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router'
 import { AppShell } from './components/layout/AppShell'
 import { AppErrorBoundary } from './components/errors/AppErrorBoundary'
@@ -7,8 +7,13 @@ import { useWorkflow } from './context/workflowState'
 import { AdminProvider } from './context/AdminContext'
 import { ThemeProvider } from './context/ThemeContext'
 import { ToastProvider } from './context/ToastContext'
+import {
+  endAuthSession,
+  persistAuthenticatedUser,
+  restoreAuthSession,
+} from './auth/authSession'
+import { CategoryProvider } from './context/CategoryContext'
 import { getDemoUserByRole } from './mocks/users'
-import { createMockRegistrationRequest } from './mocks/registrationRequests'
 import { DashboardPage } from './pages/DashboardPage'
 import { ErrorStatePage } from './pages/ErrorStatePage'
 import { LoginPage } from './pages/LoginPage'
@@ -22,45 +27,26 @@ import { AdminLogsPage } from './pages/admin/AdminLogsPage'
 import { AdminUsersPage } from './pages/admin/AdminUsersPage'
 import type { AuthUser, UserRole } from './types/auth'
 
-const mockSessionKey = 'ebys:mock-session:v1'
-const userRoles: UserRole[] = ['CALISAN', 'BASKAN_YARDIMCISI', 'BASKAN', 'ADMIN']
-
-function isAuthUser(value: unknown): value is AuthUser {
-  if (!value || typeof value !== 'object') return false
-  const candidate = value as Partial<AuthUser>
-  return (
-    typeof candidate.id === 'string' &&
-    typeof candidate.firstName === 'string' &&
-    typeof candidate.lastName === 'string' &&
-    typeof candidate.email === 'string' &&
-    Boolean(candidate.role && userRoles.includes(candidate.role))
-  )
-}
-
-function readMockSession(): AuthUser | null {
-  try {
-    const storedSession = window.sessionStorage.getItem(mockSessionKey)
-    if (!storedSession) return null
-    const parsedSession: unknown = JSON.parse(storedSession)
-    if (isAuthUser(parsedSession)) return parsedSession
-    window.sessionStorage.removeItem(mockSessionKey)
-    return null
-  } catch {
-    window.sessionStorage.removeItem(mockSessionKey)
-    return null
-  }
-}
-
-function persistMockSession(user: AuthUser | null) {
-  if (user) window.sessionStorage.setItem(mockSessionKey, JSON.stringify(user))
-  else window.sessionStorage.removeItem(mockSessionKey)
-}
-
 function App() {
-  const [user, setUser] = useState<AuthUser | null>(readMockSession)
+  const [user, setUser] = useState<AuthUser | null>(null)
+  const [authReady, setAuthReady] = useState(false)
+
+  useEffect(() => {
+    let active = true
+
+    void restoreAuthSession().then((restoredUser) => {
+      if (!active) return
+      setUser(restoredUser)
+      setAuthReady(true)
+    })
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   const handleLogin = (authenticatedUser: AuthUser) => {
-    persistMockSession(authenticatedUser)
+    persistAuthenticatedUser(authenticatedUser)
     setUser(authenticatedUser)
   }
 
@@ -68,14 +54,13 @@ function App() {
     <ThemeProvider>
       <ToastProvider>
         <AppErrorBoundary>
-          <Routes>
+          {authReady ? <Routes>
             <Route
               path="/giris"
               element={(
                 <LoginPage
                   user={user}
                   onLogin={handleLogin}
-                  onRegister={createMockRegistrationRequest}
                 />
               )}
             />
@@ -85,13 +70,13 @@ function App() {
                 <ProtectedApplication
                   user={user}
                   onUserChange={(nextUser) => {
-                    persistMockSession(nextUser)
+                    persistAuthenticatedUser(nextUser)
                     setUser(nextUser)
                   }}
                 />
               }
             />
-          </Routes>
+          </Routes> : <AuthBootstrapScreen />}
         </AppErrorBoundary>
       </ToastProvider>
     </ThemeProvider>
@@ -119,6 +104,7 @@ function ProtectedApplication({
   }
 
   const handleLogout = () => {
+    void endAuthSession().catch(() => undefined)
     navigate('/giris', { replace: true })
     onUserChange(null)
   }
@@ -136,13 +122,23 @@ function ProtectedApplication({
   }
 
   return (
-    <WorkflowProvider user={user}>
-      <WorkflowApplication
-        user={user}
-        onRoleChange={handleRoleChange}
-        onLogout={handleLogout}
-      />
-    </WorkflowProvider>
+    <CategoryProvider>
+      <WorkflowProvider user={user}>
+        <WorkflowApplication
+          user={user}
+          onRoleChange={handleRoleChange}
+          onLogout={handleLogout}
+        />
+      </WorkflowProvider>
+    </CategoryProvider>
+  )
+}
+
+function AuthBootstrapScreen() {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-app-canvas px-6 text-center" role="status">
+      <p className="text-sm font-semibold text-app-text-muted">Oturum kontrol ediliyor…</p>
+    </main>
   )
 }
 
@@ -159,7 +155,6 @@ function WorkflowApplication({
     notifications,
     unreadNotificationCount,
     markNotificationRead,
-    markAllNotificationsRead,
   } = useWorkflow()
 
   return (
@@ -175,7 +170,6 @@ function WorkflowApplication({
             <NotificationsPage
               notifications={notifications}
               onMarkRead={markNotificationRead}
-              onMarkAllRead={markAllNotificationsRead}
             />
           }
         />

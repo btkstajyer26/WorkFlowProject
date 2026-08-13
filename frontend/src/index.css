@@ -107,6 +107,11 @@ button {
   cursor: pointer;
 }
 
+input[type='password']::-ms-reveal,
+input[type='password']::-ms-clear {
+  display: none;
+}
+
 @keyframes composer-genie-in {
   from {
     opacity: 0.2;

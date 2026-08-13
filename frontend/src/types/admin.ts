@@ -13,6 +13,13 @@ export type ManagedUser = {
   version: number
 }
 
+export type CreateManagedUserInput = {
+  firstName: string
+  lastName: string
+  email: string
+  password: string
+}
+
 export type AdminLogType = 'USER' | 'RECORD'
 
 export type AdminAuditLog = {

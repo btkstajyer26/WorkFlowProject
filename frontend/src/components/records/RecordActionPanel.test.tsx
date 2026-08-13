@@ -1,44 +1,44 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router'
 import { describe, expect, it } from 'vitest'
 import { ToastProvider } from '../../context/ToastContext'
 import { WorkflowProvider } from '../../context/WorkflowContext'
 import { useWorkflow } from '../../context/workflowState'
 import { getDemoUserByRole } from '../../mocks/users'
 import { RecordActionPanel } from './RecordActionPanel'
-import { RecordNotesPanel } from './RecordNotesPanel'
 
-function ActionPanelHarness() {
+function ActionPanelHarness({ recordId = 'rec-003' }: { recordId?: string }) {
   const { user, visibleRecords } = useWorkflow()
-  const record = visibleRecords.find((item) => item.id === 'rec-003')
+  const record = visibleRecords.find((item) => item.id === recordId)
   if (!record) return null
   return (
     <>
-      <RecordNotesPanel record={record} />
       <RecordActionPanel record={record} role={user.role} />
-      <span data-testid="working-note-count">{record.notes.length}</span>
       <span data-testid="latest-history-note">{record.history.at(-1)?.note ?? ''}</span>
     </>
   )
 }
 
-function renderChairHarness() {
-  const chair = getDemoUserByRole('BASKAN')
+function renderActionPanel(role: 'CALISAN' | 'BASKAN', recordId?: string) {
+  const user = getDemoUserByRole(role)
   return render(
-    <ToastProvider>
-      <WorkflowProvider user={chair}>
-        <ActionPanelHarness />
-      </WorkflowProvider>
-    </ToastProvider>,
+    <MemoryRouter>
+      <ToastProvider>
+        <WorkflowProvider user={user}>
+          <ActionPanelHarness recordId={recordId} />
+        </WorkflowProvider>
+      </ToastProvider>
+    </MemoryRouter>,
   )
 }
 
 describe('RecordActionPanel', () => {
-  it('ret açıklamasını bağımsız not alanından ayrı ve zorunlu gösterir', async () => {
+  it('ret açıklamasını işlem penceresinde zorunlu gösterir', async () => {
     const user = userEvent.setup()
-    renderChairHarness()
+    renderActionPanel('BASKAN')
 
-    expect(screen.getByRole('region', { name: 'Çalışma Notu' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Çalışma Notu' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Reddet' }))
 
     const explanation = screen.getByRole('textbox', { name: 'Ret açıklaması *' })
@@ -49,25 +49,28 @@ describe('RecordActionPanel', () => {
     expect(confirmButton).toBeEnabled()
   })
 
-  it('çalışma notunu işlem açıklamasına taşır ve başarılı işlemden sonra taslağı temizler', async () => {
+  it('onay açıklamasını doğrudan işlem geçmişine taşır', async () => {
     const user = userEvent.setup()
-    renderChairHarness()
-
-    await user.click(screen.getByRole('button', { name: 'Not Ekle' }))
-    await user.type(screen.getByRole('textbox', { name: 'İnceleme notunuzu yazın' }), 'Başkan çalışma notu.')
-    await user.click(screen.getByRole('button', { name: 'Notu Kaydet' }))
-    expect(screen.getByTestId('working-note-count')).toHaveTextContent('1')
+    renderActionPanel('BASKAN')
 
     await user.click(screen.getByRole('button', { name: 'Onayla' }))
-    const explanation = screen.getByRole('textbox', { name: 'İşlem açıklaması (isteğe bağlı)' })
-    expect(explanation).toHaveValue('Başkan çalışma notu.')
-    await user.clear(explanation)
+    const explanation = screen.getByRole('textbox', { name: 'Onay açıklaması (isteğe bağlı)' })
+    expect(explanation).toHaveValue('')
     await user.type(explanation, 'Nihai onay açıklaması.')
     await user.click(screen.getAllByRole('button', { name: 'Onayla' }).at(-1)!)
 
-    await waitFor(() => expect(screen.getByTestId('working-note-count')).toHaveTextContent('0'))
-    expect(screen.getByTestId('latest-history-note')).toHaveTextContent('Nihai onay açıklaması.')
-    expect(screen.queryByRole('region', { name: 'Çalışma Notu' })).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.getByTestId('latest-history-note')).toHaveTextContent('Nihai onay açıklaması.'))
     expect(screen.getByText('Kayıt onaylandı')).toBeInTheDocument()
+  })
+
+  it('Çalışanın incelemeye gönderme penceresinde not alanı göstermez', async () => {
+    const user = userEvent.setup()
+    renderActionPanel('CALISAN', 'rec-006')
+
+    await user.click(screen.getByRole('button', { name: 'İncelemeye Gönder' }))
+
+    expect(screen.getByRole('dialog', { name: 'Başkan Yardımcısına gönder' })).toBeInTheDocument()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Gönderim açıklaması/)).not.toBeInTheDocument()
   })
 })

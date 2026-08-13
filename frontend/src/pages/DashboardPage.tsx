@@ -52,8 +52,7 @@ export function DashboardPage({ user }: { user: AuthUser }) {
   return (
     <div className="space-y-5">
       <header>
-        <p className="text-sm font-semibold text-brand-600 dark:text-brand-400">Dashboard</p>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight text-app-text sm:text-3xl">
+        <h1 className="text-2xl font-bold tracking-tight text-app-text sm:text-3xl">
           Hoş geldiniz, {user.firstName} {user.lastName} <span aria-hidden="true">👋</span>
         </h1>
         <p className="mt-2 text-sm text-app-text-muted sm:text-base">
@@ -111,7 +110,6 @@ export function DashboardPage({ user }: { user: AuthUser }) {
                 >
                   {record.title}
                 </Link>
-                <p className="mt-1 text-xs text-app-text-subtle">{record.recordNumber}</p>
               </div>
               <span className="hidden sm:inline-flex"><RecordStatusBadge status={record.status} /></span>
             </div>

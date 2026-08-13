@@ -1,10 +1,3 @@
-export const recordCategories = ['İdari', 'Mali', 'İnsan Kaynakları', 'Bilgi İşlem', 'Teknik'] as const
-export type RecordCategory = (typeof recordCategories)[number]
-
-export function isRecordCategory(value: string): value is RecordCategory {
-  return recordCategories.some((category) => category === value)
-}
-
 export const maxRecordTitleLength = 255
 
 export const allowedAttachmentExtensions = [

@@ -3,16 +3,10 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it } from 'vitest'
 import App from '../../App'
-import {
-  createMockRegistrationRequest,
-  readMockRegistrationRequests,
-} from '../../mocks/registrationRequests'
-import { getDemoUserByRole } from '../../mocks/users'
+import { seedAuthenticatedUser } from '../../test/auth'
 
-const mockSessionKey = 'ebys:mock-session:v1'
-
-function renderAdminUsers() {
-  window.sessionStorage.setItem(mockSessionKey, JSON.stringify(getDemoUserByRole('ADMIN')))
+async function renderAdminUsers() {
+  await seedAuthenticatedUser('ADMIN')
   return render(
     <MemoryRouter initialEntries={['/admin/kullanicilar']}>
       <App />
@@ -23,61 +17,47 @@ function renderAdminUsers() {
 describe('Admin kullanıcı yönetimi', () => {
   beforeEach(() => window.sessionStorage.clear())
 
-  it('adminin manuel hesap oluşturmasını göstermez ve kayıt talebini seçilen rolle onaylar', async () => {
+  it('Adminin rol seçmeden Çalışan hesabı oluşturmasını sağlar', async () => {
     const browser = userEvent.setup()
-    createMockRegistrationRequest({
-      firstName: 'Deniz',
-      lastName: 'Kaya',
-      email: 'deniz.kaya@kurum.gov.tr',
-      password: 'guvenli123',
-    })
-    renderAdminUsers()
-    expect(screen.queryByRole('button', { name: 'Yeni Hesap' })).not.toBeInTheDocument()
+    await renderAdminUsers()
 
-    const requestCard = await screen.findByRole('article', { name: 'Deniz Kaya kayıt talebi' })
-    await browser.click(within(requestCard).getByRole('button', { name: 'Başvuruyu İncele' }))
+    expect(screen.queryByText('Onay bekleyen kayıtlar')).not.toBeInTheDocument()
+    await browser.click(await screen.findByRole('button', { name: 'Yeni kullanıcı' }))
 
     const dialog = screen.getByRole('dialog')
-    expect(dialog).toHaveTextContent('Deniz')
-    expect(dialog).toHaveTextContent('Kaya')
-    expect(dialog).toHaveTextContent('deniz.kaya@kurum.gov.tr')
-    expect(dialog).toHaveTextContent('Şifre korumalıdır')
-    expect(within(dialog).queryByRole('option', { name: 'Sistem Yöneticisi' })).not.toBeInTheDocument()
+    expect(within(dialog).queryByRole('combobox')).not.toBeInTheDocument()
+    expect(dialog).toHaveTextContent('otomatik olarak Çalışan rolüyle açılır')
 
-    await browser.selectOptions(within(dialog).getByRole('combobox', { name: 'Onaylanacak rol' }), 'BASKAN')
-    await browser.click(within(dialog).getByRole('button', { name: 'Onayla ve Hesabı Aç' }))
+    await browser.type(within(dialog).getByLabelText('Ad'), 'Deniz')
+    await browser.type(within(dialog).getByLabelText('Soyad'), 'Kaya')
+    await browser.type(within(dialog).getByLabelText('E-posta adresi'), 'deniz.kaya@kurum.gov.tr')
+    await browser.type(within(dialog).getByLabelText('İlk giriş şifresi'), 'guvenli123')
+    await browser.click(within(dialog).getByRole('button', { name: 'Kullanıcı Oluştur' }))
 
-    expect(screen.queryByRole('article', { name: 'Deniz Kaya kayıt talebi' })).not.toBeInTheDocument()
-    expect(within(screen.getByRole('row', { name: /Deniz Kaya/ })).getByText('Başkan')).toBeInTheDocument()
-    expect(readMockRegistrationRequests()).toEqual([
-      expect.objectContaining({ email: 'deniz.kaya@kurum.gov.tr', status: 'APPROVED' }),
-    ])
+    expect(await screen.findByText('Kullanıcı oluşturuldu')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(within(screen.getByRole('row', { name: /Deniz Kaya/ })).getByText('Çalışan')).toBeInTheDocument()
   })
 
-  it('kayıt talebini reddeder ve kullanıcı hesabı oluşturmaz', async () => {
+  it('daha önce kullanılan e-posta adresini alan bazlı hata olarak gösterir', async () => {
     const browser = userEvent.setup()
-    createMockRegistrationRequest({
-      firstName: 'Selin',
-      lastName: 'Demir',
-      email: 'selin.demir@kurum.gov.tr',
-      password: 'guvenli123',
-    })
-    renderAdminUsers()
+    await renderAdminUsers()
+    await browser.click(await screen.findByRole('button', { name: 'Yeni kullanıcı' }))
 
-    const requestCard = await screen.findByRole('article', { name: 'Selin Demir kayıt talebi' })
-    await browser.click(within(requestCard).getByRole('button', { name: 'Başvuruyu İncele' }))
-    await browser.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Talebi Reddet' }))
+    const dialog = screen.getByRole('dialog')
+    await browser.type(within(dialog).getByLabelText('Ad'), 'John')
+    await browser.type(within(dialog).getByLabelText('Soyad'), 'Doe')
+    await browser.type(within(dialog).getByLabelText('E-posta adresi'), 'john.doe@kurum.gov.tr')
+    await browser.type(within(dialog).getByLabelText('İlk giriş şifresi'), 'guvenli123')
+    await browser.click(within(dialog).getByRole('button', { name: 'Kullanıcı Oluştur' }))
 
-    expect(screen.queryByRole('article', { name: 'Selin Demir kayıt talebi' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('row', { name: /Selin Demir/ })).not.toBeInTheDocument()
-    expect(readMockRegistrationRequests()).toEqual([
-      expect.objectContaining({ email: 'selin.demir@kurum.gov.tr', status: 'REJECTED' }),
-    ])
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Bu e-posta adresiyle kayıtlı bir kullanıcı zaten var.')
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 
   it('aktif bir kullanıcıya Admin rolü verir', async () => {
     const browser = userEvent.setup()
-    renderAdminUsers()
+    await renderAdminUsers()
     const elifRow = await screen.findByRole('row', { name: /Elif Akın/ })
     await browser.click(within(elifRow).getByRole('button', { name: 'Rolü Değiştir' }))
     await browser.selectOptions(screen.getByRole('combobox', { name: 'Yeni rol' }), 'ADMIN')
@@ -88,7 +68,7 @@ describe('Admin kullanıcı yönetimi', () => {
 
   it('Başkan Yardımcısı rolünü atomik olarak yeni kullanıcıya devreder', async () => {
     const browser = userEvent.setup()
-    renderAdminUsers()
+    await renderAdminUsers()
     const elifRow = await screen.findByRole('row', { name: /Elif Akın/ })
     await browser.click(within(elifRow).getByRole('button', { name: 'Rolü Değiştir' }))
     await browser.selectOptions(screen.getByRole('combobox', { name: 'Yeni rol' }), 'BASKAN_YARDIMCISI')
@@ -102,7 +82,7 @@ describe('Admin kullanıcı yönetimi', () => {
 
   it('Aktif Başkan Yardımcısını rol devredilmeden pasifleştirmez', async () => {
     const browser = userEvent.setup()
-    renderAdminUsers()
+    await renderAdminUsers()
     const deputyRow = await screen.findByRole('row', { name: /Ayşe Kaya/ })
     await browser.click(within(deputyRow).getByRole('button', { name: 'Pasifleştir' }))
     await browser.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Pasifleştir' }))

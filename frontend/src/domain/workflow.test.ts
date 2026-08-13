@@ -13,6 +13,7 @@ function makeRecord(status: WorkflowRecord['status']): WorkflowRecord {
     recordNumber: 'EBYS-2026-000001',
     title: 'Test Kaydı',
     description: 'İş akışı testi',
+    categoryId: 1,
     category: 'İdari',
     status,
     createdBy: 'John Doe',
@@ -24,7 +25,6 @@ function makeRecord(status: WorkflowRecord['status']): WorkflowRecord {
     createdAt: '2026-08-01T08:00:00.000Z',
     updatedAt: '2026-08-01T08:00:00.000Z',
     attachments: [],
-    notes: [],
     history: [],
   }
 }
@@ -45,17 +45,6 @@ describe('workflow transitions', () => {
 
   it('Başkan Yardımcısının kaydı Başkana iletmesine izin verir', () => {
     const record = makeRecord('BSK_YRD_INCELEMESINDE')
-    record.notes = [{
-      id: 'working-note-001',
-      recordId: record.id,
-      authorId: deputy.id,
-      author: 'Ayşe Kaya',
-      authorRole: 'BASKAN_YARDIMCISI',
-      body: 'Uygundur.',
-      createdAt: '2026-08-01T09:00:00.000Z',
-      updatedAt: '2026-08-01T09:00:00.000Z',
-      version: 0,
-    }]
 
     const result = transitionRecord(record, {
       action: 'BASKANA_ILET',
@@ -68,7 +57,6 @@ describe('workflow transitions', () => {
     expect(result.record.assignedToId).toBe(chair.id)
     expect(result.notification?.userId).toBe(chair.id)
     expect(result.record.history.at(-1)?.note).toBe('Uygundur.')
-    expect(result.record.notes).toEqual([])
   })
 
   it('Başkan onayladığında kaydı kilitler ve çalışanı bilgilendirir', () => {

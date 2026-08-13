@@ -1,14 +1,12 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { describe, expect, it } from 'vitest'
 import App from '../App'
-import { getDemoUserByRole } from '../mocks/users'
+import { seedAuthenticatedUser } from '../test/auth'
 
-const mockSessionKey = 'ebys:mock-session:v1'
-
-function renderEmployeeApp(path: string) {
-  window.sessionStorage.setItem(mockSessionKey, JSON.stringify(getDemoUserByRole('CALISAN')))
+async function renderEmployeeApp(path: string) {
+  await seedAuthenticatedUser('CALISAN')
   return render(
     <MemoryRouter initialEntries={[path]}>
       <App />
@@ -19,28 +17,28 @@ function renderEmployeeApp(path: string) {
 describe('Kayıt formu edge-case davranışları', () => {
   it('kaydedilen taslaktan sonra yeni kayıt formunu boş açar', async () => {
     const user = userEvent.setup()
-    renderEmployeeApp('/dashboard')
+    await renderEmployeeApp('/dashboard')
 
     await user.click(await screen.findByRole('button', { name: 'Yeni Kayıt' }))
     await user.type(screen.getByLabelText(/Başlık/), 'Yeni talep')
-    await user.selectOptions(screen.getByLabelText(/Kategori/), 'Bilgi İşlem')
+    await user.selectOptions(screen.getByLabelText(/Kategori/), '4')
     await user.type(screen.getByLabelText(/Açıklama/), 'Yeni kayıt açıklaması')
     await user.click(screen.getByRole('button', { name: 'Taslak Kaydet' }))
     await user.click(await screen.findByRole('button', { name: 'Yeni Kayıt Oluştur' }))
 
     expect(screen.getByLabelText(/Başlık/)).toHaveValue('')
-    expect(screen.getByLabelText(/Kategori/)).toHaveValue('')
+    expect(screen.getByLabelText(/Kategori/)).toHaveValue('0')
     expect(screen.getByLabelText(/Açıklama/)).toHaveValue('')
     expect(screen.getByRole('button', { name: 'Taslak Kaydet' })).toBeInTheDocument()
   })
 
   it('kaydedilen taslağı doğrudan incelemeye gönderir', async () => {
     const user = userEvent.setup()
-    renderEmployeeApp('/dashboard')
+    await renderEmployeeApp('/dashboard')
 
     await user.click(await screen.findByRole('button', { name: 'Yeni Kayıt' }))
     await user.type(screen.getByLabelText(/Başlık/), 'Doğrudan gönderilecek taslak')
-    await user.selectOptions(screen.getByLabelText(/Kategori/), 'Bilgi İşlem')
+    await user.selectOptions(screen.getByLabelText(/Kategori/), '4')
     await user.type(screen.getByLabelText(/Açıklama/), 'Taslak kaydedildikten sonra incelemeye gönderilecek.')
     await user.click(screen.getByRole('button', { name: 'Taslak Kaydet' }))
     const submitButton = await screen.findByRole('button', { name: 'İncelemeye Gönder' })
@@ -52,13 +50,13 @@ describe('Kayıt formu edge-case davranışları', () => {
 
     await user.click(screen.getByRole('button', { name: 'Yeni Kayıt' }))
     expect(screen.getByLabelText(/Başlık/)).toHaveValue('')
-    expect(screen.getByLabelText(/Kategori/)).toHaveValue('')
+    expect(screen.getByLabelText(/Kategori/)).toHaveValue('0')
     expect(screen.getByLabelText(/Açıklama/)).toHaveValue('')
   })
 
   it('kaydedilmemiş yeni kayıt formu kapatılırken onay ister ve odağı dialog içinde tutar', async () => {
     const user = userEvent.setup()
-    renderEmployeeApp('/dashboard')
+    await renderEmployeeApp('/dashboard')
 
     await user.click(await screen.findByRole('button', { name: 'Yeni Kayıt' }))
     expect(screen.getByRole('heading', { name: /Hoş geldiniz/ })).toBeInTheDocument()
@@ -75,7 +73,7 @@ describe('Kayıt formu edge-case davranışları', () => {
 
   it('düzenleme ekranında aynı dosyayı ikinci kez eklemez', async () => {
     const user = userEvent.setup()
-    renderEmployeeApp('/kayitlar/rec-002/duzenle')
+    await renderEmployeeApp('/kayitlar/rec-002/duzenle')
 
     const fileInput = await screen.findByLabelText('Dosya ekle')
     const file = new File(['teklif'], 'teklif.pdf', { type: 'application/pdf', lastModified: 10 })
@@ -84,5 +82,51 @@ describe('Kayıt formu edge-case davranışları', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('Aynı dosya birden fazla kez eklenemez')
     expect(screen.getAllByText('teklif.pdf')).toHaveLength(1)
+  })
+
+  it('yeni kayıt alanına desteklenen dosyaları sürükleyip bırakır', async () => {
+    const user = userEvent.setup()
+    await renderEmployeeApp('/dashboard')
+
+    await user.click(await screen.findByRole('button', { name: 'Yeni Kayıt' }))
+    const dropZone = screen.getByRole('group', { name: 'Ek dosya yükleme alanı' })
+    const files = [
+      new File(['pdf'], 'belge.pdf', { type: 'application/pdf' }),
+      new File(['docx'], 'rapor.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }),
+      new File(['doc'], 'eski-rapor.doc', { type: 'application/msword' }),
+      new File(['xlsx'], 'tablo.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+      new File(['xls'], 'eski-tablo.xls', { type: 'application/vnd.ms-excel' }),
+      new File(['png'], 'gorsel.png', { type: 'image/png' }),
+      new File(['jpeg'], 'fotograf.jpeg', { type: 'image/jpeg' }),
+      new File(['jpg'], 'tarama.jpg', { type: 'image/jpeg' }),
+    ]
+    const dataTransfer = { files, types: ['Files'], dropEffect: 'none' }
+
+    fireEvent.dragEnter(dropZone, { dataTransfer })
+    expect(screen.getByText('Dosyaları bırakın')).toBeInTheDocument()
+    fireEvent.drop(dropZone, { dataTransfer })
+
+    const attachmentList = screen.getByRole('list', { name: 'Eklenen dosyalar' })
+    files.forEach((file) => expect(within(attachmentList).getByText(file.name)).toBeInTheDocument())
+    expect(screen.queryByText('Dosyaları bırakın')).not.toBeInTheDocument()
+  })
+
+  it('sürüklenen desteklenmeyen dosyayı reddeder ve tekrar dosya eklemez', async () => {
+    const user = userEvent.setup()
+    await renderEmployeeApp('/dashboard')
+
+    await user.click(await screen.findByRole('button', { name: 'Yeni Kayıt' }))
+    const dropZone = screen.getByRole('group', { name: 'Ek dosya yükleme alanı' })
+    const pdf = new File(['pdf'], 'teklif.pdf', { type: 'application/pdf', lastModified: 10 })
+
+    fireEvent.drop(dropZone, { dataTransfer: { files: [pdf], types: ['Files'] } })
+    fireEvent.drop(dropZone, { dataTransfer: { files: [pdf], types: ['Files'] } })
+    expect(screen.getByRole('alert')).toHaveTextContent('Aynı dosya birden fazla kez eklenemez')
+    expect(screen.getAllByText('teklif.pdf')).toHaveLength(1)
+
+    const unsupportedFile = new File(['text'], 'notlar.txt', { type: 'text/plain' })
+    fireEvent.drop(dropZone, { dataTransfer: { files: [unsupportedFile], types: ['Files'] } })
+    expect(screen.getByRole('alert')).toHaveTextContent('“notlar.txt” desteklenmiyor')
+    expect(screen.queryByText('notlar.txt')).not.toBeInTheDocument()
   })
 })

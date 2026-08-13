@@ -285,13 +285,11 @@ Bu endpoint şu anda `WorkflowActionApi` arayüzüyle HTTP sözleşmesi olarak t
 }
 ```
 
-## 6. İşlem geçmişi ve notlar
+## 6. İşlem geçmişi ve açıklamalar
 
 | Metot | Önerilen adres | Amaç |
 |---|---|---|
-| `GET` | `/api/records/{id}/history` | Kullanıcının görmeye yetkili olduğu kaydın geçmişi |
-| `GET` | `/api/records/{id}/notes/me` | JWT kullanıcısının kayıttaki özel çalışma notu |
-| `PUT` | `/api/records/{id}/notes/me` | JWT kullanıcısının özel çalışma notunu oluşturma veya güncelleme |
+| `GET` | `/api/audit-logs/record/{recordId}` | Kullanıcının görmeye yetkili olduğu kaydın işlem geçmişi ve kesinleşmiş açıklamaları |
 
 Geçmiş cevabı en az şu alanları taşımalıdır:
 
@@ -314,48 +312,9 @@ Geçmiş cevabı en az şu alanları taşımalıdır:
 
 Audit kayıtlarını güncelleyen veya silen endpoint olmamalıdır. Kullanıcı yalnız görmeye yetkili olduğu kaydın ilgili geçmişini görebilir; sistem genelindeki audit logları ayrı bir idari yetkidir.
 
-Çalışma notu süreç açıklamasından ayrı, geçici ve yazara özel tutulur. Her incelemeci bir kayıtta en fazla bir çalışma notu tutar; `PUT /notes/me` aynı kullanıcı ve kayıt için yeni satır üretmek yerine mevcut notu günceller. Başka bir kullanıcının çalışma notunu okuyan endpoint bulunmaz.
+Özel veya ayrı kaydedilen bir çalışma notu modeli kullanılmaz. Kullanıcı açıklamasını doğrudan workflow işlem penceresinde yazar ve aynı `POST /api/records/{recordId}/workflow/actions` isteğinin `comment` alanında gönderir. Frontend audit endpoint'ine ikinci bir yazma isteği göndermez.
 
-Notu yalnız kaydın mevcut inceleme aşamasındaki atanmış kullanıcı ekleyebilir:
-
-- `BSK_YRD_INCELEMESINDE`: atanmış `BASKAN_YARDIMCISI`
-- `BASKAN_INCELEMESINDE`: atanmış `BASKAN`
-
-Çalışan, Admin, geçmiş aşamalardaki aktörler ve kaydın mevcut atanmış kullanıcısı olmayan yöneticiler çalışma notu ekleyemez veya güncelleyemez. `ONAYLANDI`, `REDDEDILDI`, `TASLAK` ve `DUZENLEME_BEKLIYOR` durumlarında çalışma notu yönetilemez. Kayıt görünürlüğü başka kullanıcının özel çalışma notunu okumaya yetki vermez.
-
-Çalışma notu kaydetme isteği:
-
-```json
-{
-  "body": "Teknik plan ve bütçe kalemleri kontrol edildi.",
-  "version": 1
-}
-```
-
-Yeni not oluşturulurken `version` gönderilmez. Güncellemede istemci son okuduğu `version` değerini gönderir; eşleşmiyorsa backend `409 NOTE_VERSION_CONFLICT` döndürür. Başarılı cevap güncel notu taşır:
-
-```json
-{
-  "id": "note-uuid",
-  "recordId": "record-uuid",
-  "author": {
-    "id": "user-uuid",
-    "firstName": "Ayşe",
-    "lastName": "Kaya",
-    "role": "BASKAN_YARDIMCISI"
-  },
-  "body": "Teknik plan ve bütçe kalemleri kontrol edildi.",
-  "createdAt": "2026-08-04T10:15:00Z",
-  "updatedAt": "2026-08-04T10:30:00Z",
-  "version": 2
-}
-```
-
-Not gövdesi boş olamaz ve en fazla 1000 karakterdir. Veritabanındaki `(record_id, author_id)` benzersiz kısıtı yarış durumlarında da tek çalışma notu kuralını korur. Not oluşturma ve güncelleme teknik denetim izi üretebilir; içerik kullanıcıya gösterilen `GET /history` zaman çizelgesine eklenmez.
-
-Workflow işlem penceresi yazarın çalışma notuyla önceden doldurulur. Kullanıcı metni son kez değiştirebilir ve workflow isteğinin `comment` alanında gönderir. Başarılı işlem tek backend transaction'ında durum/atama güncellemesini, append-only audit kaydını, bildirimi ve çalışma notunun temizlenmesini tamamlar. İşlem başarısızsa çalışma notu korunur. Frontend audit endpoint'ine ikinci bir yazma isteği göndermez.
-
-Başkana iletme ve onay açıklaması isteğe bağlı; ret ve tüm geri gönderme açıklamaları zorunludur. Kesinleşen `comment` yalnız ilgili audit olayında kalır, güncellenemez ve sonraki kullanıcı tarafından İşlem Geçmişi'nde okunur.
+Başkana iletme, gönderme ve onay açıklaması isteğe bağlı; ret ve tüm geri gönderme açıklamaları zorunludur. Açıklama en fazla 2000 karakterdir. Başarılı işlem tek backend transaction'ında durum/atama güncellemesini, append-only audit kaydını ve bildirimi tamamlar. Kesinleşen `comment` yalnız ilgili audit olayında kalır, güncellenemez ve sonraki yetkili kullanıcı tarafından İşlem Geçmişi'nde okunur.
 
 ## 7. Kategoriler
 
@@ -403,13 +362,23 @@ Hesap açma isteği `firstName`, `lastName`, `email`, `role` alanlarını taşı
 
 ## 10. Bildirimler
 
-| Metot | Önerilen adres | Amaç |
-|---|---|---|
-| `GET` | `/api/notifications?page=0&size=20&unread=true` | JWT kullanıcısına ait bildirimler |
-| `PATCH` | `/api/notifications/{id}/read` | Tek bildirimi okundu yapar |
-| `PATCH` | `/api/notifications/read-all` | Kullanıcının tüm bildirimlerini okundu yapar |
+Güncel OpenAPI sözleşmesinde kesinleşen ve MSW ile modellenen işlemler:
 
-Bildirim modeli mevcut diyagramla uyumlu olarak `id`, `userId`, `recordId`, `message`, `isRead`, `createdAt` alanlarını taşımalıdır. İlk sürüm REST/polling ile çalışabilir; SSE veya WebSocket sonraki sürüme bırakılabilir.
+| Metot | Adres | Amaç |
+|---|---|---|
+| `GET` | `/api/notifications/unread` | JWT kullanıcısının okunmamış bildirimlerini alır |
+| `GET` | `/api/notifications/unread/count` | Menü rozeti için okunmamış bildirim sayısını alır |
+| `PUT` | `/api/notifications/{id}/read` | Kullanıcıya ait tek bildirimi okundu yapar |
+
+Okunan bildirimlerin geçmişten yeniden görüntülenebilmesi için aşağıdaki listeleme işlemi gereklidir ve backend tarafından hâlâ beklenmektedir:
+
+| Metot | Beklenen adres | Amaç |
+|---|---|---|
+| `GET` | `/api/notifications` | JWT kullanıcısının okunmuş ve okunmamış bildirimlerini tercihen sayfalı olarak getirir |
+
+`PUT /api/notifications/read-all` ilk sürüm kapsamı dışındadır. Frontend “Tümü” ve “Okunmamış” görünümlerini sunar ancak bildirimleri yalnızca tek tek okundu yapar.
+
+Mevcut `NotificationResponse`; `id`, `recordId`, `message`, `notificationType`, `read` ve `createdAt` alanlarını taşır. Kullanıcı kimliği JWT'den belirlenir ve cevapta ayrıca gönderilmez. İlk sürüm REST/polling ile çalışabilir; SSE veya WebSocket sonraki sürüme bırakılabilir.
 
 ## 11. Standart hata cevabı
 

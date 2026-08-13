@@ -8,7 +8,8 @@ export type RecordAttachment = WorkflowRecord['attachments'][number]
 
 export type RecordDraftInput = {
   title: string
-  category: string
+  categoryId: number
+  categoryName: string
   description: string
   attachments: RecordAttachment[]
 }
@@ -25,9 +26,7 @@ export type WorkflowContextValue = {
   updateAndSubmit: (recordId: string, input: RecordDraftInput) => WorkflowRecord
   deleteDraft: (recordId: string) => void
   applyAction: (recordId: string, input: Omit<WorkflowActionInput, 'actor'>) => WorkflowRecord
-  saveNote: (recordId: string, body: string) => WorkflowRecord
   markNotificationRead: (notificationId: string) => void
-  markAllNotificationsRead: () => void
 }
 
 export const WorkflowContext = createContext<WorkflowContextValue | null>(null)

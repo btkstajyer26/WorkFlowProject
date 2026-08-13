@@ -17,8 +17,9 @@ import {
   attachmentAcceptValue,
   getAttachmentValidationError,
   maxRecordTitleLength,
-  recordCategories,
 } from '../config/records'
+import { CategoryLoadError } from '../components/records/CategoryLoadError'
+import { useCategories } from '../context/categoryState'
 import { useWorkflow } from '../context/workflowState'
 import { recordFormSchema, type RecordFormValues } from '../schemas/record'
 import { useModalDialog } from '../hooks/useModalDialog'
@@ -44,6 +45,7 @@ export function RecordEditPage({ role }: { role: UserRole }) {
 function EditableRecordForm({ record }: { record: WorkflowRecord }) {
   const navigate = useNavigate()
   const { updateEditableRecord, updateAndSubmit, deleteDraft } = useWorkflow()
+  const { categories, status: categoryStatus, reloadCategories } = useCategories()
   const [attachments, setAttachments] = useState(record?.attachments ?? [])
   const [attachmentsDirty, setAttachmentsDirty] = useState(false)
   const [attachmentError, setAttachmentError] = useState<string | null>(null)
@@ -62,7 +64,7 @@ function EditableRecordForm({ record }: { record: WorkflowRecord }) {
     resolver: zodResolver(recordFormSchema),
     defaultValues: {
       title: record.title,
-      category: record.category,
+      categoryId: record.categoryId,
       description: record.description,
     },
   })
@@ -85,10 +87,16 @@ function EditableRecordForm({ record }: { record: WorkflowRecord }) {
 
   const latestRevisionNote = [...record.history].reverse().find((item) => item.note)?.note
 
-  const toDraftInput = (values: RecordFormValues) => ({
-    ...values,
-    attachments,
-  })
+  const toDraftInput = (values: RecordFormValues) => {
+    const selectedCategory = categories.find((category) => category.id === values.categoryId)
+    if (!selectedCategory) throw new Error('Geçerli bir kategori seçin.')
+
+    return {
+      ...values,
+      categoryName: selectedCategory.name,
+      attachments,
+    }
+  }
 
   const saveDraft = handleSubmit((values) => runMutation(() => {
     updateEditableRecord(record.id, toDraftInput(values))
@@ -113,8 +121,7 @@ function EditableRecordForm({ record }: { record: WorkflowRecord }) {
 
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-bold text-brand-600 dark:text-brand-400">{record.recordNumber}</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-app-text sm:text-3xl">
+          <h1 className="text-2xl font-bold tracking-tight text-app-text sm:text-3xl">
             {record.status === 'TASLAK' ? 'Taslağı Düzenle' : 'Düzeltmeleri Tamamla'}
           </h1>
           <p className="mt-2 text-sm text-app-text-muted">Kaydı kaydedebilir veya Başkan Yardımcısı incelemesine gönderebilirsiniz.</p>
@@ -147,19 +154,29 @@ function EditableRecordForm({ record }: { record: WorkflowRecord }) {
               {errors.title ? <FieldError id="edit-record-title-error" message={errors.title.message} /> : null}
             </label>
 
-            <label className="block" htmlFor="edit-record-category">
-              <span className="mb-1.5 block text-xs font-bold text-app-text-secondary">Kategori *</span>
+            <div>
+              <label htmlFor="edit-record-category" className="mb-1.5 block text-xs font-bold text-app-text-secondary">Kategori *</label>
               <select
                 id="edit-record-category"
-                {...register('category')}
-                aria-invalid={Boolean(errors.category)}
-                aria-describedby={errors.category ? 'edit-record-category-error' : undefined}
-                className={fieldClass}
+                {...register('categoryId', { valueAsNumber: true })}
+                disabled={categoryStatus !== 'ready'}
+                aria-invalid={Boolean(errors.categoryId)}
+                aria-describedby={errors.categoryId
+                  ? 'edit-record-category-error'
+                  : categoryStatus === 'error' ? 'edit-record-category-load-error' : undefined}
+                className={`${fieldClass} disabled:cursor-wait disabled:bg-app-surface-strong`}
               >
-                {recordCategories.map((item) => <option key={item} value={item}>{item}</option>)}
+                {categoryStatus === 'ready'
+                  ? categories.map((category) => (
+                      <option key={category.id} value={category.id}>{category.name}</option>
+                    ))
+                  : <option value={record.categoryId}>{record.category}</option>}
               </select>
-              {errors.category ? <FieldError id="edit-record-category-error" message={errors.category.message} /> : null}
-            </label>
+              {errors.categoryId ? <FieldError id="edit-record-category-error" message={errors.categoryId.message} /> : null}
+              {categoryStatus === 'error' ? (
+                <CategoryLoadError id="edit-record-category-load-error" onRetry={reloadCategories} />
+              ) : null}
+            </div>
 
             <label className="block" htmlFor="edit-record-description">
               <span className="mb-1.5 block text-xs font-bold text-app-text-secondary">Kayıt açıklaması *</span>
