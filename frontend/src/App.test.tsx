@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { describe, expect, it } from 'vitest'
 import App from './App'
+import { getMockUserByRole } from './mocks/api/auth'
 import { seedAuthenticatedUser } from './test/auth'
 
 function renderApp(path: string) {
@@ -52,6 +53,31 @@ describe('App authorization boundaries', () => {
     expect(await screen.findByRole('heading', { name: 'Aradığınız sayfa bulunamadı' })).toBeInTheDocument()
   })
 
+  it('zorunlu şifre değişikliği tamamlanmadan korumalı sayfaları açmaz', async () => {
+    getMockUserByRole('CALISAN').mustChangePassword = true
+    await seedAuthenticatedUser('CALISAN')
+    renderApp('/kayitlar')
+
+    expect(await screen.findByRole('heading', { name: 'Şifrenizi değiştirin' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Tüm Kayıtlarım' })).not.toBeInTheDocument()
+  })
+
+  it('zorunlu şifre değişikliğinden sonra oturumu kapatıp yeniden giriş ister', async () => {
+    const user = userEvent.setup()
+    getMockUserByRole('CALISAN').mustChangePassword = true
+    await seedAuthenticatedUser('CALISAN')
+    renderApp('/dashboard')
+
+    await screen.findByRole('heading', { name: 'Şifrenizi değiştirin' })
+    await user.type(screen.getByLabelText('Mevcut şifre'), 'demo123')
+    await user.type(screen.getByLabelText('Yeni şifre'), 'YeniParola123')
+    await user.type(screen.getByLabelText('Yeni şifre tekrar'), 'YeniParola123')
+    await user.click(screen.getByRole('button', { name: 'Şifreyi Güncelle' }))
+
+    expect(await screen.findByRole('heading', { name: 'Hesabınıza giriş yapın' })).toBeInTheDocument()
+    expect(await screen.findByText('Şifreniz değiştirildi. Yeni şifrenizle tekrar giriş yapın.')).toBeInTheDocument()
+  })
+
   it('kayıt detayında API tarafından adları sağlanmayan kişi alanlarını göstermez', async () => {
     await seedAuthenticatedUser('CALISAN')
     renderApp('/kayitlar/rec-001')
@@ -83,6 +109,7 @@ describe('App authorization boundaries', () => {
       lastName: 'Akın',
       email: 'elif.akin@kurum.gov.tr',
       role: 'CALISAN',
+      mustChangePassword: false,
     })
     renderApp('/kayitlar/rec-006/duzenle')
     expect(await screen.findByRole('heading', { name: 'Bu sayfayı görüntüleme yetkiniz yok' })).toBeInTheDocument()

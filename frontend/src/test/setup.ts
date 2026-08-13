@@ -3,6 +3,7 @@ import { cleanup } from '@testing-library/react'
 import { afterAll, afterEach, beforeAll } from 'vitest'
 import { clearAuthSession } from '../auth/authSession'
 import { clearCategoryCache } from '../api/categories'
+import { resetMockAuthState } from '../mocks/api/auth'
 import { resetMockApiDb } from '../mocks/api/db'
 import { apiMockServer } from '../mocks/api/server'
 
@@ -13,6 +14,7 @@ beforeAll(() => {
 afterEach(() => {
   cleanup()
   apiMockServer.resetHandlers()
+  resetMockAuthState()
   resetMockApiDb()
   clearCategoryCache()
   clearAuthSession()

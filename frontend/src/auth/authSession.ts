@@ -4,6 +4,8 @@ import type { LoginResponse } from '../api/generated/data-contracts'
 import type { AuthUser, UserRole } from '../types/auth'
 
 type AuthTokens = Required<Pick<LoginResponse, 'accessToken' | 'refreshToken'>>
+type AuthSession = AuthTokens & { mustChangePassword: boolean }
+type LoginResponseWithPasswordState = LoginResponse & { mustChangePassword?: boolean }
 
 const refreshTokenStorageKey = 'ebys:refresh-token:v1'
 const authenticatedUserStorageKey = 'ebys:authenticated-user:v1'
@@ -21,7 +23,8 @@ function isAuthUser(value: unknown): value is AuthUser {
     typeof candidate.firstName === 'string' &&
     typeof candidate.lastName === 'string' &&
     typeof candidate.email === 'string' &&
-    Boolean(candidate.role && userRoles.includes(candidate.role))
+    Boolean(candidate.role && userRoles.includes(candidate.role)) &&
+    (typeof candidate.mustChangePassword === 'boolean' || candidate.mustChangePassword === undefined)
   )
 }
 
@@ -66,12 +69,15 @@ function requireAuthTokens(response: LoginResponse): AuthTokens {
   }
 }
 
-function applyAuthTokens(response: LoginResponse) {
+function applyAuthTokens(response: LoginResponse): AuthSession {
   const tokens = requireAuthTokens(response)
   setApiAccessToken(tokens.accessToken)
   refreshToken = tokens.refreshToken
   persistRefreshToken(tokens.refreshToken)
-  return tokens
+  return {
+    ...tokens,
+    mustChangePassword: (response as LoginResponseWithPasswordState).mustChangePassword === true,
+  }
 }
 
 export async function startAuthSession(email: string, password: string) {
@@ -109,7 +115,12 @@ export function readPersistedAuthenticatedUser(): AuthUser | null {
     const storedUser = window.localStorage.getItem(authenticatedUserStorageKey)
     if (!storedUser) return null
     const parsedUser: unknown = JSON.parse(storedUser)
-    if (isAuthUser(parsedUser)) return parsedUser
+    if (isAuthUser(parsedUser)) {
+      return {
+        ...parsedUser,
+        mustChangePassword: parsedUser.mustChangePassword === true,
+      }
+    }
   } catch {
     // Bozuk veya erişilemeyen storage aşağıda temizlenir.
   }
@@ -133,8 +144,13 @@ export function restoreAuthSession() {
     refreshToken = storedRefreshToken
 
     try {
-      await refreshAuthSession()
-      return storedUser
+      const session = await refreshAuthSession()
+      const restoredUser = {
+        ...storedUser,
+        mustChangePassword: session.mustChangePassword,
+      }
+      persistAuthenticatedUser(restoredUser)
+      return restoredUser
     } catch {
       clearAuthSession()
       return null

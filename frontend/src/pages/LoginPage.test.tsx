@@ -50,6 +50,32 @@ describe('LoginPage', () => {
     expect(onLogin).not.toHaveBeenCalled()
   })
 
+  it('ilk girişte şifre değişikliği zorunlu olan kullanıcıyı ilgili sayfaya yönlendirir', async () => {
+    const user = userEvent.setup()
+    const onLogin = vi.fn()
+
+    render(
+      <MemoryRouter initialEntries={['/giris']}>
+        <LoginPage user={null} onLogin={onLogin} />
+        <LocationProbe />
+      </MemoryRouter>,
+    )
+
+    await user.clear(screen.getByLabelText('E-posta adresi'))
+    await user.type(screen.getByLabelText('E-posta adresi'), 'ilk.giris@kurum.gov.tr')
+    await user.clear(screen.getByLabelText('Şifre'))
+    await user.type(screen.getByLabelText('Şifre'), 'Gecici123')
+    await user.click(screen.getByRole('button', { name: 'Giriş Yap' }))
+
+    expect(onLogin).toHaveBeenCalledWith(expect.objectContaining({
+      email: 'ilk.giris@kurum.gov.tr',
+      mustChangePassword: true,
+    }))
+    await waitFor(() => {
+      expect(screen.getByLabelText('Geçerli adres')).toHaveTextContent('/sifre-degistir')
+    })
+  })
+
   it('öz-kayıt seçeneği yerine hesabın Admin tarafından açıldığını belirtir', () => {
     render(
       <MemoryRouter initialEntries={['/giris']}>

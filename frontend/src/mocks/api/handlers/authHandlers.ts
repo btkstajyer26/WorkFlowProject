@@ -2,11 +2,18 @@ import { http, HttpResponse } from 'msw'
 import type { LoginRequest, LogoutRequest, RefreshTokenRequest } from '../../../api/generated/data-contracts'
 import { apiBaseUrl } from '../../../api/config'
 import {
+  changeMockPassword,
   createMockTokenPair,
   findMockUserByCredentials,
   findMockUserByRefreshToken,
+  getAuthenticatedMockUser,
 } from '../auth'
-import { apiErrorResponse } from '../responses'
+import { apiErrorResponse, unauthorizedResponse } from '../responses'
+
+type ChangePasswordRequest = {
+  currentPassword?: string
+  newPassword?: string
+}
 
 export const authHandlers = [
   http.post(`${apiBaseUrl}/api/auth/login`, async ({ request }) => {
@@ -32,5 +39,32 @@ export const authHandlers = [
       return apiErrorResponse(401, 'UNAUTHORIZED', 'Refresh token geçersiz')
     }
     return new HttpResponse('Çıkış yapıldı', { status: 200 })
+  }),
+
+  http.post(`${apiBaseUrl}/api/auth/change-password`, async ({ request }): Promise<Response> => {
+    const user = getAuthenticatedMockUser(request)
+    if (!user) return unauthorizedResponse()
+
+    const body = await request.json() as ChangePasswordRequest
+    const fieldErrors = [
+      ...(!body.currentPassword
+        ? [{ field: 'currentPassword', message: 'Mevcut şifre boş olamaz' }]
+        : []),
+      ...(!body.newPassword
+        ? [{ field: 'newPassword', message: 'Yeni şifre boş olamaz' }]
+        : !/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(body.newPassword)
+          ? [{ field: 'newPassword', message: 'Şifre en az 8 karakter olmalı, en az bir harf ve bir rakam içermeli' }]
+          : []),
+    ]
+
+    if (fieldErrors.length) {
+      return apiErrorResponse(400, 'VALIDATION_ERROR', 'Girilen veriler geçersiz', fieldErrors)
+    }
+    if (user.password !== body.currentPassword) {
+      return apiErrorResponse(401, 'INVALID_CREDENTIALS', 'Mevcut şifre yanlış')
+    }
+
+    changeMockPassword(user, body.newPassword!)
+    return HttpResponse.text('Şifre değiştirildi')
   }),
 ]

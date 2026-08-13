@@ -63,6 +63,7 @@ export const adminHandlers = [
       email: response.email!,
       password,
       role: 'CALISAN',
+      mustChangePassword: true,
     })
     return HttpResponse.json(response)
   }),

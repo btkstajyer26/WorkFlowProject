@@ -71,9 +71,10 @@ Her geçiş tek transaction içinde kaydı güncellemeli, audit log eklemeli ve 
 
 | Metot | Adres | Koruma | Amaç |
 |---|---|---|---|
-| `POST` | `/api/auth/login` | Açık | Access/refresh token ve kullanıcı özeti üretir |
+| `POST` | `/api/auth/login` | Açık | Access/refresh token ve zorunlu parola değişikliği bilgisini üretir |
 | `POST` | `/api/auth/refresh` | Refresh token | Access token yeniler |
 | `POST` | `/api/auth/logout` | Bearer | Aktif refresh tokenı iptal eder |
+| `POST` | `/api/auth/change-password` | Bearer | Mevcut parolayı doğrulayıp parolayı değiştirir |
 | `GET` | `/api/users/me` | Bearer | Aktif kullanıcının kimlik ve rol bilgisini döner |
 
 Giriş isteği:
@@ -91,17 +92,20 @@ Giriş cevabı:
 {
   "accessToken": "eyJ...",
   "refreshToken": "eyJ...",
-  "tokenType": "Bearer",
-  "expiresIn": 900,
-  "user": {
-    "id": "user-uuid",
-    "firstName": "John",
-    "lastName": "Doe",
-    "email": "john.doe@kurum.gov.tr",
-    "role": "CALISAN"
-  }
+  "mustChangePassword": true
 }
 ```
+
+`mustChangePassword=true` olduğunda frontend kullanıcının diğer korumalı sayfalara erişimini durdurur ve `/sifre-degistir` adresine yönlendirir. Şifre değiştirme isteği:
+
+```json
+{
+  "currentPassword": "gecici-parola",
+  "newPassword": "YeniParola123"
+}
+```
+
+Yeni parola en az 8 karakter olmalı, en az bir harf ve bir rakam içermelidir. Başarılı değişiklik `mustChangePassword=false` yapar ve kullanıcının aktif refresh tokenlarını iptal eder. Frontend yerel oturumu temizleyip kullanıcıdan yeni parolasıyla tekrar giriş yapmasını ister.
 
 Backend ekibinin ayrıca netleştirmesi gerekenler:
 
@@ -429,5 +433,5 @@ Frontend ekibinin veritabanı bağlantı bilgisine veya şifresine ihtiyacı yok
 
 - `records` tablosunda kullanıcıya gösterilecek benzersiz `record_no` alanı kesinleşmeli.
 - `notifications.record_id` zorunluysa kayıttan bağımsız sistem duyuruları desteklenmeyecek; gerekiyorsa şema değişmeli.
-- Profil güncelleme ve şifre değiştirme kapsamı şartnamede olmadığı için bu işlemler için endpoint talep edilmemiştir.
+- Profil güncelleme endpointi henüz kapsam dışıdır. Zorunlu ilk giriş parola değişikliği `POST /api/auth/change-password` ile desteklenir.
 - Self-service kayıt/signup ekranı kapsam dışıdır; kullanıcı hesaplarını yetkili sistem yöneticisi oluşturur.

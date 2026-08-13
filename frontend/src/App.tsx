@@ -8,6 +8,7 @@ import { AdminProvider } from './context/AdminContext'
 import { ThemeProvider } from './context/ThemeContext'
 import { ToastProvider } from './context/ToastContext'
 import {
+  clearAuthSession,
   endAuthSession,
   persistAuthenticatedUser,
   restoreAuthSession,
@@ -19,6 +20,7 @@ import { ErrorStatePage } from './pages/ErrorStatePage'
 import { LoginPage } from './pages/LoginPage'
 import { NotificationsPage } from './pages/NotificationsPage'
 import { ProfilePage } from './pages/ProfilePage'
+import { PasswordChangePage } from './pages/PasswordChangePage'
 import { RecordDetailPage } from './pages/RecordDetailPage'
 import { RecordEditPage } from './pages/RecordEditPage'
 import { RecordsPage } from './pages/RecordsPage'
@@ -28,8 +30,11 @@ import { AdminUsersPage } from './pages/admin/AdminUsersPage'
 import type { AuthUser, UserRole } from './types/auth'
 
 function App() {
+  const navigate = useNavigate()
+  const location = useLocation()
   const [user, setUser] = useState<AuthUser | null>(null)
   const [authReady, setAuthReady] = useState(false)
+  const [sessionEndPath, setSessionEndPath] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -45,9 +50,26 @@ function App() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!sessionEndPath) return
+    const currentPath = `${location.pathname}${location.search}`
+    if (currentPath === sessionEndPath) {
+      setSessionEndPath(null)
+      return
+    }
+    navigate(sessionEndPath, { replace: true })
+  }, [location.pathname, location.search, navigate, sessionEndPath])
+
   const handleLogin = (authenticatedUser: AuthUser) => {
+    setSessionEndPath(null)
     persistAuthenticatedUser(authenticatedUser)
     setUser(authenticatedUser)
+  }
+
+  const endSessionAt = (path: string) => {
+    clearAuthSession()
+    setUser(null)
+    setSessionEndPath(path)
   }
 
   return (
@@ -65,16 +87,28 @@ function App() {
               )}
             />
             <Route
-              path="/*"
-              element={
-                <ProtectedApplication
+              path="/sifre-degistir"
+              element={(
+                <PasswordChangePage
                   user={user}
-                  onUserChange={(nextUser) => {
-                    persistAuthenticatedUser(nextUser)
-                    setUser(nextUser)
-                  }}
+                  onPasswordChanged={() => endSessionAt('/giris?reason=password-changed')}
+                  onUseAnotherAccount={() => endSessionAt('/giris')}
                 />
-              }
+              )}
+            />
+            <Route
+              path="/*"
+              element={user?.mustChangePassword
+                ? <Navigate to="/sifre-degistir" replace />
+                : (
+                  <ProtectedApplication
+                    user={user}
+                    onUserChange={(nextUser) => {
+                      persistAuthenticatedUser(nextUser)
+                      setUser(nextUser)
+                    }}
+                  />
+                )}
             />
           </Routes> : <AuthBootstrapScreen />}
         </AppErrorBoundary>
