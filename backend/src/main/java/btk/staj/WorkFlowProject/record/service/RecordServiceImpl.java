@@ -4,6 +4,7 @@ import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
 import btk.staj.WorkFlowProject.common.exception.BusinessRuleException;
 import btk.staj.WorkFlowProject.common.exception.ForbiddenException;
 import btk.staj.WorkFlowProject.common.exception.ResourceNotFoundException;
+import btk.staj.WorkFlowProject.rbac.service.PermissionService;
 import btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy;
 import btk.staj.WorkFlowProject.record.dto.*;
 import btk.staj.WorkFlowProject.record.entity.Record;
@@ -30,13 +31,16 @@ public class RecordServiceImpl implements RecordService {
     private final RecordRepository recordRepository;
     private final RecordMapper recordMapper;
     private final RecordAccessPolicy recordAccessPolicy;
+    private final PermissionService permissionService;
 
     public RecordServiceImpl(RecordRepository recordRepository,
                              RecordMapper recordMapper,
-                             RecordAccessPolicy recordAccessPolicy) {
+                             RecordAccessPolicy recordAccessPolicy,
+                             PermissionService permissionService) {
         this.recordRepository = recordRepository;
         this.recordMapper = recordMapper;
         this.recordAccessPolicy = recordAccessPolicy;
+        this.permissionService = permissionService;
     }
 
     /**
@@ -76,6 +80,12 @@ public class RecordServiceImpl implements RecordService {
 
     @Override
     public RecordResponse createRecord(RecordCreateRequest request) {
+        RoleName role = getCurrentUserRole();
+
+        if (!permissionService.canCreateRecord(role)) {
+            throw new ForbiddenException("Kayıt oluşturma yetkiniz yok!");
+        }
+
         Record record = recordMapper.toEntity(request, getCurrentUserId());
         record.setCreatedAt(LocalDateTime.now());
 
@@ -143,8 +153,9 @@ public class RecordServiceImpl implements RecordService {
     @Override
     public RecordResponse updateRecord(UUID id, RecordUpdateRequest request) {
         Record record = findRecordOrThrow(id);
+        RoleName role = getCurrentUserRole();
 
-        if (!record.getStatus().isEditableByCreator()) {
+        if (!permissionService.canEditOrDeleteDraft(role, record.getStatus())) {
             throw new BusinessRuleException("Bu kayıt şu anki durumunda düzenlenemez!");
         }
 
@@ -165,8 +176,13 @@ public class RecordServiceImpl implements RecordService {
     @Override
     public void deleteRecord(UUID id) {
         Record record = findRecordOrThrow(id);
+        RoleName role = getCurrentUserRole();
 
-        if (record.getStatus() != RecordStatus.TASLAK) {
+        // Silme, duzenlemeden daha dar: PermissionService.canEditOrDeleteDraft
+        // hem TASLAK hem DUZENLEME_BEKLIYOR'da true donebilir, ama silme
+        // yalnizca TASLAK durumunda gecerlidir (PermissionService javadoc'u).
+        if (!permissionService.canEditOrDeleteDraft(role, record.getStatus())
+                || record.getStatus() != RecordStatus.TASLAK) {
             throw new BusinessRuleException("Sadece taslak durumundaki kayıtlar silinebilir!");
         }
 
