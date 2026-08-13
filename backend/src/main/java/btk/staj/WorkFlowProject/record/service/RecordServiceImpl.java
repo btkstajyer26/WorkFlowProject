@@ -12,17 +12,11 @@ import btk.staj.WorkFlowProject.record.mapper.RecordMapper;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
-import jakarta.persistence.criteria.Predicate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -107,48 +101,9 @@ public class RecordServiceImpl implements RecordService {
         return recordMapper.toResponse(record);
     }
 
-    @Override
-    public Page<RecordResponse> getFilteredRecords(RecordStatus status, Integer categoryId, String keyword, Pageable pageable) {
-        RoleName role = getCurrentUserRole();
-        UUID currentUserId = getCurrentUserId();
-
-        Specification<Record> spec = (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
-
-            // Soft delete kuralı: Silinmiş olanları getirme
-            predicates.add(cb.isNull(root.get("deletedAt")));
-
-            // Gorunurluk kapsami: RecordAccessPolicy.canView ile ayni kural,
-            // burada listeleme sorgusuna predicate olarak uygulanir.
-            switch (role) {
-                case CALISAN -> predicates.add(cb.equal(root.get("createdBy"), currentUserId));
-                case BASKAN_YARDIMCISI -> predicates.add(cb.equal(root.get("assignedTo"), currentUserId));
-                case BASKAN -> predicates.add(cb.or(
-                        cb.equal(root.get("status"), RecordStatus.BASKAN_INCELEMESINDE),
-                        cb.equal(root.get("assignedTo"), currentUserId)));
-                // ADMIN yalnizca kullanici/rol yonetiminden sorumludur; evrak goremez.
-                case ADMIN -> predicates.add(cb.disjunction());
-            }
-
-            if (status != null) {
-                predicates.add(cb.equal(root.get("status"), status));
-            }
-            if (categoryId != null) {
-                predicates.add(cb.equal(root.get("categoryId"), categoryId));
-            }
-            if (keyword != null && !keyword.trim().isEmpty()) {
-                String likePattern = "%" + keyword.toLowerCase() + "%";
-                Predicate titleLike = cb.like(cb.lower(root.get("title")), likePattern);
-                Predicate descLike = cb.like(cb.lower(root.get("description")), likePattern);
-                predicates.add(cb.or(titleLike, descLike));
-            }
-
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
-
-        Page<Record> recordPage = recordRepository.findAll(spec, pageable);
-        return recordPage.map(recordMapper::toResponse);
-    }
+    // Listeleme burada degil: filtreleme ve gorunurluk kapsami RecordSearchService'e
+    // tasindi (karar 2.2). Ayni erişim kuralının iki ayrı yerde uygulanmasını
+    // onlemek icin tekil kaynak search modulu.
 
     @Override
     public RecordResponse updateRecord(UUID id, RecordUpdateRequest request) {

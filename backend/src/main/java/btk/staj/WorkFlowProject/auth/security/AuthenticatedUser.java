@@ -28,7 +28,10 @@ public class AuthenticatedUser implements UserDetails {
     public String getRoleName() {
         return user.getRole().getName();
     }
-
+    public Integer getRoleId() {
+    return user.getRole().getId();
+    }
+    
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().getName()));
