@@ -307,9 +307,10 @@ Flyway migrationları `backend/src/main/resources/db/migration` dizinindedir.
 | Migration | İçerik |
 | --- | --- |
 | `V1__init_database_schema.sql` | Roller, kullanıcılar, tokenlar, kayıtlar, dosyalar, audit ve bildirim tablolarını içeren kanonik başlangıç şeması |
-| `V2__create_record_notes.sql` | Kayıt çalışma notları ve optimistic locking alanları |
+| `V2__create_record_notes.sql` | (Kullanılmıyor) Kayıt çalışma notları; `V6` ile geri alındı |
 | `V4__add_soft_delete_to_files.sql` | Dosyalara soft delete alanları ve indeks |
 | `V5__add_notification_type.sql` | Bildirim türü alanı ve indeksi |
+| `V6__drop_record_notes.sql` | Kullanılmayan `record_notes` tablosunun kaldırılması |
 
 `V1` hazırlanırken daha önce taslak olarak adlandırılan Admin ve workflow migrationları ortak veritabanına uygulanmadan birleştirilmiştir. Bu nedenle numaralandırmadaki boşluklar tarihsel tasarım kararının sonucudur.
 

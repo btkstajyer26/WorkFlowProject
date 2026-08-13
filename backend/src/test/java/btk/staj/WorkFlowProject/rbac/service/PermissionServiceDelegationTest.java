@@ -104,7 +104,6 @@ class PermissionServiceDelegationTest {
         assertThat(permissionService.canReject(RoleName.ADMIN, status)).isFalse();
         assertThat(permissionService.canSendToReview(RoleName.ADMIN, status)).isFalse();
         assertThat(permissionService.canForwardToBaskan(RoleName.ADMIN, status)).isFalse();
-        assertThat(permissionService.canAddNote(RoleName.ADMIN)).isFalse();
         assertThat(permissionService.canCreateRecord(RoleName.ADMIN)).isFalse();
     }
 

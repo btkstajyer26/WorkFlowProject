@@ -100,11 +100,6 @@ public class PermissionService {
         return role == RoleName.CALISAN && currentStatus.isEditableByCreator();
     }
 
-    /** Aciklama/not ekleme yetkisi is akisi aktoru olan butun rollerdedir. */
-    public boolean canAddNote(RoleName role) {
-        return role.isWorkflowActor();
-    }
-
     /** Terminal durumdaki kayit kilitlidir. */
     public boolean isRecordLocked(RecordStatus currentStatus) {
         return currentStatus.isTerminal();

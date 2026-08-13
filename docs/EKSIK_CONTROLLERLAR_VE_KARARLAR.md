@@ -69,8 +69,9 @@ belirlendiği için gövdede dönmez.
 gerekmiyor**. Frontend'deki `RecordNotesPanel` de bu modele göre yeniden
 kuruldu.
 
-> `record_notes` tablosu `V2` migration'ında duruyor ama kullanılmıyor.
-> Kaldırılıp kaldırılmayacağı ayrı bir karar; şimdilik dokunulmadı.
+> `record_notes` tablosu `V6__drop_record_notes.sql` ile kaldırıldı.
+> `V2` dosyası tarihsel kayıt olarak yerinde bırakıldı (Flyway checksum
+> kuralı gereği uygulanmış migrationlar silinmez).
 
 ### Kayıt geçmişi ucu kapsamdan çıktı
 
