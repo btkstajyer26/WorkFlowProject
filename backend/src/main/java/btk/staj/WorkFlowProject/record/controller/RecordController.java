@@ -1,18 +1,23 @@
 package btk.staj.WorkFlowProject.record.controller;
 
+import btk.staj.WorkFlowProject.common.dto.PagedResponse;
 import btk.staj.WorkFlowProject.record.dto.RecordCreateRequest;
 import btk.staj.WorkFlowProject.record.dto.RecordResponse;
 import btk.staj.WorkFlowProject.record.dto.RecordUpdateRequest;
 import btk.staj.WorkFlowProject.record.service.RecordService;
+import btk.staj.WorkFlowProject.search.dto.RecordSearchCriteria;
+import btk.staj.WorkFlowProject.search.dto.RecordSearchResponse;
+import btk.staj.WorkFlowProject.search.service.RecordSearchService;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import jakarta.validation.Valid;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @RestController
@@ -20,9 +25,11 @@ import java.util.UUID;
 public class RecordController {
 
     private final RecordService recordService;
+    private final RecordSearchService recordSearchService;
 
-    public RecordController(RecordService recordService) {
+    public RecordController(RecordService recordService, RecordSearchService recordSearchService) {
         this.recordService = recordService;
+        this.recordSearchService = recordSearchService;
     }
 
     /**
@@ -45,16 +52,31 @@ public class RecordController {
     }
 
     /**
-     * Arama ve Filtreleme Modülü (Sayfalamalı) — şartname 4.4.
+     * Kayıt listeleme — şartname §5: GET /api/records?page&size&status&categoryId&q&from&to&sort
+     *
+     * <p>Uç burada ({@code RecordController}) kalır, ancak filtreleme ve görünürlük
+     * kapsamı mantığı {@code RecordSearchService}'ten gelir. Aynı erişim kuralının
+     * iki ayrı yerde uygulanmasını (ve birinin unutulmasını) önlemek için tekil
+     * kaynak olarak search modülü kullanılır; bu controller kendi predicate/filtre
+     * mantığını tutmaz.
      */
     @GetMapping
-    public ResponseEntity<Page<RecordResponse>> getAllRecords(
+    public ResponseEntity<PagedResponse<RecordSearchResponse>> getAllRecords(
             @RequestParam(required = false) RecordStatus status,
             @RequestParam(required = false) Integer categoryId,
-            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
             Pageable pageable) {
 
-        Page<RecordResponse> response = recordService.getFilteredRecords(status, categoryId, keyword, pageable);
+        RecordSearchCriteria criteria = new RecordSearchCriteria();
+        criteria.setStatus(status);
+        criteria.setCategoryId(categoryId);
+        criteria.setText(q);
+        criteria.setStartDate(from);
+        criteria.setEndDate(to);
+
+        PagedResponse<RecordSearchResponse> response = recordSearchService.search(criteria, pageable);
         return ResponseEntity.ok(response);
     }
 
