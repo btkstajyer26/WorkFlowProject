@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { api } from '../api/client'
 import {
   endAuthSession,
+  isAuthenticatedSessionFor,
   persistAuthenticatedUser,
   readPersistedAuthenticatedUser,
   refreshAuthSession,
@@ -38,7 +39,8 @@ describe('authSession', () => {
     await startAuthSession('john.doe@kurum.gov.tr', 'demo123')
     persistAuthenticatedUser(user)
 
-    expect(window.localStorage.length).toBe(2)
+    expect(window.localStorage.length).toBe(3)
+    expect(isAuthenticatedSessionFor(user.email)).toBe(true)
     expect(readPersistedAuthenticatedUser()).toEqual(user)
     await expect(restoreAuthSession()).resolves.toEqual(user)
     await expect(api.categories.getAllCategories()).resolves.toHaveLength(5)
