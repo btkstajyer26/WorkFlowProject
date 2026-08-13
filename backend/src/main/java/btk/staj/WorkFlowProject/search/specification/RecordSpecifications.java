@@ -37,8 +37,8 @@ public final class RecordSpecifications {
 
             predicates.add(visibilityScope(root, cb, currentUserId, currentUserRole));
 
-            if (criteria.getText() != null && !criteria.getText().isBlank()) {
-                String text = "%" + criteria.getText().toLowerCase() + "%";
+            if (criteria.getQ() != null && !criteria.getQ().isBlank()) {
+                String text = "%" + criteria.getQ().toLowerCase() + "%";
                 predicates.add(cb.or(
                         cb.like(cb.lower(root.get("title")), text),
                         cb.like(cb.lower(root.get("description")), text)));
@@ -52,16 +52,12 @@ public final class RecordSpecifications {
                 predicates.add(cb.equal(root.get("categoryId"), criteria.getCategoryId()));
             }
 
-            if (criteria.getUserId() != null) {
-                predicates.add(cb.equal(root.get("createdBy"), criteria.getUserId()));
+            if (criteria.getFrom() != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), criteria.getFrom()));
             }
 
-            if (criteria.getStartDate() != null) {
-                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), criteria.getStartDate()));
-            }
-
-            if (criteria.getEndDate() != null) {
-                predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), criteria.getEndDate()));
+            if (criteria.getTo() != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), criteria.getTo()));
             }
 
             predicates.add(cb.isNull(root.get("deletedAt")));
