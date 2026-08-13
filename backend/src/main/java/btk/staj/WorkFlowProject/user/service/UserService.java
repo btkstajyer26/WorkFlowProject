@@ -23,10 +23,13 @@ import btk.staj.WorkFlowProject.common.exception.ResourceNotFoundException;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
 public class UserService {
+
+    private static final Set<String> SINGLETON_ROLES = Set.of("ADMIN", "BASKAN", "BASKAN_YARDIMCISI");
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -66,6 +69,7 @@ public class UserService {
         user.setPasswordHash(passwordEncoder.encode(rawPassword));
         user.setRole(role);
         user.setActive(true);
+        user.setMustChangePassword(true);
         user.setCreatedAt(LocalDateTime.now());
 
         User saved = userRepository.save(user);
@@ -82,12 +86,23 @@ public class UserService {
 
         return saved;
     }
+
     /**
-     * Kurumsal gorevlendirme degistiginde rolu gunceller. Sistemde tek bir
-     * aktif Admin bulunur; ikinci Admin atamasi reddedilir.
+     * Kurumsal gorevlendirme degistiginde rolu gunceller.
+     *
+     * <p>ADMIN, BASKAN ve BASKAN_YARDIMCISI rolleri "tekil" roller: ayni anda
+     * yalnizca bir kisi tutabilir. Bu rollerden birine atama yapilirken, o rol
+     * zaten baska bir kullaniciya aitse istek reddedilir.
+     *
+     * <p>Bir kullanici BASKAN_YARDIMCISI rolundeyken baska bir tekil role
+     * (BASKAN veya ADMIN) geciyorsa, BASKAN_YARDIMCISI koltugu bosalir.
+     * Bu durumda istekte {@code replacementBaskanYardimcisiId} zorunludur;
+     * belirtilen kullanici ayni istekte yeni BASKAN_YARDIMCISI yapilir.
+     * Otomatik/rastgele atama yapilmaz — devir Admin'in acikca sectigi
+     * kullaniciya, ayni transaction icinde uygulanir.
      */
     @Transactional
-    public User changeRole(UUID userId, String newRoleName) {
+    public User changeRole(UUID userId, String newRoleName, UUID replacementBaskanYardimcisiId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Kullanıcı bulunamadı: " + userId));
 
@@ -96,12 +111,22 @@ public class UserService {
         Role newRole = roleRepository.findByName(newRoleName)
                 .orElseThrow(() -> new RoleNotFoundException("Rol bulunamadı: " + newRoleName));
 
-        if (newRole.getName().equals("ADMIN")) {
-            boolean baskaAdminVar = userRepository.findByRole_NameAndActive("ADMIN", true).stream()
-                    .anyMatch(mevcut -> !mevcut.getId().equals(userId));
-            if (baskaAdminVar) {
-                throw new AdminLimitExceededException("Sistemde zaten bir ADMIN var, ikinci ADMIN atanamaz");
+        if (SINGLETON_ROLES.contains(newRole.getName())) {
+            boolean alreadyHeldByAnother = userRepository.findByRole_NameAndActive(newRole.getName(), true)
+                    .stream()
+                    .anyMatch(existing -> !existing.getId().equals(userId));
+            if (alreadyHeldByAnother) {
+                throw new AdminLimitExceededException(
+                        "Bu rol zaten başka bir kullanıcıya atanmış: " + newRole.getName());
             }
+        }
+
+        boolean wasBaskanYardimcisi = previousRole != null && "BASKAN_YARDIMCISI".equals(previousRole.getName());
+        boolean leavingBaskanYardimcisi = wasBaskanYardimcisi && !"BASKAN_YARDIMCISI".equals(newRole.getName());
+
+        if (leavingBaskanYardimcisi && replacementBaskanYardimcisiId == null) {
+            throw new BusinessRuleException(
+                    "Başkan Yardımcısı koltuğu boşalıyor; aynı istekte yerine atanacak kullanıcı (replacementBaskanYardimcisiId) belirtilmeli");
         }
 
         user.setRole(newRole);
@@ -118,8 +143,42 @@ public class UserService {
                 "Kullanıcı rolü " + (previousRole != null ? previousRole.getName() : "?")
                         + " → " + newRole.getName() + " olarak değiştirildi");
 
+        if (leavingBaskanYardimcisi) {
+            assignBaskanYardimcisi(replacementBaskanYardimcisiId, userId);
+        }
+
         return saved;
     }
+
+    private void assignBaskanYardimcisi(UUID replacementUserId, UUID previousHolderId) {
+        User replacement = userRepository.findById(replacementUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("Belirtilen kullanıcı bulunamadı: " + replacementUserId));
+
+        if (replacement.getId().equals(previousHolderId)) {
+            throw new BusinessRuleException("Yerine atanacak kullanıcı, koltuğu boşaltan kişiyle aynı olamaz");
+        }
+        if (!replacement.isActive()) {
+            throw new BusinessRuleException("Pasif bir kullanıcı Başkan Yardımcısı yapılamaz");
+        }
+
+        Role baskanYardimcisiRole = roleRepository.findByName("BASKAN_YARDIMCISI")
+                .orElseThrow(() -> new RoleNotFoundException("BASKAN_YARDIMCISI rolü bulunamadı"));
+
+        replacement.setRole(baskanYardimcisiRole);
+        userRepository.save(replacement);
+
+        userAuditLogService.logIslem(
+                replacement.getId(),
+                currentActorProvider.currentActor().id(),
+                "ROLE_CHANGED",
+                null,
+                baskanYardimcisiRole.getId(),
+                null,
+                null,
+                "Başkan Yardımcısı koltuğu boşaldığı için admin tarafından atandı");
+    }
+
+
 
     /**
      * Admin kullanici listesi: arama (ad/soyad/e-posta), rol ve aktiflik
@@ -138,13 +197,9 @@ public class UserService {
 
     /**
      * Hesap etkinlestirme/pasiflestirme. Admin hesabi bu yoldan
-     * pasiflestirilemez. Baskan Yardimcisi veya Baskan dogrudan
-     * pasiflestirilebilir; bu islem rolunu degistirmez, yalnizca erisimini
-     * kapatir (karar 2.3 — rol degisimi yerine pasiflestirme). Bosalan role
-     * gerekiyorsa ayri bir islemle baska bir aktif kullaniciya atanir.
-     * Pasiflestirmede kullanicinin aktif refresh token'lari da iptal edilir;
-     * erisim token'lari zaten her istekte veritabanindaki guncel duruma
-     * bakildigi icin (JwtAuthenticationFilter) ayrica islem gerektirmez.
+     * pasiflestirilemez; Baskan Yardimcisi de rolu once {@link #changeRole}
+     * ile devredilmeden pasiflestirilemez (aksi halde o rol bosta kalir).
+     * Pasiflestirmede kullanicinin aktif refresh token'lari da iptal edilir.
      */
     @Transactional
     public User setActive(UUID userId, boolean active) {
@@ -157,6 +212,11 @@ public class UserService {
 
         if (user.isActive() == active) {
             return user;
+        }
+
+        if (!active && "BASKAN_YARDIMCISI".equals(user.getRole().getName())) {
+            throw new BusinessRuleException(
+                    "Önce Başkan Yardımcısı rolünü başka bir aktif kullanıcıya devredin");
         }
 
         boolean previousActive = user.isActive();
@@ -184,10 +244,6 @@ public class UserService {
         return saved;
     }
 
-    /**
-     * Sistemde tanimli tum roller (id sirasiyla); Admin'in bir kullaniciya
-     * atayabilecegi rol seceneklerini olusturur.
-     */
     public List<RoleResponse> listAssignableRoles() {
         return roleRepository.findAllByOrderByIdAsc().stream()
                 .map(RoleResponse::from)

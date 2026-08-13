@@ -28,7 +28,9 @@ public class SecurityConfig {
      * korumali uclar denenir. Uclarin kendisi acik degildir.
      */
     private static final String[] PUBLIC_ENDPOINTS = {
-            "/api/auth/**",
+            "/api/auth/login",
+            "/api/auth/refresh",
+            "/api/auth/logout",
             "/swagger-ui.html",
             "/swagger-ui/**",
             "/v3/api-docs",

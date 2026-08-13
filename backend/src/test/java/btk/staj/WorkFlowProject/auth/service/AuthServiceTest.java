@@ -163,6 +163,7 @@ class AuthServiceTest {
         when(storedToken.isRevoked()).thenReturn(false);
         when(storedToken.getExpiresAt()).thenReturn(LocalDateTime.now().plusDays(1));
         when(storedToken.getUser()).thenReturn(user);
+        when(user.isActive()).thenReturn(true);
         when(user.getId()).thenReturn(userId);
         when(user.getEmail()).thenReturn("test@example.com");
         when(user.getRole()).thenReturn(role);
@@ -217,6 +218,32 @@ class AuthServiceTest {
         InvalidCredentialsException ex = assertThrows(InvalidCredentialsException.class, () -> authService.refresh("expired-token"));
 
         assertEquals("Refresh token süresi dolmuş veya geçersiz", ex.getMessage());
+        verifyNoInteractions(jwtUtil);
+    }
+
+    /**
+     * Erisim token'i icin bu kontrolu JwtAuthenticationFilter yapiyor;
+     * refresh ucu farkli bir yoldan gectigi (token dogrudan DB'den okunuyor,
+     * SecurityContext'ten degil) icin ayni kontrol burada da gerekli.
+     * Aksi halde pasiflestirilen bir kullanicinin elindeki gecerli refresh
+     * token'i sinirsiz yeni access token uretmeye devam ederdi.
+     */
+    @Test
+    void refresh_hesapPasifse_gecerliTokenIleBileExceptionFirlatmali() {
+        Token storedToken = mock(Token.class);
+
+        when(tokenRepository.findByToken("valid-but-inactive-user")).thenReturn(Optional.of(storedToken));
+        when(storedToken.isRevoked()).thenReturn(false);
+        when(storedToken.getExpiresAt()).thenReturn(LocalDateTime.now().plusDays(1));
+        when(storedToken.getUser()).thenReturn(user);
+        when(user.isActive()).thenReturn(false);
+
+        InvalidCredentialsException ex = assertThrows(
+                InvalidCredentialsException.class,
+                () -> authService.refresh("valid-but-inactive-user"));
+
+        assertEquals("Hesap pasif durumda", ex.getMessage());
+        verify(storedToken, never()).setRevoked(true);
         verifyNoInteractions(jwtUtil);
     }
 

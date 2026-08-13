@@ -66,10 +66,15 @@ public class AuthService {
             throw new InvalidCredentialsException("Refresh token süresi dolmuş veya geçersiz");
         }
 
+        User user = storedToken.getUser();
+
+        if (!user.isActive()) {
+            throw new InvalidCredentialsException("Hesap pasif durumda");
+        }
+
         storedToken.setRevoked(true);
         tokenRepository.save(storedToken);
 
-        User user = storedToken.getUser();
         String newAccessToken = jwtUtil.generateAccessToken(user.getId(), user.getEmail(), user.getRole().getName());
         String newRefreshToken = jwtUtil.generateRefreshToken(user.getId());
 
