@@ -116,9 +116,6 @@ export function AdminProvider({ actor, children }: { actor: AuthUser; children: 
     if (!target) throw new Error('Kullanıcı bulunamadı.')
     if (target.role === 'ADMIN') throw new Error('Admin hesabı bu ekrandan pasifleştirilemez.')
     if (target.isActive === isActive) return
-    if (!isActive && target.role === 'BASKAN_YARDIMCISI') {
-      throw new Error('Önce Başkan Yardımcısı rolünü başka bir aktif kullanıcıya devredin.')
-    }
 
     const now = new Date().toISOString()
     setUsers((current) => current.map((user) => user.id === userId

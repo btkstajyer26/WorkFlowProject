@@ -80,12 +80,15 @@ describe('Admin kullanıcı yönetimi', () => {
     expect(within(screen.getByRole('row', { name: /Ayşe Kaya/ })).getByText('Çalışan')).toBeInTheDocument()
   })
 
-  it('Aktif Başkan Yardımcısını rol devredilmeden pasifleştirmez', async () => {
+  it('Aktif Başkan Yardımcısını doğrudan pasifleştirir', async () => {
     const browser = userEvent.setup()
     await renderAdminUsers()
     const deputyRow = await screen.findByRole('row', { name: /Ayşe Kaya/ })
     await browser.click(within(deputyRow).getByRole('button', { name: 'Pasifleştir' }))
     await browser.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Pasifleştir' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('Önce Başkan Yardımcısı rolünü')
+
+    expect(await screen.findByText('Hesap pasifleştirildi')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(within(screen.getByRole('row', { name: /Ayşe Kaya/ })).getByText('Pasif')).toBeInTheDocument()
   })
 })
