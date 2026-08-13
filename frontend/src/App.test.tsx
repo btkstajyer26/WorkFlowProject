@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router'
 import { describe, expect, it } from 'vitest'
 import App from './App'
 import { getMockUserByRole } from './mocks/api/auth'
+import { api } from './api/client'
 import { seedAuthenticatedUser } from './test/auth'
 
 function renderApp(path: string) {
@@ -94,6 +95,22 @@ describe('App authorization boundaries', () => {
     expect(await screen.findByRole('heading', { name: 'Yönetim Özeti' })).toBeInTheDocument()
     expect(screen.getByText('Yetkili hesap')).toBeInTheDocument()
     expect(screen.queryByText('Pasif hesap')).not.toBeInTheDocument()
+  })
+
+  it('rol önizlemesinden Admin seçildiğinde API isteklerine Admin yetkisini taşır', async () => {
+    const user = userEvent.setup()
+    await seedAuthenticatedUser('CALISAN')
+    renderApp('/dashboard')
+
+    await user.click(await screen.findByRole('button', { name: 'Admin' }))
+    expect(await screen.findByRole('heading', { name: 'Yönetim Özeti' })).toBeInTheDocument()
+
+    await expect(api.admin.createUser({
+      firstName: 'John',
+      lastName: 'Doe',
+      email: 'john.doe@kurum.gov.tr',
+      password: 'guvenli123',
+    })).rejects.toMatchObject({ status: 409 })
   })
 
   it('Admin olmayan kullanıcının yönetim ekranını açmasını engeller', async () => {

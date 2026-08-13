@@ -5,12 +5,13 @@ import type { AuthUser, UserRole } from '../../types/auth'
 import { MobileHeader } from './MobileHeader'
 import { Sidebar } from './Sidebar'
 import { useModalDialog } from '../../hooks/useModalDialog'
+import { isApiMockEnabled } from '../../api/config'
 
 type AppShellProps = {
   children: ReactNode
   user: AuthUser
   unreadNotificationCount: number
-  onRoleChange: (role: UserRole) => void
+  onRoleChange: (role: UserRole) => void | Promise<void>
   onLogout: () => void
 }
 
@@ -101,7 +102,7 @@ export function AppShell({
 
           <main className="min-h-screen lg:pl-72">
             <div className="mx-auto w-full max-w-[1536px] px-4 py-5 sm:px-6 sm:py-7 lg:px-8 lg:py-8">
-              {import.meta.env.DEV ? <RolePreview role={role} onRoleChange={onRoleChange} /> : null}
+              {isApiMockEnabled ? <RolePreview role={role} onRoleChange={onRoleChange} /> : null}
               {children}
             </div>
           </main>
@@ -164,7 +165,7 @@ function RolePreview({
   onRoleChange,
 }: {
   role: UserRole
-  onRoleChange: (role: UserRole) => void
+  onRoleChange: (role: UserRole) => void | Promise<void>
 }) {
   return (
     <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-100 dark:border-brand-800/60 bg-brand-50/70 dark:bg-brand-900/30 p-2.5 pl-4">
@@ -181,7 +182,7 @@ function RolePreview({
           <button
             key={item.value}
             type="button"
-            onClick={() => onRoleChange(item.value)}
+            onClick={() => void onRoleChange(item.value)}
             aria-pressed={role === item.value}
             className={`rounded-lg px-3 py-2 text-xs font-bold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ${
               role === item.value

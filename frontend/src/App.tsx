@@ -10,11 +10,14 @@ import { ToastProvider } from './context/ToastContext'
 import {
   clearAuthSession,
   endAuthSession,
+  isAuthenticatedSessionFor,
   persistAuthenticatedUser,
   restoreAuthSession,
+  startAuthSession,
 } from './auth/authSession'
+import { isApiMockEnabled } from './api/config'
 import { CategoryProvider } from './context/CategoryContext'
-import { getDemoUserByRole } from './mocks/users'
+import { demoAccounts, getDemoUserByRole } from './mocks/users'
 import { DashboardPage } from './pages/DashboardPage'
 import { ErrorStatePage } from './pages/ErrorStatePage'
 import { LoginPage } from './pages/LoginPage'
@@ -29,6 +32,12 @@ import { AdminLogsPage } from './pages/admin/AdminLogsPage'
 import { AdminUsersPage } from './pages/admin/AdminUsersPage'
 import type { AuthUser, UserRole } from './types/auth'
 
+async function startDemoAuthSession(role: UserRole) {
+  const account = demoAccounts.find((candidate) => candidate.role === role)
+  if (!account) throw new Error(`${role} rolü için demo hesabı bulunamadı.`)
+  await startAuthSession(account.email, account.password)
+}
+
 function App() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -39,9 +48,20 @@ function App() {
   useEffect(() => {
     let active = true
 
-    void restoreAuthSession().then((restoredUser) => {
+    void restoreAuthSession().then(async (restoredUser) => {
+      let nextUser = restoredUser
+
+      if (restoredUser && isApiMockEnabled && !isAuthenticatedSessionFor(restoredUser.email)) {
+        try {
+          await startDemoAuthSession(restoredUser.role)
+          persistAuthenticatedUser(restoredUser)
+        } catch {
+          nextUser = null
+        }
+      }
+
       if (!active) return
-      setUser(restoredUser)
+      setUser(nextUser)
       setAuthReady(true)
     })
 
@@ -132,8 +152,17 @@ function ProtectedApplication({
     return <Navigate to={`/giris?returnTo=${encodeURIComponent(returnTo)}`} replace />
   }
 
-  const handleRoleChange = (nextRole: UserRole) => {
-    onUserChange(getDemoUserByRole(nextRole))
+  const handleRoleChange = async (nextRole: UserRole) => {
+    if (!isApiMockEnabled || nextRole === user.role) return
+
+    try {
+      await startDemoAuthSession(nextRole)
+    } catch {
+      return
+    }
+
+    const nextUser = getDemoUserByRole(nextRole)
+    onUserChange(nextUser)
     navigate(nextRole === 'ADMIN' ? '/admin' : '/dashboard')
   }
 
@@ -182,7 +211,7 @@ function WorkflowApplication({
   onLogout,
 }: {
   user: AuthUser
-  onRoleChange: (role: UserRole) => void
+  onRoleChange: (role: UserRole) => void | Promise<void>
   onLogout: () => void
 }) {
   const {
@@ -224,7 +253,7 @@ function AdminApplication({
   onLogout,
 }: {
   user: AuthUser
-  onRoleChange: (role: UserRole) => void
+  onRoleChange: (role: UserRole) => void | Promise<void>
   onLogout: () => void
 }) {
   return (

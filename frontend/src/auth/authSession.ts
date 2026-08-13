@@ -9,6 +9,7 @@ type LoginResponseWithPasswordState = LoginResponse & { mustChangePassword?: boo
 
 const refreshTokenStorageKey = 'ebys:refresh-token:v1'
 const authenticatedUserStorageKey = 'ebys:authenticated-user:v1'
+const authenticatedEmailStorageKey = 'ebys:authenticated-email:v1'
 const legacyMockSessionKey = 'ebys:mock-session:v1'
 const userRoles: UserRole[] = ['CALISAN', 'BASKAN_YARDIMCISI', 'BASKAN', 'ADMIN']
 
@@ -44,10 +45,19 @@ function persistRefreshToken(token: string) {
   }
 }
 
+function persistAuthenticatedEmail(email: string) {
+  try {
+    window.localStorage.setItem(authenticatedEmailStorageKey, email.trim().toLowerCase())
+  } catch {
+    // Depolama erişimi kapalıysa mevcut sayfadaki access token kullanılmaya devam eder.
+  }
+}
+
 function removePersistedSession() {
   try {
     window.localStorage.removeItem(refreshTokenStorageKey)
     window.localStorage.removeItem(authenticatedUserStorageKey)
+    window.localStorage.removeItem(authenticatedEmailStorageKey)
     window.sessionStorage.removeItem(legacyMockSessionKey)
   } catch {
     // Depolama erişimi kapalıysa bellek içi oturum yine temizlenir.
@@ -83,7 +93,17 @@ function applyAuthTokens(response: LoginResponse): AuthSession {
 export async function startAuthSession(email: string, password: string) {
   clearAuthSession()
   const response = await api.auth.login({ email, password })
-  return applyAuthTokens(response)
+  const tokens = applyAuthTokens(response)
+  persistAuthenticatedEmail(email)
+  return tokens
+}
+
+export function isAuthenticatedSessionFor(email: string) {
+  try {
+    return window.localStorage.getItem(authenticatedEmailStorageKey) === email.trim().toLowerCase()
+  } catch {
+    return false
+  }
 }
 
 export async function refreshAuthSession() {
