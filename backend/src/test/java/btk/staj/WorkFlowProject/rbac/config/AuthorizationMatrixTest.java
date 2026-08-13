@@ -147,7 +147,7 @@ class AuthorizationMatrixTest {
         @Test
         @DisplayName("korumali uc 401 ve JSON hata govdesi doner")
         void korumaliUc401Doner() throws Exception {
-            mockMvc.perform(get("/api/v1/records"))
+            mockMvc.perform(get("/api/records"))
                     .andExpect(status().isUnauthorized())
                     .andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
                     .andExpect(jsonPath("$.status").value(401));
@@ -175,7 +175,7 @@ class AuthorizationMatrixTest {
         @WithMockUser(roles = "BASKAN")
         @DisplayName("Baskan kayit olusturamaz")
         void baskanOlusturamaz() throws Exception {
-            mockMvc.perform(post("/api/v1/records")
+            mockMvc.perform(post("/api/records")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(RECORD_JSON))
                     .andExpect(status().isForbidden())
@@ -186,7 +186,7 @@ class AuthorizationMatrixTest {
         @WithMockUser(roles = "BASKAN_YARDIMCISI")
         @DisplayName("Baskan Yardimcisi kayit olusturamaz")
         void baskanYrdOlusturamaz() throws Exception {
-            mockMvc.perform(post("/api/v1/records")
+            mockMvc.perform(post("/api/records")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(RECORD_JSON))
                     .andExpect(status().isForbidden());
@@ -198,7 +198,7 @@ class AuthorizationMatrixTest {
         void calisanEngellenmez() throws Exception {
             // Servis katmani mock oldugu icin sonuc basarili olmayabilir;
             // onemli olan istegin YETKI nedeniyle reddedilmemesi.
-            mockMvc.perform(post("/api/v1/records")
+            mockMvc.perform(post("/api/records")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(RECORD_JSON))
                     .andExpect(status().is(not(403)));

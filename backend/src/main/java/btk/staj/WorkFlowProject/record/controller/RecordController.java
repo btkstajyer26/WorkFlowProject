@@ -16,7 +16,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/records")
+@RequestMapping("/api/records")
 public class RecordController {
 
     private final RecordService recordService;
