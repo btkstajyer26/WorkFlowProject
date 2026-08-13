@@ -63,7 +63,7 @@ class AuthControllerTest {
         request.setEmail("test@example.com");
         request.setPassword("sifre123");
 
-        LoginResponse expectedResponse = new LoginResponse("access-token", "refresh-token");
+        LoginResponse expectedResponse = new LoginResponse("access-token", "refresh-token", false);
         when(authService.login(any(LoginRequest.class))).thenReturn(expectedResponse);
 
         mockMvc.perform(post("/api/auth/login")
@@ -136,7 +136,7 @@ class AuthControllerTest {
         RefreshTokenRequest request = new RefreshTokenRequest();
         request.setRefreshToken("valid-refresh-token");
 
-        LoginResponse expectedResponse = new LoginResponse("new-access-token", "valid-refresh-token");
+        LoginResponse expectedResponse = new LoginResponse("new-access-token", "valid-refresh-token",false);
         when(authService.refresh(anyString())).thenReturn(expectedResponse);
 
         mockMvc.perform(post("/api/auth/refresh")
