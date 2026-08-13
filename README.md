@@ -294,6 +294,7 @@ Gerçek parola, JWT anahtarı veya SMTP kimlik bilgilerini repository'ye eklemey
 | Dosya | `/api/files` | Yükleme, indirme, önizleme ve silme |
 | Arama | `GET /api/records/search` | Kriter ve sayfalama tabanlı arama |
 | Audit | `GET /api/audit-logs/record/{recordId}` | Yetkili kullanıcının kayıt geçmişini görmesi |
+| Bildirim | `GET /api/notifications` | Bildirim geçmişi (okunmuş + okunmamış), sayfalı |
 | Bildirim | `GET /api/notifications/unread` | Okunmamış bildirimler |
 | Bildirim | `GET /api/notifications/unread/count` | Okunmamış bildirim sayısı |
 | Bildirim | `PUT /api/notifications/{id}/read` | Bildirimi okundu işaretleme |

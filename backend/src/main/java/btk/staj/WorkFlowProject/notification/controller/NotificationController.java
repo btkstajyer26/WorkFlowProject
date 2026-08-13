@@ -1,8 +1,10 @@
 package btk.staj.WorkFlowProject.notification.controller;
 
+import btk.staj.WorkFlowProject.common.dto.PagedResponse;
 import btk.staj.WorkFlowProject.notification.dto.NotificationResponse;
 import btk.staj.WorkFlowProject.notification.service.NotificationService;
 import btk.staj.WorkFlowProject.workflow.port.CurrentActorProvider;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,6 +34,17 @@ public class NotificationController {
         this.notificationService = Objects.requireNonNull(notificationService, "notificationService");
         this.currentActorProvider = Objects.requireNonNull(
                 currentActorProvider, "currentActorProvider");
+    }
+
+    /**
+     * Oturumdaki kullanicinin butun bildirim gecmisi (okunmus + okunmamis),
+     * en yeniden eskiye ve sayfali. Arayuzdeki "Tumu" gorunumu bu ucu kullanir.
+     *
+     * <p>Siralama istemciden alinmaz; sayfa numarasi 0'dan baslar.
+     */
+    @GetMapping
+    public PagedResponse<NotificationResponse> getAll(Pageable pageable) {
+        return notificationService.getAll(currentUserId(), pageable);
     }
 
     /** Oturumdaki kullanicinin okunmamis bildirimleri. */

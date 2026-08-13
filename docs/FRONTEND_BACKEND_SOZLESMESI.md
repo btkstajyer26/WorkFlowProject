@@ -370,15 +370,17 @@ Güncel OpenAPI sözleşmesinde kesinleşen ve MSW ile modellenen işlemler:
 
 | Metot | Adres | Amaç |
 |---|---|---|
+| `GET` | `/api/notifications` | JWT kullanıcısının okunmuş ve okunmamış bildirimlerini sayfalı getirir |
 | `GET` | `/api/notifications/unread` | JWT kullanıcısının okunmamış bildirimlerini alır |
 | `GET` | `/api/notifications/unread/count` | Menü rozeti için okunmamış bildirim sayısını alır |
 | `PUT` | `/api/notifications/{id}/read` | Kullanıcıya ait tek bildirimi okundu yapar |
 
-Okunan bildirimlerin geçmişten yeniden görüntülenebilmesi için aşağıdaki listeleme işlemi gereklidir ve backend tarafından hâlâ beklenmektedir:
-
-| Metot | Beklenen adres | Amaç |
-|---|---|---|
-| `GET` | `/api/notifications` | JWT kullanıcısının okunmuş ve okunmamış bildirimlerini tercihen sayfalı olarak getirir |
+`GET /api/notifications` backend'de yazıldı. Cevap gövdesi diğer listelerdeki
+`PagedResponse` ile aynıdır (`content`, `page`, `size`, `totalElements`,
+`totalPages`); `content` öğeleri `NotificationResponse`'tur. Sayfa numarası
+0'dan başlar, `size` en fazla 100'e kadar dikkate alınır. **Sıralama
+isteğe bağlı değildir:** liste her zaman en yeniden eskiye döner ve gönderilen
+`sort` parametresi yok sayılır.
 
 `PUT /api/notifications/read-all` ilk sürüm kapsamı dışındadır. Frontend “Tümü” ve “Okunmamış” görünümlerini sunar ancak bildirimleri yalnızca tek tek okundu yapar.
 

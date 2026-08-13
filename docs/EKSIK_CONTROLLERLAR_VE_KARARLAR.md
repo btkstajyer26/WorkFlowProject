@@ -7,8 +7,9 @@ için ayrı dosya artık tutulmuyor; kalan test boşlukları
 [EKSIK_SINIFLAR_VE_ONCELIK.md](EKSIK_SINIFLAR_VE_ONCELIK.md) altında.
 
 13 Ağustos'un ikinci turunda karar bekleyen maddelerin tamamı kapandı
-(listeleme birleştirmesi dahil). **Geriye tek yazılacak uç, bir de yeni
-tespit edilen ölü kod kaldı.**
+(listeleme birleştirmesi dahil). **Backend tarafında yazılacak uç kalmadı;
+geriye frontend'de bir ölü kod kalıntısı ile sözleşme metni düzeltmeleri
+kaldı.**
 
 13 Ağustos'un üçüncü turunda `fix/workflow-flush` ve `feature/nisan-sumeyye`
 entegre edildi: kayıt güncellemesi artık `saveAndFlush`, refresh ucu pasif
@@ -16,32 +17,15 @@ hesabı reddediyor, `/api/auth/change-password` artık kimlik doğrulaması
 istiyor, geçersiz `sort` parametresi 500 yerine 400 dönüyor. Bu turda
 Başkan Yardımcısı koltuk devri kararı **bir kez daha** değişti — bkz. 2.4.
 
+13 Ağustos'un dördüncü turunda `feature/notification-service` yeniden entegre
+edildi: e-posta gövdesi Thymeleaf şablonuna taşındı ve **kalan tek backend ucu
+`GET /api/notifications` yazıldı** — bkz. 2.6.
+
 ---
 
 ## 1. Kalan işler
 
-### 1.1 `GET /api/notifications` — geçmiş bildirimler 🟢
-
-**Sorumlu:** Melih (`notification`)
-
-Şu an yalnız `GET /api/notifications/unread` var ve sayfasız. Kullanıcı
-okuduğu bildirimlere bir daha erişemiyor; arayüzdeki "Tümü" görünümü bu ucu
-bekliyor.
-
-| Metot | Adres | Durum |
-|---|---|---|
-| `GET` | `/api/notifications` | 🟢 **yazılacak** — okunmuş + okunmamış, sayfalı |
-| `GET` | `/api/notifications/unread` | ✅ var |
-| `GET` | `/api/notifications/unread/count` | ✅ var |
-| `PUT` | `/api/notifications/{id}/read` | ✅ var |
-
-Sözleşme §10 bu üç ucu **olduğu gibi kabul etti**. `PATCH .../read-all` ilk
-sürüm kapsamı dışına alındı.
-
-Cevap modeli mevcut `NotificationResponse` ile aynı olmalı: `id`, `recordId`,
-`message`, `notificationType`, `read`, `createdAt`.
-
-### 1.2 Frontend'de ölü kod: `RecordSearchController.ts` 🔴
+### 1.1 Frontend'de ölü kod: `RecordSearchController.ts` 🔴
 
 **Sorumlu:** Frontend ekibi (backend'deki listeleme birleştirmesinin —
 bkz. 2.2 — frontend karşılığı)
@@ -81,6 +65,7 @@ tarafı düzeltildi (bkz. 2.5); bu, aynı kategoriden kalan tek parça.
 | Denetim izi cevap modeli | ✅ Karar fiilen verildi: düz alanlar (`userFullName`) korunuyor |
 | **Kayıt listeleme birleştirmesi** | ✅ **Uygulandı** — bkz. 2.2 |
 | **Başkan Yrd. pasifleştirme** | ✅ **Backend hizalandı** — bkz. 2.4 |
+| **`GET /api/notifications`** | ✅ **Yazıldı** — bkz. 2.6 |
 
 ### 2.1 Çalışma notu modülü — koddan da temizlendi
 
@@ -157,6 +142,40 @@ mock handler'lar, normalize script'ine kalıcı bir koruma) ama commit hemen
 ardından bir başka commit'le **açıklamasız geri alınmış**. Entegrasyon
 sırasında bu fark edildi; orijinal düzeltme commit'i tekrar uygulandı.
 
+### 2.6 `feature/notification-service` yeniden entegre edildi
+
+Dalın kendisi hâlâ projenin ilk iskeletine (`btk.staj.WorkFlowProject.controller`,
+`...service`, `...entity` düz paketleri) dayanıyordu; modül klasörlemesine geçen
+ana yapıya olduğu gibi merge edilemezdi. Bu yüzden dalın *getirdiği yenilik*
+mevcut `notification` modülüne taşındı:
+
+- **E-posta gövdesi Thymeleaf şablonuna alındı.** `MailService` içindeki devasa
+  `text block` yerine `templates/mail/workflow-status.html` işleniyor. Yan
+  kazanç: evrak başlığı ve açıklama artık şablon motoru tarafından kaçışlı
+  yazılıyor, yani kayıt başlığına HTML yazarak e-posta gövdesine kod
+  sokulamıyor.
+- **`GET /api/notifications` yazıldı** (1.1'deki tek kalan uç). Cevap
+  `PagedResponse<NotificationResponse>`; sayfa 0'dan başlar, `size` 100'le
+  sınırlanır ve sıralama istemciden alınmaz — liste her zaman en yeniden
+  eskiye döner. `NotificationRepository`'deki sayfalı sorgu zaten duruyordu,
+  yalnızca servis ve controller'a bağlanması gerekiyordu.
+
+Daldaki şu parçalar **bilerek alınmadı**:
+
+| Parça | Neden |
+|---|---|
+| `application.properties` | Dalda **Mailtrap API parolası düz metin commit'lenmiş**. Buradaki dosya kimlik bilgilerini ortam değişkeninden okuyor; değiştirilmedi. Sızan parola geçersiz kılınmalı. |
+| `QuickApproveController` | Sözleşmede yok; kimlik doğrulaması olmayan bir `GET` ucu ve gerçekte hiçbir şey onaylamıyor — yalnızca "onaylandı" HTML'i döndürüyor. Onay akışının tek girişi `WorkflowActionController`. |
+| `SecurityConfig`, `TestRunner`, `.vscode/settings.json` | Projede karşılığı olan (ve daha kapsamlı) sürümler zaten var. |
+| `@CrossOrigin(origins = "*")` | CORS merkezi `CorsConfig`'ten yönetiliyor, izinli origin `CORS_ALLOWED_ORIGINS`'ten geliyor (bkz. §2 tablosu). |
+| `backend/target/**` | Derleme çıktısı; dalda `.class` dosyaları commit'lenmiş. |
+
+Dalın son commit'i şablon dosyasını **boş** bırakmıştı ve "endpoints updated per
+spec" açıklamasına rağmen uç değişikliği içermiyordu; ikisi de bu turda
+tamamlandı. Bildirim modülü artık `NotificationServiceTest`,
+`NotificationControllerTest` ve `MailServiceTest` ile kaplı — sonuncusu şablonu
+gerçek dosyadan işleyip kaçış davranışını da doğruluyor.
+
 ---
 
 ## 3. Karar bekleyenler 🔴
@@ -180,8 +199,9 @@ gerekiyor. Ertelendi.
 
 | Sıra | İş | Sorumlu |
 |---|---|---|
-| 1 | `GET /api/notifications` (geçmiş bildirimler) | Melih |
+| 1 | Sızan Mailtrap parolasının geçersiz kılınması (2.6) | Melih |
 | 2 | Sözleşme §8'in koltuk devri metninin güncel koda göre düzeltilmesi (2.4) | Nisan · Sümeyye · frontend |
-| 3 | Frontend'deki ölü `RecordSearchController.ts` kalıntısının temizlenmesi | Frontend ekibi |
-| 4 | Sözleşme §6 örnek JSON'unun düzeltilmesi | Ebrar · frontend |
-| 5 | §12 netleştirmeleri | Ekip |
+| 3 | `GET /api/notifications`'ın frontend'e bağlanması: OpenAPI'nin yeniden üretilmesi, MSW handler'ı ve "Tümü" görünümünün gerçek API'ye taşınması | Frontend ekibi |
+| 4 | Frontend'deki ölü `RecordSearchController.ts` kalıntısının temizlenmesi | Frontend ekibi |
+| 5 | Sözleşme §6 örnek JSON'unun düzeltilmesi | Ebrar · frontend |
+| 6 | §12 netleştirmeleri | Ekip |

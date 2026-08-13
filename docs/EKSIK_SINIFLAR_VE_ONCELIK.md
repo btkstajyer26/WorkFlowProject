@@ -53,7 +53,7 @@ maddesi kaldı.
 
 | İş | Sorumlu | Açıklama |
 |---|---|---|
-| `templates/mail/*.html` 🟢 | *Melih* | `MailService` hâlâ ~170 satırlık HTML'i metin bloğu olarak içinde taşıyor. Şablon dosyaya çıkarılmalı (thymeleaf bağımlılığı eklenecek). İşlevsel bir eksik değil, Clean Code maddesi. |
+| ~~`templates/mail/*.html`~~ ✅ | *Melih* | Yapıldı: HTML gövde `templates/mail/workflow-status.html` şablonuna çıkarıldı, thymeleaf bağımlılığı eklendi, `MailService` ~170 satırlık metin bloğundan kurtuldu. Şablonun gerçek dosyadan işlendiği ve değerlerin kaçışlı yazıldığı `MailServiceTest` ile doğrulanıyor. |
 | `common` testleri 🟢 | *ilgili sahipler* | 301 testin çoğu `workflow`, `rbac`, `audit`, `search`, `record`, `auth` ve `user`'da. `common` paketinin (`GlobalExceptionHandler`, `ApiError` vb.) hâlâ hiç testi yok — yalnız dolaylı olarak `AdminControllerTest` üzerinden bir hata kodu (`INVALID_SORT_FIELD`) kapsanıyor. |
 | `user` / `auth` — kalan iki dar test 🟡 | *Nisan · Sümeyye* | `UserService.setActive`/`changeRole` testi ve refresh token'da pasif hesap reddi artık kapsamda (`UserServiceTest`, `AuthServiceTest`). Kalan iki boşluk: aynı e-postayla ikinci kullanıcı denemesinin 409 döndüğü test edilmiyor; pasif kullanıcının **elindeki geçerli access token'ının** da reddedildiği `JwtAuthenticationFilter` seviyesinde test edilmiyor (kontrol kodda var, testi yok). |
 
@@ -116,5 +116,5 @@ maddesi kaldı.
 | **Toplam yeni sınıf** | | **0** | |
 
 Ayrıca [EKSIK_CONTROLLERLAR_VE_KARARLAR.md](EKSIK_CONTROLLERLAR_VE_KARARLAR.md)
-dosyasına bakınız: bildirim geçmişi ucu ve frontend'deki bir ölü kod bulgusu
-orada takip ediliyor.
+dosyasına bakınız: bildirim geçmişi ucu orada kapatıldı (2.6), frontend'deki
+ölü kod bulgusu ve sözleşme metni düzeltmeleri hâlâ orada takip ediliyor.

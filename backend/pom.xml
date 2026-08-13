@@ -53,6 +53,15 @@
 			<artifactId>spring-boot-starter-mail</artifactId>
 		</dependency>
 
+		<!-- Bildirim e-postasinin HTML govdesi Thymeleaf sablonundan uretilir
+		     (templates/mail/workflow-status.html). Sablon Java kodundan ayri
+		     durdugu icin bicim degisikligi MailService'i derlemeye zorlamaz;
+		     ayrica degerler kacisli yazilir. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-thymeleaf</artifactId>
+		</dependency>
+
 		<!-- Spring Boot 4'te web starter'i spring-boot-starter-webmvc olarak
 		     modulerlestirildi; eski spring-boot-starter-web onun lehine
 		     deprecated. Ikisi birlikte eklendiginde ayni islevi goren

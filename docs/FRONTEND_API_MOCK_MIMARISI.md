@@ -67,9 +67,11 @@ Bu nedenle kayıt ekranlarının mevcut `WorkflowContext` state'i hemen kaldır�
 - kullanıcı profili (`GET /api/users/me` backend'de hazır, henüz MSW/API katmanına bağlanmadı) veya login sırasında kullanıcı özeti;
 - zengin kayıt detay cevabı ya da gerekli ayrı endpointler;
 - kayda ait dosyaları listeleme;
-- okunmuş bildirim geçmişini de sağlayan `GET /api/notifications` listeleme endpointi.
+- okunmuş bildirim geçmişini de sağlayan `GET /api/notifications` listeleme endpointi **backend'de tamamlandı**; frontend tarafında MSW handler'ı ve “Tümü” görünümünün bağlanması bekliyor.
 
-Bildirimleri topluca okundu yapma işlemi kapsam dışıdır. Frontend “Tümü” ve “Okunmamış” görünümlerini korur; `GET /api/notifications` tamamlandığında geçmiş listesi gerçek API'ye taşınır. Okuma işlemi yalnızca `PUT /api/notifications/{id}/read` ile tekil olarak yapılır.
+Bildirimleri topluca okundu yapma işlemi kapsam dışıdır. Frontend “Tümü” ve “Okunmamış” görünümlerini korur. Okuma işlemi yalnızca `PUT /api/notifications/{id}/read` ile tekil olarak yapılır.
+
+`GET /api/notifications` cevabı diğer listelerle aynı `PagedResponse` gövdesini taşır (`content`, `page`, `size`, `totalElements`, `totalPages`) ve `page`/`size` query parametrelerini kabul eder. `sort` gönderilse de yok sayılır; sıra her zaman en yeniden eskiyedir. Yani `src/api/records.ts` içindeki `Pageable` adapterının bu uçta yalnızca `page` ve `size` kısmı anlamlıdır.
 
 ## Mevcut OpenAPI açıklıkları
 
