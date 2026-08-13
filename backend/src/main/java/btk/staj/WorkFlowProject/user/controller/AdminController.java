@@ -46,9 +46,8 @@ public class AdminController {
     }
 
     @PatchMapping("/users/{id}/role")
-    public UserResponse changeRole(@PathVariable UUID id,
-                                   @Valid @RequestBody ChangeRoleRequest request) {
-        return UserResponse.from(userService.changeRole(id, request.getRoleName()));
+    public UserResponse changeRole(@PathVariable UUID id, @Valid @RequestBody ChangeRoleRequest request) {
+        return UserResponse.from(userService.changeRole(id, request.getRoleName(), request.getReplacementBaskanYardimcisiId()));
     }
 
     /**
