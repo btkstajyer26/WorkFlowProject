@@ -8,8 +8,8 @@ için ayrı dosya artık tutulmuyor; kalan test boşlukları
 
 13 Ağustos'un ikinci turunda karar bekleyen maddelerin tamamı kapandı
 (listeleme birleştirmesi dahil). **Backend tarafında yazılacak uç kalmadı;
-geriye frontend'de bir ölü kod kalıntısı ile sözleşme metni düzeltmeleri
-kaldı.**
+geriye frontend'in yeni ucu bağlaması, bir ölü kod kalıntısı ve sızan bir
+kimlik bilgisinin geçersiz kılınması kaldı.**
 
 13 Ağustos'un üçüncü turunda `fix/workflow-flush` ve `feature/nisan-sumeyye`
 entegre edildi: kayıt güncellemesi artık `saveAndFlush`, refresh ucu pasif
@@ -19,7 +19,9 @@ Başkan Yardımcısı koltuk devri kararı **bir kez daha** değişti — bkz. 2
 
 13 Ağustos'un dördüncü turunda `feature/notification-service` yeniden entegre
 edildi: e-posta gövdesi Thymeleaf şablonuna taşındı ve **kalan tek backend ucu
-`GET /api/notifications` yazıldı** — bkz. 2.6.
+`GET /api/notifications` yazıldı** — bkz. 2.6. Aynı turda sözleşmenin koddan
+geride kalan iki yeri (§8 koltuk devri, §6 örnek JSON) koddan doğrulanarak
+düzeltildi; **artık sözleşme ile backend arasında bilinen bir sapma yok.**
 
 ---
 
@@ -107,10 +109,11 @@ Frontend'in üretilmiş istemcisi `data-contracts.ts` içinde **`userFullName`**
 kullanıyor — backend'in mevcut düz modeli benimsendi. `AuditLogResponse`
 değişmeyecek.
 
-> **Küçük tutarsızlık kalıcı:** Sözleşme §6'daki örnek JSON hâlâ `actor{}`
-> nesnesi gösteriyor. Düzeltilmesi *Ebrar · frontend ekibi*'nde.
+✅ Sözleşme §6'daki örnek JSON düzeltildi (dördüncü tur): artık `actor{}`
+nesnesi değil, `AuditLogResponse`'un gerçek düz alanları gösteriliyor
+(`userId`, `userFullName`, `roleId`, `roleName` ve durum alanları).
 
-### 2.4 Başkan Yardımcısı koltuk devri — karar bir kez daha değişti 🔴 *sözleşme geride kaldı*
+### 2.4 Başkan Yardımcısı koltuk devri — karar bir kez daha değişti
 
 Bu madde iki kez ters yöne döndü, sırasıyla:
 
@@ -127,12 +130,20 @@ Bu madde iki kez ters yöne döndü, sırasıyla:
    içinde uygulanıyor. `setActive`'deki devirsiz-pasifleştirme engeli geri
    eklendi.
 
-> **Sözleşme artık geride kaldı:** [§8](FRONTEND_BACKEND_SOZLESMESI.md#L339)
-> hâlâ *"Aktif Başkan Yardımcısı doğrudan pasifleştirilebilir"* diyor —
-> bu, 2. adımın metni, artık geçerli değil. `PATCH .../role` satırı
-> ("Rol değiştirme **veya Başkan Yardımcısı rolünü devretme**") kabaca
-> tutarlı ama devir isteğinin gövdesini (`replacementBaskanYardimcisiId`)
-> tanımlamıyor. Düzeltilmesi *Nisan · Sümeyye · frontend ekibi*'nde.
+✅ **Sözleşme dördüncü turda hizalandı.** §8'e `8.1 Başkan Yardımcısı
+koltuğunun devri` alt başlığı eklendi: devir isteğinin gövdesi
+(`roleName` + `replacementBaskanYardimcisiId`), zorunluluk koşulu ve hata
+kodları koddan doğrulanarak yazıldı. Yanlış olan iki madde de düzeltildi:
+
+- *"Aktif Başkan Yardımcısı doğrudan pasifleştirilebilir"* — artık
+  pasifleştirilemiyor, `setActive` `400 BUSINESS_RULE_VIOLATION` dönüyor.
+- *"`BASKAN_YARDIMCISI` rolü verildiğinde mevcut aktif yardımcı `CALISAN`
+  yapılır"* — backend böyle bir otomatik düşürme yapmıyor; tekil rol
+  doluysa istek `409 ADMIN_LIMIT_EXCEEDED` ile reddediliyor. Koltuk yalnızca
+  sahibi başka bir role geçerken, gösterdiği kişiye devrediliyor.
+
+Ayrıca aynı bölümdeki hesap açma cümlesi de düzeltildi: istek `role` alanı
+taşımıyor, `password` taşıyor; hesap her zaman `CALISAN` açılıyor.
 
 ### 2.5 `/api/v1` öneki — bir kez düzeltildi, yanlışlıkla geri alındı, tekrar düzeltildi
 
@@ -197,11 +208,11 @@ gerekiyor. Ertelendi.
 
 ## 4. Öncelik
 
-| Sıra | İş | Sorumlu |
-|---|---|---|
-| 1 | Sızan Mailtrap parolasının geçersiz kılınması (2.6) | Melih |
-| 2 | Sözleşme §8'in koltuk devri metninin güncel koda göre düzeltilmesi (2.4) | Nisan · Sümeyye · frontend |
-| 3 | `GET /api/notifications`'ın frontend'e bağlanması: OpenAPI'nin yeniden üretilmesi, MSW handler'ı ve "Tümü" görünümünün gerçek API'ye taşınması | Frontend ekibi |
-| 4 | Frontend'deki ölü `RecordSearchController.ts` kalıntısının temizlenmesi | Frontend ekibi |
-| 5 | Sözleşme §6 örnek JSON'unun düzeltilmesi | Ebrar · frontend |
-| 6 | §12 netleştirmeleri | Ekip |
+| Sıra | İş | Sorumlu | Durum |
+|---|---|---|---|
+| 1 | **Sızan Mailtrap parolasının geçersiz kılınması** (2.6) | Melih | 🔴 açık — yalnız Mailtrap hesabına erişimi olan yapabilir |
+| 2 | `GET /api/notifications`'ın frontend'e bağlanması: OpenAPI'nin yeniden üretilmesi, MSW handler'ı ve "Tümü" görünümünün gerçek API'ye taşınması | Frontend ekibi | 🟢 açık |
+| 3 | Frontend'deki ölü `RecordSearchController.ts` kalıntısının temizlenmesi | Frontend ekibi | 🟢 açık |
+| 4 | §12 netleştirmeleri | Ekip | 🟡 ertelendi |
+| — | ~~Sözleşme §8 koltuk devri metni (2.4)~~ | Nisan · Sümeyye | ✅ dördüncü turda yazıldı |
+| — | ~~Sözleşme §6 örnek JSON'u (2.3)~~ | Ebrar | ✅ dördüncü turda düzeltildi |

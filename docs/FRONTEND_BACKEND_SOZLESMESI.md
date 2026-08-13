@@ -295,19 +295,22 @@ Bu endpoint şu anda `WorkflowActionApi` arayüzüyle HTTP sözleşmesi olarak t
 |---|---|---|
 | `GET` | `/api/audit-logs/record/{recordId}` | Kullanıcının görmeye yetkili olduğu kaydın işlem geçmişi ve kesinleşmiş açıklamaları |
 
-Geçmiş cevabı en az şu alanları taşımalıdır:
+Cevap `AuditLogResponse` listesidir. İşlemi yapan kişi **iç içe `actor` nesnesi
+değil, düz alanlar** olarak döner (`userId`, `userFullName`, `roleId`,
+`roleName`) — frontend'in üretilmiş istemcisi de bu modeli kullanıyor:
 
 ```json
 [
   {
     "id": "audit-uuid",
+    "recordId": "record-uuid",
+    "userId": "user-uuid",
+    "userFullName": "Ayşe Kaya",
+    "roleId": 2,
+    "roleName": "BASKAN_YARDIMCISI",
     "action": "BASKANA_ILET",
-    "actor": {
-      "id": "user-uuid",
-      "firstName": "Ayşe",
-      "lastName": "Kaya",
-      "role": "BASKAN_YARDIMCISI"
-    },
+    "previousStatus": "BSK_YRD_INCELEMESINDE",
+    "newStatus": "BASKAN_ONAYINDA",
     "comment": "Uygun bulunmuştur.",
     "createdAt": "2026-08-04T10:30:00Z"
   }
@@ -336,7 +339,7 @@ Başkan Yardımcısı ve Başkan frontend tarafından seçilmez. Backend beklene
 |---|---|---|
 | `GET` | `/api/admin/users?page=0&size=10&q=&role=&active=` | Kullanıcı listesi, arama ve filtreleme |
 | `POST` | `/api/admin/users` | Varsayılan Çalışan rolüyle hesap açma; istek rol alanı içermez |
-| `PATCH` | `/api/admin/users/{id}/role` | Rol değiştirme veya Başkan Yardımcısı rolünü devretme |
+| `PATCH` | `/api/admin/users/{id}/role` | Rol değiştirme; Başkan Yardımcısı koltuğunun devri de aynı istekte yapılır |
 | `PATCH` | `/api/admin/users/{id}/active` | Hesabı etkinleştirme/pasifleştirme |
 | `GET` | `/api/admin/roles` | Atanabilir roller; `ADMIN` dahil |
 | `GET` | `/api/admin/audit-logs?type=USER|RECORD&page=0&size=20&q=` | Evrak ve kullanıcı/rol loglarını listeleme |
@@ -345,13 +348,34 @@ Admin kuralları:
 
 - Kullanıcı silinmez veya rolsüz bırakılmaz; erişim `active=false` ile kapatılır.
 - Admin başka bir aktif kullanıcıya `ADMIN` rolü atayabilir; mevcut Admin hesabının rolü ve aktifliği bu arayüzden değiştirilemez.
-- `BASKAN_YARDIMCISI` rolü verildiğinde mevcut aktif yardımcı `CALISAN`, hedef kullanıcı `BASKAN_YARDIMCISI` yapılır. İki güncelleme tek transaction içinde olmalıdır.
-- Aktif Başkan Yardımcısı doğrudan pasifleştirilebilir. Bu işlem kullanıcının rolünü değiştirmez; gerekiyorsa başka bir aktif kullanıcıya Başkan Yardımcısı rolü ayrı bir işlemle atanır.
+- `ADMIN`, `BASKAN` ve `BASKAN_YARDIMCISI` **tekil** rollerdir: aynı anda yalnız bir aktif kullanıcı tutabilir. Rol zaten başka bir aktif kullanıcıdaysa istek `409 ADMIN_LIMIT_EXCEEDED` ile reddedilir — backend mevcut sahibi kendiliğinden `CALISAN`'a düşürmez.
 - Pasifleştirilen kullanıcının aktif tokenları iptal edilmelidir.
 - Hesap açma, rol değişikliği/devri ve aktiflik değişikliği append-only `user_audit_logs` kaydı üretmelidir.
 - `audit_logs` ve `user_audit_logs` tek sayfalı API modeliyle sunulur; update/delete audit endpointi olmaz.
 
-Hesap açma isteği `firstName`, `lastName`, `email`, `role` alanlarını taşır. Cevap ilk girişte değiştirilecek geçici parolayı yalnız bir kez dönebilir; hesap `mustChangePassword=true` başlamalıdır.
+### 8.1 Başkan Yardımcısı koltuğunun devri
+
+Bu kural iki kez değişti; aşağıdaki metin **çalışan kodun** karşılığıdır
+(`UserService.changeRole` / `UserService.setActive`).
+
+Koltuk devri ayrı bir uç değildir, `PATCH /api/admin/users/{id}/role` isteğinin
+gövdesinde yapılır:
+
+```json
+{
+  "roleName": "BASKAN",
+  "replacementBaskanYardimcisiId": "user-uuid"
+}
+```
+
+- `roleName` zorunludur. `replacementBaskanYardimcisiId` normalde gönderilmez.
+- Bir kullanıcı **`BASKAN_YARDIMCISI` rolünden çıkıyorsa** koltuk boşalacağı için `replacementBaskanYardimcisiId` **aynı istekte zorunludur**; gönderilmezse `400 BUSINESS_RULE_VIOLATION`. Backend rastgele/otomatik atama yapmaz, devredilecek kişiyi Admin açıkça seçer.
+- Belirtilen kullanıcı aynı transaction içinde `BASKAN_YARDIMCISI` yapılır ve iki rol değişikliği için de birer `user_audit_logs` kaydı üretilir.
+- Yerine atanacak kullanıcı koltuğu boşaltan kişinin kendisi olamaz ve pasif bir hesap olamaz → `400 BUSINESS_RULE_VIOLATION`. Kullanıcı bulunamazsa `404 RESOURCE_NOT_FOUND`.
+- **Aktif Başkan Yardımcısı doğrudan pasifleştirilemez.** `PATCH /api/admin/users/{id}/active` isteği `400 BUSINESS_RULE_VIOLATION` döner ("Önce Başkan Yardımcısı rolünü başka bir aktif kullanıcıya devredin"). Arayüz önce yukarıdaki devir isteğini yaptırmalı, pasifleştirmeyi ondan sonra denemelidir.
+- Admin hesabı da bu ekrandan pasifleştirilemez → `400 BUSINESS_RULE_VIOLATION`.
+
+Hesap açma isteği `firstName`, `lastName`, `email` ve `password` alanlarını taşır; **rol alanı içermez**, hesap her zaman `CALISAN` rolüyle açılır ve `mustChangePassword=true` başlar. Diğer roller yalnız yukarıdaki rol değiştirme ucuyla verilir.
 
 ## 9. Dosyalar
 
