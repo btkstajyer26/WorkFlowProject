@@ -2,21 +2,19 @@
 
 **Tarih:** 13 Ağustos 2026
 **Kaynak:** `integration/tum-feature-branchleri` × [FRONTEND_BACKEND_SOZLESMESI.md](FRONTEND_BACKEND_SOZLESMESI.md)
-**Kapsam:** `auth` ve `user` modülleri **hariç** — onların uç listesi
-[AUTH_USER_YAPILACAKLAR.md](AUTH_USER_YAPILACAKLAR.md) dosyasındadır.
+**Kapsam:** `auth` ve `user` modülleri **hariç** — o iş listesi tamamlandığı
+için ayrı dosya artık tutulmuyor; kalan test boşlukları
+[EKSIK_SINIFLAR_VE_ONCELIK.md](EKSIK_SINIFLAR_VE_ONCELIK.md) altında.
 
-13 Ağustos entegrasyonundan sonra listenin büyük kısmı kapandı. **Geriye tek
-bir uç kaldı.**
-
-Bu turda iki şey aynı anda oldu: ekip maddeleri yazdı, frontend ekibi de
-sözleşmeyi gerçek backend'e göre güncelledi. İkincisi bazı maddeleri
-*yazılarak* değil *kapsamdan çıkarılarak* kapattı.
+13 Ağustos'un ikinci turunda karar bekleyen maddelerin tamamı kapandı
+(listeleme birleştirmesi dahil). **Geriye tek yazılacak uç, bir de yeni
+tespit edilen ölü kod kaldı.**
 
 ---
 
-## 1. Kalan tek iş
+## 1. Kalan işler
 
-### `GET /api/notifications` — geçmiş bildirimler 🟢
+### 1.1 `GET /api/notifications` — geçmiş bildirimler 🟢
 
 **Sorumlu:** Melih (`notification`)
 
@@ -31,93 +29,128 @@ bekliyor.
 | `GET` | `/api/notifications/unread/count` | ✅ var |
 | `PUT` | `/api/notifications/{id}/read` | ✅ var |
 
-Sözleşme §10 bu üç ucu **olduğu gibi kabul etti** — adres veya metot
-değişikliği artık istenmiyor. `PATCH .../read-all` ilk sürüm kapsamı dışına
-alındı; arayüz bildirimleri tek tek okundu yapıyor.
+Sözleşme §10 bu üç ucu **olduğu gibi kabul etti**. `PATCH .../read-all` ilk
+sürüm kapsamı dışına alındı.
 
 Cevap modeli mevcut `NotificationResponse` ile aynı olmalı: `id`, `recordId`,
-`message`, `notificationType`, `read`, `createdAt`. Kullanıcı kimliği JWT'den
-belirlendiği için gövdede dönmez.
+`message`, `notificationType`, `read`, `createdAt`.
+
+### 1.2 Frontend'de ölü kod: `RecordSearchController.ts` 🔴
+
+**Sorumlu:** Frontend ekibi (backend'deki listeleme birleştirmesinin —
+bkz. 2.2 — frontend karşılığı)
+
+Backend'de `RecordSearchController` (`/api/records/search`) kaldırıldı,
+listeleme `GET /api/records`'e taşındı (bkz. 2.2). Ama frontend hâlâ eski
+uca göre üretilmiş kod taşıyor:
+
+- `frontend/src/api/generated/RecordSearchController.ts`
+- `frontend/src/api/recordSearch.ts` (facade)
+- `frontend/src/mocks/api/handlers/recordSearchHandlers.ts` (MSW handler)
+
+Şu an hiçbir sayfa veya context bu facade'ı çağırmıyor (yalnız kendi testi
+ve `api/index.ts` barrel export'u referans veriyor) — yani **çalışan bir
+akışı bozmuyor**, ama `VITE_API_MODE=backend` ile gerçek backend'e
+bağlanıldığında bu dosyalar 404 üreten bir uç için hâlâ orada duruyor
+olacak. OpenAPI yeniden üretildiğinde (`npm run api:generate`) otomatik
+silinir; elle temizlenmesi de düşünülebilir.
+
+`/api/v1` önekiyle aynı kökten geliyor: ikisi de backend'in listeleme
+birleştirmesinden (§2) önce üretilmiş generated kod kalıntısı. `/api/v1`
+tarafı düzeltildi (bkz. 2.5); bu, aynı kategoriden kalan tek parça.
 
 ---
 
-## 2. Bu turda kapananlar
+## 2. Bu turlarda kapananlar
 
 | İş | Nasıl kapandı |
 |---|---|
-| `/api/v1` öneki | ✅ Kaldırıldı; `record` ve `categories` artık `/api/...` altında |
-| CORS | ✅ `CorsConfig` eklendi — izinli origin `CORS_ALLOWED_ORIGINS` ortam değişkeninden, `*` yok, `allowCredentials` ile uyumlu |
-| Dosya yükleme adresi | ✅ `POST /api/records/{id}/files` (Ecesu). Kayıt kimliği artık yoldan geliyor |
+| `/api/v1` öneki | ✅ Backend'de kaldırıldı; frontend generated client'ta bir kez düzeltilip yanlışlıkla geri alınmış, tekrar düzeltildi (bkz. 2.5) |
+| CORS | ✅ `CorsConfig` — izinli origin `CORS_ALLOWED_ORIGINS`'ten, `*` yok |
+| Dosya yükleme adresi | ✅ `POST /api/records/{id}/files` |
 | Kayıt talebi akışı | ✅ Frontend'den kaldırıldı; kullanıcıyı Admin oluşturuyor |
-| Başkan Yrd. / Başkan rol kuralları | ✅ `UserService` içinde (Nisan · Sümeyye) |
-| Çalışma notu modülü | ⛔ **Kapsamdan çıktı** — aşağıya bakınız |
-| Kayıt geçmişi ucu | ⛔ **Kapsamdan çıktı** — aşağıya bakınız |
-| Denetim izi cevap modeli | ✅ Karar fiilen verildi — aşağıya bakınız |
+| Başkan Yrd. / Başkan rol kuralları | ✅ Rol ataması `UserService`'te; pasifleştirme kuralı 2.4'te ayrıca hizalandı |
+| Çalışma notu modülü | ⛔ Kapsamdan çıktı, sonra kod da geri alındı — bkz. 2.3 |
+| Kayıt geçmişi ucu | ⛔ Kapsamdan çıktı — backend'in mevcut `/api/audit-logs/record/{id}` adresi kabul edildi |
+| Denetim izi cevap modeli | ✅ Karar fiilen verildi: düz alanlar (`userFullName`) korunuyor |
+| **Kayıt listeleme birleştirmesi** | ✅ **Uygulandı** — bkz. 2.2 |
+| **Başkan Yrd. pasifleştirme** | ✅ **Backend hizalandı** — bkz. 2.4 |
 
-### Çalışma notu modülü kapsamdan çıktı
+### 2.1 Çalışma notu modülü — koddan da temizlendi
 
-Önceki sürümde "en büyük tek parça" olarak işaretlenmişti. Sözleşme §6 artık
-şöyle diyor:
+Sözleşme §6 zaten kapsam dışı bırakmıştı: açıklama artık doğrudan workflow
+isteğinin `comment` alanında gönderiliyor. Bu turda `record` ekibi
+`RecordNote` modülünü (controller, DTO, entity, repository, service) kısa
+süreliğine geri ekleyip hemen ardından tamamen kaldırdı — net etki sıfır,
+ama artık kod da sözleşmeyle tutarlı. `record_notes` tablosu
+`V6__drop_record_notes.sql` ile düşürüldü.
 
-> Özel veya ayrı kaydedilen bir çalışma notu modeli kullanılmaz. Kullanıcı
-> açıklamasını doğrudan workflow işlem penceresinde yazar ve aynı
-> `POST /api/records/{recordId}/workflow/actions` isteğinin `comment` alanında
-> gönderir.
+### 2.2 Kayıt listeleme birleştirmesi uygulandı
 
-`GET/PUT /api/records/{id}/notes/me` uçları, `NOTE_VERSION_CONFLICT` kuralı ve
-`WorkflowActionService`'e eklenmesi planlanan not temizleme adımı **artık
-gerekmiyor**. Frontend'deki `RecordNotesPanel` de bu modele göre yeniden
-kuruldu.
+Önceki kararın ("uç `record`'da kalır, mantık `search`'ten gelir") uygulaması
+geldi: `RecordSearchController` silindi, `RecordController.getAllRecords`
+artık `RecordSearchService`'i çağırıyor.
 
-> `record_notes` tablosu `V6__drop_record_notes.sql` ile kaldırıldı.
-> `V2` dosyası tarihsel kayıt olarak yerinde bırakıldı (Flyway checksum
-> kuralı gereği uygulanmış migrationlar silinmez).
+**Ancak bu değişiklik ciddi bir güvenlik gerilemesi taşıyordu** ve merge
+sırasında düzeltildi:
 
-### Kayıt geçmişi ucu kapsamdan çıktı
+- `getRecordById`'deki `RecordAccessPolicy.assertCanView` çağrısı düşmüştü;
+  herhangi bir rol herhangi bir kaydı görebilir hale gelmişti.
+- Tipli exception'lar (`ForbiddenException`, `ResourceNotFoundException`,
+  `BusinessRuleException`) düz `RuntimeException`'a geri dönmüştü.
+- `createRecord`/`updateRecord`/`deleteRecord`'daki `PermissionService`
+  kontrolleri düşmüştü.
 
-Sözleşme `GET /api/records/{id}/history` yerine backend'in mevcut adresini
-kabul etti: **`GET /api/audit-logs/record/{recordId}`**. Taşıma işi düştü.
+`RecordServiceImpl` bu kontroller korunarak yeniden yazıldı; yalnızca
+listeleme metodu kaldırıldı (artık `RecordSearchService`'te). Ayrıca
+`RecordController`, `RecordSearchCriteria`'nın güncel alan adlarını
+(`q`/`from`/`to`) değil eski adlarını (`setText`/`setStartDate`/
+`setEndDate`) çağırıyordu — derleme hatası olurdu, düzeltildi.
 
-### Denetim izi cevap modeli — karar fiilen verildi
+Güvenlik kontrolünün geri geldiğini doğrulayan test zaten vardı
+(`RecordServiceImplTest`), yani bu artık koruma altında.
 
-Önceki sürümde açık bırakılmıştı: aktör iç içe nesne mi (`actor{}`), düz alan
-mı (`userFullName`, `roleName`)?
+### 2.3 Denetim izi cevap modeli — karar fiilen verildi
 
-Frontend OpenAPI şemasından istemcisini üretti ve `data-contracts.ts` içinde
-**`userFullName`** kullanıyor — yani backend'in mevcut düz modeli benimsendi.
-`AuditLogResponse` değişmeyecek.
+Frontend'in üretilmiş istemcisi `data-contracts.ts` içinde **`userFullName`**
+kullanıyor — backend'in mevcut düz modeli benimsendi. `AuditLogResponse`
+değişmeyecek.
 
-> **Küçük tutarsızlık:** Sözleşme §6'daki örnek JSON hâlâ `actor{}` nesnesi
-> gösteriyor, oysa üretilen istemci düz alanları kullanıyor. Örneğin
-> güncellenmesi gerekiyor — *Ebrar · frontend ekibi*.
+> **Küçük tutarsızlık kalıcı:** Sözleşme §6'daki örnek JSON hâlâ `actor{}`
+> nesnesi gösteriyor. Düzeltilmesi *Ebrar · frontend ekibi*'nde.
+
+### 2.4 Başkan Yardımcısı pasifleştirme — backend sözleşmeyle hizalandı
+
+Sözleşme §8 eskiden "aktif yardımcı rol devredilmeden pasifleştirilemez;
+`409 DEPUTY_TRANSFER_REQUIRED`" diyordu. Bu metin doğrudan pasifleştirmeye
+izin verecek şekilde güncellendi ve frontend buna göre değişti
+(`AdminContext.tsx`'teki engelleyici kontrol kaldırıldı).
+
+Backend bunu yansıtmıyordu: `UserService.setActive` hâlâ eski kuralı
+uyguluyor, aktif Başkan Yardımcısı'nı pasifleştirme denemesinde
+`BusinessRuleException` fırlatıyordu. Kontrol kaldırıldı; pasifleştirme artık
+rolü değiştirmiyor, yalnızca erişimi kapatıyor.
+
+### 2.5 `/api/v1` öneki — bir kez düzeltildi, yanlışlıkla geri alındı, tekrar düzeltildi
+
+Backend'deki önek kaldırma daha önce yapılmıştı. Frontend ekibinden biri
+generated client'taki karşılığını da doğru şekilde düzeltmiş (adresler,
+mock handler'lar, normalize script'ine kalıcı bir koruma) ama commit hemen
+ardından bir başka commit'le **açıklamasız geri alınmış**. Entegrasyon
+sırasında bu fark edildi; orijinal düzeltme commit'i tekrar uygulandı.
 
 ---
 
 ## 3. Karar bekleyenler 🔴
 
-### 3.1 Kayıt listeleme iki uçtan veriliyor
-
-**Sorumlu:** Alperen · Fevzi (`record`) + Irmak (`search`)
-
-Karar önceki sürümde verildi ve **hâlâ geçerli**: listeleme ucu
-`GET /api/records` altında kalacak, filtre ve kapsam mantığı `search`
-modülünden gelecek, `RecordSearchController` kaldırılacak.
-
-**Henüz uygulanmadı.** Görünürlük kapsamı hâlâ iki yerde ayrı ayrı yazılı:
-`RecordServiceImpl.getFilteredRecords` kendi predicate'lerini kuruyor,
-`RecordSpecifications.visibilityScope` aynı kuralı ikinci kez tanımlıyor. Aynı
-güvenlik kuralının iki kopyası; biri değişince diğeri unutulur.
-
-Bu turda `RecordSearchCriteria` alan adları sözleşmeye uyduruldu
-(`q`, `from`, `to`), yani birleştirme için zemin hazır.
-
-### 3.2 Sözleşme §12 netleştirmeleri
+### 3.1 Sözleşme §12 netleştirmeleri
 
 Sayfalama indeksi (backend `Pageable` kullanıyor → **0**), çoklu `status`
-filtresi formatı, kayıt başına dosya adedi sınırı ve hata `code` listesinin
-belgelenmesi. Ertelendi.
+filtresi formatı, hata `code` listesinin belgelenmesi. Dosya türü/boyutu
+zaten kodda hazır (`FileContentValidator`), yalnızca sözleşmeye yazılması
+gerekiyor. Ertelendi.
 
-### 3.3 Sözleşme §13 açık ürün kararları
+### 3.2 Sözleşme §13 açık ürün kararları
 
 - `records` tablosunda kullanıcıya gösterilecek benzersiz `record_no` alanı.
 - `notifications.record_id` zorunlu olduğu için kayıttan bağımsız sistem
@@ -130,6 +163,6 @@ belgelenmesi. Ertelendi.
 | Sıra | İş | Sorumlu |
 |---|---|---|
 | 1 | `GET /api/notifications` (geçmiş bildirimler) | Melih |
-| 2 | Kayıt listelemenin tek uca indirilmesi (3.1) | Alperen · Fevzi · Irmak |
+| 2 | Frontend'deki ölü `RecordSearchController.ts` kalıntısının temizlenmesi | Frontend ekibi |
 | 3 | Sözleşme §6 örnek JSON'unun düzeltilmesi | Ebrar · frontend |
 | 4 | §12 netleştirmeleri | Ekip |

@@ -1,20 +1,19 @@
 # Eksik Sınıflar ve Öncelik Sırası
 
-**Tarih:** 12 Ağustos 2026
+**Tarih:** 13 Ağustos 2026
 **Kapsam:** Yalnızca backend — frontend hariç
-**Kaynak:** `integration/tum-feature-branchleri` dalı (mevcut: 116 sınıf, 274 test)
+**Kaynak:** `integration/tum-feature-branchleri` dalı (mevcut: 128 sınıf, 289 test)
 
-Bir önceki sürüm 10 Ağustos'ta 50 eksik sınıf sayıyordu. O tarihten bu yana
-`auth`, `user`, `record`, `common`, `rbac`, `audit` modülleri, onay akışının
-adaptörleri, onay akışının uca bağlanması, bildirim ve arama modülleri
-tamamlandı. Yeni sınıf listesi bitti; **kalan iş yalnızca teslim öncesi
-kalite maddeleri**.
+Bir önceki sürüm 10 Ağustos'ta 50 eksik sınıf sayıyordu. Yeni sınıf listesi
+uzun süredir bitmiş durumda. 13 Ağustos'ta CORS eklenerek **Faz 1'in son
+işlevsel maddesi de kapandı**; geriye yalnızca iki Clean Code / test kalitesi
+maddesi kaldı.
 
-12 Ağustos'ta `feature/github-ci`, `test`, `feature/record`,
-`feature/proje-altyapisi`, `feature-ebrar` ve `feature/nisan-sumeyye`
-dalları entegre edildi: `attachment` ve `record` oturum kimliği sorunları
-kapandı, GitHub Actions CI eklendi, `auth` modülü test kapsamına girdi,
-DTO doğrulaması ve kullanıcı/rol yönetimi tamamlandı.
+13 Ağustos'ta `test`, `feature/record` ve `feature/frontend-uygulamasi`
+dalları entegre edildi: kayıt listeleme tek uca indirildi (görünürlük kuralı
+artık tek yerde), çalışma notu modülü geri alındı (sözleşme zaten kapsam
+dışı bırakmıştı), Başkan Yardımcısı pasifleştirme kuralı sözleşmeyle
+hizalandı, frontend gerçek API adreslerine (`/api/v1` öneksiz) geçti.
 
 > `AuditLogRepositoryIntegrationTest` ve `WorkFlowProjectApplicationTests`
 > ayakta bir PostgreSQL ister; ikisi de yalnızca CI'da (veya
@@ -36,14 +35,14 @@ DTO doğrulaması ve kullanıcı/rol yönetimi tamamlandı.
 
 ## Faz 1 — Teslim öncesi kalite
 
-> Yeni modül kalmadı. Buradan sonrası şartnamenin §6.2 kod kalitesi
-> kriterleri; her modül sahibi kendi alanında yapar.
+> Yeni modül kalmadı, işlevsel eksik kalmadı. Buradan sonrası şartnamenin
+> §6.2 kod kalitesi kriterleri.
 
 | İş | Sorumlu | Açıklama |
 |---|---|---|
-| `common/config/CorsConfig` 🟢 | *Hacer* | **Projede hiç CORS yapılandırması yok.** Frontend `5173`, backend `8080` — ayrı origin. Frontend şu an mock veriyle çalıştığı için sorun görünmüyor; ilk gerçek istekte her uç tarayıcıda bloklanır. İzinli origin ortam değişkeninden okunmalı, `*` verilmemeli (kimlik doğrulamalı istekler için zaten geçersiz). **Entegre edilen altı dalın hiçbirinde yok; Faz 1'in tek açık işlevsel maddesi.** |
-| `templates/mail/*.html` 🟢 | *Melih* | `MailService` ~130 satırlık HTML'i metin bloğu olarak içinde taşıyor. Şablon dosyaya çıkarılmalı (thymeleaf bağımlılığı eklenecek). İşlevsel bir eksik değil, Clean Code maddesi. |
-| `record` · `common` testleri 🟢 | *ilgili sahipler* | 274 testin çoğu `workflow`, `rbac`, `audit`, `search` ve `auth`'ta. Bu iki modülün hiç testi yok. |
+| `templates/mail/*.html` 🟢 | *Melih* | `MailService` hâlâ ~170 satırlık HTML'i metin bloğu olarak içinde taşıyor. Şablon dosyaya çıkarılmalı (thymeleaf bağımlılığı eklenecek). İşlevsel bir eksik değil, Clean Code maddesi. |
+| `common` testleri 🟢 | *ilgili sahipler* | 289 testin çoğu `workflow`, `rbac`, `audit`, `search`, `record` ve `auth`'ta. `common` paketinin (GlobalExceptionHandler, ApiError vb.) hiç testi yok. |
+| `user` / `auth` test boşlukları 🟡 | *Nisan · Sümeyye* | Uçlar tamamlandı ama üç dar test eksik: aynı e-postayla ikinci kullanıcı denemesinin 409 döndüğü, pasif kullanıcının **elindeki geçerli token'ının** da reddedildiği (`JwtAuthenticationFilter`), `UserService.setActive`/`changeRole` için ayrı bir servis testi (şu an yalnız controller/integration seviyesinde dolaylı kapsanıyor). |
 
 ---
 
@@ -51,26 +50,28 @@ DTO doğrulaması ve kullanıcı/rol yönetimi tamamlandı.
 
 | Modül | Durum |
 |---|---|
-| `common` — hata yönetimi | ✅ `GlobalExceptionHandler`, `ApiError`, üç hata tipi |
+| `common` — hata yönetimi | ✅ `GlobalExceptionHandler`, `ApiError`, tipli hata sınıfları |
 | `auth` / `user` | ✅ JWT filtresi, `AuthenticatedUser`, `CustomUserDetailsService`, entity alanları |
 | `record` — CRUD | ✅ Repository, service, controller, DTO'lar, kategori yönetimi |
 | `rbac` | ✅ `RecordAccessPolicy`, `MethodSecurityConfig`, `SecurityConfig`, yetki matrisi |
 | `audit` | ✅ Tamamı; onay akışı portuna bağlandı, silinemezlik ve görünürlük kapsamı uygulandı |
 | Loglama | ✅ `logback-spring.xml`, ECS JSON structured format |
-| `workflow` | ✅ Dört adaptör, `WorkflowActionController`, transaction sınırı, bean yapılandırması |
+| `workflow` | ✅ Dört adaptör, `WorkflowActionController`, transaction sınırı, bean yapılandırması, `WORKFLOW_VERSION_CONFLICT` hata sözleşmesi |
 | Onay akışının uca bağlanması | ✅ Paralel `RecordWorkflowController` kaldırıldı; tüm geçişler durum makinesinden geçiyor |
-| `notification` | ✅ Uygulama içi bildirim, `@Async` e-posta, derin bağlantı; dinleyici gerçek workflow event'ine bağlandı |
-| `search` | ✅ Dinamik filtreleme, sayfalama; kapsam gerçek oturumdan ve `RecordAccessPolicy` ile hizalı |
-| `attachment` — oturum kimliği | ✅ `FileController` `uploadedBy`/`deletedBy` yerine `@AuthenticationPrincipal` kullanıyor; kullanıcı başkası adına yükleyip silemiyor |
-| `record` — oturum kimliği | ✅ Sahte UUID kaldırıldı. Oturum `SecurityContextHolder`'dan okunuyor, `getRecordById` `RecordAccessPolicy.assertCanView` ile korunuyor, listeleme sorgusuna rol bazlı kapsam predicate'i eklendi, `RuntimeException`'lar tipli exception'larla değiştirildi |
-| `auth` — hata kodu | ✅ Hatalı giriş 500 yerine 401 dönüyor (`InvalidCredentialsException` → `INVALID_CREDENTIALS`) |
-| `auth` — testler | ✅ 26 test: `AuthControllerTest`, `AuthServiceTest`, `JwtAuthenticationFilterTest`, `CustomUserDetailsServiceTest`. Testler gerçek `GlobalExceptionHandler` üzerinden `ApiError` sözleşmesini doğruluyor |
-| CI | ✅ GitHub Actions: PostgreSQL'li backend `mvn verify` + frontend lint/test/build; Maven Wrapper sabitlendi |
-| `pom.xml` | ✅ Duplike `spring-boot-starter-web` ve ikinci `maven-compiler-plugin` tanımı kaldırıldı |
-| DTO doğrulama | ✅ `auth` ve `user` DTO'larına `@NotBlank`/`@Email`/`@Size`; `spring-boot-starter-validation` eklendi |
-| `user` — rol yönetimi | ✅ Hesaplar daima Çalışan rolüyle açılıyor; rol değişimi ayrı uçta (`PATCH /api/admin/users/{id}/role`), tek aktif Admin kuralıyla |
-| `auth` — pasif hesap | ✅ Pasif hesap doğru parolayla giremiyor; geçerli token da kimlik doğrulamış saymıyor |
-| İlk Admin | ✅ `BootstrapAdminRunner`; yalnızca `BOOTSTRAP_ADMIN_EMAIL` ve `BOOTSTRAP_ADMIN_PASSWORD` açıkça verildiğinde ve aktif Admin yokken çalışır, varsayılan parola yok |
+| `notification` | ✅ Uygulama içi bildirim, `@Async` e-posta, derin bağlantı, zamanlanmış token temizliği (`TokenCleanupJob`) |
+| `search` + `record` — birleşik listeleme | ✅ İki ayrı uç (`/api/records`, `/api/records/search`) tek uçta (`GET /api/records`) toplandı; görünürlük kuralı artık `RecordSearchService`'te tek yerde |
+| `attachment` — oturum kimliği ve adres | ✅ `@AuthenticationPrincipal` kullanıyor; yükleme ucu sözleşmeye uygun `POST /api/records/{id}/files` |
+| `record` — oturum kimliği | ✅ Sahte UUID kaldırıldı, `RecordAccessPolicy.assertCanView` ile korunuyor, tipli exception'lar kullanılıyor |
+| `auth` — hata kodu | ✅ Hatalı giriş 401 (`INVALID_CREDENTIALS`), token rotation, `/api/auth/change-password` |
+| `user` — tam kapsam | ✅ `GET /api/users/me`, admin kullanıcı listeleme/arama, `PATCH .../active`, `GET /api/admin/roles`, `GET /api/admin/audit-logs`; `UserAuditLogService` tüm yazma işlemlerine bağlı |
+| `user` — Başkan Yrd. pasifleştirme | ✅ Rol devri şartı kaldırıldı; doğrudan pasifleştirilebilir (sözleşme ve frontend ile hizalı) |
+| İlk Admin | ✅ `BootstrapAdminRunner`; varsayılan parola yok, yalnızca ortam değişkeni açıkça verildiğinde çalışır |
+| CI | ✅ GitHub Actions: PostgreSQL'li backend `mvn verify` + frontend lint/test/build |
+| `pom.xml` | ✅ Duplike bağımlılık ve plugin tanımları kaldırıldı |
+| DTO doğrulama | ✅ `auth` ve `user` DTO'larına `@NotBlank`/`@Email`/`@Size` |
+| `common/config/CorsConfig` | ✅ İzinli origin `CORS_ALLOWED_ORIGINS` ortam değişkeninden, `*` yok |
+| `/api/v1` öneki | ✅ Kaldırıldı; `record`/`categories` artık `/api/...` altında (frontend generated client dahil) |
+| Çalışma notu modülü | ✅ **Kaldırıldı** — sözleşme kapsam dışı bıraktı, açıklama artık workflow isteğinin `comment` alanında. `V6__drop_record_notes.sql` |
 
 İki not:
 
@@ -79,22 +80,24 @@ DTO doğrulaması ve kullanıcı/rol yönetimi tamamlandı.
   benimsendi ve `rbac` de onu kullanıyor.
 - Önceki listede "onay akışı sınıflarına `@Service` eklenmeli" yazıyordu; bu
   yanlıştı. `WorkflowApplicationService` ve durum makinesi bilerek anotasyonsuz
-  tutuluyor ki Spring olmadan test edilebilsinler. Bean tanımları dışarıdan
-  `WorkflowConfiguration` içinde yapıldı, transaction sınırı ise ayrı bir
-  `WorkflowActionService` ile sağlandı.
+  tutuluyor ki Spring olmadan test edilebilsinler.
 
 ---
 
 ## Kişi başı kalan iş
 
-| Sorumlu | Paket | Kalan sınıf | Öncelik |
-|---|---|---:|---|
-| Hacer | `common/config` | `CorsConfig` | **Sıradaki iş** |
-| Melih Kocaman | `templates/mail` | şablon dosyaları | Teslim öncesi |
-| Herkes | kendi modülü | `record` ve `common` testleri | Teslim öncesi |
-| Nisan · Sümeyye | `user` / `auth` | — | ✅ tamamlandı |
+| Sorumlu | Paket | Kalan iş | Öncelik |
+|---|---|---|---|
+| Melih Kocaman | `templates/mail` | Şablon dosyaları | Teslim öncesi |
+| Nisan · Sümeyye | `user` / `auth` | Üç dar test (yukarıda) | Teslim öncesi |
+| Herkes | `common` | Test kapsamı | Teslim öncesi |
+| Hacer | `common/config` | — | ✅ tamamlandı (CORS) |
 | Ecesu Başak | `attachment` | — | ✅ tamamlandı |
 | Irmak Tanrıverdi | `search` | — | ✅ tamamlandı |
 | Esra Öncü · Burak Kaya | `workflow` | — | ✅ tamamlandı |
 | Alperen Kara · Fevzi B. Urganioğlu | `record` | — | ✅ tamamlandı |
-| **Toplam yeni sınıf** | | **1** | |
+| **Toplam yeni sınıf** | | **0** | |
+
+Ayrıca [EKSIK_CONTROLLERLAR_VE_KARARLAR.md](EKSIK_CONTROLLERLAR_VE_KARARLAR.md)
+dosyasına bakınız: bildirim geçmişi ucu ve frontend'deki bir ölü kod bulgusu
+orada takip ediliyor.
