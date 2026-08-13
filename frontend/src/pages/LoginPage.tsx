@@ -40,7 +40,9 @@ export function LoginPage({ user, onLogin }: LoginPageProps) {
     },
   })
 
-  if (user) return <Navigate to="/dashboard" replace />
+  if (user) {
+    return <Navigate to={user.mustChangePassword ? '/sifre-degistir' : user.role === 'ADMIN' ? '/admin' : '/dashboard'} replace />
+  }
 
   const reason = searchParams.get('reason')
   const submit = handleSubmit(async (values) => {
@@ -49,8 +51,9 @@ export function LoginPage({ user, onLogin }: LoginPageProps) {
       (account) => account.email === normalizedEmail,
     )
 
+    let session: Awaited<ReturnType<typeof startAuthSession>>
     try {
-      await startAuthSession(normalizedEmail, values.password)
+      session = await startAuthSession(normalizedEmail, values.password)
     } catch (error) {
       setError('root', {
         type: 'server',
@@ -76,9 +79,15 @@ export function LoginPage({ user, onLogin }: LoginPageProps) {
       lastName: matchingDemoAccount.lastName,
       email: matchingDemoAccount.email,
       role: matchingDemoAccount.role,
+      mustChangePassword: session.mustChangePassword,
     }
 
     onLogin(authenticatedUser)
+    if (session.mustChangePassword) {
+      navigate('/sifre-degistir', { replace: true })
+      return
+    }
+
     const requestedPath = searchParams.get('returnTo')
     const safeReturnTo = requestedPath?.startsWith('/') && !requestedPath.startsWith('//')
       ? requestedPath
@@ -139,6 +148,11 @@ export function LoginPage({ user, onLogin }: LoginPageProps) {
             {reason === 'expired' ? (
               <p className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900 dark:border-amber-800/70 dark:bg-amber-950/40 dark:text-amber-200" role="status">
                 Oturumunuzun süresi doldu. Lütfen tekrar giriş yapın.
+              </p>
+            ) : null}
+            {reason === 'password-changed' ? (
+              <p className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 dark:border-emerald-800/70 dark:bg-emerald-950/40 dark:text-emerald-200" role="status">
+                Şifreniz değiştirildi. Yeni şifrenizle tekrar giriş yapın.
               </p>
             ) : null}
 

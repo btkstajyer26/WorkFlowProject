@@ -7,6 +7,7 @@ export type AuthUser = {
   lastName: string
   email: string
   role: UserRole
+  mustChangePassword: boolean
 }
 
 export const roleLabels: Record<UserRole, string> = {

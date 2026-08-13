@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createUserSchema } from './admin'
-import { loginSchema } from './auth'
+import { changePasswordSchema, loginSchema } from './auth'
 import { recordFormSchema } from './record'
 
 describe('login schema', () => {
@@ -39,6 +39,29 @@ describe('admin kullanıcı oluşturma şeması', () => {
 
     expect(result.success).toBe(false)
     if (!result.success) expect(result.error.issues.map((issue) => issue.path[0])).toContain('password')
+  })
+})
+
+describe('şifre değiştirme şeması', () => {
+  it('harf ve rakam içermeyen veya eşleşmeyen yeni şifreyi reddeder', () => {
+    const result = changePasswordSchema.safeParse({
+      currentPassword: 'Gecici123',
+      newPassword: 'yalnizharf',
+      newPasswordConfirm: 'farkli123',
+    })
+
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error.issues.map((issue) => issue.path[0])).toEqual(['newPassword', 'newPasswordConfirm'])
+    }
+  })
+
+  it('geçerli ve eşleşen yeni şifreyi kabul eder', () => {
+    expect(changePasswordSchema.safeParse({
+      currentPassword: 'Gecici123',
+      newPassword: 'YeniParola123',
+      newPasswordConfirm: 'YeniParola123',
+    }).success).toBe(true)
   })
 })
 

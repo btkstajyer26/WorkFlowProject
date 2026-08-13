@@ -13,6 +13,7 @@ export const demoAccounts: DemoAccount[] = [
     email: 'john.doe@kurum.gov.tr',
     password: 'demo123',
     role: 'CALISAN',
+    mustChangePassword: false,
     summary: 'Kayıt oluşturur ve süreçlerini takip eder.',
   },
   {
@@ -22,6 +23,7 @@ export const demoAccounts: DemoAccount[] = [
     email: 'ayse.kaya@kurum.gov.tr',
     password: 'demo123',
     role: 'BASKAN_YARDIMCISI',
+    mustChangePassword: false,
     summary: 'Gelen kayıtları inceler ve Başkana iletir.',
   },
   {
@@ -31,6 +33,7 @@ export const demoAccounts: DemoAccount[] = [
     email: 'mehmet.demir@kurum.gov.tr',
     password: 'demo123',
     role: 'BASKAN',
+    mustChangePassword: false,
     summary: 'Nihai onay, red ve geri gönderme işlemlerini yapar.',
   },
   {
@@ -40,7 +43,18 @@ export const demoAccounts: DemoAccount[] = [
     email: 'admin@kurum.gov.tr',
     password: 'demo123',
     role: 'ADMIN',
+    mustChangePassword: false,
     summary: 'Kullanıcıları, rollerini ve denetim kayıtlarını yönetir.',
+  },
+  {
+    id: 'user-demo-first-login',
+    firstName: 'İlk',
+    lastName: 'Giriş',
+    email: 'ilk.giris@kurum.gov.tr',
+    password: 'Gecici123',
+    role: 'CALISAN',
+    mustChangePassword: true,
+    summary: 'Zorunlu şifre değiştirme akışını önizler.',
   },
 ]
 
@@ -54,6 +68,7 @@ export function getDemoUserByRole(role: AuthUser['role']): AuthUser {
     lastName: account.lastName,
     email: account.email,
     role: account.role,
+    mustChangePassword: account.mustChangePassword,
   }
 }
 
