@@ -6,27 +6,27 @@ import btk.staj.WorkFlowProject.attachment.service.FileService;
 import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.http.MediaType;
 
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/files")
 @RequiredArgsConstructor
 public class FileController {
 
     private final FileService fileService;
 
+    // YENİ UÇ ADRESİ: POST /api/records/{id}/files
     @PreAuthorize("hasRole('CALISAN')")
-    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = "/api/records/{id}/files", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> uploadFile(
-            @RequestPart("file") MultipartFile file, // @RequestParam yerine @RequestPart yapıldı
-            @RequestParam("recordId") UUID recordId,
+            @PathVariable("id") UUID recordId, // @RequestParam yerine @PathVariable yapıldı
+            @RequestPart("file") MultipartFile file,
             @AuthenticationPrincipal AuthenticatedUser currentUser) {
 
         try {
@@ -38,18 +38,21 @@ public class FileController {
         }
     }
 
-    @GetMapping("/{id}/download")
+    // İndirme adresi aynen korundu: GET /api/files/{id}/download
+    @GetMapping("/api/files/{id}/download")
     public ResponseEntity<Resource> downloadFile(@PathVariable UUID id) {
         return fileService.downloadFile(id);
     }
 
-    @GetMapping("/{id}/preview")
+    // Önizleme adresi aynen korundu: GET /api/files/{id}/preview
+    @GetMapping("/api/files/{id}/preview")
     public ResponseEntity<Resource> previewFile(@PathVariable UUID id) {
         return fileService.previewFile(id);
     }
 
+    // Silme adresi aynen korundu: DELETE /api/files/{id}
     @PreAuthorize("hasRole('CALISAN')")
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/api/files/{id}")
     public ResponseEntity<?> deleteFile(
             @PathVariable UUID id,
             @AuthenticationPrincipal AuthenticatedUser currentUser) {
