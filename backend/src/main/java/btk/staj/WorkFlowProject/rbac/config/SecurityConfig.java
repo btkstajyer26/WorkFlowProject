@@ -32,7 +32,10 @@ public class SecurityConfig {
             "/swagger-ui/**",
             "/v3/api-docs",
             "/v3/api-docs/**",
-            "/v3/api-docs.yaml"
+            "/v3/api-docs.yaml",
+            // Servlet konteyneri hatayi /error'a yonlendirir; burasi kapali
+            // kalirsa istemci gercek hata yerine 401 gorur.
+            "/error"
     };
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
