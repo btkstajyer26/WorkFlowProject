@@ -1,5 +1,6 @@
 package btk.staj.WorkFlowProject.auth.controller;
-
+import org.springframework.security.core.annotation.AuthenticationPrincipal ;
+import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
 import btk.staj.WorkFlowProject.auth.dto.LoginRequest;
 import btk.staj.WorkFlowProject.auth.dto.LoginResponse;
 import btk.staj.WorkFlowProject.auth.dto.LogoutRequest;
@@ -8,6 +9,8 @@ import btk.staj.WorkFlowProject.auth.service.AuthService;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
+import btk.staj.WorkFlowProject.auth.dto.ChangePasswordRequest;
+
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -36,5 +39,11 @@ public class AuthController {
     public String logout(@Valid @RequestBody LogoutRequest request) {
         authService.logout(request.getRefreshToken());
         return "Çıkış yapıldı";
+    }
+    @PostMapping("/change-password")
+    public String changePassword(@AuthenticationPrincipal AuthenticatedUser currentUser,
+                                 @Valid @RequestBody ChangePasswordRequest request) {
+        authService.changePassword(currentUser.getId(), request.getCurrentPassword(), request.getNewPassword());
+        return "Şifre değiştirildi";
     }
 }

@@ -17,18 +17,7 @@ import org.hibernate.annotations.Immutable;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/**
- * Sartnamedeki silinemez denetim izi (§4.2). Kayit bir kez yazilir, sonra
- * degistirilemez:
- *
- * <ul>
- *   <li>{@link Immutable} — Hibernate bu entity icin hic UPDATE uretmez,</li>
- *   <li>kolonlar {@code updatable = false},</li>
- *   <li>setter yok; nesne yalnizca {@code builder()} ile kurulur,</li>
- *   <li>silme metotlari repository arayuzunde hic tanimlanmaz
- *       (bkz. {@code AuditLogRepository}).</li>
- * </ul>
- */
+
 @Entity
 @Table(name = "audit_logs")
 @Immutable
@@ -67,10 +56,7 @@ public class AuditLog {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    /**
-     * Cagiran taraf islem zamanini kendisi verebilir (onay akisi gecisin
-     * gerceklestigi ani tasiyor); vermediyse yazma ani kullanilir.
-     */
+
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) {

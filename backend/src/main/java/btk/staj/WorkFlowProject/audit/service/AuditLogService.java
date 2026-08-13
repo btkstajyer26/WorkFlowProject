@@ -36,11 +36,7 @@ public class AuditLogService implements AuditService {
         this.roleRepository = Objects.requireNonNull(roleRepository, "roleRepository");
     }
 
-    /**
-     * Basarili bir durum gecisini denetim izine yazar. Onay akisi bu cagriyi
-     * kayit guncellemesiyle ayni transaction icinde yapar; buradan firlayan
-     * hata gecisi de geri alir.
-     */
+
     @Override
     public void record(WorkflowTransitionAudit audit) {
         Objects.requireNonNull(audit, "audit");
@@ -59,7 +55,7 @@ public class AuditLogService implements AuditService {
         auditLogRepository.save(log);
     }
 
-    /** Bir evragin detay sayfasindaki "Islem Gecmisi" tablosunu doldurur. */
+
     public List<AuditLogResponse> getGecmis(UUID recordId) {
         Objects.requireNonNull(recordId, "recordId");
         return auditLogRepository.findHistoryByRecordId(recordId);

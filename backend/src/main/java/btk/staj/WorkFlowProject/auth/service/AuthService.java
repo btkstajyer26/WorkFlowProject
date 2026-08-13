@@ -11,7 +11,7 @@ import btk.staj.WorkFlowProject.user.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.util.UUID;
 import java.time.LocalDateTime;
 
 @Service
@@ -39,7 +39,6 @@ public class AuthService {
             throw new InvalidCredentialsException("Email veya şifre hatalı");
         }
 
-        // Pasif hesap dogru parolayla da giris yapamaz.
         if (!user.isActive()) {
             throw new InvalidCredentialsException("Hesap pasif durumda");
         }
@@ -55,10 +54,10 @@ public class AuthService {
         tokenEntity.setExpiresAt(LocalDateTime.now().plusDays(7));
         tokenRepository.save(tokenEntity);
 
-        return new LoginResponse(accessToken, refreshToken);
+        return new LoginResponse(accessToken, refreshToken, user.isMustChangePassword());
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public LoginResponse refresh(String refreshToken) {
         Token storedToken = tokenRepository.findByToken(refreshToken)
                 .orElseThrow(() -> new InvalidCredentialsException("Geçersiz refresh token"));
@@ -67,10 +66,22 @@ public class AuthService {
             throw new InvalidCredentialsException("Refresh token süresi dolmuş veya geçersiz");
         }
 
+        storedToken.setRevoked(true);
+        tokenRepository.save(storedToken);
+
         User user = storedToken.getUser();
         String newAccessToken = jwtUtil.generateAccessToken(user.getId(), user.getEmail(), user.getRole().getName());
+        String newRefreshToken = jwtUtil.generateRefreshToken(user.getId());
 
-        return new LoginResponse(newAccessToken, refreshToken);
+        Token newTokenEntity = new Token();
+        newTokenEntity.setUser(user);
+        newTokenEntity.setToken(newRefreshToken);
+        newTokenEntity.setTokenType("REFRESH");
+        newTokenEntity.setCreatedAt(LocalDateTime.now());
+        newTokenEntity.setExpiresAt(LocalDateTime.now().plusDays(7));
+        tokenRepository.save(newTokenEntity);
+
+        return new LoginResponse(newAccessToken, newRefreshToken, user.isMustChangePassword());
     }
 
     @Transactional
@@ -79,7 +90,23 @@ public class AuthService {
             token.setRevoked(true);
             tokenRepository.save(token);
         });
-
     }
 
+    @Transactional
+    public void changePassword(UUID userId, String currentPassword, String newPassword) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new InvalidCredentialsException("Kullanıcı bulunamadı"));
+
+        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            throw new InvalidCredentialsException("Mevcut şifre yanlış");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setMustChangePassword(false);
+        user.setUpdatedAt(LocalDateTime.now());
+        userRepository.save(user);
+
+        tokenRepository.findAllByUser_IdAndRevokedFalse(userId)
+                .forEach(token -> token.setRevoked(true));
+    }
 }

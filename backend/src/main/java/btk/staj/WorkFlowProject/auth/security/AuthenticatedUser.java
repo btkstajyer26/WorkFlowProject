@@ -21,6 +21,10 @@ public class AuthenticatedUser implements UserDetails {
         return user.getId();
     }
 
+    public User getUser() {
+        return user;
+    }
+
     public String getRoleName() {
         return user.getRole().getName();
     }
