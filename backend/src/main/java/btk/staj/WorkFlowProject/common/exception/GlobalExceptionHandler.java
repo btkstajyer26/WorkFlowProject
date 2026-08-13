@@ -8,6 +8,7 @@ import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowErrorCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -163,6 +164,18 @@ public class GlobalExceptionHandler {
                 fieldErrors);
 
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * `?sort=` ile var olmayan bir alan istendiginde Spring Data bunu firlatir
+     * (orn. Swagger UI'nin doldurulmamis "string" varsayilanini oldugu gibi
+     * gonderme). Sayfalanan her uc (kullanici, kayit, bildirim, audit listesi)
+     * ayni riski tasidigi icin handler ozel bir controller'a degil buraya
+     * bagli. Istemci hatasidir, sunucu hatasi degil; 400 donmeli.
+     */
+    @ExceptionHandler(InvalidDataAccessApiUsageException.class)
+    public ResponseEntity<ApiError> handleInvalidDataAccess(InvalidDataAccessApiUsageException ex) {
+        return build("INVALID_SORT_FIELD", "Sıralama alanı geçersiz", HttpStatus.BAD_REQUEST);
     }
 
     /**
