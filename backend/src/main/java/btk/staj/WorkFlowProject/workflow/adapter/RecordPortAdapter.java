@@ -59,7 +59,7 @@ public final class RecordPortAdapter implements WorkflowRecordPort {
         record.setLastDeputyId(requiredUpdate.lastDeputyId());
         // updatedAt'e dokunulmaz: entity'de @UpdateTimestamp var, Hibernate yazar.
 
-        recordRepository.save(record);
+        recordRepository.saveAndFlush(record);
     }
 
     private static WorkflowRecordSnapshot toSnapshot(Record record) {

@@ -20,6 +20,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -32,6 +33,8 @@ class RecordPortAdapterTest {
     private static final UUID CREATED_BY = UUID.fromString("00000000-0000-0000-0000-000000000031");
     private static final UUID ASSIGNED_TO = UUID.fromString("00000000-0000-0000-0000-000000000032");
     private static final UUID LAST_DEPUTY = UUID.fromString("00000000-0000-0000-0000-000000000033");
+    private static final UUID NEW_ASSIGNED_TO = UUID.fromString("00000000-0000-0000-0000-000000000034");
+    private static final UUID NEW_LAST_DEPUTY = UUID.fromString("00000000-0000-0000-0000-000000000035");
 
     private final RecordRepository recordRepository = mock(RecordRepository.class);
     private final RecordPortAdapter adapter = new RecordPortAdapter(recordRepository);
@@ -76,20 +79,26 @@ class RecordPortAdapterTest {
     }
 
     @Test
-    @DisplayName("gecis sonucunu kayda yazar")
+    @DisplayName("gecis sonucunu versioni elle artirmadan flush eder")
     void appliesTheTransitionToTheRecord() {
         Record stored = record(RecordStatus.BSK_YRD_INCELEMESINDE, null);
+        stored.setVersion(3);
+        Integer versionBeforeUpdate = stored.getVersion();
         when(recordRepository.findById(RECORD_ID)).thenReturn(Optional.of(stored));
 
         adapter.update(new WorkflowRecordUpdate(
-                RECORD_ID, RecordStatus.BASKAN_INCELEMESINDE, ASSIGNED_TO, LAST_DEPUTY,
-                0, Instant.parse("2026-08-11T09:15:00Z")));
+                RECORD_ID, RecordStatus.BASKAN_INCELEMESINDE, NEW_ASSIGNED_TO, NEW_LAST_DEPUTY,
+                3, Instant.parse("2026-08-11T09:15:00Z")));
 
         ArgumentCaptor<Record> captor = ArgumentCaptor.forClass(Record.class);
-        verify(recordRepository).save(captor.capture());
+        verify(recordRepository).saveAndFlush(captor.capture());
+        assertThat(captor.getValue()).isSameAs(stored);
         assertThat(captor.getValue().getStatus()).isEqualTo(RecordStatus.BASKAN_INCELEMESINDE);
-        assertThat(captor.getValue().getAssignedTo()).isEqualTo(ASSIGNED_TO);
-        assertThat(captor.getValue().getLastDeputyId()).isEqualTo(LAST_DEPUTY);
+        assertThat(captor.getValue().getAssignedTo()).isEqualTo(NEW_ASSIGNED_TO);
+        assertThat(captor.getValue().getLastDeputyId()).isEqualTo(NEW_LAST_DEPUTY);
+        // Mockito repository flush etmez; bu yalniz adapterin version'i elle degistirmedigini kanitlar.
+        assertThat(stored.getVersion()).isEqualTo(versionBeforeUpdate);
+        verify(recordRepository, never()).save(any());
     }
 
     @Test
@@ -101,10 +110,33 @@ class RecordPortAdapterTest {
 
         assertThatExceptionOfType(ObjectOptimisticLockingFailureException.class)
                 .isThrownBy(() -> adapter.update(new WorkflowRecordUpdate(
-                        RECORD_ID, RecordStatus.BASKAN_INCELEMESINDE, ASSIGNED_TO, LAST_DEPUTY,
+                        RECORD_ID, RecordStatus.BASKAN_INCELEMESINDE, NEW_ASSIGNED_TO, NEW_LAST_DEPUTY,
                         0, Instant.parse("2026-08-11T09:15:00Z"))));
 
-        verify(recordRepository, never()).save(org.mockito.ArgumentMatchers.any());
+        assertThat(stored.getStatus()).isEqualTo(RecordStatus.BSK_YRD_INCELEMESINDE);
+        assertThat(stored.getAssignedTo()).isEqualTo(ASSIGNED_TO);
+        assertThat(stored.getLastDeputyId()).isEqualTo(LAST_DEPUTY);
+        verify(recordRepository, never()).save(any());
+        verify(recordRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    @DisplayName("flush optimistic lock hatasini aynen yayar")
+    void propagatesTheSameOptimisticLockingFailureFromFlush() {
+        Record stored = record(RecordStatus.BSK_YRD_INCELEMESINDE, null);
+        ObjectOptimisticLockingFailureException failure =
+                new ObjectOptimisticLockingFailureException(Record.class, RECORD_ID);
+        when(recordRepository.findById(RECORD_ID)).thenReturn(Optional.of(stored));
+        when(recordRepository.saveAndFlush(stored)).thenThrow(failure);
+
+        assertThatExceptionOfType(ObjectOptimisticLockingFailureException.class)
+                .isThrownBy(() -> adapter.update(new WorkflowRecordUpdate(
+                        RECORD_ID, RecordStatus.BASKAN_INCELEMESINDE, NEW_ASSIGNED_TO, NEW_LAST_DEPUTY,
+                        0, Instant.parse("2026-08-11T09:15:00Z"))))
+                .isSameAs(failure);
+
+        verify(recordRepository).saveAndFlush(stored);
+        verify(recordRepository, never()).save(any());
     }
 
     @Test

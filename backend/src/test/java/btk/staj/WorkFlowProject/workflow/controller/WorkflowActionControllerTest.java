@@ -119,7 +119,7 @@ class WorkflowActionControllerTest {
                 .andExpect(jsonPath("$.performedBy").value(baskan.getId().toString()));
 
         ArgumentCaptor<Record> savedRecord = ArgumentCaptor.forClass(Record.class);
-        verify(recordRepository).save(savedRecord.capture());
+        verify(recordRepository).saveAndFlush(savedRecord.capture());
         assertThat(savedRecord.getValue().getStatus()).isEqualTo(RecordStatus.ONAYLANDI);
 
         ArgumentCaptor<AuditLog> savedAudit = ArgumentCaptor.forClass(AuditLog.class);
