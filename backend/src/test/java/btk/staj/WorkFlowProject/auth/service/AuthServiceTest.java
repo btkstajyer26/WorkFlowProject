@@ -150,8 +150,13 @@ class AuthServiceTest {
 
     // ---------------- refresh ----------------
 
+    /**
+     * Refresh token rotation: her yenilemede yeni bir refresh token uretilir
+     * ve eskisi iptal edilir. Boylece calinan bir token omur boyu gecerli
+     * kalmaz.
+     */
     @Test
-    void refresh_gecerliTokenIle_yeniAccessTokenDondurmeli() {
+    void refresh_gecerliTokenIle_yeniTokenUretipEskisiniIptalEtmeli() {
         Token storedToken = mock(Token.class);
 
         when(tokenRepository.findByToken("valid-refresh-token")).thenReturn(Optional.of(storedToken));
@@ -163,11 +168,19 @@ class AuthServiceTest {
         when(user.getRole()).thenReturn(role);
         when(role.getName()).thenReturn("USER");
         when(jwtUtil.generateAccessToken(userId, "test@example.com", "USER")).thenReturn("new-access-token");
+        when(jwtUtil.generateRefreshToken(userId)).thenReturn("new-refresh-token");
 
         LoginResponse response = authService.refresh("valid-refresh-token");
 
         assertEquals("new-access-token", response.getAccessToken());
-        assertEquals("valid-refresh-token", response.getRefreshToken());
+        assertEquals("new-refresh-token", response.getRefreshToken());
+
+        // Eski token iptal edilmeli, yenisi kaydedilmeli.
+        verify(storedToken).setRevoked(true);
+
+        ArgumentCaptor<Token> tokenCaptor = ArgumentCaptor.forClass(Token.class);
+        verify(tokenRepository, times(2)).save(tokenCaptor.capture());
+        assertEquals("new-refresh-token", tokenCaptor.getAllValues().getLast().getToken());
     }
 
     @Test
