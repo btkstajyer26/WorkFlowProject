@@ -1,10 +1,13 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { HttpResponse, http } from 'msw'
 import { MemoryRouter } from 'react-router'
 import { describe, expect, it } from 'vitest'
 import App from './App'
 import { getMockUserByRole } from './mocks/api/auth'
 import { api } from './api/client'
+import { apiBaseUrl } from './api/config'
+import { apiMockServer } from './mocks/api/server'
 import { seedAuthenticatedUser } from './test/auth'
 
 function renderApp(path: string) {
@@ -52,6 +55,30 @@ describe('App authorization boundaries', () => {
     await seedAuthenticatedUser('CALISAN')
     renderApp('/kayitlar/olmayan-kayit')
     expect(await screen.findByRole('heading', { name: 'Aradığınız sayfa bulunamadı' })).toBeInTheDocument()
+  })
+
+  it('refresh token geçersizse oturumu temizleyip süresi doldu mesajıyla girişe yönlendirir', async () => {
+    await seedAuthenticatedUser('CALISAN')
+    apiMockServer.use(
+      http.post(`${apiBaseUrl}/api/auth/refresh`, () => HttpResponse.json({
+        timestamp: new Date().toISOString(),
+        status: 401,
+        code: 'UNAUTHORIZED',
+        message: 'Refresh token geçersiz',
+      }, { status: 401 })),
+    )
+
+    renderApp('/dashboard')
+
+    expect(await screen.findByRole('heading', { name: 'Hesabınıza giriş yapın' })).toBeInTheDocument()
+    expect(screen.getByText('Oturumunuzun süresi doldu. Lütfen tekrar giriş yapın.')).toBeInTheDocument()
+  })
+
+  it('e-posta deep link adresini kayıt detayına yönlendirir', async () => {
+    await seedAuthenticatedUser('CALISAN')
+    renderApp('/records/rec-001')
+
+    expect(await screen.findByRole('heading', { name: 'Sunucu Donanım Alım Talebi' })).toBeInTheDocument()
   })
 
   it('zorunlu şifre değişikliği tamamlanmadan korumalı sayfaları açmaz', async () => {

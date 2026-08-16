@@ -12,6 +12,8 @@
 
 import type {
   CountUnreadData,
+  GetAllData,
+  GetAllParams,
   GetUnreadData,
   MarkAsReadData,
   MarkAsReadParams,
@@ -38,6 +40,22 @@ export class NotificationController<SecurityDataType = unknown> {
     this.http.request<CountUnreadData, any>({
       path: `/api/notifications/unread/count`,
       method: "GET",
+      secure: true,
+      ...params,
+    });
+  /**
+   * No description
+   *
+   * @tags notification-controller
+   * @name GetAll
+   * @request GET:/api/notifications
+   * @secure
+   */
+  getAll = (query: GetAllParams, params: RequestParams = {}) =>
+    this.http.request<GetAllData, any>({
+      path: `/api/notifications`,
+      method: "GET",
+      query: query,
       secure: true,
       ...params,
     });

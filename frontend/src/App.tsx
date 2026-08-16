@@ -1,23 +1,23 @@
 import { useEffect, useState } from 'react'
-import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router'
+import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router'
 import { AppShell } from './components/layout/AppShell'
 import { AppErrorBoundary } from './components/errors/AppErrorBoundary'
 import { WorkflowProvider } from './context/WorkflowContext'
 import { useWorkflow } from './context/workflowState'
 import { AdminProvider } from './context/AdminContext'
+import { AdminDataBoundary } from './components/admin/AdminDataBoundary'
 import { ThemeProvider } from './context/ThemeContext'
 import { ToastProvider } from './context/ToastContext'
 import {
   clearAuthSession,
   endAuthSession,
-  isAuthenticatedSessionFor,
-  persistAuthenticatedUser,
   restoreAuthSession,
   startAuthSession,
+  subscribeAuthSessionExpired,
 } from './auth/authSession'
 import { isApiMockEnabled } from './api/config'
 import { CategoryProvider } from './context/CategoryContext'
-import { demoAccounts, getDemoUserByRole } from './mocks/users'
+import { demoAccounts } from './mocks/users'
 import { DashboardPage } from './pages/DashboardPage'
 import { ErrorStatePage } from './pages/ErrorStatePage'
 import { LoginPage } from './pages/LoginPage'
@@ -35,7 +35,7 @@ import type { AuthUser, UserRole } from './types/auth'
 async function startDemoAuthSession(role: UserRole) {
   const account = demoAccounts.find((candidate) => candidate.role === role)
   if (!account) throw new Error(`${role} rolü için demo hesabı bulunamadı.`)
-  await startAuthSession(account.email, account.password)
+  return startAuthSession(account.email, account.password)
 }
 
 function App() {
@@ -45,23 +45,17 @@ function App() {
   const [authReady, setAuthReady] = useState(false)
   const [sessionEndPath, setSessionEndPath] = useState<string | null>(null)
 
+  useEffect(() => subscribeAuthSessionExpired(() => {
+    setUser(null)
+    setSessionEndPath('/giris?reason=expired')
+  }), [])
+
   useEffect(() => {
     let active = true
 
-    void restoreAuthSession().then(async (restoredUser) => {
-      let nextUser = restoredUser
-
-      if (restoredUser && isApiMockEnabled && !isAuthenticatedSessionFor(restoredUser.email)) {
-        try {
-          await startDemoAuthSession(restoredUser.role)
-          persistAuthenticatedUser(restoredUser)
-        } catch {
-          nextUser = null
-        }
-      }
-
+    void restoreAuthSession().then((restoredUser) => {
       if (!active) return
-      setUser(nextUser)
+      setUser(restoredUser)
       setAuthReady(true)
     })
 
@@ -82,7 +76,6 @@ function App() {
 
   const handleLogin = (authenticatedUser: AuthUser) => {
     setSessionEndPath(null)
-    persistAuthenticatedUser(authenticatedUser)
     setUser(authenticatedUser)
   }
 
@@ -124,7 +117,6 @@ function App() {
                   <ProtectedApplication
                     user={user}
                     onUserChange={(nextUser) => {
-                      persistAuthenticatedUser(nextUser)
                       setUser(nextUser)
                     }}
                   />
@@ -156,14 +148,12 @@ function ProtectedApplication({
     if (!isApiMockEnabled || nextRole === user.role) return
 
     try {
-      await startDemoAuthSession(nextRole)
+      const session = await startDemoAuthSession(nextRole)
+      onUserChange(session.user)
+      navigate(session.user.role === 'ADMIN' ? '/admin' : '/dashboard')
     } catch {
       return
     }
-
-    const nextUser = getDemoUserByRole(nextRole)
-    onUserChange(nextUser)
-    navigate(nextRole === 'ADMIN' ? '/admin' : '/dashboard')
   }
 
   const handleLogout = () => {
@@ -205,6 +195,11 @@ function AuthBootstrapScreen() {
   )
 }
 
+function RecordDeepLinkRedirect() {
+  const { recordId } = useParams()
+  return <Navigate to={recordId ? `/kayitlar/${recordId}` : '/kayitlar'} replace />
+}
+
 function WorkflowApplication({
   user,
   onRoleChange,
@@ -227,6 +222,7 @@ function WorkflowApplication({
         <Route path="/kayitlar" element={<RecordsPage role={user.role} />} />
         <Route path="/kayitlar/:recordId/duzenle" element={<RecordEditPage role={user.role} />} />
         <Route path="/kayitlar/:recordId" element={<RecordDetailPage role={user.role} />} />
+        <Route path="/records/:recordId" element={<RecordDeepLinkRedirect />} />
         <Route
           path="/bildirimler"
           element={
@@ -264,9 +260,9 @@ function AdminApplication({
       onLogout={onLogout}
     >
       <Routes>
-        <Route path="/admin" element={<AdminDashboardPage />} />
-        <Route path="/admin/kullanicilar" element={<AdminUsersPage />} />
-        <Route path="/admin/loglar" element={<AdminLogsPage />} />
+        <Route path="/admin" element={<AdminDataBoundary><AdminDashboardPage /></AdminDataBoundary>} />
+        <Route path="/admin/kullanicilar" element={<AdminDataBoundary><AdminUsersPage /></AdminDataBoundary>} />
+        <Route path="/admin/loglar" element={<AdminDataBoundary><AdminLogsPage /></AdminDataBoundary>} />
         <Route path="/profil" element={<ProfilePage user={user} />} />
         <Route path="/403" element={<ErrorStatePage type="403" />} />
         <Route path="/404" element={<ErrorStatePage type="404" />} />

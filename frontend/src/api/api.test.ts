@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { api, clearApiAccessToken, setApiAccessToken } from './client'
 import {
   getUnreadNotificationCount,
+  listNotifications,
   listUnreadNotifications,
   markNotificationAsRead,
 } from './notifications'
@@ -44,7 +45,7 @@ describe('OpenAPI istemcisi ve MSW sözleşmesi', () => {
 
     const result = await listRecords({
       categoryId: 4,
-      keyword: 'sunucu',
+      q: 'sunucu',
       page: 0,
       size: 5,
     })
@@ -62,7 +63,7 @@ describe('OpenAPI istemcisi ve MSW sözleşmesi', () => {
     await loginAs(employeeCredentials.email)
 
     const result = await searchRecords({
-      text: 'sunucu',
+      q: 'sunucu',
       categoryId: 4,
       page: 0,
       size: 5,
@@ -114,7 +115,7 @@ describe('OpenAPI istemcisi ve MSW sözleşmesi', () => {
 
   it('workflow cevabını ve ayrı audit geçmişini aynı sahte sunucu durumundan üretir', async () => {
     const recordId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'
-    const deputyId = '22222222-2222-2222-2222-222222222222'
+    const deputyId = 'user-demo-002'
 
     await loginAs(employeeCredentials.email)
     const submitted = await api.workflow.performAction({ recordId }, {
@@ -166,6 +167,29 @@ describe('OpenAPI istemcisi ve MSW sözleşmesi', () => {
 
     await expect(listUnreadNotifications()).resolves.toEqual([])
     await expect(getUnreadNotificationCount()).resolves.toBe(0)
+  })
+
+  it('tüm bildirimleri Spring Pageable adapterıyla okundu durumlarıyla listeler', async () => {
+    await loginAs(employeeCredentials.email)
+
+    const result = await listNotifications({ page: 0, size: 10 })
+
+    expect(result).toMatchObject({
+      page: 0,
+      size: 10,
+      totalElements: 2,
+      totalPages: 1,
+    })
+    expect(result.content).toEqual([
+      expect.objectContaining({
+        id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1',
+        read: false,
+      }),
+      expect.objectContaining({
+        id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb4',
+        read: true,
+      }),
+    ])
   })
 
   it('başka kullanıcıya ait bildirimin okundu yapılmasını reddeder', async () => {

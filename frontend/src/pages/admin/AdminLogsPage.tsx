@@ -1,9 +1,8 @@
-import { FileClock, Search, UsersRound } from 'lucide-react'
+import { Search, UsersRound } from 'lucide-react'
 import { useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router'
 import { useAdmin } from '../../context/adminState'
 import { useDebouncedSearchParam } from '../../hooks/useDebouncedSearchParam'
-import type { AdminLogType } from '../../types/admin'
 
 const pageSize = 8
 
@@ -12,36 +11,25 @@ export function AdminLogsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const query = searchParams.get('q')?.trim().toLocaleLowerCase('tr-TR') ?? ''
   const [searchInput, setSearchInput] = useDebouncedSearchParam(searchParams, setSearchParams)
-  const typeParam = searchParams.get('tur')
-  const type: AdminLogType | '' = typeParam === 'USER' || typeParam === 'RECORD' ? typeParam : ''
   const rawPage = Number(searchParams.get('sayfa'))
   const requestedPage = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1
   const filteredLogs = useMemo(() => logs.filter((log) => {
     const searchable = `${log.actionLabel} ${log.actor} ${log.target} ${log.description} ${log.recordNumber ?? ''}`.toLocaleLowerCase('tr-TR')
-    return (!query || searchable.includes(query)) && (!type || log.type === type)
-  }), [logs, query, type])
+    return !query || searchable.includes(query)
+  }), [logs, query])
   const pageCount = Math.max(1, Math.ceil(filteredLogs.length / pageSize))
   const currentPage = Math.min(requestedPage, pageCount)
   const visibleLogs = filteredLogs.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
   useEffect(() => {
     const next = new URLSearchParams(searchParams)
-    if (typeParam && !type) next.delete('tur')
     if (!Number.isInteger(rawPage) || rawPage <= 1) next.delete('sayfa')
     else if (rawPage > pageCount) {
       if (pageCount <= 1) next.delete('sayfa')
       else next.set('sayfa', String(pageCount))
     }
     if (next.toString() !== searchParams.toString()) setSearchParams(next, { replace: true })
-  }, [pageCount, rawPage, searchParams, setSearchParams, type, typeParam])
-
-  const updateParam = (key: string, value: string) => {
-    const next = new URLSearchParams(searchParams)
-    if (value) next.set(key, value)
-    else next.delete(key)
-    next.delete('sayfa')
-    setSearchParams(next)
-  }
+  }, [pageCount, rawPage, searchParams, setSearchParams])
 
   const setPage = (page: number) => {
     const next = new URLSearchParams(searchParams)
@@ -55,22 +43,17 @@ export function AdminLogsPage() {
       <header>
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-app-text sm:text-3xl">İşlem Kayıtları</h1>
-          <p className="mt-2 text-sm leading-6 text-app-text-muted">Evrak işlemleri ile hesap ve rol değişikliklerini birlikte inceleyin.</p>
+          <p className="mt-2 text-sm leading-6 text-app-text-muted">Hesap oluşturma, rol ve erişim durumu değişikliklerini inceleyin.</p>
         </div>
       </header>
 
       <section className="rounded-2xl border border-app-border bg-app-surface p-4 shadow-sm" aria-label="Log filtreleri">
-        <div className="grid gap-3 md:grid-cols-[minmax(16rem,1fr)_15rem]">
+        <div>
           <label className="relative block">
             <span className="sr-only">İşlem kaydı ara</span>
             <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-app-text-faint" aria-hidden="true" />
-            <input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Evrak no, kullanıcı veya işlem ara" className="min-h-11 w-full rounded-xl border border-app-border bg-app-surface pl-10 pr-3 text-sm text-app-text-strong outline-none placeholder:text-app-text-faint focus:border-brand-400 focus:ring-4 focus:ring-brand-100 dark:focus:ring-brand-800/60" />
+            <input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Kullanıcı veya işlem ara" className="min-h-11 w-full rounded-xl border border-app-border bg-app-surface pl-10 pr-3 text-sm text-app-text-strong outline-none placeholder:text-app-text-faint focus:border-brand-400 focus:ring-4 focus:ring-brand-100 dark:focus:ring-brand-800/60" />
           </label>
-          <select aria-label="Log türüne göre filtrele" value={type} onChange={(event) => updateParam('tur', event.target.value)} className="min-h-11 rounded-xl border border-app-border bg-app-surface px-3 text-sm text-app-text-strong outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100 dark:focus:ring-brand-800/60">
-            <option value="">Tüm işlem türleri</option>
-            <option value="RECORD">Evrak işlemleri</option>
-            <option value="USER">Kullanıcı ve rol işlemleri</option>
-          </select>
         </div>
       </section>
 
@@ -81,13 +64,13 @@ export function AdminLogsPage() {
             {visibleLogs.map((log) => (
               <article key={log.id} className="grid gap-3 px-4 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_12rem] lg:items-start">
                 <div className="flex min-w-0 gap-3">
-                  <span className={`mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl ${log.type === 'USER' ? 'bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300' : 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300'}`}>
-                    {log.type === 'USER' ? <UsersRound className="size-[18px]" aria-hidden="true" /> : <FileClock className="size-[18px]" aria-hidden="true" />}
+                  <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300">
+                    <UsersRound className="size-[18px]" aria-hidden="true" />
                   </span>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="text-sm font-bold text-app-text">{log.actionLabel}</h2>
-                      <span className="rounded-full bg-app-surface-strong px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-app-text-muted">{log.type === 'USER' ? 'Kullanıcı' : 'Evrak'}</span>
+                      <span className="rounded-full bg-app-surface-strong px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-app-text-muted">Kullanıcı</span>
                     </div>
                     <p className="mt-1 text-sm font-semibold text-app-text-secondary">{log.target}</p>
                     <p className="mt-1 text-xs leading-5 text-app-text-subtle">{log.description}</p>

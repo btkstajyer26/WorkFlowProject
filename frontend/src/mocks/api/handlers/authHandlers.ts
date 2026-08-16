@@ -16,6 +16,20 @@ type ChangePasswordRequest = {
 }
 
 export const authHandlers = [
+  http.get(`${apiBaseUrl}/api/users/me`, ({ request }) => {
+    const user = getAuthenticatedMockUser(request)
+    if (!user) return unauthorizedResponse()
+    return HttpResponse.json({
+      id: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      roleName: user.role,
+      active: true,
+      createdAt: '2026-08-01T09:00:00Z',
+    })
+  }),
+
   http.post(`${apiBaseUrl}/api/auth/login`, async ({ request }) => {
     const body = await request.json() as LoginRequest
     const user = findMockUserByCredentials(body.email, body.password)

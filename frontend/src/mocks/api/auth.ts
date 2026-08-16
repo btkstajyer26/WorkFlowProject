@@ -12,7 +12,7 @@ export type MockApiUser = {
 
 export const mockApiUsers: MockApiUser[] = [
   {
-    id: '11111111-1111-1111-1111-111111111111',
+    id: 'user-demo-001',
     firstName: 'John',
     lastName: 'Doe',
     email: 'john.doe@kurum.gov.tr',
@@ -21,7 +21,7 @@ export const mockApiUsers: MockApiUser[] = [
     mustChangePassword: false,
   },
   {
-    id: '22222222-2222-2222-2222-222222222222',
+    id: 'user-demo-002',
     firstName: 'Ayşe',
     lastName: 'Kaya',
     email: 'ayse.kaya@kurum.gov.tr',
@@ -30,7 +30,7 @@ export const mockApiUsers: MockApiUser[] = [
     mustChangePassword: false,
   },
   {
-    id: '33333333-3333-3333-3333-333333333333',
+    id: 'user-demo-003',
     firstName: 'Mehmet',
     lastName: 'Demir',
     email: 'mehmet.demir@kurum.gov.tr',
@@ -39,7 +39,7 @@ export const mockApiUsers: MockApiUser[] = [
     mustChangePassword: false,
   },
   {
-    id: '44444444-4444-4444-4444-444444444444',
+    id: 'user-demo-admin',
     firstName: 'Zeynep',
     lastName: 'Yönetici',
     email: 'admin@kurum.gov.tr',
@@ -48,7 +48,7 @@ export const mockApiUsers: MockApiUser[] = [
     mustChangePassword: false,
   },
   {
-    id: '55555555-5555-5555-5555-555555555555',
+    id: 'user-demo-first-login',
     firstName: 'İlk',
     lastName: 'Giriş',
     email: 'ilk.giris@kurum.gov.tr',

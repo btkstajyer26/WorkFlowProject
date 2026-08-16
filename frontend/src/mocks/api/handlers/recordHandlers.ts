@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw'
-import type { PageRecordResponse, RecordCreateRequest, RecordUpdateRequest } from '../../../api/generated/data-contracts'
+import type { PagedResponseRecordSearchResponse, RecordCreateRequest, RecordSearchResponse, RecordUpdateRequest } from '../../../api/generated/data-contracts'
 import { apiBaseUrl } from '../../../api/config'
 import { getAuthenticatedMockUser } from '../auth'
 import { mockApiCategories, mockApiDb, toRecordResponse, type StoredMockRecord } from '../db'
@@ -29,7 +29,9 @@ export const recordHandlers = [
     const url = new URL(request.url)
     const status = url.searchParams.get('status')
     const categoryId = url.searchParams.get('categoryId')
-    const keyword = url.searchParams.get('keyword')?.trim().toLocaleLowerCase('tr-TR')
+    const query = url.searchParams.get('q')?.trim().toLocaleLowerCase('tr-TR')
+    const from = url.searchParams.get('from')
+    const to = url.searchParams.get('to')
     const page = parseNonNegativeInt(url.searchParams.get('page'), 0)
     const size = Math.max(1, parseNonNegativeInt(url.searchParams.get('size'), 10))
 
@@ -37,30 +39,24 @@ export const recordHandlers = [
       canViewMockRecord(user, record) &&
       (!status || record.status === status) &&
       (!categoryId || record.categoryId === Number(categoryId)) &&
-      (!keyword || `${record.title} ${record.description}`.toLocaleLowerCase('tr-TR').includes(keyword))
+      (!query || `${record.title} ${record.description}`.toLocaleLowerCase('tr-TR').includes(query)) &&
+      (!from || record.createdAt >= from) &&
+      (!to || record.createdAt <= to)
     ))
-    const pageContent = filtered.slice(page * size, page * size + size).map(toRecordResponse)
+    const pageContent: RecordSearchResponse[] = filtered.slice(page * size, page * size + size).map((record) => ({
+      ...toRecordResponse(record),
+      createdBy: record.createdBy,
+      assignedTo: record.assignedTo ?? undefined,
+      updatedAt: record.updatedAt,
+    }))
     const totalPages = filtered.length === 0 ? 0 : Math.ceil(filtered.length / size)
 
-    const response: PageRecordResponse = {
+    const response: PagedResponseRecordSearchResponse = {
       content: pageContent,
+      page,
+      size,
       totalElements: filtered.length,
       totalPages,
-      size,
-      number: page,
-      numberOfElements: pageContent.length,
-      first: page === 0,
-      last: totalPages === 0 || page >= totalPages - 1,
-      empty: pageContent.length === 0,
-      sort: { empty: true, sorted: false, unsorted: true },
-      pageable: {
-        offset: page * size,
-        pageNumber: page,
-        pageSize: size,
-        paged: true,
-        unpaged: false,
-        sort: { empty: true, sorted: false, unsorted: true },
-      },
     }
     return HttpResponse.json(response)
   }),

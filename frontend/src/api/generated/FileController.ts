@@ -39,14 +39,10 @@ export class FileController<SecurityDataType = unknown> {
    * @request DELETE:/api/files/{id}
    * @secure
    */
-  deleteFile = (
-    { id, ...query }: DeleteFileParams,
-    params: RequestParams = {},
-  ) =>
+  deleteFile = ({ id }: DeleteFileParams, params: RequestParams = {}) =>
     this.http.request<DeleteFileData, any>({
       path: `/api/files/${id}`,
       method: "DELETE",
-      query: query,
       secure: true,
       ...params,
     });
@@ -85,18 +81,17 @@ export class FileController<SecurityDataType = unknown> {
    *
    * @tags file-controller
    * @name UploadFile
-   * @request POST:/api/files/upload
+   * @request POST:/api/records/{id}/files
    * @secure
    */
   uploadFile = (
-    query: UploadFileParams,
+    { id }: UploadFileParams,
     data: UploadFilePayload,
     params: RequestParams = {},
   ) =>
     this.http.request<UploadFileData, any>({
-      path: `/api/files/upload`,
+      path: `/api/records/${id}/files`,
       method: "POST",
-      query: query,
       body: data,
       secure: true,
       type: "multipart/form-data",

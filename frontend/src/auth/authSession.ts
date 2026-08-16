@@ -1,32 +1,30 @@
-import { api, clearApiAccessToken, setApiAccessToken } from '../api/client'
+import {
+  api,
+  clearApiAccessToken,
+  setApiAccessToken,
+  setApiAccessTokenRefresher,
+} from '../api/client'
 import { ApiClientError } from '../api/errors'
-import type { LoginResponse } from '../api/generated/data-contracts'
+import type { LoginResponse, UserResponse } from '../api/generated/data-contracts'
 import type { AuthUser, UserRole } from '../types/auth'
 
 type AuthTokens = Required<Pick<LoginResponse, 'accessToken' | 'refreshToken'>>
-type AuthSession = AuthTokens & { mustChangePassword: boolean }
+type AuthSession = AuthTokens & { mustChangePassword: boolean; user: AuthUser }
+type TokenSession = Omit<AuthSession, 'user'>
 type LoginResponseWithPasswordState = LoginResponse & { mustChangePassword?: boolean }
+type SessionExpiredListener = () => void
 
 const refreshTokenStorageKey = 'ebys:refresh-token:v1'
-const authenticatedUserStorageKey = 'ebys:authenticated-user:v1'
-const authenticatedEmailStorageKey = 'ebys:authenticated-email:v1'
 const legacyMockSessionKey = 'ebys:mock-session:v1'
 const userRoles: UserRole[] = ['CALISAN', 'BASKAN_YARDIMCISI', 'BASKAN', 'ADMIN']
 
 let refreshToken: string | null = null
 let restorePromise: Promise<AuthUser | null> | null = null
+let refreshPromise: Promise<AuthSession> | null = null
+const sessionExpiredListeners = new Set<SessionExpiredListener>()
 
-function isAuthUser(value: unknown): value is AuthUser {
-  if (!value || typeof value !== 'object') return false
-  const candidate = value as Partial<AuthUser>
-  return (
-    typeof candidate.id === 'string' &&
-    typeof candidate.firstName === 'string' &&
-    typeof candidate.lastName === 'string' &&
-    typeof candidate.email === 'string' &&
-    Boolean(candidate.role && userRoles.includes(candidate.role)) &&
-    (typeof candidate.mustChangePassword === 'boolean' || candidate.mustChangePassword === undefined)
-  )
+function notifySessionExpired() {
+  sessionExpiredListeners.forEach((listener) => listener())
 }
 
 function readStoredRefreshToken() {
@@ -45,19 +43,9 @@ function persistRefreshToken(token: string) {
   }
 }
 
-function persistAuthenticatedEmail(email: string) {
-  try {
-    window.localStorage.setItem(authenticatedEmailStorageKey, email.trim().toLowerCase())
-  } catch {
-    // Depolama erişimi kapalıysa mevcut sayfadaki access token kullanılmaya devam eder.
-  }
-}
-
 function removePersistedSession() {
   try {
     window.localStorage.removeItem(refreshTokenStorageKey)
-    window.localStorage.removeItem(authenticatedUserStorageKey)
-    window.localStorage.removeItem(authenticatedEmailStorageKey)
     window.sessionStorage.removeItem(legacyMockSessionKey)
   } catch {
     // Depolama erişimi kapalıysa bellek içi oturum yine temizlenir.
@@ -79,7 +67,7 @@ function requireAuthTokens(response: LoginResponse): AuthTokens {
   }
 }
 
-function applyAuthTokens(response: LoginResponse): AuthSession {
+function applyAuthTokens(response: LoginResponse): TokenSession {
   const tokens = requireAuthTokens(response)
   setApiAccessToken(tokens.accessToken)
   refreshToken = tokens.refreshToken
@@ -90,73 +78,90 @@ function applyAuthTokens(response: LoginResponse): AuthSession {
   }
 }
 
-export async function startAuthSession(email: string, password: string) {
-  clearAuthSession()
-  const response = await api.auth.login({ email, password })
-  const tokens = applyAuthTokens(response)
-  persistAuthenticatedEmail(email)
-  return tokens
-}
-
-export function isAuthenticatedSessionFor(email: string) {
-  try {
-    return window.localStorage.getItem(authenticatedEmailStorageKey) === email.trim().toLowerCase()
-  } catch {
-    return false
-  }
-}
-
-export async function refreshAuthSession() {
-  const currentRefreshToken = refreshToken ?? readStoredRefreshToken()
-  if (!currentRefreshToken) {
+function normalizeCurrentUser(response: UserResponse, mustChangePassword: boolean): AuthUser {
+  const role = response.roleName as UserRole | undefined
+  if (
+    !response.id ||
+    !response.firstName?.trim() ||
+    !response.lastName?.trim() ||
+    !response.email?.trim() ||
+    !role ||
+    !userRoles.includes(role) ||
+    response.active !== true
+  ) {
     throw new ApiClientError({
-      code: 'AUTH_SESSION_NOT_FOUND',
-      message: 'Yenilenecek bir oturum bulunamadı.',
-      status: 401,
+      code: 'INVALID_CURRENT_USER_RESPONSE',
+      message: 'Sunucu geçerli oturum kullanıcı bilgisi döndürmedi.',
+      status: 0,
     })
   }
 
-  refreshToken = currentRefreshToken
-  const response = await api.auth.refresh({ refreshToken: currentRefreshToken })
-  return applyAuthTokens(response)
-}
-
-export function persistAuthenticatedUser(user: AuthUser | null) {
-  try {
-    if (user) window.localStorage.setItem(authenticatedUserStorageKey, JSON.stringify(user))
-    else window.localStorage.removeItem(authenticatedUserStorageKey)
-  } catch {
-    // Kullanıcı görünümü App state'inde çalışmaya devam eder.
+  return {
+    id: response.id,
+    firstName: response.firstName.trim(),
+    lastName: response.lastName.trim(),
+    email: response.email.trim().toLowerCase(),
+    role,
+    mustChangePassword,
   }
 }
 
-export function readPersistedAuthenticatedUser(): AuthUser | null {
+async function loadCurrentUser(mustChangePassword: boolean) {
+  return normalizeCurrentUser(await api.users.me(), mustChangePassword)
+}
+
+export async function startAuthSession(email: string, password: string) {
+  clearAuthSession()
   try {
-    const storedUser = window.localStorage.getItem(authenticatedUserStorageKey)
-    if (!storedUser) return null
-    const parsedUser: unknown = JSON.parse(storedUser)
-    if (isAuthUser(parsedUser)) {
-      return {
-        ...parsedUser,
-        mustChangePassword: parsedUser.mustChangePassword === true,
-      }
+    const response = await api.auth.login({ email, password })
+    const tokenSession = applyAuthTokens(response)
+    const user = await loadCurrentUser(tokenSession.mustChangePassword)
+    return { ...tokenSession, user }
+  } catch (error) {
+    clearAuthSession()
+    throw error
+  }
+}
+
+async function performAuthRefresh() {
+  try {
+    const currentRefreshToken = refreshToken ?? readStoredRefreshToken()
+    if (!currentRefreshToken) {
+      throw new ApiClientError({
+        code: 'AUTH_SESSION_NOT_FOUND',
+        message: 'Yenilenecek bir oturum bulunamadı.',
+        status: 401,
+      })
     }
-  } catch {
-    // Bozuk veya erişilemeyen storage aşağıda temizlenir.
-  }
 
-  persistAuthenticatedUser(null)
-  return null
+    refreshToken = currentRefreshToken
+    const response = await api.auth.refresh({ refreshToken: currentRefreshToken })
+    const tokenSession = applyAuthTokens(response)
+    const user = await loadCurrentUser(tokenSession.mustChangePassword)
+    return { ...tokenSession, user }
+  } catch (error) {
+    clearAuthSession()
+    notifySessionExpired()
+    throw error
+  }
+}
+
+export function refreshAuthSession() {
+  if (refreshPromise) return refreshPromise
+
+  refreshPromise = performAuthRefresh().finally(() => {
+    refreshPromise = null
+  })
+  return refreshPromise
 }
 
 export function restoreAuthSession() {
   if (restorePromise) return restorePromise
 
   restorePromise = (async () => {
-    const storedUser = readPersistedAuthenticatedUser()
     const storedRefreshToken = readStoredRefreshToken()
 
-    if (!storedUser || !storedRefreshToken) {
+    if (!storedRefreshToken) {
       clearAuthSession()
       return null
     }
@@ -165,12 +170,7 @@ export function restoreAuthSession() {
 
     try {
       const session = await refreshAuthSession()
-      const restoredUser = {
-        ...storedUser,
-        mustChangePassword: session.mustChangePassword,
-      }
-      persistAuthenticatedUser(restoredUser)
-      return restoredUser
+      return session.user
     } catch {
       clearAuthSession()
       return null
@@ -197,3 +197,12 @@ export function clearAuthSession() {
   clearApiAccessToken()
   removePersistedSession()
 }
+
+export function subscribeAuthSessionExpired(listener: SessionExpiredListener) {
+  sessionExpiredListeners.add(listener)
+  return () => {
+    sessionExpiredListeners.delete(listener)
+  }
+}
+
+setApiAccessTokenRefresher(async () => (await refreshAuthSession()).accessToken)

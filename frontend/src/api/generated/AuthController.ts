@@ -11,6 +11,8 @@
  */
 
 import type {
+  ChangePasswordData,
+  ChangePasswordRequest,
   LoginData,
   LoginRequest,
   LogoutData,
@@ -28,6 +30,23 @@ export class AuthController<SecurityDataType = unknown> {
     this.http = http;
   }
 
+  /**
+   * No description
+   *
+   * @tags auth-controller
+   * @name ChangePassword
+   * @request POST:/api/auth/change-password
+   * @secure
+   */
+  changePassword = (data: ChangePasswordRequest, params: RequestParams = {}) =>
+    this.http.request<ChangePasswordData, any>({
+      path: `/api/auth/change-password`,
+      method: "POST",
+      body: data,
+      secure: true,
+      type: "application/json",
+      ...params,
+    });
   /**
    * No description
    *

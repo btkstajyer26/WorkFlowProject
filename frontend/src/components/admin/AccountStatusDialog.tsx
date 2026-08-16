@@ -48,10 +48,10 @@ export function AccountStatusDialog({
         <button
           type="button"
           disabled={mutationBusy}
-          onClick={() => runMutation(() => {
+          onClick={() => runMutation(async () => {
             if (!user) return
             try {
-              setUserActive(user.id, willActivate)
+              await setUserActive(user.id, willActivate)
               showToast({
                 title: willActivate ? 'Hesap etkinleştirildi' : 'Hesap pasifleştirildi',
                 description: `${user.firstName} ${user.lastName} kullanıcısının erişim durumu güncellendi.`,

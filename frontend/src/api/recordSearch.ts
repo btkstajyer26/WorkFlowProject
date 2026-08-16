@@ -1,4 +1,4 @@
-import type { RecordSearchResponse, SearchData } from './generated/data-contracts'
+import type { GetAllRecordsData, RecordSearchResponse } from './generated/data-contracts'
 import { apiHttpClient } from './client'
 import { listCategories } from './categories'
 import { ApiClientError } from './errors'
@@ -14,10 +14,9 @@ const recordStatuses: RecordStatus[] = [
 ]
 
 export type RecordSearchQuery = {
-  text?: string
+  q?: string
   status?: RecordStatus
   categoryId?: number
-  userId?: string
   createdFrom?: string
   createdTo?: string
   page?: number
@@ -110,13 +109,13 @@ export async function searchRecords({
   ...criteria
 }: RecordSearchQuery = {}): Promise<RecordSearchResult> {
   const [response, categories] = await Promise.all([
-    apiHttpClient.request<SearchData>({
-      path: '/api/records/search',
+    apiHttpClient.request<GetAllRecordsData>({
+      path: '/api/records',
       method: 'GET',
       query: {
         ...criteria,
-        startDate: startOfDay(createdFrom),
-        endDate: endOfDay(createdTo),
+        from: startOfDay(createdFrom),
+        to: endOfDay(createdTo),
         page,
         size,
         sort: 'createdAt,desc',
