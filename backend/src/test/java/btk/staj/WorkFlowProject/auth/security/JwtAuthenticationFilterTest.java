@@ -19,6 +19,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 /**
@@ -124,5 +125,32 @@ class JwtAuthenticationFilterTest {
                 filter.doFilterInternal(request, response, filterChain));
 
         assertNull(SecurityContextHolder.getContext().getAuthentication());
+    }
+
+    @Test
+    void gecerliTokenAmaKullaniciPasif_securityContextBosKalmaliVeFilterChainDevamEtmeli() throws Exception {
+        request.addHeader("Authorization", "Bearer valid-token");
+
+        UserDetails pasifKullanici = new User(
+                "pasif@example.com",
+                "irrelevant-password",
+                false,   // enabled = false -> pasif hesap
+                true,    // accountNonExpired
+                true,    // credentialsNonExpired
+                true,    // accountNonLocked
+                List.of(new SimpleGrantedAuthority("ROLE_USER")));
+
+        when(jwtUtil.isTokenValid("valid-token")).thenReturn(true);
+        when(jwtUtil.extractEmail("valid-token")).thenReturn("pasif@example.com");
+        when(userDetailsService.loadUserByUsername("pasif@example.com")).thenReturn(pasifKullanici);
+
+        filter.doFilterInternal(request, response, filterChain);
+
+        // Token yapısal olarak geçerli ve kullanıcı bulunuyor,
+        // ama isEnabled() false olduğu için SecurityContext boş kalmalı.
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+
+        // filter yine de zinciri kesmemeli.
+        verify(filterChain, times(1)).doFilter(request, response);
     }
 }

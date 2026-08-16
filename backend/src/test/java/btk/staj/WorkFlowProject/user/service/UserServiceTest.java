@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
@@ -28,6 +29,7 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -235,5 +237,19 @@ class UserServiceTest {
 
         assertThatExceptionOfType(ResourceNotFoundException.class)
                 .isThrownBy(() -> userService.setActive(targetId, false));
+    }
+
+    @Test
+    @DisplayName("ayni e-posta ile kayit denemesinde DB kisiti ihlali yukari firlatilir")
+    void createUser_ayniEpostaDbKisitiIhlaliniFirlatir() {
+        when(roleRepository.findByName("CALISAN")).thenReturn(Optional.of(role(1, "CALISAN")));
+        when(passwordEncoder.encode("sifre123")).thenReturn("hashed");
+        when(userRepository.save(any(User.class)))
+                .thenThrow(new DataIntegrityViolationException("duplicate key value violates unique constraint"));
+
+        assertThatExceptionOfType(DataIntegrityViolationException.class)
+                .isThrownBy(() -> userService.createUser("Ad", "Soyad", "mevcut@example.com", "sifre123"));
+
+        verifyNoInteractions(userAuditLogService);
     }
 }
