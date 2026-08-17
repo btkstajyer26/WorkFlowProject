@@ -1,8 +1,15 @@
 package btk.staj.WorkFlowProject.attachment.service;
 
+import btk.staj.WorkFlowProject.attachment.dto.FileResponseDto;
 import btk.staj.WorkFlowProject.attachment.entity.FileEntity;
 import btk.staj.WorkFlowProject.attachment.repository.FileRepository;
 import btk.staj.WorkFlowProject.attachment.storage.FileStorageService;
+import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
+import btk.staj.WorkFlowProject.common.exception.BusinessRuleException;
+import btk.staj.WorkFlowProject.common.exception.ResourceNotFoundException;
+import btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy;
+import btk.staj.WorkFlowProject.record.entity.Record;
+import btk.staj.WorkFlowProject.record.repository.RecordRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ContentDisposition;
@@ -15,6 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -25,24 +33,26 @@ public class FileService {
     private final FileStorageService fileStorageService;
     private final FileContentValidator fileContentValidator;
     private final RecordLockValidator recordLockValidator;
+    private final RecordRepository recordRepository;
+    private final RecordAccessPolicy recordAccessPolicy;
+
+    private void assertCanViewRecord(UUID recordId, RoleName role, UUID currentUserId) {
+        Record record = recordRepository.findById(recordId)
+                .orElseThrow(() -> new ResourceNotFoundException("Kayıt bulunamadı: " + recordId));
+        recordAccessPolicy.assertCanView(
+                role, currentUserId, record.getCreatedBy(), record.getAssignedTo(), record.getStatus());
+    }
 
     @Transactional
-    public FileEntity uploadFile(MultipartFile file, UUID recordId, UUID uploadedBy) {
-
+    public FileResponseDto uploadFile(MultipartFile file, UUID recordId, UUID uploadedBy) {
         if (file.isEmpty()) {
-            throw new IllegalArgumentException("Dosya boş olamaz");
+            throw new BusinessRuleException("Dosya boş olamaz");
         }
 
-        recordLockValidator.assertUploadAllowed(recordId);
+        recordLockValidator.assertModifyAllowed(recordId, uploadedBy);
 
-        // Tur, istemcinin gonderdigi Content-Type'a degil dosya icerigine bakilarak belirlenir.
         String detectedType = fileContentValidator.detectAndValidate(file);
-
         String originalFilename = file.getOriginalFilename();
-
-        // Diskteki ad yalnizca GUID'den uretilir; uzanti da dogrulanmis turden gelir.
-        // Kullanicinin gonderdigi dosya adi yola hic karismaz, yalnizca veritabaninda
-        // saklanip indirmede geri verilir.
         String storedFilename = UUID.randomUUID() + fileContentValidator.extensionFor(detectedType);
 
         fileStorageService.store(file, storedFilename);
@@ -56,40 +66,49 @@ public class FileService {
         entity.setUploadedBy(uploadedBy);
         entity.setUploadedAt(LocalDateTime.now());
 
-        return fileRepository.save(entity);
+        FileEntity saved = fileRepository.save(entity);
+        return toDto(saved);
     }
 
     @Transactional
     public void deleteFile(UUID id, UUID deletedBy) {
         FileEntity fileEntity = fileRepository.findByIdAndDeletedAtIsNull(id)
-                .orElseThrow(() -> new IllegalArgumentException("Dosya bulunamadı: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Dosya bulunamadı: " + id));
+
+        recordLockValidator.assertModifyAllowed(fileEntity.getRecordId(), deletedBy);
 
         fileEntity.setDeletedAt(LocalDateTime.now());
         fileEntity.setDeletedBy(deletedBy);
-
         fileRepository.save(fileEntity);
-        // Fiziksel dosya diskten silinmiyor - soft delete'in amacı geri dönüşü mümkün kılmak.
     }
 
     @Transactional(readOnly = true)
-    public ResponseEntity<Resource> downloadFile(UUID id) {
-        return buildFileResponse(id, "attachment");
+    public ResponseEntity<Resource> downloadFile(UUID id, RoleName role, UUID currentUserId) {
+        return buildFileResponse(id, "attachment", role, currentUserId);
     }
 
     @Transactional(readOnly = true)
-    public ResponseEntity<Resource> previewFile(UUID id) {
-        return buildFileResponse(id, "inline");
+    public ResponseEntity<Resource> previewFile(UUID id, RoleName role, UUID currentUserId) {
+        return buildFileResponse(id, "inline", role, currentUserId);
     }
 
-    private ResponseEntity<Resource> buildFileResponse(UUID id, String dispositionType) {
+    @Transactional(readOnly = true)
+    public List<FileResponseDto> listByRecord(UUID recordId, RoleName role, UUID currentUserId) {
+        assertCanViewRecord(recordId, role, currentUserId);
+        return fileRepository.findAllByRecordIdAndDeletedAtIsNull(recordId)
+                .stream()
+                .map(this::toDto)
+                .toList();
+    }
 
+    private ResponseEntity<Resource> buildFileResponse(UUID id, String dispositionType, RoleName role, UUID currentUserId) {
         FileEntity fileEntity = fileRepository.findByIdAndDeletedAtIsNull(id)
-                .orElseThrow(() -> new IllegalArgumentException("Dosya bulunamadı: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Dosya bulunamadı: " + id));
+
+        assertCanViewRecord(fileEntity.getRecordId(), role, currentUserId);
 
         Resource resource = fileStorageService.loadAsResource(fileEntity.getStoredName());
 
-        // Orijinal ad kullanicidan geldigi icin header'a elle birlestirilmez;
-        // Spring'in kodlayicisi tirnak ve satir sonu gibi karakterleri guvenli hale getirir.
         ContentDisposition contentDisposition = ContentDisposition
                 .builder(dispositionType)
                 .filename(fileEntity.getOriginalName(), StandardCharsets.UTF_8)
@@ -99,5 +118,17 @@ public class FileService {
                 .contentType(MediaType.parseMediaType(fileEntity.getMimeType()))
                 .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition.toString())
                 .body(resource);
+    }
+
+    public FileResponseDto toDto(FileEntity entity) {
+        return new FileResponseDto(
+                entity.getId(),
+                entity.getRecordId(),
+                entity.getOriginalName(),
+                entity.getMimeType(),
+                entity.getFileSize(),
+                entity.getUploadedBy(),
+                entity.getUploadedAt()
+        );
     }
 }

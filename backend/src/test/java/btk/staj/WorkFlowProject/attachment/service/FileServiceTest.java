@@ -1,8 +1,12 @@
 package btk.staj.WorkFlowProject.attachment.service;
 
+import btk.staj.WorkFlowProject.attachment.dto.FileResponseDto;
 import btk.staj.WorkFlowProject.attachment.entity.FileEntity;
 import btk.staj.WorkFlowProject.attachment.repository.FileRepository;
 import btk.staj.WorkFlowProject.attachment.storage.FileStorageService;
+import btk.staj.WorkFlowProject.common.exception.BusinessRuleException;
+import btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy;
+import btk.staj.WorkFlowProject.record.repository.RecordRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,11 +42,24 @@ class FileServiceTest {
     @Mock
     private RecordLockValidator recordLockValidator;
 
+    @Mock
+    private RecordRepository recordRepository;
+
+    @Mock
+    private RecordAccessPolicy recordAccessPolicy;
+
     private static final UUID RECORD_ID = UUID.randomUUID();
     private static final UUID UPLOADER_ID = UUID.randomUUID();
 
     private FileService fileService() {
-        return new FileService(fileRepository, fileStorageService, fileContentValidator, recordLockValidator);
+        return new FileService(
+                fileRepository,
+                fileStorageService,
+                fileContentValidator,
+                recordLockValidator,
+                recordRepository,
+                recordAccessPolicy
+        );
     }
 
     private MockMultipartFile dosya(String originalName) {
@@ -110,11 +127,11 @@ class FileServiceTest {
     @Test
     @DisplayName("kilitli kayda dosya eklenemez")
     void kilitliKaydaEklenemez() {
-        doThrow(new IllegalArgumentException("Bu kayıt 'ONAYLANDI' durumunda, dosya eklenemez"))
-                .when(recordLockValidator).assertUploadAllowed(RECORD_ID);
+        doThrow(new BusinessRuleException("Bu kayıt 'ONAYLANDI' durumunda, dosya eklenemez"))
+                .when(recordLockValidator).assertModifyAllowed(RECORD_ID, UPLOADER_ID);
 
         assertThatThrownBy(() -> fileService().uploadFile(dosya("rapor.pdf"), RECORD_ID, UPLOADER_ID))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("dosya eklenemez");
 
         verify(fileStorageService, never()).store(any(), anyString());
@@ -128,10 +145,9 @@ class FileServiceTest {
         when(fileContentValidator.detectAndValidate(any())).thenReturn("application/pdf");
         when(fileContentValidator.extensionFor("application/pdf")).thenReturn(".pdf");
 
-        FileEntity saved = fileService().uploadFile(dosya("Butce Raporu 2026.pdf"), RECORD_ID, UPLOADER_ID);
+        FileResponseDto saved = fileService().uploadFile(dosya("Butce Raporu 2026.pdf"), RECORD_ID, UPLOADER_ID);
 
         assertThat(saved.getOriginalName()).isEqualTo("Butce Raporu 2026.pdf");
         assertThat(saved.getMimeType()).isEqualTo("application/pdf");
-        assertThat(saved.getStoredName()).isNotEqualTo(saved.getOriginalName());
     }
 }
