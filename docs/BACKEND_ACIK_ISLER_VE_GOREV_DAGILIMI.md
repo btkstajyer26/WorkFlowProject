@@ -14,90 +14,105 @@ hangi satır, hangi test.
 
 ---
 
-## 1. Önce karar verilmesi gerekenler
+## 1. Kararlar
 
-Dört karar var. Bunlar verilmeden ilgili işe başlanırsa sözleşme yine koddan
-geride kalır. Her biri tek soru, iki seçenek.
+**Beş karar da verildi, hiçbir iş karar bekliyor değil.** Aşağıda ne
+kararlaştırıldığı ve neden öyle olduğu var. Frontend'e sorulacak tek bir küçük
+konu kaldı, en sonda.
 
-### Karar 1 — Kayda ait dosyalar nasıl dönecek?
-
-**Soru:** Frontend bir kaydın eklerini nasıl öğrenecek?
-
-| Seçenek | Ne demek | Sonuç |
+| # | Konu | Karar |
 |---|---|---|
-| **A (önerilen)** | Ayrı uç: `GET /api/records/{id}/files` | Tek sahibi var (Ecesu), hemen yazılır. Detay ekranı iki istek atar. |
-| B | `GET /api/records/{id}` cevabına `files` dizisi eklenir | Tek istek. Ama `record` modülü `attachment`'a bağlanır, iki ekip aynı işe kilitlenir. |
+| 1 | Kayda ait dosyalar nasıl dönecek? | **Ayrı uç:** `GET /api/records/{id}/files` |
+| 2 | Dosya alan adları değişecek mi? | **Hayır**, mevcut adlar kalıyor |
+| 3 | Oluşturana göre filtre neyle çalışacak? | **Ad/soyad metni:** `?creator=ahmet` |
+| 4 | `targetUserId` yine gönderilirse? | **Reddedilecek** (`WORKFLOW_TARGET_NOT_ALLOWED`) |
+| 5 | Genişletilmiş alıcı kümesi nerede geçerli? | **Hem e-postada hem uygulama içi bildirimde** |
 
-**Önerim: A.** Detay ekranında bir ek istek, iki modülü birbirine bağlamaya
-değmez. Gerçekten tek çağrı istenirse sonradan bir port üzerinden eklenebilir.
+### Karar 1 — Ayrı uç
 
-**Kim karar verir:** Ecesu Başak + frontend (Yiğithan Ayhan)
+`GET /api/records/{id}/files` yazılacak; `RecordResponse` içine `files` dizisi
+**gömülmeyecek**. Gömme, `record` modülünü `attachment` modülüne bağlar ve iki
+ekibi tek işe kilitlerdi. Detay ekranındaki bir ek istek buna değmez.
+
+### Karar 2 — Dosya alan adları değişmiyor
+
+Frontend `fileName`, `contentType`, `size`, `createdAt` istemişti; mevcut
+`FileResponseDto` `originalName`, `mimeType`, `fileSize`, `uploadedAt` taşıyor.
+**Mevcut adlar kalıyor**, çünkü bu adlar daha doğru:
+
+- `mimeType` değeri istemcinin gönderdiği `Content-Type` başlığından değil,
+  **dosya içeriğinden** tespit ediliyor (`FileContentValidator.detectAndValidate`).
+  Alana `contentType` demek, tam da backend'in bilerek güvenmediği şeyi
+  çağrıştırırdı.
+- `originalName`, `storedName`'in karşıtı. Diskteki ad rastgele GUID; kullanıcıya
+  gösterilen ad bu. `fileName` demek bu ayrımı siler.
+- `uploadedAt`, `createdAt`'ten daha kesin: dosyanın yüklendiği an.
+
+Değiştirmenin bedeli DTO + OpenAPI + frontend'in yeniden üretimi; kazancı sıfır.
+Adlar sözleşmeye bu hâliyle yazılacak.
+
+### Karar 3 — Oluşturan filtresi ad/soyad metniyle çalışacak
+
+> *"Neden id ile erişemiyoruz? Kişi oturum açınca zaten kendi kayıtlarına
+> erişmesi gerekmez mi?"* — Haklı soru; cevabı bu filtrenin **kimin için**
+> olduğunda.
+
+**Çalışan zaten yalnız kendi kayıtlarını görüyor** ve bu, filtreyle değil
+sorgunun kendisiyle sağlanıyor. `RecordSpecifications` içinde görünürlük
+kapsamı şöyle:
+
+```java
+case CALISAN -> cb.equal(root.get("createdBy"), currentUserId);
+```
+
+Yani Çalışan için "oluşturana göre filtre" **işlevsiz** — listesinde başkasının
+kaydı hiç yok. Kendi kayıtlarına erişmesi için hiçbir şey yapılmasına gerek yok,
+bugün de öyle çalışıyor.
+
+Bu filtreye ihtiyacı olanlar **Başkan ve Başkan Yardımcısı**: onların listesinde
+farklı Çalışanların gönderdiği evraklar var ve "Ahmet'in gönderdiklerini göster"
+demek istiyorlar.
+
+UUID neden işe yaramaz: Başkan Yardımcısı bir kişiyi **adıyla** tanıyor, UUID'siyle
+değil. UUID ile filtrelemek için "kullanıcıları listele" ucuna ihtiyaç olurdu;
+tekil Başkan Yardımcısı kararı gereği Admin dışı rollere böyle bir uç
+**açılmayacak** (frontend belgesi F bölümü). Yani UUID'yi bulmanın güvenli bir
+yolu yok.
+
+**Karar:** `?creator=<metin>` — `users.first_name` / `users.last_name` üzerinde
+büyük-küçük harf duyarsız arama. Mevcut görünürlük kapsamıyla **AND**'lenir,
+kimseye yeni kayıt erişimi kazandırmaz.
+
+### Karar 4 — `targetUserId` gönderilirse reddedilecek
+
+C1'den sonra hedefi backend çözecek. Frontend yine de `targetUserId` gönderirse
+istek `WORKFLOW_TARGET_NOT_ALLOWED` ile reddedilecek — sessizce yok sayılmayacak.
+Sebep: kural zaten kodda var ve `BASKANA_ILET` dahil **diğer bütün aksiyonlar**
+böyle davranıyor; `GONDER`/`TEKRAR_GONDER` istisnaydı. İstisna kalkınca davranış
+tek tipleşiyor ve frontend'de kalmış bir hata sessizce gizlenmiyor.
+
+### Karar 5 — Alıcı kümesi her iki kanalda da aynı
+
+Nihai onayda genişleyen alıcı kümesi hem e-postaya hem uygulama içi bildirime
+uygulanacak. Aksi hâlde kullanıcı e-posta alıp zil ikonunda hiçbir şey görmezdi.
 
 ---
 
-### Karar 1b — Dosya alan adları değişecek mi?
+### Frontend'e sorulacak tek şey 🟡
 
-**Soru:** Frontend `fileName`, `contentType`, `size`, `createdAt` istedi.
-Mevcut `FileResponseDto` ise `originalName`, `mimeType`, `fileSize`,
-`uploadedAt` taşıyor.
+Karar 3'ün bir yan sonucu var: `RecordSearchResponse` bugün `createdBy`
+alanında **yalnız UUID** taşıyor, oluşturanın adını taşımıyor. Başkan
+Yardımcısı `?creator=ahmet` ile filtreleyebilecek ama dönen listede kimin
+evrağı olduğunu göremeyecek.
 
-| Seçenek | Sonuç |
-|---|---|
-| **A (önerilen)** | Mevcut adlar kalsın, sözleşmeye böyle yazılsın | Kod değişmez, frontend generated client'ı zaten bu adları üretir. |
-| B | Alanlar frontend'in istediği adlara çevrilsin | DTO + OpenAPI + frontend adapter birlikte değişir. |
+**Soru:** Liste cevabına oluşturanın adı (`createdByName`) eklensin mi?
 
-**Önerim: A.** İsim farkı işlevsel bir eksik değil; adlar zaten anlamlı.
+- Eklenirse: `RecordSearchResponse` + `RecordSearchServiceImpl`'de küçük bir
+  değişiklik — Irmak'ın işine bir alan eklenir.
+- Eklenmezse: filtre çalışır ama liste "kimin evrağı" bilgisini göstermez.
 
-**Kim karar verir:** Ecesu Başak + frontend
-
----
-
-### Karar 2 — "Oluşturana göre filtre" neyle çalışacak?
-
-**Soru:** `GET /api/records` kayıtları oluşturana göre neyle süzecek?
-
-| Seçenek | Ne demek | Sorun |
-|---|---|---|
-| A | `?createdBy=<UUID>` | Çalışan/Başkan kullanıcı listesi göremiyor, UUID'yi nereden bulacak? |
-| **B (önerilen)** | `?creator=ahmet` — ad/soyad üzerinde metin araması | Kullanıcı listesi gerektirmez, arayüzde yazılabilir. |
-
-**Önerim: B.** Tekil rol modelinde Admin dışı roller kullanıcı listeleyemiyor;
-UUID isteyen bir filtre pratikte kullanılamaz.
-
-**Kim karar verir:** Irmak Tanrıverdi + frontend
-
----
-
-### Karar 3 — `targetUserId` yine gönderilirse ne olacak?
-
-**Soru:** C1'den sonra `GONDER`/`TEKRAR_GONDER` hedefi backend çözecek.
-Frontend yine de `targetUserId` gönderirse?
-
-| Seçenek | Sonuç |
-|---|---|
-| A | Sessizce yok sayılır | Geçiş döneminde rahat, ama frontend'deki hata fark edilmez. |
-| **B (önerilen)** | `WORKFLOW_TARGET_NOT_ALLOWED` ile reddedilir | Diğer bütün aksiyonlarla tutarlı — `BASKANA_ILET` de hedef gönderilirse reddediyor. |
-
-**Önerim: B.** Kural zaten kodda var, yalnız bu iki aksiyon istisnaydı;
-istisna kalkınca davranış tek tipleşir.
-
-**Kim karar verir:** Esra Öncü + Burak Kaya + frontend
-
----
-
-### Karar 4 — Genişletilmiş alıcı kümesi nereye uygulanacak?
-
-**Soru:** Nihai onayda Başkan Yardımcısı da bilgilendirilecek. Bu yalnız
-e-posta için mi, uygulama içi bildirim için de mi?
-
-| Seçenek | Sonuç |
-|---|---|
-| **A (önerilen)** | İkisi de aynı alıcı kümesini kullanır | Kullanıcı zil ikonunda da görür, tutarlı. |
-| B | Yalnız e-posta genişler | Bildirim listesiyle e-posta birbirini tutmaz. |
-
-**Önerim: A.**
-
-**Kim karar verir:** Melih Kocaman + frontend
+Bu backend'i bloke etmiyor; Irmak filtreyi yazarken cevap gelirse aynı PR'da
+halleder. **Soracak:** Irmak Tanrıverdi → frontend.
 
 ---
 
@@ -309,7 +324,8 @@ private void assertCanViewRecord(UUID recordId, RoleName role, UUID currentUserI
 
 Frontend bilmediği dosya UUID'siyle indirme isteği gönderemiyor.
 
-> Karar 1'in **A** seçtiğini varsayıyor. B seçilirse iş `record` ekibine geçer.
+> Karar 1 gereği ayrı uç yazılacak, `RecordResponse`'a gömülmeyecek.
+> Karar 2 gereği alan adları **değişmeyecek**; `FileResponseDto` olduğu gibi kalıyor.
 
 **İyi haber:** repository metodu **zaten var** —
 `FileRepository.findAllByRecordIdAndDeletedAtIsNull(UUID recordId)`. Yeni sorgu
@@ -358,7 +374,10 @@ tipi `FileResponseDto[]` görünüyor.
 `RecordSearchCriteria` yalnız `q`, `status`, `categoryId`, `from`, `to` taşıyor;
 `q` sadece başlık ve açıklamada arıyor.
 
-> Karar 2'nin **B** (ad/soyad metin araması) seçtiğini varsayıyor.
+> Karar 3 gereği filtre **ad/soyad metniyle** çalışacak (`?creator=ahmet`),
+> UUID'yle değil. Gerekçesi kararlar bölümünde: Çalışan zaten yalnız kendi
+> kayıtlarını görüyor, filtreye ihtiyacı olan Başkan/Bşk.Yrd. kişiyi adıyla
+> tanıyor ve onlara kullanıcı listeleme ucu açılmayacak.
 
 **Dosya 1:** `backend/src/main/java/btk/staj/WorkFlowProject/search/dto/RecordSearchCriteria.java`
 
@@ -417,8 +436,9 @@ güncellensin.
 
 `WORKFLOW_TARGET_REQUIRED` (56. satır) ve `WORKFLOW_TARGET_NOT_ALLOWED`
 (59. satır) kuralları bayrağı okuyor; bayrak değişince davranış kendiliğinden
-doğru olmalı. **Doğrulayın** — Karar 3'te "reddet" seçilirse istemci yine
-`targetUserId` gönderdiğinde buradan `WORKFLOW_TARGET_NOT_ALLOWED` dönmeli.
+doğru olmalı. **Doğrulayın:** Karar 4 gereği istemci yine `targetUserId`
+gönderirse buradan `WORKFLOW_TARGET_NOT_ALLOWED` dönmeli — sessizce yok
+sayılmamalı.
 
 **Test:**
 - `workflow/statemachine/WorkflowTransitionValidatorTest.java` → `GONDER`
@@ -449,10 +469,10 @@ ve aktif kullanıcı sayısı 1 değilse `TargetResolution.RoleNotConfigured` d�
 — yani "yardımcı yok" ve "birden fazla yardımcı" durumları için anlamlı 409
 davranışı hazır. Yeni hata kodu yazmanız gerekmiyor.
 
-`resolveRequestedTarget` başka hiçbir yerde kullanılmıyorsa silin;
-`requestedTargetUserId` parametresi de kullanılmaz hâle gelirse imzayı
-sadeleştirin (Karar 3'te "reddet" seçilirse parametre kalmalı, validator onu
-kontrol ediyor).
+`resolveRequestedTarget` başka hiçbir yerde kullanılmıyorsa silin.
+`requestedTargetUserId` **parametresi kalmalı**: Karar 4 gereği istemci yine
+hedef gönderirse istek reddedilecek ve bu kontrolü validator bu değer üzerinden
+yapıyor.
 
 **Test:** `backend/src/test/java/btk/staj/WorkFlowProject/workflow/service/TargetUserResolverTest.java`
 - Tek aktif yardımcı varken `GONDER` → o kullanıcı çözülüyor
@@ -556,7 +576,8 @@ public void recordLifecycleEvent(UUID recordId,
 Bugün `ONAYLA`/`REDDET` sonrası `assignedTo` boş kaldığı için yalnız kaydı
 oluşturan bilgilendiriliyor; süreçte görev alan Başkan Yardımcısı haber almıyor.
 
-> Karar 4'ün **A** (e-posta + uygulama içi bildirim birlikte) seçtiğini varsayıyor.
+> Karar 5 gereği genişleyen alıcı kümesi **hem e-postaya hem uygulama içi
+> bildirime** uygulanacak.
 
 **Dosya:** `backend/src/main/java/btk/staj/WorkFlowProject/notification/listener/WorkflowStatusChangedListener.java`
 
@@ -629,8 +650,11 @@ yeni değer `MAIL_PASSWORD` ortam değişkeninden verilmeli. Geçmişten temizle
 | 6 | C3 — e-posta alıcı matrisi | Melih |
 | 7 | Dört rolle uçtan uca doğrulama | Ekip |
 
-Kararlar tamamlandığında `FRONTEND_BACKEND_SOZLESMESI.md`'nin §5 (kayıt detayı),
-§9 (dosyalar), §10 (bildirimler) ve workflow bölümleri aynı turda güncellenmeli.
+İşler bittikçe `FRONTEND_BACKEND_SOZLESMESI.md`'nin §5 (kayıt detayı),
+§9 (dosyalar), §10 (bildirimler) ve workflow bölümleri **aynı PR'da**
+güncellenmeli — sözleşmenin koddan geride kalması bu projede iki kez yaşandı.
+§9'a dosya alan adları (Karar 2) ve yeni listeleme ucu, §5'e `creator`
+parametresi (Karar 3) yazılacak.
 
 ---
 
