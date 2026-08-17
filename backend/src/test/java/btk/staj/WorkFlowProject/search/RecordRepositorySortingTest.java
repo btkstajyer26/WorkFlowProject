@@ -1,9 +1,13 @@
 package btk.staj.WorkFlowProject.search;
 
+import btk.staj.WorkFlowProject.rbac.Role;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
 import btk.staj.WorkFlowProject.search.dto.RecordSearchCriteria;
 import btk.staj.WorkFlowProject.search.specification.RecordSpecifications;
+import btk.staj.WorkFlowProject.user.entity.User;
+import btk.staj.WorkFlowProject.user.repository.RoleRepository;
+import btk.staj.WorkFlowProject.user.repository.UserRepository;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import org.junit.jupiter.api.Test;
@@ -32,11 +36,20 @@ class RecordRepositorySortingTest {
     @Autowired
     private RecordRepository recordRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private RoleRepository roleRepository;
+
     @Test
     void shouldSortRecordsByTitleAscending() {
 
         // Arrange
-        UUID userId = UUID.randomUUID();
+        // records.created_by, users(id) FK'sini tasiyor; rastgele bir UUID
+        // kullanilirsa insert "fk_record_created_by" kisitini ihlal eder.
+        // Bu yuzden once gercek bir kullanici satiri olusturulur.
+        UUID userId = createUser();
         String testPrefix = "SORT_TEST_" + UUID.randomUUID();
 
         Record record1 = Record.builder()
@@ -94,5 +107,22 @@ class RecordRepositorySortingTest {
         // Cleanup
         recordRepository.deleteAll(result.getContent());
         recordRepository.flush();
+    }
+
+    /** Kayitlarin baglanacagi gercek bir kullanici satiri uretir. */
+    private UUID createUser() {
+        // roles tablosu Flyway V1 ile dolduruluyor; CALISAN her ortamda var.
+        Role calisan = roleRepository.findByName("CALISAN")
+                .orElseThrow(() -> new IllegalStateException("CALISAN rolu bulunamadi"));
+
+        User user = new User();
+        user.setFirstName("Sirala");
+        user.setLastName("Test");
+        user.setEmail("sirala-test-" + UUID.randomUUID() + "@ornek.local");
+        user.setPasswordHash("test-parola-ozeti");
+        user.setRole(calisan);
+        user.setActive(true);
+
+        return userRepository.saveAndFlush(user).getId();
     }
 }

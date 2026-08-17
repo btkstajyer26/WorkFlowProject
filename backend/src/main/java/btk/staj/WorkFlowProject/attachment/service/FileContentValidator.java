@@ -30,6 +30,17 @@ public class FileContentValidator {
     /**
      * Dosyanin gercek turunu icerigine bakarak belirler, izin listesine gore dogrular
      * ve dosya uzantisi ile gercek MIME tipinin tutarliligini kontrol eder.
+     *
+     * <p>Tespit dosya adi ipucuyla birlikte yapilir: tika-core tek basina container
+     * tespiti yapamadigi icin .docx/.xlsx yalnizca magic byte'lara bakildiginda
+     * {@code application/zip}, .doc/.xls ise {@code application/x-tika-msoffice} olarak
+     * gorunur. Ad ipucu bu turleri kendi alt turlerine indirger. Ipucu guvenligi
+     * zayiflatmaz: Tika, ad ipucunu yalnizca icerikten bulunan turun bir alt turuyse
+     * dikkate alir; uzantisi .docx yapilmis bir .exe yine icerik turuyle reddedilir.
+     *
+     * <p>Uzanti/icerik tutarlilik kontrolu bunun ustune gelir: tur izin listesinde
+     * olsa bile ad ile icerik ayni seyi soylemiyorsa (ornegin gercek PDF'e .png adi
+     * verilmisse) dosya reddedilir.
      */
     public String detectAndValidate(MultipartFile file) {
         String originalFilename = file.getOriginalFilename();
