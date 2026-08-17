@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createUserSchema } from './admin'
 import { changePasswordSchema, loginSchema } from './auth'
 import { recordFormSchema } from './record'
+import { getAttachmentValidationError, maxAttachmentSizeBytes } from '../config/records'
 
 describe('login schema', () => {
   it('geçersiz e-posta ve kısa şifreyi reddeder', () => {
@@ -96,5 +97,12 @@ describe('record form schema', () => {
   it('geçerli kayıt verisini kırpılmış haliyle döndürür', () => {
     const result = recordFormSchema.parse({ title: '  Talep  ', categoryId: 1, description: '  Açıklama  ' })
     expect(result).toEqual({ title: 'Talep', categoryId: 1, description: 'Açıklama' })
+  })
+})
+
+describe('kayıt eki doğrulaması', () => {
+  it('10 MB sınırını aşan desteklenen dosyayı reddeder', () => {
+    const file = new File([new Uint8Array(maxAttachmentSizeBytes + 1)], 'buyuk.pdf', { type: 'application/pdf' })
+    expect(getAttachmentValidationError([file])).toBe('“buyuk.pdf” 10 MB sınırını aşıyor.')
   })
 })

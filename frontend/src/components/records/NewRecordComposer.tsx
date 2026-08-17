@@ -30,6 +30,7 @@ import { CategoryLoadError } from './CategoryLoadError'
 import { apiMode } from '../../api/config'
 import { createRecordDraft, updateRecordDraft } from '../../api/recordDetails'
 import { performWorkflowAction } from '../../api/workflow'
+import { uploadRecordFile } from '../../api/files'
 import { queryKeys } from '../../query/queryKeys'
 
 type NewRecordComposerProps = {
@@ -107,8 +108,20 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
       ])
     },
   })
-  const recordMutationBusy = mutationBusy || saveRecordMutation.isPending || submitRecordMutation.isPending
-  const recordMutationError = submitRecordMutation.error ?? saveRecordMutation.error
+  const uploadAttachmentsMutation = useMutation({
+    mutationFn: async ({ recordId, files }: { recordId: string; files: File[] }) => {
+      for (const file of files) {
+        await uploadRecordFile(recordId, file)
+        setAttachments((current) => current.filter((candidate) => candidate !== file))
+      }
+      return files.length
+    },
+    onSuccess: async (_count, { recordId }) => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.records.files(recordId) })
+    },
+  })
+  const recordMutationBusy = mutationBusy || saveRecordMutation.isPending || submitRecordMutation.isPending || uploadAttachmentsMutation.isPending
+  const recordMutationError = uploadAttachmentsMutation.error ?? submitRecordMutation.error ?? saveRecordMutation.error
   const hasUnsavedChanges = !draftSaved && (isDirty || attachmentsDirty)
   useModalDialog({
     open: open && discardDialogOpen,
@@ -226,10 +239,6 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
 
   const addAttachments = (selectedFiles: File[]) => {
     if (selectedFiles.length === 0) return
-    if (backendMode) {
-      setAttachmentError('Ek dosyalar, backend dosya listesi sözleşmesi tamamlandıktan sonra kullanılabilecek.')
-      return
-    }
 
     const validationError = getAttachmentValidationError(selectedFiles)
     if (validationError) {
@@ -276,6 +285,7 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
 
   const saveDraft = handleSubmit((values) => runMutation(async () => {
     try {
+      let uploadedFileCount = 0
       const savedRecordId = backendMode
         ? await saveRecordMutation.mutateAsync({ recordId: draftId, values })
         : (() => {
@@ -285,7 +295,10 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
               : createDraft(input).id
           })()
       setDraftId(savedRecordId)
-      setFeedback(null)
+      if (backendMode && attachments.length > 0) {
+        uploadedFileCount = await uploadAttachmentsMutation.mutateAsync({ recordId: savedRecordId, files: [...attachments] })
+      }
+      setFeedback(uploadedFileCount > 0 ? `${uploadedFileCount} ek dosya yüklendi.` : null)
       setDraftSaved(true)
       setAttachmentsDirty(false)
       setAttentionTarget(null)
@@ -300,6 +313,10 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
       try {
         const savedRecordId = await saveRecordMutation.mutateAsync({ recordId: draftId, values })
         setDraftId(savedRecordId)
+        if (attachments.length > 0) {
+          await uploadAttachmentsMutation.mutateAsync({ recordId: savedRecordId, files: [...attachments] })
+        }
+        setAttachmentsDirty(false)
         setDraftSaved(true)
         reset(values)
         await submitRecordMutation.mutateAsync({ recordId: savedRecordId })
@@ -487,25 +504,17 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
                 <div>
                   <p className="text-xs font-bold text-app-text-secondary">Ek dosyalar</p>
                   <p id="record-attachment-help" className="mt-0.5 text-xs text-app-text-subtle">
-                    {backendMode
-                      ? 'Dosya listeleme sözleşmesi tamamlanana kadar kullanılamıyor.'
-                      : 'PDF (.pdf), Word (.docx, .doc), Excel (.xlsx, .xls), Resim (.png, .jpeg, .jpg)'}
+                    PDF (.pdf), Word (.docx, .doc), Excel (.xlsx, .xls), Resim (.png, .jpeg, .jpg) · en fazla 10 MB
                   </p>
                 </div>
                 <label
-                  aria-disabled={backendMode}
-                  className={`flex min-h-10 items-center gap-2 rounded-xl border border-app-border bg-app-surface px-3 text-xs font-bold text-app-text-secondary transition focus-within:outline-2 focus-within:outline-brand-500 ${
-                    backendMode
-                      ? 'cursor-not-allowed opacity-55'
-                      : 'cursor-pointer hover:border-brand-300 hover:text-brand-700 dark:hover:border-brand-600 dark:hover:text-brand-300'
-                  }`}
+                  className="flex min-h-10 cursor-pointer items-center gap-2 rounded-xl border border-app-border bg-app-surface px-3 text-xs font-bold text-app-text-secondary transition hover:border-brand-300 hover:text-brand-700 focus-within:outline-2 focus-within:outline-brand-500 dark:hover:border-brand-600 dark:hover:text-brand-300"
                 >
                   <Paperclip className="size-4" aria-hidden="true" />
                   Dosya ekle
                   <input
                     type="file"
                     multiple
-                    disabled={backendMode}
                     accept={attachmentAcceptValue}
                     aria-invalid={Boolean(attachmentError)}
                     aria-describedby={`record-attachment-help${attachmentError ? ' record-attachment-error' : ''}`}
@@ -526,27 +535,23 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
                 aria-describedby={`record-attachment-help${attachmentError ? ' record-attachment-error' : ''}`}
                 className="relative rounded-xl"
                 onDragEnter={(event) => {
-                  if (backendMode) return
                   if (!Array.from(event.dataTransfer.types).includes('Files')) return
                   event.preventDefault()
                   attachmentDragDepthRef.current += 1
                   setAttachmentDragActive(true)
                 }}
                 onDragOver={(event) => {
-                  if (backendMode) return
                   if (!Array.from(event.dataTransfer.types).includes('Files')) return
                   event.preventDefault()
                   event.dataTransfer.dropEffect = 'copy'
                 }}
                 onDragLeave={(event) => {
-                  if (backendMode) return
                   event.preventDefault()
                   attachmentDragDepthRef.current = Math.max(0, attachmentDragDepthRef.current - 1)
                   if (attachmentDragDepthRef.current === 0) setAttachmentDragActive(false)
                 }}
                 onDrop={(event) => {
                   event.preventDefault()
-                  if (backendMode) return
                   attachmentDragDepthRef.current = 0
                   setAttachmentDragActive(false)
                   addAttachments(Array.from(event.dataTransfer.files))
@@ -593,7 +598,7 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
 
             <div className="rounded-xl border border-brand-100 dark:border-brand-800/60 bg-brand-50/70 dark:bg-brand-900/30 px-4 py-3 text-xs leading-5 text-brand-800 dark:text-brand-200">
               {backendMode
-                ? 'Taslak veritabanına kaydedilir. İncelemeye gönderme, backend hedef kullanıcıyı otomatik çözmeye başladığında açılacak.'
+                ? 'Taslak ve ek dosyalar veritabanına kaydedilir; gönderimde hedef kullanıcıyı backend belirler.'
                 : 'Gönderildiğinde kayıt Başkan Yardımcısı incelemesine iletilecek.'}
             </div>
             {recordMutationError ? (

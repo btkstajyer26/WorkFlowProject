@@ -8,6 +8,7 @@ import { ApiClientError } from '../api/errors'
 import { deleteRecordDraft, getRecordDetail, updateRecordDraft } from '../api/recordDetails'
 import { CategoryLoadError } from '../components/records/CategoryLoadError'
 import { RecordStatusBadge } from '../components/records/RecordStatusBadge'
+import { RecordFilesPanel } from '../components/records/RecordFilesPanel'
 import { maxRecordTitleLength } from '../config/records'
 import { useCategories } from '../context/categoryState'
 import { useModalDialog } from '../hooks/useModalDialog'
@@ -194,12 +195,7 @@ function BackendEditableRecordForm({ record }: { record: WorkflowRecord }) {
               {errors.description ? <FieldError id="edit-record-description-error" message={errors.description.message} /> : null}
             </label>
 
-            <div>
-              <p className="text-xs font-bold text-app-text-secondary">Ek dosyalar</p>
-              <p className="mt-2 rounded-xl border border-dashed border-app-border bg-app-surface-muted px-4 py-5 text-center text-xs text-app-text-subtle">
-                Dosya listeleme endpointi tamamlanana kadar mevcut ekler burada değiştirilemiyor.
-              </p>
-            </div>
+            <RecordFilesPanel recordId={record.id} editable />
           </div>
         </section>
 
