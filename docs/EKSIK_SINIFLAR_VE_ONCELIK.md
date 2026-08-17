@@ -54,8 +54,10 @@ maddesi kaldı.
 | İş | Sorumlu | Açıklama |
 |---|---|---|
 | ~~`templates/mail/*.html`~~ ✅ | *Melih* | Yapıldı: HTML gövde `templates/mail/workflow-status.html` şablonuna çıkarıldı, thymeleaf bağımlılığı eklendi, `MailService` ~170 satırlık metin bloğundan kurtuldu. Şablonun gerçek dosyadan işlendiği ve değerlerin kaçışlı yazıldığı `MailServiceTest` ile doğrulanıyor. |
-| `common` testleri 🟢 | *ilgili sahipler* | 301 testin çoğu `workflow`, `rbac`, `audit`, `search`, `record`, `auth` ve `user`'da. `common` paketinin (`GlobalExceptionHandler`, `ApiError` vb.) hâlâ hiç testi yok — yalnız dolaylı olarak `AdminControllerTest` üzerinden bir hata kodu (`INVALID_SORT_FIELD`) kapsanıyor. |
+| ~~`common` testleri~~ ✅ | *Sümeyye* | Yapıldı (17 Ağustos): `GlobalExceptionHandlerTest` ve `ApiErrorTest` eklendi; `common.exception` paketi artık dolaylı değil doğrudan kapsanıyor. |
 | `user` / `auth` — kalan iki dar test 🟡 | *Nisan · Sümeyye* | `UserService.setActive`/`changeRole` testi ve refresh token'da pasif hesap reddi artık kapsamda (`UserServiceTest`, `AuthServiceTest`). Kalan iki boşluk: aynı e-postayla ikinci kullanıcı denemesinin 409 döndüğü test edilmiyor; pasif kullanıcının **elindeki geçerli access token'ının** da reddedildiği `JwtAuthenticationFilter` seviyesinde test edilmiyor (kontrol kodda var, testi yok). |
+
+Backend test sayısı bu turda **314 → 330** oldu.
 
 ---
 

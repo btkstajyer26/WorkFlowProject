@@ -2,6 +2,8 @@ package btk.staj.WorkFlowProject.audit.controller;
 
 import btk.staj.WorkFlowProject.audit.dto.AuditLogResponse;
 import btk.staj.WorkFlowProject.audit.service.AuditLogService;
+import btk.staj.WorkFlowProject.common.exception.ForbiddenException;
+import btk.staj.WorkFlowProject.common.exception.ResourceNotFoundException;
 import btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
@@ -22,9 +24,6 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
-
-import btk.staj.WorkFlowProject.common.exception.ForbiddenException;
-import btk.staj.WorkFlowProject.common.exception.ResourceNotFoundException;
 
 @DisplayName("Islem gecmisi gorunurluk kapsami")
 class AuditLogControllerTest {
