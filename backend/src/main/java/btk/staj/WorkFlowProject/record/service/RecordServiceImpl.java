@@ -1,6 +1,6 @@
 package btk.staj.WorkFlowProject.record.service;
 
-import btk.staj.WorkFlowProject.audit.service.AuditLogService; // Ebrar'ın audit servisi
+import btk.staj.WorkFlowProject.audit.service.AuditLogService;
 import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
 import btk.staj.WorkFlowProject.common.exception.BusinessRuleException;
 import btk.staj.WorkFlowProject.common.exception.ForbiddenException;
@@ -28,7 +28,7 @@ public class RecordServiceImpl implements RecordService {
     private final RecordMapper recordMapper;
     private final RecordAccessPolicy recordAccessPolicy;
     private final PermissionService permissionService;
-    private final AuditLogService auditLogService; // AuditLogService kullanılıyor
+    private final AuditLogService auditLogService;
 
     public RecordServiceImpl(RecordRepository recordRepository,
                              RecordMapper recordMapper,

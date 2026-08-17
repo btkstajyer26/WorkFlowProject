@@ -58,9 +58,19 @@ describe('RecordsPage filters', () => {
     const user = userEvent.setup()
     await renderEmployeeRecords('/kayitlar')
 
-    await user.type(screen.getByRole('searchbox'), 'sunucu')
+    await user.type(screen.getByRole('searchbox', { name: 'Başlık veya içerikle ara' }), 'sunucu')
     expect(screen.getByTestId('location-search')).not.toHaveTextContent('q=')
     await waitFor(() => expect(screen.getByTestId('location-search')).toHaveTextContent('q=sunucu'), { timeout: 1000 })
+  })
+
+  it('oluşturan kişi filtresini debounce sonrasında URL sorgusuna yazar', async () => {
+    const user = userEvent.setup()
+    await renderEmployeeRecords('/kayitlar')
+
+    await user.click(screen.getByRole('button', { name: 'Filtreler' }))
+    await user.type(screen.getByRole('searchbox', { name: 'Oluşturan kişi' }), 'John Doe')
+    expect(screen.getByTestId('location-search')).not.toHaveTextContent('olusturan=')
+    await waitFor(() => expect(screen.getByTestId('location-search')).toHaveTextContent('olusturan=John+Doe'), { timeout: 1000 })
   })
 
   it('yalnız backend arama sözleşmesinde bulunan liste alanlarını gösterir', async () => {

@@ -16,14 +16,18 @@ package btk.staj.WorkFlowProject.workflow.statemachine;
  * Ikisi ayni sey degildir: ornegin {@code BASKANA_ILET} icin istemci hedef
  * gondermez (sistemde tek Baskan vardir, backend bulur) ama cozulen hedefin
  * {@code BASKAN} rolunde ve aktif olmasi dogrulanir.
+ *
+ * <p>Su an <strong>hicbir</strong> aksiyon istemciden hedef beklemiyor: hedefi
+ * her zaman backend cozer. Ilk bayrak yine de tasiniyor, cunku istemci yine de
+ * {@code targetUserId} gonderirse istek bu bayrak uzerinden reddedilir.
  */
 public enum WorkflowAction {
 
-    /** Calisanin taslak kaydi secilen Baskan Yardimcisina gondermesi. */
-    GONDER(true, false, RoleName.BASKAN_YARDIMCISI),
+    /** Calisanin taslak kaydi Baskan Yardimcisina gondermesi. Hedef: sistemdeki tek yardimci. */
+    GONDER(false, false, RoleName.BASKAN_YARDIMCISI),
 
-    /** Calisanin duzelttigi kaydi yeniden secilen Baskan Yardimcisina gondermesi. */
-    TEKRAR_GONDER(true, false, RoleName.BASKAN_YARDIMCISI),
+    /** Calisanin duzelttigi kaydi yeniden gondermesi. Hedef: sistemdeki tek yardimci. */
+    TEKRAR_GONDER(false, false, RoleName.BASKAN_YARDIMCISI),
 
     /** Baskan Yardimcisinin kaydi Baskana iletmesi. Hedef: sistemdeki tek Baskan. */
     BASKANA_ILET(false, false, RoleName.BASKAN),
@@ -54,9 +58,9 @@ public enum WorkflowAction {
 
     /**
      * Istemcinin istekte {@code targetUserId} gondermesi gerekip gerekmedigi.
-     * Yalnizca {@code GONDER} ve {@code TEKRAR_GONDER} icin {@code true}; diger
-     * aksiyonlarda hedef backend tarafindan cozulur ve istemci gonderirse istek
-     * reddedilir.
+     * Su an butun aksiyonlar icin {@code false}: hedefi her zaman backend cozer
+     * ve istemci yine de gonderirse istek {@code WORKFLOW_TARGET_NOT_ALLOWED}
+     * ile reddedilir.
      */
     public boolean isTargetUserIdRequiredInRequest() {
         return targetUserIdRequiredInRequest;

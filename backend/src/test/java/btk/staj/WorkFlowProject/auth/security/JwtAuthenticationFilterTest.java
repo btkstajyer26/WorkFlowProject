@@ -1,6 +1,8 @@
 package btk.staj.WorkFlowProject.auth.security;
 
 import btk.staj.WorkFlowProject.auth.service.CustomUserDetailsService;
+import btk.staj.WorkFlowProject.common.exception.ApiErrorWriter;
+import btk.staj.WorkFlowProject.rbac.Role;
 import btk.staj.WorkFlowProject.rbac.config.JwtUtil;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,13 +41,16 @@ class JwtAuthenticationFilterTest {
     @Mock
     private FilterChain filterChain;
 
+    @Mock
+    private ApiErrorWriter apiErrorWriter;
+
     private JwtAuthenticationFilter filter;
     private MockHttpServletRequest request;
     private MockHttpServletResponse response;
 
     @BeforeEach
     void setUp() {
-        filter = new JwtAuthenticationFilter(jwtUtil, userDetailsService);
+        filter = new JwtAuthenticationFilter(jwtUtil, userDetailsService, apiErrorWriter);
         request = new MockHttpServletRequest();
         response = new MockHttpServletResponse();
         SecurityContextHolder.clearContext();
@@ -152,5 +157,110 @@ class JwtAuthenticationFilterTest {
 
         // filter yine de zinciri kesmemeli.
         verify(filterChain, times(1)).doFilter(request, response);
+    }
+
+    // ------------------------------------------------------------------
+    // A1 - Zorunlu parola degisimi filtre seviyesinde zorlanir
+    // ------------------------------------------------------------------
+
+    @Test
+    void parolaDegisimiBekleyenKullanici_korumaliUcaErisemez() throws Exception {
+        givenAuthenticatedUser(true);
+        request.setMethod("GET");
+        request.setRequestURI("/api/categories");
+
+        filter.doFilterInternal(request, response, filterChain);
+
+        verify(apiErrorWriter).write(response, org.springframework.http.HttpStatus.FORBIDDEN,
+                "PASSWORD_CHANGE_REQUIRED", "Devam etmeden önce parolanızı değiştirmelisiniz");
+        verifyNoInteractions(filterChain);
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+    }
+
+    @Test
+    void parolaDegisimiBekleyenKullanici_parolaDegistirmeUcunaErisebilir() throws Exception {
+        givenAuthenticatedUser(true);
+        request.setMethod("POST");
+        request.setRequestURI("/api/auth/change-password");
+
+        filter.doFilterInternal(request, response, filterChain);
+
+        verify(filterChain).doFilter(request, response);
+        verifyNoInteractions(apiErrorWriter);
+        assertNotNull(SecurityContextHolder.getContext().getAuthentication());
+    }
+
+    @Test
+    void parolaDegisimiBekleyenKullanici_cikisUcunaErisebilir() throws Exception {
+        givenAuthenticatedUser(true);
+        request.setMethod("POST");
+        request.setRequestURI("/api/auth/logout");
+
+        filter.doFilterInternal(request, response, filterChain);
+
+        verify(filterChain).doFilter(request, response);
+        verifyNoInteractions(apiErrorWriter);
+        assertNotNull(SecurityContextHolder.getContext().getAuthentication());
+    }
+
+    @Test
+    void parolaDegisimiBekleyenKullanici_kendiKimligineErisebilir() throws Exception {
+        givenAuthenticatedUser(true);
+        request.setMethod("GET");
+        request.setRequestURI("/api/users/me");
+
+        filter.doFilterInternal(request, response, filterChain);
+
+        verify(filterChain).doFilter(request, response);
+        verifyNoInteractions(apiErrorWriter);
+        assertNotNull(SecurityContextHolder.getContext().getAuthentication());
+    }
+
+    @Test
+    void parolaDegisimiBekleyenKullanici_izinliUcFarkliMethodlaCagrilirsaEngellenmeli() throws Exception {
+        // Whitelist yol bazlı değil yol+method bazlı olmalı: /api/auth/change-password
+        // GET ile çağrılırsa (POST değil) hâlâ engellenmeli.
+        givenAuthenticatedUser(true);
+        request.setMethod("GET");
+        request.setRequestURI("/api/auth/change-password");
+
+        filter.doFilterInternal(request, response, filterChain);
+
+        verify(apiErrorWriter).write(response, org.springframework.http.HttpStatus.FORBIDDEN,
+                "PASSWORD_CHANGE_REQUIRED", "Devam etmeden önce parolanızı değiştirmelisiniz");
+        verifyNoInteractions(filterChain);
+    }
+
+    @Test
+    void parolasiGuncelKullanici_korumaliUcaErisebilir() throws Exception {
+        givenAuthenticatedUser(false);
+        request.setMethod("GET");
+        request.setRequestURI("/api/categories");
+
+        filter.doFilterInternal(request, response, filterChain);
+
+        verify(filterChain).doFilter(request, response);
+        verifyNoInteractions(apiErrorWriter);
+        assertNotNull(SecurityContextHolder.getContext().getAuthentication());
+    }
+
+    /** Oturumu acik, verilen mustChangePassword degerine sahip bir kullanici hazirlar. */
+    private void givenAuthenticatedUser(boolean mustChangePassword) {
+        request.addHeader("Authorization", "Bearer valid-token");
+
+        Role role = new Role();
+        role.setId(1);
+        role.setName("CALISAN");
+
+        btk.staj.WorkFlowProject.user.entity.User user = new btk.staj.WorkFlowProject.user.entity.User();
+        user.setEmail("test@example.com");
+        user.setRole(role);
+        user.setActive(true);
+        user.setMustChangePassword(mustChangePassword);
+
+        when(jwtUtil.isTokenValid("valid-token")).thenReturn(true);
+        when(jwtUtil.extractEmail("valid-token")).thenReturn("test@example.com");
+        when(userDetailsService.loadUserByUsername("test@example.com"))
+                .thenReturn(new AuthenticatedUser(user));
     }
 }

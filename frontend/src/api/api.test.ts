@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { http, HttpResponse } from 'msw'
 import { api, clearApiAccessToken, setApiAccessToken } from './client'
 import {
   getUnreadNotificationCount,
@@ -11,6 +12,9 @@ import { listRecords } from './records'
 import { listCategories } from './categories'
 import { getRecordDetail } from './recordDetails'
 import { listAdminAuditLogs, listAdminUsers } from './admin'
+import { deleteRecordFile, listRecordFiles, uploadRecordFile } from './files'
+import { apiMockServer } from '../mocks/api/server'
+import { apiBaseUrl } from './config'
 
 const employeeCredentials = {
   email: 'john.doe@kurum.gov.tr',
@@ -25,6 +29,50 @@ async function loginAs(email: string) {
 }
 
 describe('OpenAPI istemcisi ve MSW sözleşmesi', () => {
+  it('kayıt eklerini listeler, multipart olarak yükler ve siler', async () => {
+    await loginAs(employeeCredentials.email)
+    const recordId = '11111111-1111-4111-8111-111111111111'
+    const fileId = '22222222-2222-4222-8222-222222222222'
+    let deletedFileId: string | undefined
+
+    apiMockServer.use(
+      http.get(`${apiBaseUrl}/api/records/:recordId/files`, ({ params }) => HttpResponse.json([{
+        id: fileId,
+        recordId: params.recordId,
+        originalName: 'belge.pdf',
+        mimeType: 'application/pdf',
+        fileSize: 2048,
+        uploadedBy: '33333333-3333-4333-8333-333333333333',
+        uploadedAt: '2026-08-17T09:00:00Z',
+      }])),
+      http.post(`${apiBaseUrl}/api/records/:recordId/files`, ({ params, request }) => {
+        expect(request.headers.get('content-type')).toContain('multipart/form-data')
+        return HttpResponse.json({
+          id: fileId,
+          recordId: params.recordId,
+          originalName: 'yeni.pdf',
+          mimeType: 'application/pdf',
+          fileSize: 3,
+          uploadedBy: '33333333-3333-4333-8333-333333333333',
+          uploadedAt: '2026-08-17T09:00:00Z',
+        })
+      }),
+      http.delete(`${apiBaseUrl}/api/files/:fileId`, ({ params }) => {
+        deletedFileId = String(params.fileId)
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+
+    await expect(listRecordFiles(recordId)).resolves.toEqual([
+      expect.objectContaining({ id: fileId, originalName: 'belge.pdf', fileSize: 2048 }),
+    ])
+    await expect(uploadRecordFile(recordId, new File(['pdf'], 'yeni.pdf', { type: 'application/pdf' }))).resolves.toEqual(
+      expect.objectContaining({ recordId, originalName: 'yeni.pdf' }),
+    )
+    await deleteRecordFile(fileId)
+    expect(deletedFileId).toBe(fileId)
+  })
+
   it('korumalı isteklerde Authorization header zorunluluğunu uygular', async () => {
     clearApiAccessToken()
 
@@ -68,6 +116,7 @@ describe('OpenAPI istemcisi ve MSW sözleşmesi', () => {
 
     const result = await searchRecords({
       q: 'sunucu',
+      creator: 'John Doe',
       categoryId: 4,
       page: 0,
       size: 5,
@@ -124,7 +173,6 @@ describe('OpenAPI istemcisi ve MSW sözleşmesi', () => {
     await loginAs(employeeCredentials.email)
     const submitted = await api.workflow.performAction({ recordId }, {
       action: 'GONDER',
-      targetUserId: deputyId,
     })
     expect(submitted).toMatchObject({
       previousStatus: 'TASLAK',

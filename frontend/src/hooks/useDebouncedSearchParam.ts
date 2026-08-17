@@ -5,9 +5,10 @@ type SetSearchParams = (nextParams: URLSearchParams, options?: { replace?: boole
 export function useDebouncedSearchParam(
   searchParams: URLSearchParams,
   setSearchParams: SetSearchParams,
+  paramName = 'q',
   delay = 350,
 ) {
-  const externalValue = searchParams.get('q') ?? ''
+  const externalValue = searchParams.get(paramName) ?? ''
   const [value, setValue] = useState(externalValue)
 
   useEffect(() => setValue(externalValue), [externalValue])
@@ -17,14 +18,14 @@ export function useDebouncedSearchParam(
     const timeoutId = window.setTimeout(() => {
       const nextParams = new URLSearchParams(searchParams)
       const normalizedValue = value.trim()
-      if (normalizedValue) nextParams.set('q', normalizedValue)
-      else nextParams.delete('q')
+      if (normalizedValue) nextParams.set(paramName, normalizedValue)
+      else nextParams.delete(paramName)
       nextParams.delete('sayfa')
       setSearchParams(nextParams, { replace: true })
     }, delay)
 
     return () => window.clearTimeout(timeoutId)
-  }, [delay, externalValue, searchParams, setSearchParams, value])
+  }, [delay, externalValue, paramName, searchParams, setSearchParams, value])
 
   return [value, setValue] as const
 }

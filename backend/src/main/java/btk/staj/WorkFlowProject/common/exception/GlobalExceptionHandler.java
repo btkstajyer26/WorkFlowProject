@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.InvalidDataAccessApiUsageException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -70,6 +71,26 @@ public class GlobalExceptionHandler {
         return build("CONFLICT", "Bu kayıt zaten mevcut", HttpStatus.CONFLICT);
     }
 
+    /**
+     * Emniyet agi: {@code @Version} tasiyan bir kayit, istek hazirlanirken baska
+     * bir islem tarafindan degistirilmisse Hibernate flush aninda bu tipi uretir.
+     * Bu handler olmasaydi genel Exception handler'ina duser ve gecici bir
+     * catisma 500 olarak donerdi.
+     *
+     * <p>Onay akisi bu noktaya <strong>ulasmaz</strong>: {@code RecordPortAdapter}
+     * istisnayi port siniri gecmeden {@code WORKFLOW_VERSION_CONFLICT} koduna
+     * cevirir. Burasi {@code record} modulundeki dogrudan yazmalari korur.
+     */
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ResponseEntity<ApiError> handleOptimisticLocking(OptimisticLockingFailureException ex) {
+        // Kural ihlali degil, es zamanli erisim; arizayi arastirmak icin WARN yeterli.
+        log.warn("Sürüm çatışması: kayıt istek hazırlanırken değişmiş", ex);
+        return build(
+                "VERSION_CONFLICT",
+                "Kayıt siz işlem yaparken değişti, sayfayı yenileyip tekrar deneyin",
+                HttpStatus.CONFLICT);
+    }
+
     // ---------- Guvenlik ----------
 
     /**
@@ -115,14 +136,20 @@ public class GlobalExceptionHandler {
         WorkflowErrorCode code = ex.errorCode();
         HttpStatus status = switch (code) {
             case WORKFLOW_FORBIDDEN, WORKFLOW_ROLE_NOT_ALLOWED -> HttpStatus.FORBIDDEN;
-            case WORKFLOW_RECORD_LOCKED -> HttpStatus.CONFLICT;
-            case WORKFLOW_STATUS_NOT_CONFIGURED, WORKFLOW_ROLE_NOT_CONFIGURED ->
-                    HttpStatus.INTERNAL_SERVER_ERROR;
+            // Ucu de kural ihlali degil, gecici catisma: kayit kilitli, tekil rol
+            // hedefi cozulemedi veya kayit istek hazirlanirken degismis.
+            case WORKFLOW_RECORD_LOCKED, WORKFLOW_ROLE_NOT_CONFIGURED, WORKFLOW_VERSION_CONFLICT ->
+                    HttpStatus.CONFLICT;
+            case WORKFLOW_STATUS_NOT_CONFIGURED -> HttpStatus.INTERNAL_SERVER_ERROR;
             default -> HttpStatus.BAD_REQUEST;
         };
 
         if (status.is5xxServerError()) {
             log.error("İş akışı yapılandırma hatası: {}", code, ex);
+        } else if (code == WorkflowErrorCode.WORKFLOW_ROLE_NOT_CONFIGURED) {
+            // Istemciye 4xx donuyor ama tekil rol invaryanti bozulmus demektir;
+            // operasyonun bunu gormesi gerekir.
+            log.warn("Tekil rol hedefi çözülemedi: {}", code, ex);
         }
 
         return build(code.name(), workflowMessage(code), status);
@@ -139,8 +166,9 @@ public class GlobalExceptionHandler {
             case WORKFLOW_TARGET_ROLE_INVALID -> "Seçilen hedef kullanıcının rolü uygun değil";
             case WORKFLOW_TARGET_INACTIVE -> "Seçilen hedef kullanıcı pasif durumda";
             case WORKFLOW_ROLE_NOT_ALLOWED -> "Rolünüz bu işlemi yapamaz";
-            case WORKFLOW_STATUS_NOT_CONFIGURED, WORKFLOW_ROLE_NOT_CONFIGURED ->
-                    "İş akışı yapılandırması eksik";
+            case WORKFLOW_STATUS_NOT_CONFIGURED -> "İş akışı yapılandırması eksik";
+            case WORKFLOW_ROLE_NOT_CONFIGURED ->
+                    "İşlemi devralacak yetkili şu anda belirlenemedi, yöneticinize başvurun";
             // Kural ihlali degil: kayit bu istek hazirlanirken baskasi tarafindan
             // degistirilmis. Mesaj kullaniciyi tekrar denemeye yonlendirir.
             case WORKFLOW_VERSION_CONFLICT ->

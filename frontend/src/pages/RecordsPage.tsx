@@ -102,6 +102,8 @@ export function RecordsPage({ role }: { role: UserRole }) {
 
   const search = searchParams.get('q') ?? ''
   const [searchInput, setSearchInput] = useDebouncedSearchParam(searchParams, setSearchParams)
+  const creator = searchParams.get('olusturan')?.trim() ?? ''
+  const [creatorInput, setCreatorInput] = useDebouncedSearchParam(searchParams, setSearchParams, 'olusturan')
   const categoryParam = searchParams.get('kategori')
   const parsedCategoryId = Number(categoryParam)
   const categoryId: number | 'ALL' = Number.isInteger(parsedCategoryId) && categories.some((item) => item.id === parsedCategoryId)
@@ -141,6 +143,7 @@ export function RecordsPage({ role }: { role: UserRole }) {
         categoryId: categoryId === 'ALL' ? undefined : categoryId,
         createdFrom: dateFrom || undefined,
         createdTo: dateTo || undefined,
+        creator: creator || undefined,
         page: groupedStatusQuery ? 0 : page - 1,
         size: serverQuerySize,
       }
@@ -187,6 +190,7 @@ export function RecordsPage({ role }: { role: UserRole }) {
     if (status !== 'ALL' && record.status !== status) return false
     if (!dateRangeInvalid && dateFrom && record.createdAt.slice(0, 10) < dateFrom) return false
     if (!dateRangeInvalid && dateTo && record.createdAt.slice(0, 10) > dateTo) return false
+    if (creator && !normalizeSearchValue(record.createdBy).includes(normalizeSearchValue(creator))) return false
 
     if (!searchValue) return true
     const haystack = normalizeSearchValue(`${record.title} ${record.description}`)
@@ -212,7 +216,7 @@ export function RecordsPage({ role }: { role: UserRole }) {
     : filteredRecords.slice(pageStart, pageStart + pageSize)
   const recordsPending = backendMode && categoryStatus !== 'error' && serverQueries.some((query) => query.isPending)
   const recordsError = backendMode && (categoryStatus === 'error' || serverQueries.some((query) => query.isError))
-  const activeFilterCount = [categoryId !== 'ALL', status !== 'ALL', Boolean(dateFrom), Boolean(dateTo)].filter(Boolean).length
+  const activeFilterCount = [categoryId !== 'ALL', status !== 'ALL', Boolean(dateFrom), Boolean(dateTo), Boolean(creator)].filter(Boolean).length
 
   useEffect(() => {
     if (recordsPending) return
@@ -224,7 +228,7 @@ export function RecordsPage({ role }: { role: UserRole }) {
   }, [page, recordsPending, searchParams, setSearchParams, totalPages])
 
   const resetFilters = () => {
-    updateQuery({ q: null, kategori: null, durum: null, baslangic: null, bitis: null })
+    updateQuery({ q: null, kategori: null, durum: null, baslangic: null, bitis: null, olusturan: null })
   }
 
   return (
@@ -270,7 +274,7 @@ export function RecordsPage({ role }: { role: UserRole }) {
             </button>
           </div>
 
-          <div className={`${filtersOpen ? 'grid' : 'hidden'} mt-3 gap-3 md:grid md:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_1fr_auto]`}>
+          <div className={`${filtersOpen ? 'grid' : 'hidden'} mt-3 gap-3 md:grid md:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_1fr_1fr_auto]`}>
             <div>
               <label htmlFor="record-filter-category" className="mb-1.5 block text-xs font-bold text-app-text-muted">Kategori</label>
               <select
@@ -339,6 +343,17 @@ export function RecordsPage({ role }: { role: UserRole }) {
                 />
               </div>
             </label>
+            <label>
+              <span className="mb-1.5 block text-xs font-bold text-app-text-muted">Oluşturan kişi</span>
+              <input
+                type="search"
+                value={creatorInput}
+                onChange={(event) => setCreatorInput(event.target.value)}
+                placeholder="Ad veya soyad"
+                aria-label="Oluşturan kişi"
+                className={filterControlClass}
+              />
+            </label>
             <button
               type="button"
               onClick={resetFilters}
@@ -348,7 +363,7 @@ export function RecordsPage({ role }: { role: UserRole }) {
               Temizle
             </button>
             {dateRangeInvalid ? (
-              <p id="record-date-range-error" className="text-xs font-semibold text-rose-700 dark:text-rose-300 md:col-span-2 xl:col-span-4" role="alert">
+              <p id="record-date-range-error" className="text-xs font-semibold text-rose-700 dark:text-rose-300 md:col-span-2 xl:col-span-5" role="alert">
                 Oluşturulma başlangıcı bitiş tarihinden sonra olamaz.
               </p>
             ) : null}

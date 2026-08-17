@@ -33,66 +33,78 @@ class TargetUserResolverTest {
     private static final UUID REQUESTED_TARGET_ID = UUID.fromString("00000000-0000-0000-0000-000000000005");
     private static final UUID PRESIDENT_ID = UUID.fromString("00000000-0000-0000-0000-000000000006");
     private static final UUID SECOND_PRESIDENT_ID = UUID.fromString("00000000-0000-0000-0000-000000000007");
+    private static final UUID DEPUTY_ID = UUID.fromString("00000000-0000-0000-0000-000000000008");
+    private static final UUID SECOND_DEPUTY_ID = UUID.fromString("00000000-0000-0000-0000-000000000009");
 
     private final WorkflowUserPort userPort = mock(WorkflowUserPort.class);
     private final TargetUserResolver resolver = new TargetUserResolver(userPort);
 
     @ParameterizedTest
     @EnumSource(value = WorkflowAction.class, names = {"GONDER", "TEKRAR_GONDER"})
-    void requestTargetActionsReturnNotProvidedWhenRequestIdIsMissing(WorkflowAction action) {
+    void sendActionsResolveTheSingleActiveDeputy(WorkflowAction action) {
+        WorkflowUserSnapshot deputy = user(DEPUTY_ID, RoleName.BASKAN_YARDIMCISI, true);
+        when(userPort.findActiveByRole(RoleName.BASKAN_YARDIMCISI)).thenReturn(List.of(deputy));
+
         TargetResolution result = resolver.resolve(action, null, record(LAST_DEPUTY_ID));
 
-        assertThat(result).isEqualTo(new TargetResolution.NotProvided());
-        verifyNoInteractions(userPort);
+        assertThat(result).isEqualTo(new TargetResolution.Resolved(deputy));
     }
 
     @ParameterizedTest
     @EnumSource(value = WorkflowAction.class, names = {"GONDER", "TEKRAR_GONDER"})
-    void requestTargetActionsReturnRequestTargetNotFoundWhenLookupIsEmpty(WorkflowAction action) {
-        when(userPort.findById(REQUESTED_TARGET_ID)).thenReturn(Optional.empty());
+    void sendActionsReturnRoleNotConfiguredWhenNoActiveDeputyExists(WorkflowAction action) {
+        when(userPort.findActiveByRole(RoleName.BASKAN_YARDIMCISI)).thenReturn(List.of());
+
+        TargetResolution result = resolver.resolve(action, null, record(LAST_DEPUTY_ID));
+
+        assertThat(result).isEqualTo(
+                new TargetResolution.RoleNotConfigured(RoleName.BASKAN_YARDIMCISI, 0));
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = WorkflowAction.class, names = {"GONDER", "TEKRAR_GONDER"})
+    void sendActionsReturnRoleNotConfiguredWhenMultipleActiveDeputiesExist(WorkflowAction action) {
+        WorkflowUserSnapshot first = user(DEPUTY_ID, RoleName.BASKAN_YARDIMCISI, true);
+        WorkflowUserSnapshot second = user(SECOND_DEPUTY_ID, RoleName.BASKAN_YARDIMCISI, true);
+        when(userPort.findActiveByRole(RoleName.BASKAN_YARDIMCISI))
+                .thenReturn(List.of(first, second));
+
+        TargetResolution result = resolver.resolve(action, null, record(LAST_DEPUTY_ID));
+
+        assertThat(result).isEqualTo(
+                new TargetResolution.RoleNotConfigured(RoleName.BASKAN_YARDIMCISI, 2));
+    }
+
+    /**
+     * Karar 4 geregi istekteki hedef reddedilir; bu kontrol servis/validator
+     * isidir. Resolver acisindan onemli olan, degeri hic okumamasi: aksi halde
+     * istemci hedefi sessizce gecerli olabilirdi.
+     */
+    @ParameterizedTest
+    @EnumSource(value = WorkflowAction.class, names = {"GONDER", "TEKRAR_GONDER"})
+    void sendActionsIgnoreTheRequestTarget(WorkflowAction action) {
+        WorkflowUserSnapshot deputy = user(DEPUTY_ID, RoleName.BASKAN_YARDIMCISI, true);
+        when(userPort.findActiveByRole(RoleName.BASKAN_YARDIMCISI)).thenReturn(List.of(deputy));
 
         TargetResolution result = resolver.resolve(action, REQUESTED_TARGET_ID, record(LAST_DEPUTY_ID));
 
-        assertThat(result).isEqualTo(new TargetResolution.RequestTargetNotFound(REQUESTED_TARGET_ID));
-        verify(userPort).findById(REQUESTED_TARGET_ID);
+        assertThat(result).isEqualTo(new TargetResolution.Resolved(deputy));
+        verify(userPort).findActiveByRole(RoleName.BASKAN_YARDIMCISI);
         verifyNoMoreInteractions(userPort);
     }
 
-    @ParameterizedTest
-    @EnumSource(value = WorkflowAction.class, names = {"GONDER", "TEKRAR_GONDER"})
-    void requestTargetActionsReturnResolvedUser(WorkflowAction action) {
-        WorkflowUserSnapshot target = user(REQUESTED_TARGET_ID, RoleName.BASKAN_YARDIMCISI, true);
-        when(userPort.findById(REQUESTED_TARGET_ID)).thenReturn(Optional.of(target));
-
-        TargetResolution result = resolver.resolve(action, REQUESTED_TARGET_ID, record(LAST_DEPUTY_ID));
-
-        assertThat(result).isEqualTo(new TargetResolution.Resolved(target));
-    }
-
     @Test
-    void requestTargetWithWrongRoleRemainsResolvedForValidator() {
-        WorkflowUserSnapshot wrongRole = user(REQUESTED_TARGET_ID, RoleName.BASKAN, true);
-        when(userPort.findById(REQUESTED_TARGET_ID)).thenReturn(Optional.of(wrongRole));
+    void singleDeputyPortResultRemainsResolvedForValidatorWithoutRevalidation() {
+        WorkflowUserSnapshot inconsistentSnapshot = user(DEPUTY_ID, RoleName.BASKAN, false);
+        when(userPort.findActiveByRole(RoleName.BASKAN_YARDIMCISI))
+                .thenReturn(List.of(inconsistentSnapshot));
 
         TargetResolution result = resolver.resolve(
                 WorkflowAction.GONDER,
-                REQUESTED_TARGET_ID,
+                null,
                 record(LAST_DEPUTY_ID));
 
-        assertThat(result).isEqualTo(new TargetResolution.Resolved(wrongRole));
-    }
-
-    @Test
-    void inactiveRequestTargetRemainsResolvedForValidator() {
-        WorkflowUserSnapshot inactive = user(REQUESTED_TARGET_ID, RoleName.BASKAN_YARDIMCISI, false);
-        when(userPort.findById(REQUESTED_TARGET_ID)).thenReturn(Optional.of(inactive));
-
-        TargetResolution result = resolver.resolve(
-                WorkflowAction.TEKRAR_GONDER,
-                REQUESTED_TARGET_ID,
-                record(LAST_DEPUTY_ID));
-
-        assertThat(result).isEqualTo(new TargetResolution.Resolved(inactive));
+        assertThat(result).isEqualTo(new TargetResolution.Resolved(inconsistentSnapshot));
     }
 
     @Test

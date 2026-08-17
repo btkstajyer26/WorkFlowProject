@@ -31,11 +31,11 @@ class WorkflowTransitionValidatorTest {
     class AllowedTransitions {
 
         @Test
-        @DisplayName("Calisan kendi taslagini secilen Baskan Yardimcisina gonderebilir")
+        @DisplayName("Calisan kendi taslagini Baskan Yardimcisina gonderebilir")
         void calisanTaslagiGonderir() {
             TransitionContext context = Ctx.of(RecordStatus.TASLAK, WorkflowAction.GONDER, RoleName.CALISAN)
                     .creator()
-                    .targetInRequest(RoleName.BASKAN_YARDIMCISI)
+                    .resolvedTarget(RoleName.BASKAN_YARDIMCISI)
                     .build();
 
             assertAllowed(context, RecordStatus.BSK_YRD_INCELEMESINDE);
@@ -47,7 +47,7 @@ class WorkflowTransitionValidatorTest {
             TransitionContext context = Ctx.of(RecordStatus.DUZENLEME_BEKLIYOR, WorkflowAction.TEKRAR_GONDER, RoleName.CALISAN)
                     .creator()
                     .assignee()
-                    .targetInRequest(RoleName.BASKAN_YARDIMCISI)
+                    .resolvedTarget(RoleName.BASKAN_YARDIMCISI)
                     .build();
 
             assertAllowed(context, RecordStatus.BSK_YRD_INCELEMESINDE);
@@ -282,14 +282,19 @@ class WorkflowTransitionValidatorTest {
     @DisplayName("hedef kullanici kurallari")
     class TargetRules {
 
+        /**
+         * Hedefi artik GONDER icin de backend cozuyor; istemci yine de hedef
+         * gonderirse istek sessizce yok sayilmaz, reddedilir (Karar 4).
+         */
         @Test
-        @DisplayName("Hedef gerektiren aksiyonda hedef gonderilmemisse reddedilir")
-        void hedefEksik() {
+        @DisplayName("Gonderme isteginde hedef gonderilirse reddedilir")
+        void gondermedeHedefGonderilemez() {
             TransitionContext context = Ctx.of(RecordStatus.TASLAK, WorkflowAction.GONDER, RoleName.CALISAN)
                     .creator()
+                    .targetInRequest(RoleName.BASKAN_YARDIMCISI)
                     .build();
 
-            assertRejected(context, WorkflowErrorCode.WORKFLOW_TARGET_REQUIRED);
+            assertRejected(context, WorkflowErrorCode.WORKFLOW_TARGET_NOT_ALLOWED);
         }
 
         @Test
@@ -319,7 +324,7 @@ class WorkflowTransitionValidatorTest {
         void yanlisRoldeHedef() {
             TransitionContext context = Ctx.of(RecordStatus.TASLAK, WorkflowAction.GONDER, RoleName.CALISAN)
                     .creator()
-                    .targetInRequest(RoleName.BASKAN) // Bskn. Yrd. bekleniyordu
+                    .resolvedTarget(RoleName.BASKAN) // Bskn. Yrd. bekleniyordu
                     .build();
 
             assertRejected(context, WorkflowErrorCode.WORKFLOW_TARGET_ROLE_INVALID);
@@ -330,7 +335,7 @@ class WorkflowTransitionValidatorTest {
         void adminHedefOlamaz() {
             TransitionContext context = Ctx.of(RecordStatus.TASLAK, WorkflowAction.GONDER, RoleName.CALISAN)
                     .creator()
-                    .targetInRequest(RoleName.ADMIN)
+                    .resolvedTarget(RoleName.ADMIN)
                     .build();
 
             assertRejected(context, WorkflowErrorCode.WORKFLOW_TARGET_ROLE_INVALID);
@@ -341,7 +346,7 @@ class WorkflowTransitionValidatorTest {
         void pasifHedefSecilemez() {
             TransitionContext context = Ctx.of(RecordStatus.TASLAK, WorkflowAction.GONDER, RoleName.CALISAN)
                     .creator()
-                    .targetInRequest(RoleName.BASKAN_YARDIMCISI)
+                    .resolvedTarget(RoleName.BASKAN_YARDIMCISI)
                     .targetInactive()
                     .build();
 
@@ -576,7 +581,7 @@ class WorkflowTransitionValidatorTest {
             return this;
         }
 
-        /** Istemcinin istekte gonderdigi hedef (GONDER / TEKRAR_GONDER). */
+        /** Istemcinin istekte gonderdigi hedef; hicbir aksiyon icin beklenmiyor, reddedilir. */
         Ctx targetInRequest(RoleName role) {
             this.targetProvidedInRequest = true;
             this.targetRole = role;

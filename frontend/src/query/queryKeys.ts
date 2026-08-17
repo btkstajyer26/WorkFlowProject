@@ -11,6 +11,7 @@ export const queryKeys = {
         ? ['records', 'detail', recordId, categoryRevision] as const
         : ['records', 'detail', recordId] as const
     ),
+    files: (recordId: string) => ['records', 'files', recordId] as const,
   },
   notifications: {
     all: ['notifications'] as const,

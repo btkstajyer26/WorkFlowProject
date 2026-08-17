@@ -151,6 +151,11 @@ public class UserService {
             throw new BusinessRuleException("Pasif bir kullanıcı Başkan Yardımcısı yapılamaz");
         }
 
+        if (!"CALISAN".equals(replacement.getRole().getName())) {
+            throw new BusinessRuleException(
+                    "Başkan Yardımcısı yalnızca Çalışan rolündeki bir kullanıcıya devredilebilir");
+        }
+
         Role baskanYardimcisiRole = roleRepository.findByName("BASKAN_YARDIMCISI")
                 .orElseThrow(() -> new RoleNotFoundException("BASKAN_YARDIMCISI rolü bulunamadı"));
 
