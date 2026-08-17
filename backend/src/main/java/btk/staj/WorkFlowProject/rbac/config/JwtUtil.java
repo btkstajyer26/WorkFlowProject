@@ -39,6 +39,7 @@ public class JwtUtil {
 
     public String generateRefreshToken(UUID userId) {
         return Jwts.builder()
+                .id(UUID.randomUUID().toString())   // jti — aynı saniyedeki token'ları ayırır
                 .subject(userId.toString())
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + refreshTokenExpiration))
