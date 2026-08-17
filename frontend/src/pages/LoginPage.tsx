@@ -11,11 +11,11 @@ import {
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Navigate, useNavigate, useSearchParams } from 'react-router'
-import { apiMode } from '../api/config'
+import { isApiMockEnabled } from '../api/config'
 import { ApiClientError } from '../api/errors'
-import { clearAuthSession, startAuthSession } from '../auth/authSession'
+import { startAuthSession } from '../auth/authSession'
 import { Brand } from '../components/layout/Brand'
-import { defaultDemoAccount, demoAccounts } from '../mocks/users'
+import { defaultDemoAccount } from '../mocks/users'
 import { loginSchema, type LoginFormValues } from '../schemas/auth'
 import type { AuthUser } from '../types/auth'
 
@@ -36,8 +36,8 @@ export function LoginPage({ user, onLogin }: LoginPageProps) {
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: import.meta.env.DEV ? defaultDemoAccount.email : '',
-      password: import.meta.env.DEV ? defaultDemoAccount.password : '',
+      email: isApiMockEnabled ? defaultDemoAccount.email : '',
+      password: isApiMockEnabled ? defaultDemoAccount.password : '',
     },
   })
 
@@ -48,9 +48,6 @@ export function LoginPage({ user, onLogin }: LoginPageProps) {
   const reason = searchParams.get('reason')
   const submit = handleSubmit(async (values) => {
     const normalizedEmail = values.email.trim().toLowerCase()
-    const matchingDemoAccount = demoAccounts.find(
-      (account) => account.email === normalizedEmail,
-    )
 
     let session: Awaited<ReturnType<typeof startAuthSession>>
     try {
@@ -65,38 +62,7 @@ export function LoginPage({ user, onLogin }: LoginPageProps) {
       return
     }
 
-    // Backend modunda demo hesap kontrolünü atla
-    // TODO: /api/users/me endpoint'i entegre edildiğinde burası güncellenecek
-    let authenticatedUser: AuthUser
-    if (apiMode === 'backend' && !matchingDemoAccount) {
-      // Backend modunda kullanıcı bilgilerini email'den çıkar
-      // Gerçek bilgiler /api/users/me entegre edilince gelecek
-      const emailParts = normalizedEmail.split('@')[0].split('.')
-      authenticatedUser = {
-        id: crypto.randomUUID(),
-        firstName: emailParts[0] ? emailParts[0].charAt(0).toUpperCase() + emailParts[0].slice(1) : 'Kullanıcı',
-        lastName: emailParts[1] ? emailParts[1].charAt(0).toUpperCase() + emailParts[1].slice(1) : '',
-        email: normalizedEmail,
-        role: 'ADMIN', // TODO: Backend'den alınacak
-        mustChangePassword: session.mustChangePassword,
-      }
-    } else if (matchingDemoAccount) {
-      authenticatedUser = {
-        id: matchingDemoAccount.id,
-        firstName: matchingDemoAccount.firstName,
-        lastName: matchingDemoAccount.lastName,
-        email: matchingDemoAccount.email,
-        role: matchingDemoAccount.role,
-        mustChangePassword: session.mustChangePassword,
-      }
-    } else {
-      clearAuthSession()
-      setError('root', {
-        type: 'server',
-        message: 'Kullanıcı profil bilgileri henüz API sözleşmesinde bulunmuyor.',
-      })
-      return
-    }
+    const authenticatedUser = session.user
 
     onLogin(authenticatedUser)
     if (session.mustChangePassword) {

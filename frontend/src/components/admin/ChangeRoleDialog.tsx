@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowRightLeft } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useAdmin } from '../../context/adminState'
 import { useToast } from '../../context/toastState'
@@ -22,24 +22,36 @@ export function ChangeRoleDialog({
   const { users, changeUserRole } = useAdmin()
   const { showToast } = useToast()
   const { busy: mutationBusy, run: runMutation } = useSingleFlight()
+  const [replacementDeputyId, setReplacementDeputyId] = useState('')
   const { register, handleSubmit, reset, watch, setError, formState: { errors } } = useForm<ChangeRoleFormValues>({
     resolver: zodResolver(changeRoleSchema),
     defaultValues: { role: 'CALISAN' },
   })
 
   useEffect(() => {
-    if (user && user.role !== 'ADMIN') reset({ role: user.role })
+    if (user && user.role !== 'ADMIN') {
+      reset({ role: user.role })
+      setReplacementDeputyId('')
+    }
   }, [reset, user])
 
   const selectedRole = watch('role')
   const activeDeputy = selectedRole === 'BASKAN_YARDIMCISI'
     ? users.find((item) => item.id !== user?.id && item.isActive && item.role === 'BASKAN_YARDIMCISI')
     : undefined
+  const leavingDeputy = user?.role === 'BASKAN_YARDIMCISI' && selectedRole !== 'BASKAN_YARDIMCISI'
+  const replacementCandidates = users.filter((item) => (
+    item.id !== user?.id && item.isActive && item.role === 'CALISAN'
+  ))
 
-  const submit = handleSubmit((values) => runMutation(() => {
+  const submit = handleSubmit((values) => runMutation(async () => {
     if (!user) return
     try {
-      changeUserRole(user.id, values.role)
+      if (leavingDeputy && !replacementDeputyId) {
+        setError('root', { message: 'Yerine atanacak aktif Çalışanı seçin.' })
+        return
+      }
+      await changeUserRole(user.id, values.role, replacementDeputyId || undefined)
       showToast({
         title: 'Kullanıcı rolü güncellendi',
         description: `${user.firstName} ${user.lastName} artık ${roleLabels[values.role]} rolünde.`,
@@ -76,6 +88,21 @@ export function ChangeRoleDialog({
           <p className="mt-4 rounded-xl border border-amber-200 dark:border-amber-800/70 bg-amber-50 dark:bg-amber-950/40 p-3 text-sm leading-6 text-amber-900 dark:text-amber-200">
             Bu işlem yardımcılık rolünü <strong>{activeDeputy.firstName} {activeDeputy.lastName}</strong> kullanıcısından devralır. Mevcut yardımcı Çalışan rolüne geçirilir.
           </p>
+        ) : null}
+        {leavingDeputy ? (
+          <label className="mt-4 block">
+            <span className="mb-1.5 block text-sm font-bold text-app-text-emphasis">Yeni Başkan Yardımcısı</span>
+            <select
+              value={replacementDeputyId}
+              onChange={(event) => setReplacementDeputyId(event.target.value)}
+              className="min-h-11 w-full rounded-xl border border-app-border bg-app-surface px-3 text-sm outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100 dark:focus:ring-brand-800/60"
+            >
+              <option value="">Aktif bir Çalışan seçin</option>
+              {replacementCandidates.map((candidate) => (
+                <option key={candidate.id} value={candidate.id}>{candidate.firstName} {candidate.lastName}</option>
+              ))}
+            </select>
+          </label>
         ) : null}
         {errors.root ? <p className="mt-3 text-sm font-semibold text-rose-700 dark:text-rose-300" role="alert">{errors.root.message}</p> : null}
         <div className="mt-6 grid grid-cols-2 gap-3">

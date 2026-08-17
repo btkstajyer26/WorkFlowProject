@@ -46,7 +46,7 @@ export function AdminDashboardPage() {
           <div className="flex items-center justify-between border-b border-app-border-subtle px-4 py-4 sm:px-6">
             <div>
               <h2 className="font-bold text-app-text">Son işlemler</h2>
-              <p className="mt-0.5 text-xs text-app-text-subtle">Evrak ve kullanıcı hareketleri birlikte gösterilir.</p>
+              <p className="mt-0.5 text-xs text-app-text-subtle">Kullanıcı ve rol işlemleri gösterilir.</p>
             </div>
             <Link to="/admin/loglar" className="text-xs font-bold text-brand-700 dark:text-brand-300 hover:text-brand-800 dark:hover:text-brand-200">Tümünü gör</Link>
           </div>

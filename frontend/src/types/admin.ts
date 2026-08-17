@@ -7,10 +7,7 @@ export type ManagedUser = {
   email: string
   role: UserRole
   isActive: boolean
-  mustChangePassword: boolean
   createdAt: string
-  updatedAt: string
-  version: number
 }
 
 export type CreateManagedUserInput = {

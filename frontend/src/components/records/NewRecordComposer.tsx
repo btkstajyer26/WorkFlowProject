@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router'
@@ -26,6 +27,9 @@ import { useWorkflow, type RecordDraftInput } from '../../context/workflowState'
 import { useModalDialog } from '../../hooks/useModalDialog'
 import { useSingleFlight } from '../../hooks/useSingleFlight'
 import { CategoryLoadError } from './CategoryLoadError'
+import { apiMode } from '../../api/config'
+import { createRecordDraft, updateRecordDraft } from '../../api/recordDetails'
+import { queryKeys } from '../../query/queryKeys'
 
 type NewRecordComposerProps = {
   open: boolean
@@ -44,6 +48,7 @@ const emptyRecordFormValues: RecordFormValues = {
 
 export function NewRecordComposer({ open, requestId, onClose }: NewRecordComposerProps) {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { createDraft, createAndSubmit, updateEditableRecord, updateAndSubmit } = useWorkflow()
   const { categories, status: categoryStatus, reloadCategories } = useCategories()
   const [minimized, setMinimized] = useState(false)
@@ -81,6 +86,19 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
   })
   const titleValue = watch('title')
   const { busy: mutationBusy, run: runMutation } = useSingleFlight()
+  const backendMode = apiMode === 'backend'
+  const saveRecordMutation = useMutation({
+    mutationFn: ({ recordId, values }: { recordId: string | null; values: RecordFormValues }) => (
+      recordId
+        ? updateRecordDraft(recordId, values)
+        : createRecordDraft(values)
+    ),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.records.all })
+    },
+  })
+  const recordMutationBusy = mutationBusy || saveRecordMutation.isPending
+  const recordMutationError = saveRecordMutation.error
   const hasUnsavedChanges = !draftSaved && (isDirty || attachmentsDirty)
   useModalDialog({
     open: open && discardDialogOpen,
@@ -198,6 +216,10 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
 
   const addAttachments = (selectedFiles: File[]) => {
     if (selectedFiles.length === 0) return
+    if (backendMode) {
+      setAttachmentError('Ek dosyalar, backend dosya listesi sözleşmesi tamamlandıktan sonra kullanılabilecek.')
+      return
+    }
 
     const validationError = getAttachmentValidationError(selectedFiles)
     if (validationError) {
@@ -242,20 +264,29 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
     }
   }
 
-  const saveDraft = handleSubmit((values) => runMutation(() => {
-    const input = toDraftInput(values)
-    const savedRecord = draftId
-      ? updateEditableRecord(draftId, input)
-      : createDraft(input)
-    setDraftId(savedRecord.id)
-    setFeedback(null)
-    setDraftSaved(true)
-    setAttachmentsDirty(false)
-    setAttentionTarget(null)
-    reset(values)
+  const saveDraft = handleSubmit((values) => runMutation(async () => {
+    try {
+      const savedRecordId = backendMode
+        ? await saveRecordMutation.mutateAsync({ recordId: draftId, values })
+        : (() => {
+            const input = toDraftInput(values)
+            return draftId
+              ? updateEditableRecord(draftId, input).id
+              : createDraft(input).id
+          })()
+      setDraftId(savedRecordId)
+      setFeedback(null)
+      setDraftSaved(true)
+      setAttachmentsDirty(false)
+      setAttentionTarget(null)
+      reset(values)
+    } catch {
+      // Mutation hatası formun altında gösterilir; girilen değerler korunur.
+    }
   }))
 
   const submitRecord = handleSubmit((values) => runMutation(() => {
+    if (backendMode) return
     const input = toDraftInput(values)
     const submittedRecord = draftId
       ? updateAndSubmit(draftId, input)
@@ -432,15 +463,25 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
                 <div>
                   <p className="text-xs font-bold text-app-text-secondary">Ek dosyalar</p>
                   <p id="record-attachment-help" className="mt-0.5 text-xs text-app-text-subtle">
-                    PDF (.pdf), Word (.docx, .doc), Excel (.xlsx, .xls), Resim (.png, .jpeg, .jpg)
+                    {backendMode
+                      ? 'Dosya listeleme sözleşmesi tamamlanana kadar kullanılamıyor.'
+                      : 'PDF (.pdf), Word (.docx, .doc), Excel (.xlsx, .xls), Resim (.png, .jpeg, .jpg)'}
                   </p>
                 </div>
-                <label className="flex min-h-10 cursor-pointer items-center gap-2 rounded-xl border border-app-border bg-app-surface px-3 text-xs font-bold text-app-text-secondary transition hover:border-brand-300 dark:hover:border-brand-600 hover:text-brand-700 dark:hover:text-brand-300 focus-within:outline-2 focus-within:outline-brand-500">
+                <label
+                  aria-disabled={backendMode}
+                  className={`flex min-h-10 items-center gap-2 rounded-xl border border-app-border bg-app-surface px-3 text-xs font-bold text-app-text-secondary transition focus-within:outline-2 focus-within:outline-brand-500 ${
+                    backendMode
+                      ? 'cursor-not-allowed opacity-55'
+                      : 'cursor-pointer hover:border-brand-300 hover:text-brand-700 dark:hover:border-brand-600 dark:hover:text-brand-300'
+                  }`}
+                >
                   <Paperclip className="size-4" aria-hidden="true" />
                   Dosya ekle
                   <input
                     type="file"
                     multiple
+                    disabled={backendMode}
                     accept={attachmentAcceptValue}
                     aria-invalid={Boolean(attachmentError)}
                     aria-describedby={`record-attachment-help${attachmentError ? ' record-attachment-error' : ''}`}
@@ -461,23 +502,27 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
                 aria-describedby={`record-attachment-help${attachmentError ? ' record-attachment-error' : ''}`}
                 className="relative rounded-xl"
                 onDragEnter={(event) => {
+                  if (backendMode) return
                   if (!Array.from(event.dataTransfer.types).includes('Files')) return
                   event.preventDefault()
                   attachmentDragDepthRef.current += 1
                   setAttachmentDragActive(true)
                 }}
                 onDragOver={(event) => {
+                  if (backendMode) return
                   if (!Array.from(event.dataTransfer.types).includes('Files')) return
                   event.preventDefault()
                   event.dataTransfer.dropEffect = 'copy'
                 }}
                 onDragLeave={(event) => {
+                  if (backendMode) return
                   event.preventDefault()
                   attachmentDragDepthRef.current = Math.max(0, attachmentDragDepthRef.current - 1)
                   if (attachmentDragDepthRef.current === 0) setAttachmentDragActive(false)
                 }}
                 onDrop={(event) => {
                   event.preventDefault()
+                  if (backendMode) return
                   attachmentDragDepthRef.current = 0
                   setAttachmentDragActive(false)
                   addAttachments(Array.from(event.dataTransfer.files))
@@ -523,8 +568,15 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
             </div>
 
             <div className="rounded-xl border border-brand-100 dark:border-brand-800/60 bg-brand-50/70 dark:bg-brand-900/30 px-4 py-3 text-xs leading-5 text-brand-800 dark:text-brand-200">
-              Gönderildiğinde kayıt Başkan Yardımcısı incelemesine iletilecek.
+              {backendMode
+                ? 'Taslak veritabanına kaydedilir. İncelemeye gönderme, backend hedef kullanıcıyı otomatik çözmeye başladığında açılacak.'
+                : 'Gönderildiğinde kayıt Başkan Yardımcısı incelemesine iletilecek.'}
             </div>
+            {recordMutationError ? (
+              <p className="rounded-xl bg-rose-50 px-4 py-3 text-xs font-semibold leading-5 text-rose-800 dark:bg-rose-950/40 dark:text-rose-200" role="alert">
+                {recordMutationError instanceof Error ? recordMutationError.message : 'Taslak kaydedilemedi.'}
+              </p>
+            ) : null}
           </div>
         </div>
 
@@ -564,7 +616,8 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
                 </button>
                 <button
                   type="submit"
-                  disabled={mutationBusy}
+                  disabled={backendMode || recordMutationBusy}
+                  title={backendMode ? 'Backend hedef kullanıcıyı henüz otomatik belirlemiyor.' : undefined}
                   className="col-span-2 flex min-h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand-600 to-brand-500 px-4 text-xs font-bold text-white shadow-lg shadow-brand-200 dark:shadow-black/20 transition hover:from-brand-700 hover:to-brand-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-60 sm:px-5 sm:text-sm"
                 >
                   İncelemeye Gönder
@@ -581,7 +634,7 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
                   ref={saveButtonRef}
                   type="button"
                   onClick={saveDraft}
-                  disabled={mutationBusy}
+                  disabled={recordMutationBusy}
                   className={`flex min-h-11 items-center justify-center gap-2 rounded-xl border border-app-border px-3.5 text-xs font-bold text-app-text-secondary transition hover:border-brand-200 dark:hover:border-brand-700/60 hover:bg-brand-50 dark:hover:bg-brand-900/30 hover:text-brand-700 dark:hover:text-brand-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 sm:text-sm ${
                     attentionTarget === 'save' ? 'composer-action-nudge border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 ring-2 ring-amber-200 dark:ring-amber-800/70 ring-offset-2' : ''
                   }`}
@@ -591,7 +644,8 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
                 </button>
                 <button
                   type="submit"
-                  disabled={mutationBusy}
+                  disabled={backendMode || recordMutationBusy}
+                  title={backendMode ? 'Backend hedef kullanıcıyı henüz otomatik belirlemiyor.' : undefined}
                   className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand-600 to-brand-500 px-4 text-xs font-bold text-white shadow-lg shadow-brand-200 dark:shadow-black/20 transition hover:from-brand-700 hover:to-brand-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 sm:px-5 sm:text-sm"
                 >
                   İncelemeye Gönder

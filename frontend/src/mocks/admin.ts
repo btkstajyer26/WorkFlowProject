@@ -17,10 +17,7 @@ export const mockManagedUsers: ManagedUser[] = [
     email: account.email,
     role: account.role,
     isActive: true,
-    mustChangePassword: false,
     createdAt: demoDates[index] ?? demoDates[0],
-    updatedAt: demoDates[index] ?? demoDates[0],
-    version: 1,
   })),
   {
     id: 'user-managed-004',
@@ -29,10 +26,7 @@ export const mockManagedUsers: ManagedUser[] = [
     email: 'elif.akin@kurum.gov.tr',
     role: 'CALISAN',
     isActive: true,
-    mustChangePassword: true,
     createdAt: '2026-08-02T11:25:00',
-    updatedAt: '2026-08-02T11:25:00',
-    version: 1,
   },
   {
     id: 'user-managed-005',
@@ -41,10 +35,7 @@ export const mockManagedUsers: ManagedUser[] = [
     email: 'mert.yilmaz@kurum.gov.tr',
     role: 'CALISAN',
     isActive: false,
-    mustChangePassword: false,
     createdAt: '2026-06-12T09:10:00',
-    updatedAt: '2026-07-28T15:45:00',
-    version: 3,
   },
 ]
 

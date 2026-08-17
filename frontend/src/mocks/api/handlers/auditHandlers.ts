@@ -12,6 +12,10 @@ export const auditHandlers = [
     const record = mockApiDb.records.find((item) => item.id === params.recordId)
     if (!record) return apiErrorResponse(404, 'RESOURCE_NOT_FOUND', `Kayıt bulunamadı: ${params.recordId}`)
     if (!canViewMockRecord(user, record)) return forbiddenResponse('Bu kaydı görüntüleme yetkiniz yok')
-    return HttpResponse.json(mockApiDb.auditLogs.filter((log) => log.recordId === record.id))
+    return HttpResponse.json(
+      mockApiDb.auditLogs
+        .filter((log) => log.recordId === record.id)
+        .toSorted((left, right) => left.createdAt!.localeCompare(right.createdAt!)),
+    )
   }),
 ]

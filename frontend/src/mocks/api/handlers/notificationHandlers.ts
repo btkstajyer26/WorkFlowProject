@@ -11,7 +11,33 @@ function unreadNotificationsFor(userId: string) {
     .map(({ userId: _userId, ...notification }) => notification)
 }
 
+function notificationsFor(userId: string) {
+  return mockApiDb.notifications
+    .filter((notification) => notification.userId === userId)
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+    .map(({ userId: _userId, ...notification }) => notification)
+}
+
 export const notificationHandlers = [
+  http.get(`${apiBaseUrl}/api/notifications`, ({ request }) => {
+    const user = getAuthenticatedMockUser(request)
+    if (!user) return unauthorizedResponse()
+
+    const url = new URL(request.url)
+    const page = Math.max(0, Number(url.searchParams.get('page') ?? 0))
+    const size = Math.max(1, Number(url.searchParams.get('size') ?? 20))
+    const notifications = notificationsFor(user.id)
+    const start = page * size
+
+    return HttpResponse.json({
+      content: notifications.slice(start, start + size),
+      page,
+      size,
+      totalElements: notifications.length,
+      totalPages: Math.ceil(notifications.length / size),
+    })
+  }),
+
   http.get(`${apiBaseUrl}/api/notifications/unread/count`, ({ request }) => {
     const user = getAuthenticatedMockUser(request)
     if (!user) return unauthorizedResponse()

@@ -1,6 +1,6 @@
-import type { RecordSearchResponse, SearchData } from './generated/data-contracts'
+import type { GetAllRecordsData, RecordSearchResponse } from './generated/data-contracts'
 import { apiHttpClient } from './client'
-import { listCategories } from './categories'
+import type { RecordCategoryOption } from './categories'
 import { ApiClientError } from './errors'
 import type { RecordStatus } from '../types/record'
 
@@ -14,10 +14,9 @@ const recordStatuses: RecordStatus[] = [
 ]
 
 export type RecordSearchQuery = {
-  text?: string
+  q?: string
   status?: RecordStatus
   categoryId?: number
-  userId?: string
   createdFrom?: string
   createdTo?: string
   page?: number
@@ -108,23 +107,20 @@ export async function searchRecords({
   createdFrom,
   createdTo,
   ...criteria
-}: RecordSearchQuery = {}): Promise<RecordSearchResult> {
-  const [response, categories] = await Promise.all([
-    apiHttpClient.request<SearchData>({
-      path: '/api/records/search',
-      method: 'GET',
-      query: {
-        ...criteria,
-        startDate: startOfDay(createdFrom),
-        endDate: endOfDay(createdTo),
-        page,
-        size,
-        sort: 'createdAt,desc',
-      },
-      secure: true,
-    }),
-    listCategories(),
-  ])
+}: RecordSearchQuery = {}, categories: RecordCategoryOption[]): Promise<RecordSearchResult> {
+  const response = await apiHttpClient.request<GetAllRecordsData>({
+    path: '/api/records',
+    method: 'GET',
+    query: {
+      ...criteria,
+      from: startOfDay(createdFrom),
+      to: endOfDay(createdTo),
+      page,
+      size,
+      sort: 'createdAt,desc',
+    },
+    secure: true,
+  })
   const categoryNames = new Map(categories.map((category) => [category.id, category.name]))
 
   return {

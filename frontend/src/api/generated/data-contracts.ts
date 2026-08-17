@@ -10,6 +10,12 @@
  * ---------------------------------------------------------------
  */
 
+export interface AdminUserSearchCriteria {
+  active?: boolean;
+  q?: string;
+  role?: string;
+}
+
 export interface AuditLogResponse {
   action?: string;
   comment?: string;
@@ -35,6 +41,32 @@ export interface CategoryResponse {
   name?: string;
 }
 
+export type ChangePasswordData = string;
+
+export interface ChangePasswordRequest {
+  /** @minLength 1 */
+  currentPassword: string;
+  /**
+   * @minLength 1
+   * @pattern ^(?=.*[A-Za-z])(?=.*\d).{8,}$
+   */
+  newPassword: string;
+}
+
+export type ChangeRoleData = UserResponse;
+
+export interface ChangeRoleParams {
+  /** @format uuid */
+  id: string;
+}
+
+export interface ChangeRoleRequest {
+  /** @format uuid */
+  replacementBaskanYardimcisiId?: string;
+  /** @minLength 1 */
+  roleName: string;
+}
+
 /** @format int64 */
 export type CountUnreadData = number;
 
@@ -43,18 +75,25 @@ export type CreateRecordData = RecordResponse;
 export type CreateUserData = UserResponse;
 
 export interface CreateUserRequest {
-  email?: string;
-  firstName?: string;
-  lastName?: string;
-  password?: string;
-  roleName?: string;
+  /**
+   * @format email
+   * @minLength 1
+   */
+  email: string;
+  /** @minLength 1 */
+  firstName: string;
+  /** @minLength 1 */
+  lastName: string;
+  /**
+   * @minLength 6
+   * @maxLength 2147483647
+   */
+  password: string;
 }
 
 export type DeleteFileData = object;
 
 export interface DeleteFileParams {
-  /** @format uuid */
-  deletedBy: string;
   /** @format uuid */
   id: string;
 }
@@ -76,13 +115,21 @@ export interface DownloadFileParams {
 
 export type GetAllCategoriesData = CategoryResponse[];
 
-export type GetAllRecordsData = PageRecordResponse;
+export type GetAllData = PagedResponseNotificationResponse;
+
+export interface GetAllParams {
+  pageable: Pageable;
+}
+
+export type GetAllRecordsData = PagedResponseRecordSearchResponse;
 
 export interface GetAllRecordsParams {
   /** @format int32 */
   categoryId?: number;
-  keyword?: string;
+  /** @format date-time */
+  from?: string;
   pageable: Pageable;
+  q?: string;
   status?:
     | "TASLAK"
     | "BSK_YRD_INCELEMESINDE"
@@ -90,6 +137,8 @@ export interface GetAllRecordsParams {
     | "DUZENLEME_BEKLIYOR"
     | "ONAYLANDI"
     | "REDDEDILDI";
+  /** @format date-time */
+  to?: string;
 }
 
 export type GetGecmisData = AuditLogResponse[];
@@ -108,22 +157,44 @@ export interface GetRecordByIdParams {
 
 export type GetUnreadData = NotificationResponse[];
 
+export type ListAuditLogsData = PagedResponseUserAuditLogResponse;
+
+export interface ListAuditLogsParams {
+  pageable: Pageable;
+}
+
+export type ListRolesData = RoleResponse[];
+
+export type ListUsersData = PagedResponseUserResponse;
+
+export interface ListUsersParams {
+  criteria: AdminUserSearchCriteria;
+  pageable: Pageable;
+}
+
 export type LoginData = LoginResponse;
 
 export interface LoginRequest {
-  email?: string;
-  password?: string;
+  /**
+   * @format email
+   * @minLength 1
+   */
+  email: string;
+  /** @minLength 1 */
+  password: string;
 }
 
 export interface LoginResponse {
   accessToken?: string;
+  mustChangePassword?: boolean;
   refreshToken?: string;
 }
 
 export type LogoutData = string;
 
 export interface LogoutRequest {
-  refreshToken?: string;
+  /** @minLength 1 */
+  refreshToken: string;
 }
 
 export type MarkAsReadData = any;
@@ -132,6 +203,8 @@ export interface MarkAsReadParams {
   /** @format uuid */
   id: string;
 }
+
+export type MeData = UserResponse;
 
 export interface NotificationResponse {
   /** @format date-time */
@@ -150,25 +223,6 @@ export interface NotificationResponse {
   recordId?: string;
 }
 
-export interface PageRecordResponse {
-  content?: RecordResponse[];
-  empty?: boolean;
-  first?: boolean;
-  last?: boolean;
-  /** @format int32 */
-  number?: number;
-  /** @format int32 */
-  numberOfElements?: number;
-  pageable?: PageableObject;
-  /** @format int32 */
-  size?: number;
-  sort?: SortObject;
-  /** @format int64 */
-  totalElements?: number;
-  /** @format int32 */
-  totalPages?: number;
-}
-
 export interface Pageable {
   /**
    * @format int32
@@ -183,20 +237,44 @@ export interface Pageable {
   sort?: string[];
 }
 
-export interface PageableObject {
+export interface PagedResponseNotificationResponse {
+  content?: NotificationResponse[];
+  /** @format int32 */
+  page?: number;
+  /** @format int32 */
+  size?: number;
   /** @format int64 */
-  offset?: number;
+  totalElements?: number;
   /** @format int32 */
-  pageNumber?: number;
-  /** @format int32 */
-  pageSize?: number;
-  paged?: boolean;
-  sort?: SortObject;
-  unpaged?: boolean;
+  totalPages?: number;
 }
 
 export interface PagedResponseRecordSearchResponse {
   content?: RecordSearchResponse[];
+  /** @format int32 */
+  page?: number;
+  /** @format int32 */
+  size?: number;
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PagedResponseUserAuditLogResponse {
+  content?: UserAuditLogResponse[];
+  /** @format int32 */
+  page?: number;
+  /** @format int32 */
+  size?: number;
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PagedResponseUserResponse {
+  content?: UserResponse[];
   /** @format int32 */
   page?: number;
   /** @format int32 */
@@ -249,25 +327,6 @@ export interface RecordResponse {
   title?: string;
 }
 
-export interface RecordSearchCriteria {
-  /** @format int32 */
-  categoryId?: number;
-  /** @format date-time */
-  endDate?: string;
-  /** @format date-time */
-  startDate?: string;
-  status?:
-    | "TASLAK"
-    | "BSK_YRD_INCELEMESINDE"
-    | "BASKAN_INCELEMESINDE"
-    | "DUZENLEME_BEKLIYOR"
-    | "ONAYLANDI"
-    | "REDDEDILDI";
-  text?: string;
-  /** @format uuid */
-  userId?: string;
-}
-
 export interface RecordSearchResponse {
   /** @format uuid */
   assignedTo?: string;
@@ -304,20 +363,26 @@ export interface RecordUpdateRequest {
 export type RefreshData = LoginResponse;
 
 export interface RefreshTokenRequest {
-  refreshToken?: string;
+  /** @minLength 1 */
+  refreshToken: string;
 }
 
-export type SearchData = PagedResponseRecordSearchResponse;
-
-export interface SearchParams {
-  criteria: RecordSearchCriteria;
-  pageable: Pageable;
+export interface RoleResponse {
+  description?: string;
+  /** @format int32 */
+  id?: number;
+  name?: string;
 }
 
-export interface SortObject {
-  empty?: boolean;
-  sorted?: boolean;
-  unsorted?: boolean;
+export type SetActiveData = UserResponse;
+
+export interface SetActiveParams {
+  /** @format uuid */
+  id: string;
+}
+
+export interface SetActiveRequest {
+  active: boolean;
 }
 
 export type UpdateRecordData = RecordResponse;
@@ -331,9 +396,7 @@ export type UploadFileData = object;
 
 export interface UploadFileParams {
   /** @format uuid */
-  recordId: string;
-  /** @format uuid */
-  uploadedBy: string;
+  id: string;
 }
 
 export interface UploadFilePayload {
@@ -341,7 +404,31 @@ export interface UploadFilePayload {
   file: File;
 }
 
+export interface UserAuditLogResponse {
+  action?: string;
+  comment?: string;
+  /** @format date-time */
+  createdAt?: string;
+  /** @format uuid */
+  id?: string;
+  newActive?: boolean;
+  /** @format int32 */
+  newRoleId?: number;
+  newRoleName?: string;
+  /** @format uuid */
+  performedBy?: string;
+  performedByFullName?: string;
+  previousActive?: boolean;
+  /** @format int32 */
+  previousRoleId?: number;
+  previousRoleName?: string;
+  targetUserFullName?: string;
+  /** @format uuid */
+  targetUserId?: string;
+}
+
 export interface UserResponse {
+  active?: boolean;
   /** @format date-time */
   createdAt?: string;
   email?: string;

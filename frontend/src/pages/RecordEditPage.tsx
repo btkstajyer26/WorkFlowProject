@@ -24,6 +24,8 @@ import { useWorkflow } from '../context/workflowState'
 import { recordFormSchema, type RecordFormValues } from '../schemas/record'
 import { useModalDialog } from '../hooks/useModalDialog'
 import { useSingleFlight } from '../hooks/useSingleFlight'
+import { apiMode } from '../api/config'
+import { BackendRecordEditPage } from './BackendRecordEditPage'
 import type { UserRole } from '../types/auth'
 import type { WorkflowRecord } from '../types/record'
 
@@ -31,6 +33,12 @@ const fieldClass =
   'w-full rounded-xl border border-app-border bg-app-surface px-3.5 py-3 text-sm text-app-text-strong outline-none transition placeholder:text-app-text-faint focus:border-brand-400 focus:ring-4 focus:ring-brand-100 dark:focus:ring-brand-800/60'
 
 export function RecordEditPage({ role }: { role: UserRole }) {
+  return apiMode === 'backend'
+    ? <BackendRecordEditPage role={role} />
+    : <MockRecordEditPage role={role} />
+}
+
+function MockRecordEditPage({ role }: { role: UserRole }) {
   const { recordId } = useParams()
   const { records, visibleRecords } = useWorkflow()
   const record = visibleRecords.find((item) => item.id === recordId)

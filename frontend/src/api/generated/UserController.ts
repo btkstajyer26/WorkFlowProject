@@ -10,11 +10,11 @@
  * ---------------------------------------------------------------
  */
 
-import type { SearchData, SearchParams } from "./data-contracts";
+import type { MeData } from "./data-contracts";
 import { HttpClient } from "./http-client";
 import type { RequestParams } from "./http-client";
 
-export class RecordSearchController<SecurityDataType = unknown> {
+export class UserController<SecurityDataType = unknown> {
   http: HttpClient<SecurityDataType>;
 
   constructor(http: HttpClient<SecurityDataType>) {
@@ -24,16 +24,15 @@ export class RecordSearchController<SecurityDataType = unknown> {
   /**
    * No description
    *
-   * @tags record-search-controller
-   * @name Search
-   * @request GET:/api/records/search
+   * @tags user-controller
+   * @name Me
+   * @request GET:/api/users/me
    * @secure
    */
-  search = (query: SearchParams, params: RequestParams = {}) =>
-    this.http.request<SearchData, any>({
-      path: `/api/records/search`,
+  me = (params: RequestParams = {}) =>
+    this.http.request<MeData, any>({
+      path: `/api/users/me`,
       method: "GET",
-      query: query,
       secure: true,
       ...params,
     });

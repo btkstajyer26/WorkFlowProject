@@ -54,6 +54,7 @@ export const adminHandlers = [
       lastName,
       email: normalizedEmail,
       roleName: 'CALISAN',
+      active: true,
       createdAt,
     }
     mockApiDb.createdUsers.push({
