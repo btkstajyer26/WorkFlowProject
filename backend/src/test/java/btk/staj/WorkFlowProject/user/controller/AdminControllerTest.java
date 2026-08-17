@@ -1,7 +1,6 @@
 package btk.staj.WorkFlowProject.user.controller;
 
 import btk.staj.WorkFlowProject.audit.service.UserAuditLogService;
-import btk.staj.WorkFlowProject.common.exception.GlobalExceptionHandler;
 import btk.staj.WorkFlowProject.user.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

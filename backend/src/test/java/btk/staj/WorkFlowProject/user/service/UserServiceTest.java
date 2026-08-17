@@ -1,8 +1,6 @@
 package btk.staj.WorkFlowProject.user.service;
 
 import btk.staj.WorkFlowProject.audit.service.UserAuditLogService;
-import btk.staj.WorkFlowProject.common.exception.BusinessRuleException;
-import btk.staj.WorkFlowProject.common.exception.ResourceNotFoundException;
 import btk.staj.WorkFlowProject.rbac.Role;
 import btk.staj.WorkFlowProject.user.entity.User;
 import btk.staj.WorkFlowProject.user.repository.RoleRepository;
