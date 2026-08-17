@@ -218,7 +218,7 @@ function BackendEditableRecordForm({ record }: { record: WorkflowRecord }) {
 
           <section className="rounded-2xl border border-app-border bg-app-surface p-5 shadow-sm">
             <h2 className="font-bold text-app-text">Taslağı Kaydet</h2>
-            <p className="mt-2 text-xs leading-5 text-app-text-muted">İncelemeye gönderme, backend hedef kullanıcıyı otomatik belirlediğinde açılacak.</p>
+            <p className="mt-2 text-xs leading-5 text-app-text-muted">Kaydettiğiniz taslağı kayıt detayından incelemeye gönderebilirsiniz.</p>
             {feedback ? <p className="mt-4 rounded-xl bg-emerald-50 px-3 py-2.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200" role="status">{feedback}</p> : null}
             {mutationError ? <p className="mt-4 rounded-xl bg-rose-50 px-3 py-2.5 text-xs font-semibold text-rose-800 dark:bg-rose-950/40 dark:text-rose-200" role="alert">{mutationError instanceof Error ? mutationError.message : 'İşlem tamamlanamadı.'}</p> : null}
             <div className="mt-5 grid gap-2">

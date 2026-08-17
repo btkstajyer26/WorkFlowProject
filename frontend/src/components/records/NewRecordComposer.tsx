@@ -29,6 +29,7 @@ import { useSingleFlight } from '../../hooks/useSingleFlight'
 import { CategoryLoadError } from './CategoryLoadError'
 import { apiMode } from '../../api/config'
 import { createRecordDraft, updateRecordDraft } from '../../api/recordDetails'
+import { performWorkflowAction } from '../../api/workflow'
 import { queryKeys } from '../../query/queryKeys'
 
 type NewRecordComposerProps = {
@@ -97,8 +98,17 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
       await queryClient.invalidateQueries({ queryKey: queryKeys.records.all })
     },
   })
-  const recordMutationBusy = mutationBusy || saveRecordMutation.isPending
-  const recordMutationError = saveRecordMutation.error
+  const submitRecordMutation = useMutation({
+    mutationFn: ({ recordId }: { recordId: string }) => performWorkflowAction(recordId, { action: 'GONDER' }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.records.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all }),
+      ])
+    },
+  })
+  const recordMutationBusy = mutationBusy || saveRecordMutation.isPending || submitRecordMutation.isPending
+  const recordMutationError = submitRecordMutation.error ?? saveRecordMutation.error
   const hasUnsavedChanges = !draftSaved && (isDirty || attachmentsDirty)
   useModalDialog({
     open: open && discardDialogOpen,
@@ -285,8 +295,22 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
     }
   }))
 
-  const submitRecord = handleSubmit((values) => runMutation(() => {
-    if (backendMode) return
+  const submitRecord = handleSubmit((values) => runMutation(async () => {
+    if (backendMode) {
+      try {
+        const savedRecordId = await saveRecordMutation.mutateAsync({ recordId: draftId, values })
+        setDraftId(savedRecordId)
+        setDraftSaved(true)
+        reset(values)
+        await submitRecordMutation.mutateAsync({ recordId: savedRecordId })
+        onClose()
+        navigate(`/kayitlar/${savedRecordId}`)
+      } catch {
+        // Kayit basarili, workflow basarisiz olabilir. draftId korunur ve hata formda gosterilir.
+      }
+      return
+    }
+
     const input = toDraftInput(values)
     const submittedRecord = draftId
       ? updateAndSubmit(draftId, input)
@@ -616,8 +640,7 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
                 </button>
                 <button
                   type="submit"
-                  disabled={backendMode || recordMutationBusy}
-                  title={backendMode ? 'Backend hedef kullanıcıyı henüz otomatik belirlemiyor.' : undefined}
+                  disabled={recordMutationBusy}
                   className="col-span-2 flex min-h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand-600 to-brand-500 px-4 text-xs font-bold text-white shadow-lg shadow-brand-200 dark:shadow-black/20 transition hover:from-brand-700 hover:to-brand-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-60 sm:px-5 sm:text-sm"
                 >
                   İncelemeye Gönder
@@ -644,8 +667,7 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
                 </button>
                 <button
                   type="submit"
-                  disabled={backendMode || recordMutationBusy}
-                  title={backendMode ? 'Backend hedef kullanıcıyı henüz otomatik belirlemiyor.' : undefined}
+                  disabled={recordMutationBusy}
                   className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand-600 to-brand-500 px-4 text-xs font-bold text-white shadow-lg shadow-brand-200 dark:shadow-black/20 transition hover:from-brand-700 hover:to-brand-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 sm:px-5 sm:text-sm"
                 >
                   İncelemeye Gönder
