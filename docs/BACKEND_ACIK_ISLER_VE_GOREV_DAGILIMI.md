@@ -638,6 +638,70 @@ yeni değer `MAIL_PASSWORD` ortam değişkeninden verilmeli. Geçmişten temizle
 
 ---
 
+## 3. Durum — 17 Ağustos akşamı
+
+Ekip föye göre çalışmaya başladı. Entegrasyon dalındaki güncel durum:
+
+| İş | Kim | Durum |
+|---|---|---|
+| **A2** Dosya yetkilendirmesi | Ecesu | ✅ `test`'e girdi (`6c14e1c`) — `assertCanViewRecord`, `assertModifyAllowed`, tipli exception'lar, `FileServiceAuthorizationTest` |
+| **B1** Dosya listesi ucu | Ecesu | ✅ Aynı commit — `listByRecord`, `GET /api/records/{id}/files` |
+| **A4** Refresh token `jti` | Hacer | ✅ `feature/jwt-jti-ve-apierror` (PR #20) — `JwtUtilTest` ile |
+| **A1 desteği** `ApiErrorWriter` | Hacer | ✅ Aynı dal — ortak sınıfa çıkarıldı, `SecurityErrorHandlers` onu kullanıyor |
+| **C2b** `recordLifecycleEvent` | Ebrar | ✅ `feature-ebrar` — çatışma çözülerek alındı (aşağıya bakın) |
+| **B2** `creator` filtresi | Irmak | ✅ `feature/search-filtreleme-sayfalama` — çatışma çözülerek alındı (aşağıya bakın) |
+| **C1a** Durum makinesi hedef bayrağı | Esra | 🟡 `feature/workflow-gonder-hedef-cozumleme` dalında yazıldı, **entegre edilmedi** — C1b bekliyor |
+| **C1b** `TargetUserResolver` | Burak | 🔴 başlanmadı |
+| **A1** Şifre değişimi zorlaması | Nisan · Sümeyye | 🔴 başlanmadı |
+| **A3** Aday CALISAN kontrolü | Nisan · Sümeyye | 🔴 başlanmadı |
+| **C2a** Kayıt CRUD audit çağrıları | Alperen · Fevzi | 🔴 başlanmadı — `feature/record` dalında yeni iş yok |
+| **C3** E-posta alıcı matrisi | Melih | 🔴 başlanmadı |
+
+### Entegrasyonda düzeltilen üç gerileme 🔴
+
+İki dal da **eski bir kod sürümüne dayandığı** için, yeni işlerinin yanında
+mevcut kodu geriye götürüyordu. Yeni işler alındı, gerilemeler alınmadı:
+
+**`feature-ebrar` — rol çözümlemesi ham SQL'e dönüyordu.** `AuditLogService`
+rolü `RoleRepository` ile çözüyor; dal bunu `JdbcTemplate` + elle yazılmış
+`SELECT id FROM roles WHERE name = ?` hâline geri götürmüştü. Mevcut yapı
+korundu, `recordLifecycleEvent` ona bağlandı; testleri de `RoleRepository`
+fixture'ına taşındı.
+
+**`feature/search-filtreleme-sayfalama` — Admin bütün evrakları görüyordu.**
+Dalın `RecordSpecifications` sürümünde `case "ADMIN": break;` vardı, yani
+Admin için hiçbir kapsam koşulu eklenmiyordu. Şartname ve `RecordAccessPolicy`
+gereği **Admin evrak göremez**; `cb.disjunction()` korundu. Aynı dosyada iki
+şey daha geriye gidiyordu: `withFilters` imzası `RoleName` yerine `String`
+alıyordu (exhaustive switch kayboluyordu) ve Başkan kapsamı yalnızca
+`status = BASKAN_INCELEMESINDE`'ye düşüyordu (kendisine atanan kayıtları
+göremez hâle gelirdi). Üçü de korundu; yalnızca `creator` filtresi alınıp
+mevcut dosyanın biçimine taşındı.
+
+> **Tekrar eden desen:** bu, entegrasyonda üçüncü kez oluyor (daha önce
+> `RecordServiceImpl` güvenlik kontrolleri ve `nisan-sumeyye`'nin sildiği
+> test import'ları). Sebep hep aynı: dal `test`'ten güncellenmeden uzun süre
+> ayrı kalıyor. **Öneri:** işe başlamadan önce `git pull --rebase origin test`.
+
+### Test durumu
+
+- Backend: **352 test, 3 hata** — üçü de yerel PostgreSQL isteyen entegrasyon
+  testleri (`contextLoads`, `AuditLogRepositoryIntegrationTest` ve yeni gelen
+  `RecordRepositorySortingTest`). Mantık hatası yok.
+- Frontend: **96/96** (mock modunda). `AdminUsersPage.test.tsx` içindeki
+  "rol seçmeden hesap oluşturma" testi ilk turda kırmızı, ikinci turda yeşil
+  geldi — **kararsız (flaky)**. Tek başına çalıştırıldığında 5/5 geçiyor,
+  yani dosyalar arası paylaşılan MSW durumundan şüpheleniliyor. Frontend
+  ekibinin bakması gereken bir konu, entegrasyonu bloke etmiyor.
+
+### `feature/record` — entegre edilecek bir şey yok
+
+Dal, entegrasyon dalıyla **içerik olarak birebir aynı**; tek fark bu iki
+doküman. Görünüşe göre `test` üstüne rebase edilmiş ama üzerine yeni iş
+eklenmemiş. C2a (kayıt CRUD audit çağrıları) hâlâ yazılmadı.
+
+---
+
 ## 3. Öncelik sırası
 
 | Sıra | İş | Kim |
