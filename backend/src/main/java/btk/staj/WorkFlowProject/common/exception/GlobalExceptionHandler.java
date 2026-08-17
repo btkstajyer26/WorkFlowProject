@@ -115,14 +115,18 @@ public class GlobalExceptionHandler {
         WorkflowErrorCode code = ex.errorCode();
         HttpStatus status = switch (code) {
             case WORKFLOW_FORBIDDEN, WORKFLOW_ROLE_NOT_ALLOWED -> HttpStatus.FORBIDDEN;
-            case WORKFLOW_RECORD_LOCKED -> HttpStatus.CONFLICT;
-            case WORKFLOW_STATUS_NOT_CONFIGURED, WORKFLOW_ROLE_NOT_CONFIGURED ->
-                    HttpStatus.INTERNAL_SERVER_ERROR;
+            // Tekil rol hedefi cozulemedi: kural ihlali degil, gecici catisma.
+            case WORKFLOW_RECORD_LOCKED, WORKFLOW_ROLE_NOT_CONFIGURED -> HttpStatus.CONFLICT;
+            case WORKFLOW_STATUS_NOT_CONFIGURED -> HttpStatus.INTERNAL_SERVER_ERROR;
             default -> HttpStatus.BAD_REQUEST;
         };
 
         if (status.is5xxServerError()) {
             log.error("İş akışı yapılandırma hatası: {}", code, ex);
+        } else if (code == WorkflowErrorCode.WORKFLOW_ROLE_NOT_CONFIGURED) {
+            // Istemciye 4xx donuyor ama tekil rol invaryanti bozulmus demektir;
+            // operasyonun bunu gormesi gerekir.
+            log.warn("Tekil rol hedefi çözülemedi: {}", code, ex);
         }
 
         return build(code.name(), workflowMessage(code), status);
@@ -139,8 +143,9 @@ public class GlobalExceptionHandler {
             case WORKFLOW_TARGET_ROLE_INVALID -> "Seçilen hedef kullanıcının rolü uygun değil";
             case WORKFLOW_TARGET_INACTIVE -> "Seçilen hedef kullanıcı pasif durumda";
             case WORKFLOW_ROLE_NOT_ALLOWED -> "Rolünüz bu işlemi yapamaz";
-            case WORKFLOW_STATUS_NOT_CONFIGURED, WORKFLOW_ROLE_NOT_CONFIGURED ->
-                    "İş akışı yapılandırması eksik";
+            case WORKFLOW_STATUS_NOT_CONFIGURED -> "İş akışı yapılandırması eksik";
+            case WORKFLOW_ROLE_NOT_CONFIGURED ->
+                    "İşlemi devralacak yetkili şu anda belirlenemedi, yöneticinize başvurun";
             // Kural ihlali degil: kayit bu istek hazirlanirken baskasi tarafindan
             // degistirilmis. Mesaj kullaniciyi tekrar denemeye yonlendirir.
             case WORKFLOW_VERSION_CONFLICT ->

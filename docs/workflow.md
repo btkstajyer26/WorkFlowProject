@@ -86,7 +86,7 @@ Başkan Yardımcısı koltuğu için ek kurallar:
 - Yerine seçilen kullanıcı aktif olmalı ve koltuğu boşaltan kullanıcıyla aynı olmamalıdır.
 - Devir aynı kullanıcı yönetimi transaction'ında uygulanır ve iki rol değişikliği de audit kaydı üretir.
 
-> Rol tekil olmasına rağmen mevcut workflow API'si `GONDER` ve `TEKRAR_GONDER` için `targetUserId` alanını zorunlu tutar. Çalışanın erişebildiği kullanıcı ucu yalnız `GET /api/users/me`; kullanıcı listesi Admin'e kapalıdır. Bu nedenle gerçek Çalışan istemcisi gerekli Başkan Yardımcısı UUID'sini backend'den keşfedemez. Backend'in hedefi otomatik çözmesi veya Çalışana açık, yalnız uygun workflow hedeflerini döndüren bir uç eklenmesi gerekir.
+> Rol tekil olduğu için `GONDER` ve `TEKRAR_GONDER` hedefini de backend çözer; istemci `targetUserId` göndermez. Çalışanın erişebildiği kullanıcı ucu yalnız `GET /api/users/me` olduğundan Başkan Yardımcısı UUID'sini keşfedemez ve tekil rol kararı gereği ona kullanıcı listeleme ucu açılmayacaktır. Sistemde tam olarak bir aktif Başkan Yardımcısı yoksa (devir anında sıfır, yanlış yapılandırmada birden fazla) istek `409 WORKFLOW_ROLE_NOT_CONFIGURED` ile durur.
 
 ## Kayıt görünürlüğü ve aksiyon yetkisi
 
@@ -173,7 +173,6 @@ Content-Type: application/json
 ```json
 {
   "action": "GONDER",
-  "targetUserId": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
   "comment": "İncelemeye sunulmuştur."
 }
 ```
@@ -181,7 +180,7 @@ Content-Type: application/json
 | Alan | Tip | Genel kural |
 | --- | --- | --- |
 | `action` | `WorkflowAction` | Her zaman zorunlu. Bilinmeyen enum değeri `400 BAD_REQUEST` üretir. |
-| `targetUserId` | UUID | Yalnız `GONDER` ve `TEKRAR_GONDER` için zorunlu; diğer aksiyonlarda gönderilmesi reddedilir. |
+| `targetUserId` | UUID | **Hiçbir aksiyonda gönderilmez.** Hedefi her zaman backend çözer; alan yine de gönderilirse istek `400 WORKFLOW_TARGET_NOT_ALLOWED` ile reddedilir. |
 | `comment` | string | En fazla 2000 karakter. Geri gönderme aksiyonları ve `REDDET` için boş olmayan değer zorunludur. |
 
 Zorunlu açıklamada yalnız boşluk, sekme veya satır sonundan oluşan değer kabul edilmez. Açıklaması isteğe bağlı aksiyonlarda boş değer teknik olarak kabul edilir; istemcinin alanı göndermemesi tercih edilir.
@@ -228,8 +227,8 @@ Hangi hata kodunun döneceği doğrulama sırasına bağlıdır. Uygulanan sıra
 3. Durum–aksiyon–rol birleşimi geçiş tablosunda var mı?
 4. Aktör, kuralın istediği kayıt ilişkisini sağlıyor mu?
 5. Zorunlu açıklama dolu mu?
-6. İstekte hedef bekleniyorsa `targetUserId` var mı?
-7. İstekte hedef beklenmiyorsa yanlışlıkla `targetUserId` gönderilmiş mi?
+6. İstekte hedef bekleniyorsa `targetUserId` var mı? (Şu an hiçbir aksiyon beklemiyor.)
+7. İstekte yanlışlıkla `targetUserId` gönderilmiş mi?
 8. Çözülen hedef beklenen role sahip mi?
 9. Çözülen hedef aktif mi?
 
@@ -239,8 +238,8 @@ Uygulama servisi hedef gerektiren aksiyonlarda iki aşamalı doğrulama yapar: �
 
 | Aksiyon | Hedefin kaynağı | Başarısızlık davranışı |
 | --- | --- | --- |
-| `GONDER` | İstekteki `targetUserId` | Kullanıcı yoksa veya rolü yanlışsa `WORKFLOW_TARGET_ROLE_INVALID`; pasifse `WORKFLOW_TARGET_INACTIVE` |
-| `TEKRAR_GONDER` | İstekteki `targetUserId` | Kullanıcı yoksa veya rolü yanlışsa `WORKFLOW_TARGET_ROLE_INVALID`; pasifse `WORKFLOW_TARGET_INACTIVE` |
+| `GONDER` | Aktif `BASKAN_YARDIMCISI` rolündeki kullanıcılar | Tam olarak bir aktif Başkan Yardımcısı yoksa `WORKFLOW_ROLE_NOT_CONFIGURED` |
+| `TEKRAR_GONDER` | Aktif `BASKAN_YARDIMCISI` rolündeki kullanıcılar | Tam olarak bir aktif Başkan Yardımcısı yoksa `WORKFLOW_ROLE_NOT_CONFIGURED` |
 | `BASKANA_ILET` | Aktif `BASKAN` rolündeki kullanıcılar | Tam olarak bir aktif Başkan yoksa `WORKFLOW_ROLE_NOT_CONFIGURED` |
 | `CALISANA_GERI_GONDER` | `record.createdBy` | Referans kullanıcı yoksa veri bütünlüğü hatası; rolü/aktifliği yanlışsa hedef doğrulama hatası |
 | `BASKAN_YARDIMCISINA_GERI_GONDER` | `record.lastDeputyId` | Alan boşsa veya kullanıcı yoksa veri bütünlüğü hatası; rolü/aktifliği yanlışsa hedef doğrulama hatası |
@@ -349,12 +348,12 @@ Bean Validation hatalarında ayrıca `fieldErrors` bulunur. Mevcut `ApiError` mo
 | `WORKFLOW_RECORD_LOCKED` | `409` | Terminal kayıtta aksiyon denenirse |
 | `WORKFLOW_INVALID_TRANSITION` | `400` | Durum–aksiyon–rol birleşimi tanımlı değilse |
 | `WORKFLOW_COMMENT_REQUIRED` | `400` | Zorunlu açıklama yoksa veya boşsa |
-| `WORKFLOW_TARGET_REQUIRED` | `400` | `GONDER`/`TEKRAR_GONDER` hedefi eksikse |
-| `WORKFLOW_TARGET_NOT_ALLOWED` | `400` | Diğer aksiyonlarda istek hedef taşırsa |
+| `WORKFLOW_TARGET_REQUIRED` | `400` | Rezerve kod; hedefi her aksiyonda backend çözdüğü için bunu üreten bir aksiyon kalmadı |
+| `WORKFLOW_TARGET_NOT_ALLOWED` | `400` | İstek `targetUserId` taşırsa (artık bütün aksiyonlar için) |
 | `WORKFLOW_TARGET_ROLE_INVALID` | `400` | Hedef bulunamazsa veya beklenen rolde değilse |
 | `WORKFLOW_TARGET_INACTIVE` | `400` | Hedef kullanıcı pasifse |
 | `WORKFLOW_STATUS_NOT_CONFIGURED` | `500` | Rezerve kod; mevcut enum-tabanlı akışta bunu üreten bir yol yoktur |
-| `WORKFLOW_ROLE_NOT_CONFIGURED` | `500` | Özellikle tam olarak bir aktif Başkan çözülemezse |
+| `WORKFLOW_ROLE_NOT_CONFIGURED` | `409` | Tekil rol hedefi çözülemezse: `BASKANA_ILET` için aktif Başkan, `GONDER`/`TEKRAR_GONDER` için aktif Başkan Yardımcısı sayısı 1 değilse. Kalıcı kural ihlali değil geçici çatışma olduğu için `4xx`; sunucu tarafında `WARN` olarak loglanır |
 | `VALIDATION_ERROR` | `400` | `action` yoksa veya `comment` 2000 karakteri aşarsa |
 | `UNAUTHORIZED` | `401` | Geçerli kimlik doğrulama yoksa |
 
@@ -404,7 +403,7 @@ Son incelenen `test` commit'inin GitHub Actions çalışması başarılıdır: b
 ## Bilinen boşluklar ve kararlar
 
 1. **Optimistic-lock hata eşlemesi:** Gerçek çatışma şu anda `500` olur; `409 WORKFLOW_VERSION_CONFLICT` uygulanmalıdır.
-2. **Tekil Başkan Yardımcısı ve istek hedefi:** Rol tekil olduğu halde `GONDER`/`TEKRAR_GONDER` `targetUserId` bekler ve Çalışana açık hedef keşif ucu yoktur. Backend tek aktif kullanıcıyı çözmeli veya yalnız uygun aktif workflow hedeflerini döndüren güvenli bir uç sağlamalıdır; mevcut hali gerçek frontend entegrasyonunu bloke eder.
+2. ~~**Tekil Başkan Yardımcısı ve istek hedefi**~~ — **çözüldü (C1).** `GONDER`/`TEKRAR_GONDER` hedefini artık backend, `BASKANA_ILET` ile aynı yoldan tek aktif kullanıcıdan çözer; istemci hedef göndermez, gönderirse istek reddedilir. Geriye kalan tek risk aşağıdaki 10. maddededir: tekil rol invariant'ı veritabanı kısıtıyla değil okuma anında zorlanır.
 3. **Frontend entegrasyonu:** Ana ekranlar hâlâ kısmen mock/local state kullanır. Workflow cevabından sonra kayıt yeniden yükleme ve hata kodu eşlemeleri gerçek backend ile tamamlanmalıdır.
 4. **İlk parola değişimi:** `mustChangePassword` istemciye dönse de workflow dahil diğer korumalı uçlar backend seviyesinde henüz engellenmez.
 5. **E-posta teslim garantisi:** Gönderim asenkron ve best-effort'tur; retry/outbox/DLQ yoktur.
@@ -412,7 +411,7 @@ Son incelenen `test` commit'inin GitHub Actions çalışması başarılıdır: b
 7. **Bildirim geçmişi indeksi:** Büyüyen veri için `(user_id, created_at DESC)` birleşik indeksi değerlendirilmelidir.
 8. **Sözleşme drift'i:** Entegrasyon sözleşmesindeki `BASKAN_ONAYINDA` örneği `BASKAN_INCELEMESINDE` olarak düzeltilmelidir.
 9. **Terminal ek silme ve dosya IDOR'u:** Yükleme terminal kayıtta engellenir; `deleteFile` kayıt kilidi, sahiplik veya görünürlük kontrolü yapmaz. İndirme/önizleme de kayıt görünürlüğüyle sınırlandırılmalıdır.
-10. **Tekil rolün yeniden etkinleştirilmesi:** `setActive(..., true)` aynı rolde başka aktif kullanıcı olup olmadığını kontrol etmez. Örneğin iki aktif Başkan oluşursa `BASKANA_ILET`, hedefi tekilleştiremediği için `500 WORKFLOW_ROLE_NOT_CONFIGURED` ile durur.
+10. **Tekil rolün yeniden etkinleştirilmesi:** `setActive(..., true)` aynı rolde başka aktif kullanıcı olup olmadığını kontrol etmez. İki aktif Başkan oluşursa `BASKANA_ILET`, iki aktif Başkan Yardımcısı oluşursa `GONDER`/`TEKRAR_GONDER` hedefi tekilleştiremediği için `409 WORKFLOW_ROLE_NOT_CONFIGURED` ile durur. C1 sonrası bu, Çalışanın en sık kullandığı aksiyonu da etkilediği için invariant'ın yazma tarafında (rol atama/aktifleştirme) zorlanması daha önemli hâle geldi.
 
 Başlangıç şartnamesiyle bilinçli veya fiilî uygulama farkları da korunmalıdır:
 

@@ -32,6 +32,7 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.SimpleTransactionStatus;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -196,6 +197,49 @@ class WorkflowActionControllerTest {
         verifyNoInteractions(auditLogRepository);
     }
 
+    /**
+     * Hedefi backend cozdugu icin aktif yardimci yoksa istek bir sunucu hatasi
+     * degil, gecici bir catisma olarak raporlanir: Calisan bunu "Gonder"
+     * tusunda gorebilir (ornegin yardimci devri sirasinda).
+     */
+    @Test
+    @DisplayName("tek aktif Baskan Yardimcisi yoksa gonderme 409 doner")
+    void sendingWithoutASingleActiveDeputyIsReportedAsConflict() throws Exception {
+        UUID recordId = UUID.randomUUID();
+        AuthenticatedUser calisan = actor(RoleName.CALISAN);
+        givenOwnedRecord(recordId, RecordStatus.TASLAK, calisan.getId());
+        when(userRepository.findByRole_NameAndActive(RoleName.BASKAN_YARDIMCISI.name(), true))
+                .thenReturn(List.of());
+
+        mockMvc.perform(post(ACTION_URL, recordId)
+                        .with(user(calisan))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"action\":\"GONDER\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("WORKFLOW_ROLE_NOT_CONFIGURED"));
+
+        verifyNoInteractions(auditLogRepository);
+    }
+
+    /** Karar 4: istemci yine hedef gonderirse sessizce yok sayilmaz. */
+    @Test
+    @DisplayName("gonderme isteginde targetUserId gonderilirse reddedilir")
+    void aSendRequestCarryingATargetIsRejected() throws Exception {
+        UUID recordId = UUID.randomUUID();
+        AuthenticatedUser calisan = actor(RoleName.CALISAN);
+        givenOwnedRecord(recordId, RecordStatus.TASLAK, calisan.getId());
+
+        mockMvc.perform(post(ACTION_URL, recordId)
+                        .with(user(calisan))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"action\":\"GONDER\",\"targetUserId\":\""
+                                + UUID.randomUUID() + "\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("WORKFLOW_TARGET_NOT_ALLOWED"));
+
+        verifyNoInteractions(auditLogRepository);
+    }
+
     @Test
     @DisplayName("aksiyonu olmayan istek dogrulamada elenir")
     void aRequestWithoutAnActionFailsValidation() throws Exception {
@@ -215,6 +259,16 @@ class WorkflowActionControllerTest {
         record.setStatus(status);
         record.setCreatedBy(UUID.randomUUID());
         record.setAssignedTo(assignedTo);
+        record.setVersion(0);
+        when(recordRepository.findById(recordId)).thenReturn(Optional.of(record));
+    }
+
+    /** Gonderme aksiyonlarinda aktorun kaydin sahibi olmasi gerekir. */
+    private void givenOwnedRecord(UUID recordId, RecordStatus status, UUID createdBy) {
+        Record record = new Record();
+        record.setId(recordId);
+        record.setStatus(status);
+        record.setCreatedBy(createdBy);
         record.setVersion(0);
         when(recordRepository.findById(recordId)).thenReturn(Optional.of(record));
     }

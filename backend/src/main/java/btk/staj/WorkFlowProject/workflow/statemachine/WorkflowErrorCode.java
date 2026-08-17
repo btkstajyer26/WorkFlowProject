@@ -25,7 +25,14 @@ public enum WorkflowErrorCode {
     /** Zorunlu aciklama eksik veya yalnizca bosluktan olusuyor. */
     WORKFLOW_COMMENT_REQUIRED,
 
-    /** Hedef kullanici gerekli ama istekte gonderilmemis. */
+    /**
+     * Hedef kullanici gerekli ama istekte gonderilmemis.
+     *
+     * <p>Su an bu kodu ureten aksiyon <strong>yok</strong>: hedefi her aksiyon
+     * icin backend cozuyor. Kural
+     * {@link WorkflowTransitionValidator} icinde duruyor; ileride istemciden
+     * hedef bekleyen bir aksiyon eklenirse yeniden uretilir.
+     */
     WORKFLOW_TARGET_REQUIRED,
 
     /** Hedef gonderilmemesi gereken aksiyonda hedef gonderilmis. */
@@ -43,7 +50,15 @@ public enum WorkflowErrorCode {
     /** Beklenen status seed verisi bulunamadi. Servis katmani uretir. */
     WORKFLOW_STATUS_NOT_CONFIGURED,
 
-    /** Beklenen role seed verisi bulunamadi veya tek Baskan cozulemedi. Servis katmani uretir. */
+    /**
+     * Tekil rol hedefi cozulemedi: sistemde beklenen rolde sifir veya birden
+     * fazla aktif kullanici var. {@code BASKANA_ILET} icin Baskan,
+     * {@code GONDER} / {@code TEKRAR_GONDER} icin Baskan Yardimcisi. Servis
+     * katmani uretir.
+     *
+     * <p>Kalici bir kural ihlali degil, gecici bir yapilandirma catismasidir
+     * (ornegin yardimci devri sirasinda) &mdash; bu yuzden {@code 409} eslenir.
+     */
     WORKFLOW_ROLE_NOT_CONFIGURED,
 
     /**

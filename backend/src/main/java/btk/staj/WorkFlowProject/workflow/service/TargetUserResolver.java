@@ -17,6 +17,12 @@ import java.util.UUID;
  * Resolves the workflow target dictated by an action without applying transition
  * validation. Role and active-state checks deliberately remain the state
  * machine's responsibility.
+ *
+ * <p>Hedefi her aksiyon icin backend cozer; istekten gelen {@code targetUserId}
+ * hicbir kolda kullanilmaz. {@code GONDER} ve {@code TEKRAR_GONDER} hedefini
+ * {@code BASKANA_ILET} ile ayni yoldan, sistemdeki tek aktif kullanicidan
+ * bulur: Calisanin aktif Baskan Yardimcisinin kimligini ogrenebilecegi guvenli
+ * bir uc yoktur ve tekil rol karari geregi acilmayacaktir.</p>
  */
 public final class TargetUserResolver {
 
@@ -26,6 +32,13 @@ public final class TargetUserResolver {
         this.userPort = Objects.requireNonNull(userPort, "userPort");
     }
 
+    /**
+     * @param requestedTargetUserId istekten gelen hedef; <strong>bilerek yok
+     *        sayilir</strong>. Hedefi artik her aksiyon icin backend cozdugu
+     *        icin hicbir kol bu degeri okumaz. Parametre, istegin hedef tasiyip
+     *        tasimadigini {@code WorkflowApplicationService}'in ayrica
+     *        dogruladigini gizlememek ve imzayi bozmamak icin duruyor.
+     */
     public TargetResolution resolve(
             WorkflowAction action,
             UUID requestedTargetUserId,
@@ -34,24 +47,12 @@ public final class TargetUserResolver {
         Objects.requireNonNull(record, "record");
 
         return switch (action) {
-            case GONDER, TEKRAR_GONDER -> resolveRequestedTarget(requestedTargetUserId);
+            case GONDER, TEKRAR_GONDER -> resolveSingleActiveRole(RoleName.BASKAN_YARDIMCISI);
             case BASKANA_ILET -> resolveSingleActiveRole(RoleName.BASKAN);
             case CALISANA_GERI_GONDER -> resolveCreatedBy(record.createdBy());
             case BASKAN_YARDIMCISINA_GERI_GONDER -> resolveLastDeputy(record.lastDeputyId());
             case ONAYLA, REDDET -> new TargetResolution.NotProvided();
         };
-    }
-
-    private TargetResolution resolveRequestedTarget(UUID requestedTargetUserId) {
-        if (requestedTargetUserId == null) {
-            return new TargetResolution.NotProvided();
-        }
-
-        Optional<WorkflowUserSnapshot> user = findById(requestedTargetUserId);
-        if (user.isEmpty()) {
-            return new TargetResolution.RequestTargetNotFound(requestedTargetUserId);
-        }
-        return new TargetResolution.Resolved(user.get());
     }
 
     private TargetResolution resolveSingleActiveRole(RoleName role) {
