@@ -68,6 +68,10 @@ services:
     environment:
       VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080}
       VITE_API_MODE: ${VITE_API_MODE:-mock}
+      # Windows/OneDrive bind mount'larında dosya değişiklik olayları kaçabildiği
+      # için Vite'ın kaynakları düzenli aralıklarla kontrol etmesini sağlar.
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "300"
     volumes:
       - ./frontend:/app
       - /app/node_modules
