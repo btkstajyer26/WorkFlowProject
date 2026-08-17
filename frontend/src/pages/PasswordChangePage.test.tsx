@@ -65,6 +65,20 @@ describe('PasswordChangePage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Yeni şifreler birbiriyle eşleşmiyor.')
   })
 
+  it('mevcut şifrenin yeni şifre olarak tekrar kullanılmasını endpoint çağrısından önce reddeder', async () => {
+    const user = userEvent.setup()
+    const onPasswordChanged = vi.fn()
+    renderPage(firstLoginUser, onPasswordChanged)
+
+    await user.type(screen.getByLabelText('Mevcut şifre'), 'Gecici123')
+    await user.type(screen.getByLabelText('Yeni şifre'), 'Gecici123')
+    await user.type(screen.getByLabelText('Yeni şifre tekrar'), 'Gecici123')
+    await user.click(screen.getByRole('button', { name: 'Şifreyi Güncelle' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Yeni şifreniz mevcut şifrenizle aynı olamaz.')
+    expect(onPasswordChanged).not.toHaveBeenCalled()
+  })
+
   it('yanlış mevcut şifreyi alan bazlı gösterir', async () => {
     const user = userEvent.setup()
     await startAuthSession('ilk.giris@kurum.gov.tr', 'Gecici123')

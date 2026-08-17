@@ -63,6 +63,22 @@ describe('şifre değiştirme şeması', () => {
       newPasswordConfirm: 'YeniParola123',
     }).success).toBe(true)
   })
+
+  it('yeni şifre mevcut şifreyle aynıysa reddeder', () => {
+    const result = changePasswordSchema.safeParse({
+      currentPassword: 'Gecici123',
+      newPassword: 'Gecici123',
+      newPasswordConfirm: 'Gecici123',
+    })
+
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error.issues).toContainEqual(expect.objectContaining({
+        path: ['newPassword'],
+        message: 'Yeni şifreniz mevcut şifrenizle aynı olamaz.',
+      }))
+    }
+  })
 })
 
 describe('record form schema', () => {

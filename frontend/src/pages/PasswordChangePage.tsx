@@ -93,6 +93,7 @@ export function PasswordChangePage({ user, onPasswordChanged, onUseAnotherAccoun
           <ul className="mt-2 grid gap-1.5 text-sm text-app-text-muted sm:grid-cols-2">
             <li className="flex items-center gap-2"><Check className="size-3.5 text-emerald-600" aria-hidden="true" />En az 8 karakter</li>
             <li className="flex items-center gap-2"><Check className="size-3.5 text-emerald-600" aria-hidden="true" />En az bir harf ve bir rakam</li>
+            <li className="flex items-center gap-2"><Check className="size-3.5 text-emerald-600" aria-hidden="true" />Mevcut şifrenizden farklı</li>
           </ul>
         </div>
 
