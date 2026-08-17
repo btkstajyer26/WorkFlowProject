@@ -11,6 +11,7 @@ public class RecordSearchCriteria {
     private Integer categoryId;
     private LocalDateTime from;
     private LocalDateTime to;
+    private String creator;
 
     public RecordSearchCriteria() {
     }
@@ -53,5 +54,13 @@ public class RecordSearchCriteria {
 
     public void setTo(LocalDateTime to) {
         this.to = to;
+    }
+
+    public String getCreator() {
+        return creator;
+    }
+
+    public void setCreator(String creator) {
+        this.creator = creator;
     }
 }

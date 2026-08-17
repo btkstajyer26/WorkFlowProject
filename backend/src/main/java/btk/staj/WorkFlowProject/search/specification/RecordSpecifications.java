@@ -2,8 +2,10 @@ package btk.staj.WorkFlowProject.search.specification;
 
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.search.dto.RecordSearchCriteria;
+import btk.staj.WorkFlowProject.user.entity.User;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.util.ArrayList;
@@ -76,20 +78,64 @@ public final class RecordSpecifications {
                         if (criteria.getQ() != null
                                 && !criteria.getQ().isBlank()) {
 
-                                String text = "%" + criteria.getQ().toLowerCase() + "%";
+                                String text =
+                                        "%" + criteria.getQ().toLowerCase() + "%";
 
-                                Predicate titlePredicate = criteriaBuilder.like(
-                                        criteriaBuilder.lower(root.get("title")),
-                                        text);
+                                Predicate titlePredicate =
+                                        criteriaBuilder.like(
+                                                criteriaBuilder.lower(
+                                                        root.get("title")),
+                                                text);
 
-                                Predicate descriptionPredicate = criteriaBuilder.like(
-                                        criteriaBuilder.lower(root.get("description")),
-                                        text);
+                                Predicate descriptionPredicate =
+                                        criteriaBuilder.like(
+                                                criteriaBuilder.lower(
+                                                        root.get("description")),
+                                                text);
 
                                 predicates.add(
                                         criteriaBuilder.or(
                                                 titlePredicate,
                                                 descriptionPredicate));
+                        }
+
+                        // Oluşturan kullanıcı adına / soyadına göre filtre
+                        if (criteria.getCreator() != null
+                                && !criteria.getCreator().isBlank()) {
+
+                                String creator =
+                                        "%" + criteria.getCreator().toLowerCase() + "%";
+
+                                Subquery<UUID> subquery =
+                                        query.subquery(UUID.class);
+
+                                var userRoot = subquery.from(User.class);
+
+                                Predicate firstNamePredicate =
+                                        criteriaBuilder.like(
+                                                criteriaBuilder.lower(
+                                                        userRoot.get("firstName")),
+                                                creator);
+
+                                Predicate lastNamePredicate =
+                                        criteriaBuilder.like(
+                                                criteriaBuilder.lower(
+                                                        userRoot.get("lastName")),
+                                                creator);
+
+                                subquery.select(
+                                                userRoot.get("id"))
+                                        .where(
+                                                criteriaBuilder.or(
+                                                        firstNamePredicate,
+                                                        lastNamePredicate),
+                                                criteriaBuilder.equal(
+                                                        userRoot.get("id"),
+                                                        root.get("createdBy"))
+                                        );
+
+                                predicates.add(
+                                        criteriaBuilder.exists(subquery));
                         }
 
                         // Durum filtresi
