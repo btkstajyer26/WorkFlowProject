@@ -9,6 +9,8 @@ import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase.Replace;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -17,7 +19,14 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+// Proje Postgres'e ozgu ozellikler (Flyway migration, citext, jsonb, custom
+// index'ler) kullaniyor. @DataJpaTest varsayilan olarak DataSource'u embedded
+// bir DB ile degistirmeye calisiyor; classpath'te H2/HSQLDB olmadigi icin
+// "Failed to replace DataSource with an embedded database" hatasi veriyordu.
+// Replace.NONE ile application.properties'teki gercek Postgres kullaniliyor;
+// bu, projedeki diger integration testleriyle (@SpringBootTest) tutarlidir.
 @DataJpaTest
+@AutoConfigureTestDatabase(replace = Replace.NONE)
 class RecordRepositorySortingTest {
 
     @Autowired
