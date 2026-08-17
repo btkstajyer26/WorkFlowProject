@@ -15,6 +15,8 @@ import type {
   DeleteFileParams,
   DownloadFileData,
   DownloadFileParams,
+  ListFilesData,
+  ListFilesParams,
   PreviewFileData,
   PreviewFileParams,
   UploadFileData,
@@ -57,6 +59,21 @@ export class FileController<SecurityDataType = unknown> {
   downloadFile = ({ id }: DownloadFileParams, params: RequestParams = {}) =>
     this.http.request<DownloadFileData, any>({
       path: `/api/files/${id}/download`,
+      method: "GET",
+      secure: true,
+      ...params,
+    });
+  /**
+   * No description
+   *
+   * @tags file-controller
+   * @name ListFiles
+   * @request GET:/api/records/{id}/files
+   * @secure
+   */
+  listFiles = ({ id }: ListFilesParams, params: RequestParams = {}) =>
+    this.http.request<ListFilesData, any>({
+      path: `/api/records/${id}/files`,
       method: "GET",
       secure: true,
       ...params,

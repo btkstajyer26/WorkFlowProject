@@ -1,4 +1,5 @@
 export const maxRecordTitleLength = 255
+export const maxAttachmentSizeBytes = 10 * 1024 * 1024
 
 export const allowedAttachmentExtensions = [
   '.pdf',
@@ -23,7 +24,10 @@ export function getAttachmentValidationError(files: File[]) {
     return !allowedAttachmentExtensionSet.has(extension)
   })
 
-  return unsupportedFile
-    ? `“${unsupportedFile.name}” desteklenmiyor. PDF, Word, Excel, PNG veya JPG yükleyin.`
-    : null
+  if (unsupportedFile) {
+    return `“${unsupportedFile.name}” desteklenmiyor. PDF, Word, Excel, PNG veya JPG yükleyin.`
+  }
+
+  const oversizedFile = files.find((file) => file.size > maxAttachmentSizeBytes)
+  return oversizedFile ? `“${oversizedFile.name}” 10 MB sınırını aşıyor.` : null
 }

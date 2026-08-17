@@ -12,6 +12,7 @@ import { apiMode } from '../api/config'
 import { ApiClientError } from '../api/errors'
 import { getRecordDetail } from '../api/recordDetails'
 import { RecordActionPanel } from '../components/records/RecordActionPanel'
+import { RecordFilesPanel } from '../components/records/RecordFilesPanel'
 import { RecordHistoryDisclosure, RecordNoteDisclosure } from '../components/records/RecordDetailDisclosures'
 import { RecordStatusBadge } from '../components/records/RecordStatusBadge'
 import { useWorkflow } from '../context/workflowState'
@@ -166,15 +167,14 @@ function RecordDetailContent({
         </div>
 
         <div className="mt-6 border-t border-app-border-subtle pt-6">
-          <h2 className="text-base font-bold text-app-text">
-            Ek Dosyalar {source === 'mock' ? <span className="font-medium text-app-text-subtle">({record.attachments.length})</span> : null}
-          </h2>
-
           {source === 'backend' ? (
-            <p className="mt-4 rounded-lg border border-dashed border-app-border px-4 py-5 text-center text-sm text-app-text-subtle">
-              Dosya listeleme endpointi tamamlandığında kayıt ekleri burada gösterilecek.
-            </p>
-          ) : record.attachments.length > 0 ? (
+            <RecordFilesPanel recordId={record.id} />
+          ) : (
+            <>
+              <h2 className="text-base font-bold text-app-text">
+                Ek Dosyalar <span className="font-medium text-app-text-subtle">({record.attachments.length})</span>
+              </h2>
+              {record.attachments.length > 0 ? (
             <ul className="mt-4 space-y-2">
               {record.attachments.map((attachment) => (
                 <li key={attachment.id} className="flex items-center gap-3 rounded-lg border border-app-border px-3 py-2.5 sm:px-4">
@@ -193,10 +193,12 @@ function RecordDetailContent({
                 </li>
               ))}
             </ul>
-          ) : (
-            <p className="mt-4 rounded-lg border border-dashed border-app-border px-4 py-5 text-center text-sm text-app-text-subtle">
-              Bu kayda eklenmiş dosya bulunmuyor.
-            </p>
+              ) : (
+                <p className="mt-4 rounded-lg border border-dashed border-app-border px-4 py-5 text-center text-sm text-app-text-subtle">
+                  Bu kayda eklenmiş dosya bulunmuyor.
+                </p>
+              )}
+            </>
           )}
         </div>
       </section>

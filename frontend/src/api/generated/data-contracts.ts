@@ -91,7 +91,7 @@ export interface CreateUserRequest {
   password: string;
 }
 
-export type DeleteFileData = object;
+export type DeleteFileData = any;
 
 export interface DeleteFileParams {
   /** @format uuid */
@@ -111,6 +111,21 @@ export type DownloadFileData = File;
 export interface DownloadFileParams {
   /** @format uuid */
   id: string;
+}
+
+export interface FileResponseDto {
+  /** @format int32 */
+  fileSize?: number;
+  /** @format uuid */
+  id?: string;
+  mimeType?: string;
+  originalName?: string;
+  /** @format uuid */
+  recordId?: string;
+  /** @format date-time */
+  uploadedAt?: string;
+  /** @format uuid */
+  uploadedBy?: string;
 }
 
 export type GetAllCategoriesData = CategoryResponse[];
@@ -161,6 +176,13 @@ export type ListAuditLogsData = PagedResponseUserAuditLogResponse;
 
 export interface ListAuditLogsParams {
   pageable: Pageable;
+}
+
+export type ListFilesData = FileResponseDto[];
+
+export interface ListFilesParams {
+  /** @format uuid */
+  id: string;
 }
 
 export type ListRolesData = RoleResponse[];
@@ -392,7 +414,7 @@ export interface UpdateRecordParams {
   id: string;
 }
 
-export type UploadFileData = object;
+export type UploadFileData = FileResponseDto;
 
 export interface UploadFileParams {
   /** @format uuid */
