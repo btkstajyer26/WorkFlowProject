@@ -1,8 +1,6 @@
 package btk.staj.WorkFlowProject.notification.service;
 
 import btk.staj.WorkFlowProject.common.dto.PagedResponse;
-import btk.staj.WorkFlowProject.common.exception.ForbiddenException;
-import btk.staj.WorkFlowProject.common.exception.ResourceNotFoundException;
 import btk.staj.WorkFlowProject.notification.dto.NotificationResponse;
 import btk.staj.WorkFlowProject.notification.entity.Notification;
 import btk.staj.WorkFlowProject.notification.entity.NotificationType;
