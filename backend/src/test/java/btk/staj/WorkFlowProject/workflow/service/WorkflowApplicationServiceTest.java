@@ -261,33 +261,20 @@ class WorkflowApplicationServiceTest {
         assertNoMutation();
     }
 
+    /**
+     * Hedefi artik her aksiyon icin backend cozuyor, yani bu varyanti ureten
+     * bir kol kalmadi. Sealed tipte durdugu surece servisin onu dogru
+     * esledigi dogrulanmaya devam eder.
+     */
     @Test
-    @DisplayName("istekte zorunlu hedef yoksa resolver cagrilmaz")
-    void rejectsMissingRequestTargetBeforeResolution() {
-        WorkflowRecordSnapshot record = activeRecord(
-                RecordStatus.TASLAK, ACTOR_ID, null, LAST_DEPUTY_ID);
-        arrange(record, RoleName.CALISAN);
-
-        WorkflowApplicationException exception = assertThrows(
-                WorkflowApplicationException.class,
-                () -> service.performAction(
-                        RECORD_ID,
-                        new WorkflowActionRequest(WorkflowAction.GONDER, null, null)));
-
-        assertThat(exception.errorCode()).isEqualTo(WorkflowErrorCode.WORKFLOW_TARGET_REQUIRED);
-        verifyNoInteractions(targetUserResolver);
-        assertNoMutation();
-    }
-
-    @Test
-    @DisplayName("bulunamayan request hedefi hedef rol hatasina eslenir")
+    @DisplayName("bulunamayan request hedefi varyanti hedef rol hatasina eslenir")
     void mapsMissingRequestTargetUserToTargetRoleInvalid() {
         WorkflowRecordSnapshot record = activeRecord(
                 RecordStatus.TASLAK, ACTOR_ID, null, LAST_DEPUTY_ID);
         WorkflowActionRequest request = new WorkflowActionRequest(
-                WorkflowAction.GONDER, SUPPLIED_TARGET_ID, null);
+                WorkflowAction.GONDER, null, null);
         arrange(record, RoleName.CALISAN);
-        when(targetUserResolver.resolve(WorkflowAction.GONDER, SUPPLIED_TARGET_ID, record))
+        when(targetUserResolver.resolve(WorkflowAction.GONDER, null, record))
                 .thenReturn(new TargetResolution.RequestTargetNotFound(SUPPLIED_TARGET_ID));
 
         WorkflowApplicationException exception = assertThrows(
@@ -304,9 +291,9 @@ class WorkflowApplicationServiceTest {
         WorkflowRecordSnapshot record = activeRecord(
                 RecordStatus.TASLAK, ACTOR_ID, null, LAST_DEPUTY_ID);
         WorkflowActionRequest request = new WorkflowActionRequest(
-                WorkflowAction.GONDER, TARGET_ID, null);
+                WorkflowAction.GONDER, null, null);
         arrange(record, RoleName.CALISAN);
-        when(targetUserResolver.resolve(WorkflowAction.GONDER, TARGET_ID, record))
+        when(targetUserResolver.resolve(WorkflowAction.GONDER, null, record))
                 .thenReturn(new TargetResolution.Resolved(
                         new WorkflowUserSnapshot(TARGET_ID, RoleName.BASKAN_YARDIMCISI, false)));
 
@@ -324,9 +311,9 @@ class WorkflowApplicationServiceTest {
         WorkflowRecordSnapshot record = activeRecord(
                 RecordStatus.TASLAK, ACTOR_ID, null, LAST_DEPUTY_ID);
         WorkflowActionRequest request = new WorkflowActionRequest(
-                WorkflowAction.GONDER, TARGET_ID, null);
+                WorkflowAction.GONDER, null, null);
         arrange(record, RoleName.CALISAN);
-        when(targetUserResolver.resolve(WorkflowAction.GONDER, TARGET_ID, record))
+        when(targetUserResolver.resolve(WorkflowAction.GONDER, null, record))
                 .thenReturn(new TargetResolution.Resolved(
                         new WorkflowUserSnapshot(TARGET_ID, RoleName.ADMIN, true)));
 
@@ -335,6 +322,25 @@ class WorkflowApplicationServiceTest {
                 () -> service.performAction(RECORD_ID, request));
 
         assertThat(exception.errorCode()).isEqualTo(WorkflowErrorCode.WORKFLOW_TARGET_ROLE_INVALID);
+        assertNoMutation();
+    }
+
+    @Test
+    @DisplayName("tek aktif Baskan Yardimcisi yoksa gonderme role not configured ile durur")
+    void mapsDeputyConfigurationFailure() {
+        WorkflowRecordSnapshot record = activeRecord(
+                RecordStatus.TASLAK, ACTOR_ID, null, LAST_DEPUTY_ID);
+        WorkflowActionRequest request = new WorkflowActionRequest(
+                WorkflowAction.GONDER, null, null);
+        arrange(record, RoleName.CALISAN);
+        when(targetUserResolver.resolve(WorkflowAction.GONDER, null, record))
+                .thenReturn(new TargetResolution.RoleNotConfigured(RoleName.BASKAN_YARDIMCISI, 0));
+
+        WorkflowApplicationException exception = assertThrows(
+                WorkflowApplicationException.class,
+                () -> service.performAction(RECORD_ID, request));
+
+        assertThat(exception.errorCode()).isEqualTo(WorkflowErrorCode.WORKFLOW_ROLE_NOT_CONFIGURED);
         assertNoMutation();
     }
 
@@ -618,7 +624,7 @@ class WorkflowApplicationServiceTest {
                         ACTOR_ID,
                         null,
                         LAST_DEPUTY_ID,
-                        TARGET_ID,
+                        null,
                         null,
                         new TargetResolution.Resolved(
                                 new WorkflowUserSnapshot(TARGET_ID, RoleName.BASKAN_YARDIMCISI, true)),
@@ -633,7 +639,7 @@ class WorkflowApplicationServiceTest {
                         ACTOR_ID,
                         ACTOR_ID,
                         LAST_DEPUTY_ID,
-                        TARGET_ID,
+                        null,
                         null,
                         new TargetResolution.Resolved(
                                 new WorkflowUserSnapshot(TARGET_ID, RoleName.BASKAN_YARDIMCISI, true)),
@@ -732,6 +738,22 @@ class WorkflowApplicationServiceTest {
 
     private static Stream<ForbiddenTargetCase> actionsThatRejectRequestTarget() {
         return Stream.of(
+                new ForbiddenTargetCase(
+                        "Gonder request hedefini reddeder",
+                        RecordStatus.TASLAK,
+                        WorkflowAction.GONDER,
+                        RoleName.CALISAN,
+                        ACTOR_ID,
+                        null,
+                        null),
+                new ForbiddenTargetCase(
+                        "Tekrar gonder request hedefini reddeder",
+                        RecordStatus.DUZENLEME_BEKLIYOR,
+                        WorkflowAction.TEKRAR_GONDER,
+                        RoleName.CALISAN,
+                        ACTOR_ID,
+                        ACTOR_ID,
+                        null),
                 new ForbiddenTargetCase(
                         "Baskana ilet request hedefini reddeder",
                         RecordStatus.BSK_YRD_INCELEMESINDE,
