@@ -7,6 +7,7 @@ import btk.staj.WorkFlowProject.rbac.Role;
 import btk.staj.WorkFlowProject.user.repository.RoleRepository;
 import btk.staj.WorkFlowProject.workflow.model.WorkflowTransitionAudit;
 import btk.staj.WorkFlowProject.workflow.port.AuditService;
+import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import org.springframework.stereotype.Service;
 
@@ -55,7 +56,42 @@ public class AuditLogService implements AuditService {
         auditLogRepository.save(log);
     }
 
+    /**
+     * Kayit yasam dongusu olaylari (olusturma/guncelleme/silme); durum gecisi
+     * yoktur. {@code record} modulunun {@code createRecord}/{@code updateRecord}/
+     * {@code deleteRecord} icinde cagirmasi icin acilmis giris noktasi.
+     *
+     * <p>{@code previous_status} bos birakilir (kolon nullable); {@code new_status}
+     * NOT NULL oldugu icin kaydin o anki durumu yazilir. Sema degismez.
+     */
+    public void recordLifecycleEvent(UUID recordId,
+                                     UUID actorId,
+                                     RoleName actorRole,
+                                     String action,
+                                     RecordStatus currentStatus,
+                                     String comment) {
 
+        Objects.requireNonNull(recordId, "recordId");
+        Objects.requireNonNull(actorId, "actorId");
+        Objects.requireNonNull(actorRole, "actorRole");
+        Objects.requireNonNull(action, "action");
+        Objects.requireNonNull(currentStatus, "currentStatus");
+
+        AuditLog log = AuditLog.builder()
+                .recordId(recordId)
+                .userId(actorId)
+                .roleId(resolveRoleId(actorRole))
+                .action(action)
+                .previousStatus(null)
+                .newStatus(currentStatus.name())
+                .comment(comment)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        auditLogRepository.save(log);
+    }
+
+    /** Bir evragin detay sayfasindaki "Islem Gecmisi" tablosunu doldurmak icin. */
     public List<AuditLogResponse> getGecmis(UUID recordId) {
         Objects.requireNonNull(recordId, "recordId");
         return auditLogRepository.findHistoryByRecordId(recordId);

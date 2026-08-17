@@ -179,4 +179,44 @@ class AuditLogServiceTest {
                 RECORD_ID, action, previousStatus, newStatus,
                 ACTOR_ID, actorRole, ASSIGNED_TO, comment, PERFORMED_AT);
     }
+
+    // ------------------------------------------------------------------
+    // Kayit yasam dongusu olaylari (record modulunun cagirdigi giris noktasi)
+    // ------------------------------------------------------------------
+
+    @Test
+    @DisplayName("yasam dongusu olayini durum gecisi olmadan yazar")
+    void writesALifecycleEventWithoutATransition() {
+        givenRole("CALISAN", 1);
+
+        service.recordLifecycleEvent(RECORD_ID, ACTOR_ID, RoleName.CALISAN,
+                "RECORD_CREATED", RecordStatus.TASLAK, "Kayit olusturuldu");
+
+        AuditLog saved = captureSaved();
+        assertThat(saved.getRecordId()).isEqualTo(RECORD_ID);
+        assertThat(saved.getUserId()).isEqualTo(ACTOR_ID);
+        assertThat(saved.getRoleId()).isEqualTo(1);
+        assertThat(saved.getAction()).isEqualTo("RECORD_CREATED");
+        assertThat(saved.getComment()).isEqualTo("Kayit olusturuldu");
+        assertThat(saved.getPreviousStatus())
+                .as("yasam dongusu olayinda onceki durum yoktur")
+                .isNull();
+        assertThat(saved.getNewStatus())
+                .as("new_status NOT NULL oldugu icin kaydin o anki durumu yazilir")
+                .isEqualTo("TASLAK");
+    }
+
+    @Test
+    @DisplayName("yasam dongusu olayinda rol roles tablosunda yoksa yazmaz")
+    void failsWithoutWritingWhenTheLifecycleRoleRowIsMissing() {
+        when(roleRepository.findByName("CALISAN")).thenReturn(Optional.empty());
+
+        assertThatIllegalStateException()
+                .isThrownBy(() -> service.recordLifecycleEvent(
+                        RECORD_ID, ACTOR_ID, RoleName.CALISAN,
+                        "RECORD_CREATED", RecordStatus.TASLAK, null))
+                .withMessageContaining("CALISAN");
+
+        verifyNoInteractions(auditLogRepository);
+    }
 }
