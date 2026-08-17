@@ -9,6 +9,7 @@ import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.jpa.domain.Specification;
@@ -90,6 +91,43 @@ class RecordSpecificationsTest {
     }
 
     @Test
+    @DisplayName("olusturan filtresi verilmezse alt sorgu kurulmaz")
+    void noSubqueryWithoutTheCreatorFilter() {
+        build(RoleName.CALISAN);
+
+        verify(query, never()).subquery(UUID.class);
+    }
+
+    @Test
+    @DisplayName("olusturan filtresi kapsami gevsetmez, uzerine AND'lenir")
+    void theCreatorFilterOnlyNarrowsTheScope() {
+        Path<Object> createdBy = pathFor("createdBy");
+        givenSubquery();
+        RecordSearchCriteria criteria = new RecordSearchCriteria();
+        criteria.setCreator("ahmet");
+
+        RecordSpecifications.withFilters(criteria, USER_ID, RoleName.CALISAN)
+                .toPredicate(root, query, cb);
+
+        // Kapsam kosulu hala kuruluyor: filtre onun yerine gecmiyor, yanina ekleniyor.
+        verify(cb).equal(createdBy, USER_ID);
+        verify(query).subquery(UUID.class);
+        verify(cb).exists(any());
+    }
+
+    @Test
+    @DisplayName("bos olusturan filtresi yok sayilir")
+    void aBlankCreatorFilterIsIgnored() {
+        RecordSearchCriteria criteria = new RecordSearchCriteria();
+        criteria.setCreator("   ");
+
+        RecordSpecifications.withFilters(criteria, USER_ID, RoleName.CALISAN)
+                .toPredicate(root, query, cb);
+
+        verify(query, never()).subquery(UUID.class);
+    }
+
+    @Test
     @DisplayName("kullanici veya rol verilmeden olusturulamaz")
     void refusesToBuildWithoutAnActor() {
         RecordSearchCriteria criteria = new RecordSearchCriteria();
@@ -98,6 +136,13 @@ class RecordSpecificationsTest {
                 () -> RecordSpecifications.withFilters(criteria, null, RoleName.CALISAN));
         assertThatNullPointerException().isThrownBy(
                 () -> RecordSpecifications.withFilters(criteria, USER_ID, null));
+    }
+
+    /** Olusturan filtresi korele bir EXISTS alt sorgusu kurar. */
+    @SuppressWarnings("unchecked")
+    private void givenSubquery() {
+        Subquery<UUID> subquery = mock(Subquery.class, RETURNS_DEEP_STUBS);
+        when(query.subquery(UUID.class)).thenReturn(subquery);
     }
 
     @SuppressWarnings("unchecked")

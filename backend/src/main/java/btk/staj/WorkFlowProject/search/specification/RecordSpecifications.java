@@ -2,9 +2,11 @@ package btk.staj.WorkFlowProject.search.specification;
 
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.search.dto.RecordSearchCriteria;
+import btk.staj.WorkFlowProject.user.entity.User;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.util.ArrayList;
@@ -44,6 +46,10 @@ public final class RecordSpecifications {
                         cb.like(cb.lower(root.get("description")), text)));
             }
 
+            if (criteria.getCreator() != null && !criteria.getCreator().isBlank()) {
+                predicates.add(createdByNameLike(root, query, cb, criteria.getCreator()));
+            }
+
             if (criteria.getStatus() != null) {
                 predicates.add(cb.equal(root.get("status"), criteria.getStatus()));
             }
@@ -64,6 +70,38 @@ public final class RecordSpecifications {
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };
+    }
+
+    /**
+     * Kaydi olusturan kullanicinin adina/soyadina gore filtre (sozlesme §5
+     * {@code creator} parametresi).
+     *
+     * <p>{@code records.created_by} yalnizca UUID tutuyor, {@code users} ile
+     * tanimli bir JPA iliskisi yok; bu yuzden esleme korele bir {@code EXISTS}
+     * alt sorgusuyla yapilir. Alt sorgu yalnizca daraltir, gorunurluk kapsamini
+     * gevsetmez.
+     */
+    private static Predicate createdByNameLike(
+            jakarta.persistence.criteria.Root<Record> root,
+            jakarta.persistence.criteria.CriteriaQuery<?> query,
+            jakarta.persistence.criteria.CriteriaBuilder cb,
+            String creator) {
+
+        String pattern = "%" + creator.toLowerCase() + "%";
+
+        Subquery<UUID> subquery = query.subquery(UUID.class);
+        var user = subquery.from(User.class);
+
+        Predicate nameMatches = cb.or(
+                cb.like(cb.lower(user.get("firstName")), pattern),
+                cb.like(cb.lower(user.get("lastName")), pattern),
+                // "Ahmet Yilmaz" gibi tam ad aramasi da calissin.
+                cb.like(cb.lower(cb.concat(cb.concat(user.get("firstName"), " "), user.get("lastName"))), pattern));
+
+        subquery.select(user.get("id"))
+                .where(nameMatches, cb.equal(user.get("id"), root.get("createdBy")));
+
+        return cb.exists(subquery);
     }
 
     /**
