@@ -1,7 +1,7 @@
 import { http, HttpResponse } from 'msw'
 import type { PagedResponseRecordSearchResponse, RecordCreateRequest, RecordSearchResponse, RecordUpdateRequest } from '../../../api/generated/data-contracts'
 import { apiBaseUrl } from '../../../api/config'
-import { getAuthenticatedMockUser } from '../auth'
+import { getAuthenticatedMockUser, getMockUserById } from '../auth'
 import { mockApiCategories, mockApiDb, toRecordResponse, type StoredMockRecord } from '../db'
 import { canViewMockRecord } from '../recordAccess'
 import { apiErrorResponse, forbiddenResponse, unauthorizedResponse } from '../responses'
@@ -30,6 +30,7 @@ export const recordHandlers = [
     const status = url.searchParams.get('status')
     const categoryId = url.searchParams.get('categoryId')
     const query = url.searchParams.get('q')?.trim().toLocaleLowerCase('tr-TR')
+    const creator = url.searchParams.get('creator')?.trim().toLocaleLowerCase('tr-TR')
     const from = url.searchParams.get('from')
     const to = url.searchParams.get('to')
     const page = parseNonNegativeInt(url.searchParams.get('page'), 0)
@@ -40,6 +41,10 @@ export const recordHandlers = [
       (!status || record.status === status) &&
       (!categoryId || record.categoryId === Number(categoryId)) &&
       (!query || `${record.title} ${record.description}`.toLocaleLowerCase('tr-TR').includes(query)) &&
+      (!creator || (() => {
+        const recordCreator = getMockUserById(record.createdBy)
+        return Boolean(recordCreator && `${recordCreator.firstName} ${recordCreator.lastName}`.toLocaleLowerCase('tr-TR').includes(creator))
+      })()) &&
       (!from || record.createdAt >= from) &&
       (!to || record.createdAt <= to)
     ))
