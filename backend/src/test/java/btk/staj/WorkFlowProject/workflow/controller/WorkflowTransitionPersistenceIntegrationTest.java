@@ -5,6 +5,7 @@ import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
 import btk.staj.WorkFlowProject.notification.service.MailService;
 import btk.staj.WorkFlowProject.rbac.Role;
 import btk.staj.WorkFlowProject.user.entity.User;
+import btk.staj.WorkFlowProject.workflow.adapter.UserPortAdapter;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
@@ -31,6 +32,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -75,6 +77,14 @@ class WorkflowTransitionPersistenceIntegrationTest {
     /** Varsayilan olarak gercek servise delege eder; yalniz rollback testinde patlatilir. */
     @MockitoSpyBean
     private AuditLogService auditLogService;
+
+    /**
+     * Varsayilan olarak gercek adaptore delege eder. Surum catismasi testinde
+     * araya girme noktasi olarak kullanilir: hedef cozumleme, kayit okunduktan
+     * <em>sonra</em> ve yazma yapilmadan <em>once</em> calisan tek adimdir.
+     */
+    @MockitoSpyBean
+    private UserPortAdapter userPortAdapter;
 
     // =================================================================
     // Gecisler: kolonlarin dogru degerle yazildigi
@@ -345,6 +355,57 @@ class WorkflowTransitionPersistenceIntegrationTest {
 
             assertThat(auditRowCount(record)).isZero();
             // Bildirim de ayni transaction'da yazilir; o da geri alinmali.
+            assertThat(notificationRowCount(record)).isZero();
+        } finally {
+            deleteRecordAndUsers(record, List.of(calisan, yardimci));
+            reactivate(pasiflestirilenler);
+        }
+    }
+
+    /**
+     * Surum catismasinin uctan uca {@code 409} olarak raporlandigini dogrular.
+     *
+     * <p>Catisma bilerek <em>elle yazilan</em> surum karsilastirmasiyla degil,
+     * Hibernate'in flush anindaki {@code @Version} kontroluyle uretilir: kayit,
+     * servis okuduktan sonra ama yazma gerceklesmeden hemen once guncellenir,
+     * boylece {@code UPDATE ... WHERE version = <eski>} sifir satir gunceller.
+     * Adapterdeki elle kontrol tek transaction icinde persistence context ayni
+     * managed entity'yi dondurdugu icin bu yolu yakalayamaz; asil koruma budur.
+     *
+     * <p>{@link #aFailedAuditWriteRollsBackTheRecordUpdate()} gibi bu test de
+     * bilerek {@code @Transactional} <em>degildir</em>: servisin rollback'i
+     * testin kendi transaction'i icinde gorunmez olurdu.
+     */
+    @Test
+    @DisplayName("kayit istek sirasinda degistiyse 409 doner ve hicbir iz birakmaz")
+    void aConcurrentVersionChangeIsReportedAsConflict() throws Exception {
+        List<UUID> pasiflestirilenler = activeUserIds(RoleName.BASKAN_YARDIMCISI);
+        UUID calisan = insertUser(RoleName.CALISAN);
+        UUID yardimci = insertSingleActiveYardimci();
+        UUID record = insertRecord(RecordStatus.TASLAK, calisan, null, null);
+
+        try {
+            // Hedef cozumleme, kayit okunduktan sonra ve yazmadan once calisir:
+            // baska bir islem kaydi tam bu aralikta guncellemis gibi davran.
+            doAnswer(invocation -> {
+                jdbc.update("UPDATE records SET version = version + 1 WHERE id = ?", record);
+                return invocation.callRealMethod();
+            }).when(userPortAdapter).findActiveByRole(RoleName.BASKAN_YARDIMCISI);
+
+            perform(record, actor(calisan, RoleName.CALISAN),
+                    "{\"action\":\"GONDER\"}")
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value("WORKFLOW_VERSION_CONFLICT"));
+
+            // Gecis uygulanmamis olmali: durum, atama ve surum ilk hallerinde.
+            Map<String, Object> row = jdbc.queryForMap(
+                    "SELECT status, assigned_to, version FROM records WHERE id = ?", record);
+            assertThat(row.get("status")).isEqualTo("TASLAK");
+            assertThat(row.get("assigned_to")).isNull();
+            assertThat(row.get("version")).isEqualTo(0);
+
+            // Basarisiz bir gecis gecmiste iz birakmaz.
+            assertThat(auditRowCount(record)).isZero();
             assertThat(notificationRowCount(record)).isZero();
         } finally {
             deleteRecordAndUsers(record, List.of(calisan, yardimci));
