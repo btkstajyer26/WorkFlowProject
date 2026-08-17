@@ -14,6 +14,15 @@ public class WorkflowApplicationException extends RuntimeException {
         this.errorCode = errorCode;
     }
 
+    /**
+     * Altyapi istisnasi bu koda cevrilirken kullanilir; ozgun yigin izi
+     * kaybolmasin diye {@code cause} korunur.
+     */
+    public WorkflowApplicationException(WorkflowErrorCode errorCode, Throwable cause) {
+        super(Objects.requireNonNull(errorCode, "errorCode").name(), cause);
+        this.errorCode = errorCode;
+    }
+
     public WorkflowErrorCode errorCode() {
         return errorCode;
     }

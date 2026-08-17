@@ -436,7 +436,7 @@ Beklenen HTTP durumları:
 | `401` | Bir kez refresh; başarısızsa girişe yönlendirir |
 | `403` | Yetki ekranını gösterir |
 | `404` | Kayıt bulunamadı ekranını gösterir |
-| `409` | Güncel olmayan durum/geçersiz geçiş mesajını gösterip kaydı yeniden çeker |
+| `409` | Güncel olmayan durum/geçersiz geçiş mesajını gösterip kaydı yeniden çeker. `WORKFLOW_VERSION_CONFLICT` ve `VERSION_CONFLICT` kodları kayıt siz işlem yaparken değiştiği anlamına gelir: detay yeniden çekilmeli, güncel durum gösterilmeli, aksiyon **otomatik tekrarlanmamalıdır** |
 | `413` / `415` | Dosya boyutu/türü mesajını dosya alanında gösterir |
 | `500` | Genel hata mesajı ve `traceId` gösterir |
 
