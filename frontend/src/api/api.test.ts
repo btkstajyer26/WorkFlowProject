@@ -124,7 +124,6 @@ describe('OpenAPI istemcisi ve MSW sözleşmesi', () => {
     await loginAs(employeeCredentials.email)
     const submitted = await api.workflow.performAction({ recordId }, {
       action: 'GONDER',
-      targetUserId: deputyId,
     })
     expect(submitted).toMatchObject({
       previousStatus: 'TASLAK',

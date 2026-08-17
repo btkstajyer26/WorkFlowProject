@@ -77,6 +77,40 @@ async function renderBackendChairPanel() {
   )
 }
 
+async function renderBackendEmployeePanel() {
+  const tokens = await api.auth.login({ email: 'john.doe@kurum.gov.tr', password: 'demo123' })
+  setApiAccessToken(tokens.accessToken!)
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+  const record: WorkflowRecord = {
+    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+    recordNumber: '',
+    title: 'Yeni donanım talebi',
+    description: 'Çalışma istasyonu talebidir.',
+    categoryId: 4,
+    category: 'Bilgi İşlem',
+    status: 'TASLAK',
+    createdBy: 'John Doe',
+    assignedTo: null,
+    lastAction: 'Taslak kaydedildi',
+    createdAt: '2026-08-17T10:00:00Z',
+    updatedAt: '2026-08-17T10:00:00Z',
+    attachments: [],
+    history: [],
+  }
+
+  render(
+    <MemoryRouter initialEntries={[`/kayitlar/${record.id}`]}>
+      <QueryClientProvider client={queryClient}>
+        <ToastProvider>
+          <WorkflowProvider user={getDemoUserByRole('CALISAN')}>
+            <RecordActionPanel record={record} role="CALISAN" source="backend" />
+          </WorkflowProvider>
+        </ToastProvider>
+      </QueryClientProvider>
+    </MemoryRouter>,
+  )
+}
+
 describe('RecordActionPanel', () => {
   it('ret açıklamasını işlem penceresinde zorunlu gösterir', async () => {
     const user = userEvent.setup()
@@ -145,5 +179,30 @@ describe('RecordActionPanel', () => {
       action: 'ONAYLA',
       comment: 'Gerçek API onayı.',
     })
+  })
+
+  it('Çalışanın taslağını hedef kullanıcı göndermeden gerçek workflow endpointine iletir', async () => {
+    const user = userEvent.setup()
+    let receivedRequest: WorkflowActionRequest | undefined
+    apiMockServer.use(
+      http.post(`${apiBaseUrl}/api/records/:recordId/workflow/actions`, async ({ params, request }) => {
+        receivedRequest = await request.json() as WorkflowActionRequest
+        return HttpResponse.json({
+          recordId: params.recordId,
+          action: receivedRequest.action,
+          previousStatus: 'TASLAK',
+          newStatus: 'BSK_YRD_INCELEMESINDE',
+          performedBy: 'user-demo-001',
+          performedAt: '2026-08-17T11:30:00Z',
+        })
+      }),
+    )
+    await renderBackendEmployeePanel()
+
+    await user.click(screen.getByRole('button', { name: 'İncelemeye Gönder' }))
+    await user.click(screen.getAllByRole('button', { name: 'İncelemeye Gönder' }).at(-1)!)
+
+    await waitFor(() => expect(screen.getByText('Kayıt incelemeye gönderildi')).toBeInTheDocument())
+    expect(receivedRequest).toEqual({ action: 'GONDER' })
   })
 })

@@ -54,7 +54,7 @@ function requiresComment(action: WorkflowAction) {
 
 function resolveTarget(record: StoredMockRecord, request: WorkflowActionRequest) {
   if (request.action === 'GONDER' || request.action === 'TEKRAR_GONDER') {
-    return request.targetUserId ? getMockUserById(request.targetUserId) : undefined
+    return getMockUserByRole('BASKAN_YARDIMCISI')
   }
   if (request.action === 'BASKANA_ILET') return getMockUserByRole('BASKAN')
   if (request.action === 'CALISANA_GERI_GONDER') return getMockUserById(record.createdBy)
@@ -85,11 +85,7 @@ export const workflowHandlers = [
       return apiErrorResponse(400, 'WORKFLOW_COMMENT_REQUIRED', 'Bu işlem için açıklama zorunludur')
     }
 
-    const requestNeedsTarget = body.action === 'GONDER' || body.action === 'TEKRAR_GONDER'
-    if (requestNeedsTarget && !body.targetUserId) {
-      return apiErrorResponse(400, 'WORKFLOW_TARGET_REQUIRED', 'Hedef kullanıcı seçilmelidir')
-    }
-    if (!requestNeedsTarget && body.targetUserId) {
+    if (body.targetUserId) {
       return apiErrorResponse(400, 'WORKFLOW_TARGET_NOT_ALLOWED', 'Bu işlem için hedef kullanıcı gönderilmemelidir')
     }
 
@@ -106,7 +102,7 @@ export const workflowHandlers = [
     }
 
     const target = resolveTarget(record, body)
-    if (requestNeedsTarget && target?.role !== 'BASKAN_YARDIMCISI') {
+    if ((body.action === 'GONDER' || body.action === 'TEKRAR_GONDER') && target?.role !== 'BASKAN_YARDIMCISI') {
       return apiErrorResponse(400, 'WORKFLOW_TARGET_ROLE_INVALID', 'Seçilen hedef kullanıcının rolü uygun değil')
     }
     if (body.action === 'BASKAN_YARDIMCISINA_GERI_GONDER' && !target) {

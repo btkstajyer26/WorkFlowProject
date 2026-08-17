@@ -85,7 +85,7 @@ export function RecordActionPanel({
   const [activeAction, setActiveAction] = useState<ReviewAction | null>(null)
   const { busy: mutationBusy, run: runMutation } = useSingleFlight()
 
-  const employeeCanEdit = source === 'mock' && role === 'CALISAN' && (record.status === 'TASLAK' || record.status === 'DUZENLEME_BEKLIYOR')
+  const employeeCanEdit = role === 'CALISAN' && (record.status === 'TASLAK' || record.status === 'DUZENLEME_BEKLIYOR')
   const viceChairCanReview = role === 'BASKAN_YARDIMCISI' && record.status === 'BSK_YRD_INCELEMESINDE'
   const chairCanReview = role === 'BASKAN' && record.status === 'BASKAN_INCELEMESINDE'
 
@@ -101,18 +101,19 @@ export function RecordActionPanel({
 
     try {
       if (source === 'backend') {
-        if (activeAction === 'submit') throw new Error('Bu gönderim akışı henüz backend sözleşmesinde netleşmedi.')
         const normalizedComment = comment.trim()
         const request: WorkflowActionRequest = {
-          action: activeAction === 'forward'
-            ? 'BASKANA_ILET'
-            : activeAction === 'return'
-              ? returnTarget === 'CALISAN'
-                ? 'CALISANA_GERI_GONDER'
-                : 'BASKAN_YARDIMCISINA_GERI_GONDER'
-              : activeAction === 'approve'
-                ? 'ONAYLA'
-                : 'REDDET',
+          action: activeAction === 'submit'
+            ? record.status === 'TASLAK' ? 'GONDER' : 'TEKRAR_GONDER'
+            : activeAction === 'forward'
+              ? 'BASKANA_ILET'
+              : activeAction === 'return'
+                ? returnTarget === 'CALISAN'
+                  ? 'CALISANA_GERI_GONDER'
+                  : 'BASKAN_YARDIMCISINA_GERI_GONDER'
+                : activeAction === 'approve'
+                  ? 'ONAYLA'
+                  : 'REDDET',
           ...(normalizedComment ? { comment: normalizedComment } : {}),
         }
         await workflowMutation.mutateAsync(request)
