@@ -54,7 +54,10 @@ function BackendRecordDetailPage({ role }: { role: UserRole }) {
     queryKey: queryKeys.records.detail(recordId ?? 'missing', categoryRevision),
     queryFn: () => getRecordDetail(recordId!, categories),
     enabled: Boolean(recordId) && categoryStatus === 'ready',
-    refetchInterval: 30_000,
+    refetchInterval: (query) => {
+      const record = query.state.data as WorkflowRecord | undefined
+      return role !== 'CALISAN' && record?.status === 'DUZENLEME_BEKLIYOR' ? false : 30_000
+    },
   })
 
   if (!recordId) return <Navigate to="/404" replace />

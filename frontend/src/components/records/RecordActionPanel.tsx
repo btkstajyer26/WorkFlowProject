@@ -76,10 +76,10 @@ export function RecordActionPanel({
   role: UserRole
   source?: 'mock' | 'backend'
 }) {
-  const { applyAction } = useWorkflow()
+  const { applyAction, user } = useWorkflow()
   const { showToast } = useToast()
   const navigate = useNavigate()
-  const workflowMutation = useRecordWorkflowAction(record.id)
+  const workflowMutation = useRecordWorkflowAction(record.id, user)
   const [comment, setComment] = useState('')
   const [returnTarget, setReturnTarget] = useState<'CALISAN' | 'BASKAN_YARDIMCISI'>('CALISAN')
   const [activeAction, setActiveAction] = useState<ReviewAction | null>(null)
@@ -98,6 +98,7 @@ export function RecordActionPanel({
 
   const completeAction = () => runMutation(async () => {
     if (!activeAction) return
+    const keepReturnedRecordOpen = source === 'backend' && activeAction === 'return' && returnTarget === 'CALISAN'
 
     try {
       if (source === 'backend') {
@@ -149,7 +150,7 @@ export function RecordActionPanel({
       showToast({ title: successCopy[activeAction], tone: 'success' })
       setActiveAction(null)
       setComment('')
-      if (source === 'backend') navigate('/kayitlar')
+      if (source === 'backend' && !keepReturnedRecordOpen) navigate('/kayitlar')
     } catch (caughtError) {
       showToast({
         title: 'İşlem tamamlanamadı',
