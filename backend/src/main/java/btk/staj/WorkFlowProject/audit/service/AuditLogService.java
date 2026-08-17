@@ -2,13 +2,17 @@ package btk.staj.WorkFlowProject.audit.service;
 
 import btk.staj.WorkFlowProject.audit.dto.AuditLogResponse;
 import btk.staj.WorkFlowProject.audit.entity.AuditLog;
+import btk.staj.WorkFlowProject.audit.model.RequestAccessEvent;
 import btk.staj.WorkFlowProject.audit.repository.AuditLogRepository;
+import btk.staj.WorkFlowProject.common.dto.PagedResponse;
 import btk.staj.WorkFlowProject.rbac.Role;
 import btk.staj.WorkFlowProject.user.repository.RoleRepository;
 import btk.staj.WorkFlowProject.workflow.model.WorkflowTransitionAudit;
 import btk.staj.WorkFlowProject.workflow.port.AuditService;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -89,6 +93,42 @@ public class AuditLogService implements AuditService {
                 .build();
 
         auditLogRepository.save(log);
+    }
+
+    /**
+     * Admin aktörünün giriş/çıkış ve HTTP istekleri. record_id yoktur;
+     * evrak geçmişi sorgusu bu satırları görmez.
+     */
+    public void recordAccess(RequestAccessEvent event) {
+        Objects.requireNonNull(event, "event");
+        Objects.requireNonNull(event.action(), "action");
+
+        AuditLog log = AuditLog.builder()
+                .recordId(null)
+                .userId(event.userId())
+                .roleId(event.roleId())
+                .action(event.action())
+                .previousStatus(null)
+                .newStatus(null)
+                .comment(event.comment())
+                .httpMethod(event.httpMethod())
+                .requestPath(event.requestPath())
+                .httpStatus(event.httpStatus())
+                .errorCode(event.errorCode())
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        auditLogRepository.save(log);
+    }
+
+    public PagedResponse<AuditLogResponse> listAll(Pageable pageable) {
+        Page<AuditLogResponse> page = auditLogRepository.findAllWithNames(pageable);
+        return new PagedResponse<>(
+                page.getContent(),
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages());
     }
 
     /** Bir evragin detay sayfasindaki "Islem Gecmisi" tablosunu doldurmak icin. */

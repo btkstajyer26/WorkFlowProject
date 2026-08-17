@@ -1,5 +1,6 @@
 package btk.staj.WorkFlowProject.user.controller;
 
+import btk.staj.WorkFlowProject.audit.service.AuditLogService;
 import btk.staj.WorkFlowProject.audit.service.UserAuditLogService;
 import btk.staj.WorkFlowProject.common.exception.GlobalExceptionHandler;
 import btk.staj.WorkFlowProject.user.service.UserService;
@@ -36,11 +37,14 @@ class AdminControllerTest {
     @Mock
     private UserAuditLogService userAuditLogService;
 
+    @Mock
+    private AuditLogService auditLogService;
+
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        AdminController controller = new AdminController(userService, userAuditLogService);
+        AdminController controller = new AdminController(userService, userAuditLogService, auditLogService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())

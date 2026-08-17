@@ -44,6 +44,10 @@ public interface AuditLogRepository extends Repository<AuditLog, UUID> {
                        a.previousStatus,
                        a.newStatus,
                        a.comment,
+                       a.httpMethod,
+                       a.requestPath,
+                       a.httpStatus,
+                       a.errorCode,
                        a.createdAt)
             FROM AuditLog a
             JOIN User u ON u.id = a.userId
@@ -52,6 +56,35 @@ public interface AuditLogRepository extends Repository<AuditLog, UUID> {
             ORDER BY a.createdAt ASC
             """)
     List<AuditLogResponse> findHistoryByRecordId(@Param("recordId") UUID recordId);
+
+    /**
+     * Admin panelindeki evrak + admin istek loglari. user_id/role_id
+     * giris basarisizliginde bos olabilecegi icin LEFT JOIN kullanilir.
+     */
+    @Query(value = """
+            SELECT new btk.staj.WorkFlowProject.audit.dto.AuditLogResponse(
+                       a.id,
+                       a.recordId,
+                       a.userId,
+                       CONCAT(u.firstName, ' ', u.lastName),
+                       a.roleId,
+                       r.name,
+                       a.action,
+                       a.previousStatus,
+                       a.newStatus,
+                       a.comment,
+                       a.httpMethod,
+                       a.requestPath,
+                       a.httpStatus,
+                       a.errorCode,
+                       a.createdAt)
+            FROM AuditLog a
+            LEFT JOIN User u ON u.id = a.userId
+            LEFT JOIN Role r ON r.id = a.roleId
+            ORDER BY a.createdAt DESC
+            """,
+            countQuery = "SELECT count(a) FROM AuditLog a")
+    Page<AuditLogResponse> findAllWithNames(Pageable pageable);
 
     /**
      * Bir kullanicinin yaptigi islemler. Kullanici omru boyunca sinirsiz

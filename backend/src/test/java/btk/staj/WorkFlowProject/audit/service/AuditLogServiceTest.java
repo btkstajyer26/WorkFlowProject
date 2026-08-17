@@ -2,6 +2,7 @@ package btk.staj.WorkFlowProject.audit.service;
 
 import btk.staj.WorkFlowProject.audit.dto.AuditLogResponse;
 import btk.staj.WorkFlowProject.audit.entity.AuditLog;
+import btk.staj.WorkFlowProject.audit.model.RequestAccessEvent;
 import btk.staj.WorkFlowProject.audit.repository.AuditLogRepository;
 import btk.staj.WorkFlowProject.rbac.Role;
 import btk.staj.WorkFlowProject.user.repository.RoleRepository;
@@ -146,7 +147,7 @@ class AuditLogServiceTest {
         AuditLogResponse row = new AuditLogResponse(
                 UUID.randomUUID(), RECORD_ID, ACTOR_ID, "Ahmet Yılmaz", 1, "CALISAN",
                 "GONDER", "TASLAK", "BSK_YRD_INCELEMESINDE",
-                "Onayınıza sunulmuştur.", LocalDateTime.now());
+                "Onayınıza sunulmuştur.", null, null, null, null, LocalDateTime.now());
         when(auditLogRepository.findHistoryByRecordId(RECORD_ID)).thenReturn(List.of(row));
 
         assertThat(service.getGecmis(RECORD_ID))
@@ -218,5 +219,21 @@ class AuditLogServiceTest {
                 .withMessageContaining("CALISAN");
 
         verifyNoInteractions(auditLogRepository);
+    }
+
+    @Test
+    @DisplayName("admin HTTP erisimini record_id olmadan yazar")
+    void writesAdminAccessWithoutARecord() {
+        service.recordAccess(new RequestAccessEvent(
+                "LOGIN", ACTOR_ID, 4, "ADMIN",
+                "POST", "/api/auth/login", 200, "OK",
+                "POST /api/auth/login → 200"));
+
+        AuditLog saved = captureSaved();
+        assertThat(saved.getRecordId()).isNull();
+        assertThat(saved.getAction()).isEqualTo("LOGIN");
+        assertThat(saved.getHttpStatus()).isEqualTo(200);
+        assertThat(saved.getErrorCode()).isEqualTo("OK");
+        assertThat(saved.getRequestPath()).isEqualTo("/api/auth/login");
     }
 }

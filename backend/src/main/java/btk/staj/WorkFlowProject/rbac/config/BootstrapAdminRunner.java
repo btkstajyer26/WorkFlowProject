@@ -1,5 +1,6 @@
 package btk.staj.WorkFlowProject.rbac.config;
 
+import btk.staj.WorkFlowProject.audit.service.UserAuditLogService;
 import btk.staj.WorkFlowProject.rbac.Role;
 import btk.staj.WorkFlowProject.user.entity.User;
 import btk.staj.WorkFlowProject.user.repository.RoleRepository;
@@ -23,6 +24,7 @@ public class BootstrapAdminRunner implements ApplicationRunner {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final UserAuditLogService userAuditLogService;
 
     @Value("${bootstrap.admin.email:}")
     private String adminEmail;
@@ -32,10 +34,12 @@ public class BootstrapAdminRunner implements ApplicationRunner {
 
     public BootstrapAdminRunner(UserRepository userRepository,
                                 RoleRepository roleRepository,
-                                PasswordEncoder passwordEncoder) {
+                                PasswordEncoder passwordEncoder,
+                                UserAuditLogService userAuditLogService) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
+        this.userAuditLogService = userAuditLogService;
     }
 
     @Override
@@ -51,9 +55,11 @@ public class BootstrapAdminRunner implements ApplicationRunner {
             return;
         }
 
-        Role adminRole = roleRepository.findByName("ADMIN")
-                .orElseThrow(() -> new IllegalStateException(
-                        "ADMIN rolü bulunamadı; roles tablosu seed verisi eksik"));
+        Role adminRole = roleRepository.findByName("ADMIN").orElse(null);
+        if (adminRole == null) {
+            log.warn("ADMIN rolü bulunamadı; bootstrap atlandı");
+            return;
+        }
 
         User admin = new User();
         admin.setFirstName("Bootstrap");
@@ -65,6 +71,16 @@ public class BootstrapAdminRunner implements ApplicationRunner {
         admin.setMustChangePassword(true);
         admin.setCreatedAt(LocalDateTime.now());
         userRepository.save(admin);
+
+        userAuditLogService.logIslem(
+                admin.getId(),
+                null,
+                "BOOTSTRAP_ADMIN_CREATED",
+                null,
+                adminRole.getId(),
+                null,
+                true,
+                "İlk Admin hesabı sistem tarafından oluşturuldu");
 
         log.info("Ilk Admin hesabi olusturuldu: {}. Parola ilk giriste degistirilmelidir.", adminEmail);
     }

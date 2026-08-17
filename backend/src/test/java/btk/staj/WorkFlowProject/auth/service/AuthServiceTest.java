@@ -1,5 +1,6 @@
 package btk.staj.WorkFlowProject.auth.service;
 
+import btk.staj.WorkFlowProject.audit.RequestAuditContext;
 import btk.staj.WorkFlowProject.auth.dto.LoginRequest;
 import btk.staj.WorkFlowProject.auth.dto.LoginResponse;
 import btk.staj.WorkFlowProject.common.exception.InvalidCredentialsException;
@@ -46,6 +47,9 @@ class AuthServiceTest {
     private JwtUtil jwtUtil;
 
     @Mock
+    private RequestAuditContext requestAuditContext;
+
+    @Mock
     private User user;
 
     @Mock
@@ -57,7 +61,7 @@ class AuthServiceTest {
 
     @BeforeEach
     void setUp() {
-        authService = new AuthService(userRepository, tokenRepository, passwordEncoder, jwtUtil);
+        authService = new AuthService(userRepository, tokenRepository, passwordEncoder, jwtUtil, requestAuditContext);
         userId = UUID.randomUUID();
     }
 
@@ -95,6 +99,7 @@ class AuthServiceTest {
         assertNotNull(savedToken.getCreatedAt());
         assertNotNull(savedToken.getExpiresAt());
         assertTrue(savedToken.getExpiresAt().isAfter(savedToken.getCreatedAt()));
+        verify(requestAuditContext).mark("LOGIN", user);
     }
 
     @Test
@@ -110,6 +115,7 @@ class AuthServiceTest {
         assertEquals("Email veya şifre hatalı", ex.getMessage());
         verify(tokenRepository, never()).save(any());
         verifyNoInteractions(jwtUtil);
+        verify(requestAuditContext).mark("LOGIN_FAILED", null, null, null);
     }
 
     @Test

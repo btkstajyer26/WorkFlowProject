@@ -30,4 +30,8 @@ export type AdminAuditLog = {
   createdAt: string
   recordId?: string
   recordNumber?: string
+  httpMethod?: string
+  requestPath?: string
+  httpStatus?: number
+  errorCode?: string
 }

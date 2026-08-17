@@ -1,7 +1,7 @@
 package btk.staj.WorkFlowProject.user.controller;
 
 import org.springframework.security.access.prepost.PreAuthorize;
-import btk.staj.WorkFlowProject.audit.dto.UserAuditLogResponse;
+import btk.staj.WorkFlowProject.audit.service.AuditLogService;
 import btk.staj.WorkFlowProject.audit.service.UserAuditLogService;
 import btk.staj.WorkFlowProject.common.dto.PagedResponse;
 import btk.staj.WorkFlowProject.user.dto.AdminUserSearchCriteria;
@@ -25,10 +25,14 @@ public class AdminController {
 
     private final UserService userService;
     private final UserAuditLogService userAuditLogService;
+    private final AuditLogService auditLogService;
 
-    public AdminController(UserService userService, UserAuditLogService userAuditLogService) {
+    public AdminController(UserService userService,
+                           UserAuditLogService userAuditLogService,
+                           AuditLogService auditLogService) {
         this.userService = userService;
         this.userAuditLogService = userAuditLogService;
+        this.auditLogService = auditLogService;
     }
 
     /**
@@ -72,13 +76,20 @@ public class AdminController {
     }
 
     /**
-     * Admin panelinin "Kullanici ve rol islemleri" gorunumu. Evrak islem
-     * gecmisinden ayridir (bkz. {@code GET /api/audit-logs/record/{id}});
-     * burasi yalnizca hesap olusturma, rol degisikligi ve
-     * etkinlestirme/pasiflestirme kayitlarini doner.
+     * Admin paneli log listesi.
+     *
+     * <p>{@code type=USER} (varsayılan): kullanıcı yönetimi + normal kullanıcı
+     * giriş/çıkış/HTTP istekleri ({@code user_audit_logs}).
+     * {@code type=RECORD}: evrak geçişleri + admin giriş/çıkış/HTTP istekleri
+     * ({@code audit_logs}).
      */
     @GetMapping("/audit-logs")
-    public PagedResponse<UserAuditLogResponse> listAuditLogs(Pageable pageable) {
+    public PagedResponse<?> listAuditLogs(
+            @RequestParam(name = "type", defaultValue = "USER") String type,
+            Pageable pageable) {
+        if ("RECORD".equalsIgnoreCase(type)) {
+            return auditLogService.listAll(pageable);
+        }
         return userAuditLogService.listAll(pageable);
     }
 }

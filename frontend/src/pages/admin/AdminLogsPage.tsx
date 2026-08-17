@@ -8,6 +8,7 @@ import { useAdmin } from '../../context/adminState'
 import { useDebouncedSearchParam } from '../../hooks/useDebouncedSearchParam'
 import { queryKeys } from '../../query/queryKeys'
 import { ListLoadingSkeleton } from '../../components/feedback/LoadingSkeleton'
+import type { AdminLogType } from '../../types/admin'
 
 const pageSize = 8
 
@@ -18,8 +19,9 @@ export function AdminLogsPage() {
   const [searchInput, setSearchInput] = useDebouncedSearchParam(searchParams, setSearchParams)
   const rawPage = Number(searchParams.get('sayfa'))
   const requestedPage = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1
+  const logType: AdminLogType = searchParams.get('tur') === 'RECORD' ? 'RECORD' : 'USER'
   const backendMode = apiMode === 'backend'
-  const serverQuery = { page: requestedPage - 1, size: pageSize }
+  const serverQuery = { page: requestedPage - 1, size: pageSize, type: logType }
   const logsQuery = useQuery({
     queryKey: queryKeys.admin.auditLogs.list(serverQuery),
     queryFn: () => listAdminAuditLogs(serverQuery),
@@ -57,14 +59,29 @@ export function AdminLogsPage() {
     setSearchParams(next)
   }
 
+  const setLogType = (type: AdminLogType) => {
+    const next = new URLSearchParams(searchParams)
+    next.delete('sayfa')
+    if (type === 'USER') next.delete('tur')
+    else next.set('tur', type)
+    setSearchParams(next)
+  }
+
   return (
     <div className="space-y-5">
       <header>
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-app-text sm:text-3xl">İşlem Kayıtları</h1>
-          <p className="mt-2 text-sm leading-6 text-app-text-muted">Hesap oluşturma, rol ve erişim durumu değişikliklerini inceleyin.</p>
+          <p className="mt-2 text-sm leading-6 text-app-text-muted">Hesap işlemlerini, giriş/çıkışları ve API isteklerini (saat, hata kodu, işlemi yapan) inceleyin.</p>
         </div>
       </header>
+
+      {backendMode ? (
+        <div className="flex flex-wrap gap-2" role="tablist" aria-label="Log türü">
+          <button type="button" onClick={() => setLogType('USER')} className={`min-h-10 rounded-lg border px-4 text-xs font-bold ${logType === 'USER' ? 'border-brand-400 bg-brand-50 text-brand-800 dark:bg-brand-900/40 dark:text-brand-200' : 'border-app-border text-app-text-secondary hover:bg-app-surface-muted'}`}>Kullanıcı işlemleri</button>
+          <button type="button" onClick={() => setLogType('RECORD')} className={`min-h-10 rounded-lg border px-4 text-xs font-bold ${logType === 'RECORD' ? 'border-brand-400 bg-brand-50 text-brand-800 dark:bg-brand-900/40 dark:text-brand-200' : 'border-app-border text-app-text-secondary hover:bg-app-surface-muted'}`}>Evrak ve admin işlemleri</button>
+        </div>
+      ) : null}
 
       {!backendMode ? <section className="rounded-2xl border border-app-border bg-app-surface p-4 shadow-sm" aria-label="Log filtreleri">
         <div>
@@ -100,6 +117,11 @@ export function AdminLogsPage() {
                     </div>
                     <p className="mt-1 text-sm font-semibold text-app-text-secondary">{log.target}</p>
                     <p className="mt-1 text-xs leading-5 text-app-text-subtle">{log.description}</p>
+                    {log.httpStatus != null ? (
+                      <p className="mt-1 text-xs text-app-text-subtle">
+                        HTTP {log.httpStatus}{log.errorCode ? ` · ${log.errorCode}` : ''}{log.httpMethod && log.requestPath ? ` · ${log.httpMethod} ${log.requestPath}` : ''}
+                      </p>
+                    ) : null}
                     <p className="mt-2 text-xs text-app-text-subtle">İşlemi yapan: <strong className="text-app-text-secondary">{log.actor}</strong></p>
                   </div>
                 </div>

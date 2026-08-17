@@ -32,7 +32,7 @@ public class UserAuditLog {
     @Column(updatable = false)
     private UUID id;
 
-    @Column(name = "target_user_id", nullable = false, updatable = false)
+    @Column(name = "target_user_id", updatable = false)
     private UUID targetUserId;
 
     // Ilk Admin bootstrap isleminde NULL olabilir (action = 'BOOTSTRAP_ADMIN_CREATED').
@@ -56,6 +56,18 @@ public class UserAuditLog {
 
     @Column(columnDefinition = "TEXT", updatable = false)
     private String comment;
+
+    @Column(name = "http_method", length = 10, updatable = false)
+    private String httpMethod;
+
+    @Column(name = "request_path", length = 512, updatable = false)
+    private String requestPath;
+
+    @Column(name = "http_status", updatable = false)
+    private Integer httpStatus;
+
+    @Column(name = "error_code", length = 80, updatable = false)
+    private String errorCode;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
