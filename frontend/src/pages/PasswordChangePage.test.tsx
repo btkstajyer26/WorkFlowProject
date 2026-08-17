@@ -45,9 +45,12 @@ function renderPage(
 }
 
 describe('PasswordChangePage', () => {
-  it('zorunlu olmayan kullanıcıyı ana sayfasına yönlendirir', async () => {
+  it('zorunlu olmayan kullanıcıya isteğe bağlı değişiklik formunu gösterir', () => {
     renderPage({ ...firstLoginUser, mustChangePassword: false })
-    await waitFor(() => expect(screen.getByLabelText('Geçerli adres')).toHaveTextContent('/dashboard'))
+
+    expect(screen.getByText('Hesap güvenliği')).toBeInTheDocument()
+    expect(screen.getByLabelText('Mevcut şifre')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Profile dön' })).toHaveAttribute('href', '/profil')
   })
 
   it('eşleşmeyen yeni şifreleri endpoint çağrısından önce reddeder', async () => {

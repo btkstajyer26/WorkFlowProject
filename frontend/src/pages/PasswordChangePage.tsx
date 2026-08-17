@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowRight, Check, Eye, EyeOff, KeyRound, LockKeyhole, ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
 import { useForm, type UseFormRegisterReturn } from 'react-hook-form'
-import { Navigate } from 'react-router'
+import { Link, Navigate } from 'react-router'
 import { changePassword } from '../api/auth'
 import { ApiClientError } from '../api/errors'
 import { Brand } from '../components/layout/Brand'
@@ -31,9 +31,7 @@ export function PasswordChangePage({ user, onPasswordChanged, onUseAnotherAccoun
   })
 
   if (!user) return <Navigate to="/giris?returnTo=%2Fsifre-degistir" replace />
-  if (!user.mustChangePassword) {
-    return <Navigate to={user.role === 'ADMIN' ? '/admin' : '/dashboard'} replace />
-  }
+  const isRequiredChange = user.mustChangePassword
 
   const submit = handleSubmit(async ({ currentPassword, newPassword }) => {
     try {
@@ -73,12 +71,16 @@ export function PasswordChangePage({ user, onPasswordChanged, onUseAnotherAccoun
             <KeyRound className="size-6" aria-hidden="true" />
           </span>
           <div>
-            <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-brand-600 dark:text-brand-300">İlk giriş güvenliği</p>
+            <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-brand-600 dark:text-brand-300">
+              {isRequiredChange ? 'İlk giriş güvenliği' : 'Hesap güvenliği'}
+            </p>
             <h1 id="password-change-title" className="mt-1 text-3xl font-semibold tracking-[-0.03em] text-app-text sm:text-4xl">
               Şifrenizi değiştirin
             </h1>
             <p className="mt-3 text-sm leading-6 text-app-text-muted">
-              Hesabınızı kullanmaya devam etmek için geçici şifrenizi kişisel bir şifreyle yenileyin.
+              {isRequiredChange
+                ? 'Hesabınızı kullanmaya devam etmek için geçici şifrenizi kişisel bir şifreyle yenileyin.'
+                : 'Mevcut şifrenizi doğrulayarak hesabınız için yeni bir şifre belirleyin.'}
             </p>
           </div>
         </div>
@@ -132,13 +134,22 @@ export function PasswordChangePage({ user, onPasswordChanged, onUseAnotherAccoun
             {isSubmitting ? null : <ArrowRight className="size-4" aria-hidden="true" />}
           </button>
 
-          <button
-            type="button"
-            onClick={onUseAnotherAccount}
-            className="min-h-11 w-full rounded-xl px-4 text-sm font-bold text-app-text-secondary transition hover:bg-app-surface-muted focus-visible:outline-2 focus-visible:outline-brand-500"
-          >
-            Farklı hesapla giriş yap
-          </button>
+          {isRequiredChange ? (
+            <button
+              type="button"
+              onClick={onUseAnotherAccount}
+              className="min-h-11 w-full rounded-xl px-4 text-sm font-bold text-app-text-secondary transition hover:bg-app-surface-muted focus-visible:outline-2 focus-visible:outline-brand-500"
+            >
+              Farklı hesapla giriş yap
+            </button>
+          ) : (
+            <Link
+              to="/profil"
+              className="flex min-h-11 w-full items-center justify-center rounded-xl px-4 text-sm font-bold text-app-text-secondary transition hover:bg-app-surface-muted focus-visible:outline-2 focus-visible:outline-brand-500"
+            >
+              Profile dön
+            </Link>
+          )}
         </form>
       </section>
     </main>
@@ -162,8 +173,8 @@ function PasswordField({
   const errorId = `${id}-error`
 
   return (
-    <label className="block" htmlFor={id}>
-      <span className="mb-2 block text-sm font-bold text-app-text-emphasis">{label}</span>
+    <div className="block">
+      <label className="mb-2 block text-sm font-bold text-app-text-emphasis" htmlFor={id}>{label}</label>
       <span className="relative block">
         <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 size-[18px] -translate-y-1/2 text-app-text-faint" aria-hidden="true" />
         <input
@@ -185,6 +196,6 @@ function PasswordField({
         </button>
       </span>
       {error ? <span id={errorId} className="mt-1.5 block text-xs font-semibold text-rose-700 dark:text-rose-300" role="alert">{error}</span> : null}
-    </label>
+    </div>
   )
 }
