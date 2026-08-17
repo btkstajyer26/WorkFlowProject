@@ -31,6 +31,7 @@ import { AdminDashboardPage } from './pages/admin/AdminDashboardPage'
 import { AdminLogsPage } from './pages/admin/AdminLogsPage'
 import { AdminUsersPage } from './pages/admin/AdminUsersPage'
 import type { AuthUser, UserRole } from './types/auth'
+import { AppQueryProvider } from './query/queryClient'
 
 async function startDemoAuthSession(role: UserRole) {
   const account = demoAccounts.find((candidate) => candidate.role === role)
@@ -86,10 +87,11 @@ function App() {
   }
 
   return (
-    <ThemeProvider>
-      <ToastProvider>
-        <AppErrorBoundary>
-          {authReady ? <Routes>
+    <AppQueryProvider key={`${user?.id ?? 'anonymous'}:${user?.role ?? 'none'}`}>
+      <ThemeProvider>
+        <ToastProvider>
+          <AppErrorBoundary>
+            {authReady ? <Routes>
             <Route
               path="/giris"
               element={(
@@ -122,10 +124,11 @@ function App() {
                   />
                 )}
             />
-          </Routes> : <AuthBootstrapScreen />}
-        </AppErrorBoundary>
-      </ToastProvider>
-    </ThemeProvider>
+            </Routes> : <AuthBootstrapScreen />}
+          </AppErrorBoundary>
+        </ToastProvider>
+      </ThemeProvider>
+    </AppQueryProvider>
   )
 }
 

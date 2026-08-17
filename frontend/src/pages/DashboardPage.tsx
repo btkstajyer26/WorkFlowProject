@@ -6,9 +6,14 @@ import {
   Files,
   type LucideIcon,
 } from 'lucide-react'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
+import { apiMode } from '../api/config'
+import { searchRecords } from '../api/recordSearch'
 import { RecordStatusBadge } from '../components/records/RecordStatusBadge'
+import { useCategories } from '../context/categoryState'
 import { useWorkflow } from '../context/workflowState'
+import { queryKeys } from '../query/queryKeys'
 import type { AuthUser, UserRole } from '../types/auth'
 import type { RecordStatus } from '../types/record'
 
@@ -44,8 +49,33 @@ const dashboardCards: Record<UserRole, DashboardCard[]> = {
 
 export function DashboardPage({ user }: { user: AuthUser }) {
   const { visibleRecords } = useWorkflow()
+  const { categories, status: categoryStatus } = useCategories()
   const cards = dashboardCards[user.role]
-  const recentRecords = [...visibleRecords]
+  const backendMode = apiMode === 'backend'
+  const categoryRevision = categories.map((category) => `${category.id}:${category.name}`).join('|')
+  const dashboardStatuses = [...new Set(cards.flatMap((card) => card.statuses))]
+  const countQueries = useQueries({
+    queries: dashboardStatuses.map((status) => ({
+      queryKey: queryKeys.records.list({ scope: 'dashboard-count', status, categoryRevision }),
+      queryFn: () => searchRecords({ status, page: 0, size: 1 }, categories),
+      enabled: backendMode && categoryStatus === 'ready',
+      refetchInterval: 30_000,
+    })),
+  })
+  const recentRecordsQuery = useQuery({
+    queryKey: queryKeys.records.list({ scope: 'dashboard-recent', categoryRevision }),
+    queryFn: () => searchRecords({ page: 0, size: 3 }, categories),
+    enabled: backendMode && categoryStatus === 'ready',
+    refetchInterval: 30_000,
+  })
+  const serverCountByStatus = new Map(
+    dashboardStatuses.map((status, index) => [status, countQueries[index]?.data?.totalElements ?? 0]),
+  )
+  const dashboardPending = backendMode && (categoryStatus === 'loading' || countQueries.some((query) => query.isPending))
+  const dashboardError = backendMode && (categoryStatus === 'error' || countQueries.some((query) => query.isError) || recentRecordsQuery.isError)
+  const recentRecords = backendMode
+    ? (recentRecordsQuery.data?.content ?? [])
+    : [...visibleRecords]
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
     .slice(0, 3)
 
@@ -75,7 +105,11 @@ export function DashboardPage({ user }: { user: AuthUser }) {
               <p className="mt-4 text-xs font-semibold text-app-text-subtle sm:text-sm">{card.label}</p>
               <div className="mt-1 flex items-end justify-between gap-2">
                 <p className="text-2xl font-bold tracking-tight text-app-text sm:text-3xl">
-                  {visibleRecords.filter((record) => card.statuses.includes(record.status)).length}
+                  {dashboardPending
+                    ? '—'
+                    : backendMode
+                      ? card.statuses.reduce((total, status) => total + (serverCountByStatus.get(status) ?? 0), 0)
+                      : visibleRecords.filter((record) => card.statuses.includes(record.status)).length}
                 </p>
                 <ArrowUpRight className="size-4 text-app-text-disabled transition group-hover:text-brand-500" aria-hidden="true" />
               </div>
@@ -83,6 +117,12 @@ export function DashboardPage({ user }: { user: AuthUser }) {
           )
         })}
       </section>
+
+      {dashboardError ? (
+        <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800 dark:border-rose-900/70 dark:bg-rose-950/40 dark:text-rose-200" role="alert">
+          Kayıt özeti yenilenemedi. Kayıtlar sayfasından güncel listeye erişebilirsiniz.
+        </p>
+      ) : null}
 
       <section className="overflow-hidden rounded-2xl border border-app-border bg-app-surface shadow-sm">
         <div className="flex items-center justify-between border-b border-app-border-subtle px-4 py-4 sm:px-6">
@@ -114,6 +154,9 @@ export function DashboardPage({ user }: { user: AuthUser }) {
               <span className="hidden sm:inline-flex"><RecordStatusBadge status={record.status} /></span>
             </div>
           ))}
+          {(!backendMode || !recentRecordsQuery.isPending) && recentRecords.length === 0 ? (
+            <p className="px-4 py-8 text-center text-sm text-app-text-subtle sm:px-6">Henüz görüntülenecek kayıt yok.</p>
+          ) : null}
         </div>
       </section>
     </div>

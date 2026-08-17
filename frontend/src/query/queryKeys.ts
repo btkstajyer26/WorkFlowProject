@@ -1,0 +1,15 @@
+export const queryKeys = {
+  currentUser: ['current-user'] as const,
+  categories: ['categories'] as const,
+  records: {
+    all: ['records'] as const,
+    lists: () => ['records', 'list'] as const,
+    list: (query: object) => ['records', 'list', query] as const,
+    details: () => ['records', 'detail'] as const,
+    detail: (recordId: string, categoryRevision?: string) => (
+      categoryRevision
+        ? ['records', 'detail', recordId, categoryRevision] as const
+        : ['records', 'detail', recordId] as const
+    ),
+  },
+}

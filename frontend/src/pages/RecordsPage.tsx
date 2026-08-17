@@ -1,3 +1,4 @@
+import { keepPreviousData, useQueries } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import {
   CalendarDays,
@@ -16,6 +17,9 @@ import { recordStatusMeta } from '../components/records/recordStatus'
 import { useCategories } from '../context/categoryState'
 import { useWorkflow } from '../context/workflowState'
 import { useDebouncedSearchParam } from '../hooks/useDebouncedSearchParam'
+import { apiMode } from '../api/config'
+import { searchRecords, type RecordSearchListItem } from '../api/recordSearch'
+import { queryKeys } from '../query/queryKeys'
 import type { UserRole } from '../types/auth'
 import type { RecordStatus, WorkflowRecord } from '../types/record'
 
@@ -67,8 +71,22 @@ function isValidDateParam(value: string | null) {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value
 }
 
-function canEditRecord(role: UserRole, record: WorkflowRecord) {
+type RecordListViewItem = Pick<WorkflowRecord, 'id' | 'title' | 'description' | 'categoryId' | 'category' | 'status' | 'createdAt'>
+
+function canEditRecord(role: UserRole, record: RecordListViewItem) {
   return role === 'CALISAN' && (record.status === 'TASLAK' || record.status === 'DUZENLEME_BEKLIYOR')
+}
+
+function toRecordListViewItem(record: RecordSearchListItem): RecordListViewItem {
+  return {
+    id: record.id,
+    title: record.title,
+    description: record.description,
+    categoryId: record.category.id,
+    category: record.category.name,
+    status: record.status,
+    createdAt: record.createdAt,
+  }
 }
 
 export function RecordsPage({ role }: { role: UserRole }) {
@@ -107,6 +125,34 @@ export function RecordsPage({ role }: { role: UserRole }) {
   const page = Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1
   const pageSizeParam = Number(searchParams.get('boyut'))
   const pageSize = pageSizes.includes(pageSizeParam) ? pageSizeParam : 10
+  const backendMode = apiMode === 'backend'
+  const categoryRevision = categories.map((category) => `${category.id}:${category.name}`).join('|')
+  const requestedStatuses: Array<RecordStatus | undefined> = status !== 'ALL'
+    ? [status]
+    : viewConfig ? viewConfig.statuses : [undefined]
+  const groupedStatusQuery = requestedStatuses.length > 1
+  const serverQuerySize = groupedStatusQuery ? page * pageSize : pageSize
+  const serverQueries = useQueries({
+    queries: requestedStatuses.map((requestedStatus) => {
+      const query = {
+        q: search.trim() || undefined,
+        status: requestedStatus,
+        categoryId: categoryId === 'ALL' ? undefined : categoryId,
+        createdFrom: dateFrom || undefined,
+        createdTo: dateTo || undefined,
+        page: groupedStatusQuery ? 0 : page - 1,
+        size: serverQuerySize,
+      }
+
+      return {
+        queryKey: queryKeys.records.list({ ...query, categoryRevision }),
+        queryFn: () => searchRecords(query, categories),
+        enabled: backendMode && categoryStatus === 'ready' && !dateRangeInvalid,
+        placeholderData: keepPreviousData,
+        refetchInterval: 30_000,
+      }
+    }),
+  })
 
   useEffect(() => {
     const nextParams = new URLSearchParams(searchParams)
@@ -146,19 +192,35 @@ export function RecordsPage({ role }: { role: UserRole }) {
     return haystack.includes(searchValue)
   })
 
-  const totalPages = Math.max(1, Math.ceil(filteredRecords.length / pageSize))
+  const serverRecords = serverQueries
+    .flatMap((query) => query.data?.content ?? [])
+    .map(toRecordListViewItem)
+    .toSorted((left, right) => right.createdAt.localeCompare(left.createdAt))
+  const serverTotalElements = serverQueries.reduce(
+    (total, query) => total + (query.data?.totalElements ?? 0),
+    0,
+  )
+  const totalRecordCount = backendMode ? serverTotalElements : filteredRecords.length
+  const totalPages = Math.max(1, Math.ceil(totalRecordCount / pageSize))
   const currentPage = Math.min(page, totalPages)
   const pageStart = (currentPage - 1) * pageSize
-  const visibleRecords = filteredRecords.slice(pageStart, pageStart + pageSize)
+  const visibleRecords: RecordListViewItem[] = backendMode
+    ? groupedStatusQuery
+      ? serverRecords.slice(pageStart, pageStart + pageSize)
+      : serverRecords
+    : filteredRecords.slice(pageStart, pageStart + pageSize)
+  const recordsPending = backendMode && categoryStatus !== 'error' && serverQueries.some((query) => query.isPending)
+  const recordsError = backendMode && (categoryStatus === 'error' || serverQueries.some((query) => query.isError))
   const activeFilterCount = [categoryId !== 'ALL', status !== 'ALL', Boolean(dateFrom), Boolean(dateTo)].filter(Boolean).length
 
   useEffect(() => {
+    if (recordsPending) return
     if (page <= totalPages) return
     const nextParams = new URLSearchParams(searchParams)
     if (totalPages <= 1) nextParams.delete('sayfa')
     else nextParams.set('sayfa', String(totalPages))
     setSearchParams(nextParams, { replace: true })
-  }, [page, searchParams, setSearchParams, totalPages])
+  }, [page, recordsPending, searchParams, setSearchParams, totalPages])
 
   const resetFilters = () => {
     updateQuery({ q: null, kategori: null, durum: null, baslangic: null, bitis: null })
@@ -173,7 +235,7 @@ export function RecordsPage({ role }: { role: UserRole }) {
         </div>
         <div className="flex items-center gap-2 text-sm text-app-text-muted">
           <span className="flex size-8 items-center justify-center rounded-lg bg-brand-50 dark:bg-brand-900/30 font-bold text-brand-700 dark:text-brand-300">
-            {filteredRecords.length}
+            {totalRecordCount}
           </span>
           kayıt bulundu
         </div>
@@ -292,7 +354,23 @@ export function RecordsPage({ role }: { role: UserRole }) {
           </div>
         </div>
 
-        {visibleRecords.length > 0 ? (
+        {recordsPending ? (
+          <div className="flex min-h-72 items-center justify-center px-6 py-12 text-center" role="status">
+            <p className="text-sm font-semibold text-app-text-muted">Kayıtlar yükleniyor…</p>
+          </div>
+        ) : recordsError ? (
+          <div className="flex min-h-72 flex-col items-center justify-center px-6 py-12 text-center" role="alert">
+            <h2 className="font-bold text-app-text-strong">Kayıtlar yüklenemedi</h2>
+            <p className="mt-1 max-w-sm text-sm leading-6 text-app-text-muted">Backend bağlantısını kontrol edip yeniden deneyin.</p>
+            <button
+              type="button"
+              onClick={() => void Promise.all(serverQueries.map((query) => query.refetch()))}
+              className="mt-4 text-sm font-bold text-brand-700 hover:text-brand-800 dark:text-brand-300 dark:hover:text-brand-200"
+            >
+              Tekrar dene
+            </button>
+          </div>
+        ) : visibleRecords.length > 0 ? (
           <>
             <div className="hidden overflow-x-auto lg:block">
               <table className="w-full min-w-[780px] border-collapse text-left">
@@ -374,7 +452,7 @@ export function RecordsPage({ role }: { role: UserRole }) {
 
         <footer className="flex flex-col gap-3 border-t border-app-border bg-app-surface-muted/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <p className="text-xs font-medium text-app-text-subtle">
-            {filteredRecords.length === 0 ? 0 : pageStart + 1}–{Math.min(pageStart + pageSize, filteredRecords.length)} / {filteredRecords.length} kayıt
+            {totalRecordCount === 0 ? 0 : pageStart + 1}–{Math.min(pageStart + visibleRecords.length, totalRecordCount)} / {totalRecordCount} kayıt
           </p>
           <div className="flex items-center justify-between gap-3 sm:justify-end">
             <label className="flex items-center gap-2 text-xs font-semibold text-app-text-muted">

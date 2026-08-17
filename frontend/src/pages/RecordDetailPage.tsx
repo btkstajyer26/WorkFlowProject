@@ -1,16 +1,24 @@
+import { useQuery } from '@tanstack/react-query'
 import {
   ArrowLeft,
   CalendarDays,
   Download,
+  FilePenLine,
   FileText,
   FolderOpen,
 } from 'lucide-react'
 import { Link, Navigate, useParams } from 'react-router'
+import { apiMode } from '../api/config'
+import { ApiClientError } from '../api/errors'
+import { getRecordDetail } from '../api/recordDetails'
 import { RecordActionPanel } from '../components/records/RecordActionPanel'
 import { RecordHistoryDisclosure, RecordNoteDisclosure } from '../components/records/RecordDetailDisclosures'
 import { RecordStatusBadge } from '../components/records/RecordStatusBadge'
 import { useWorkflow } from '../context/workflowState'
+import { useCategories } from '../context/categoryState'
+import { queryKeys } from '../query/queryKeys'
 import type { UserRole } from '../types/auth'
+import type { WorkflowRecord } from '../types/record'
 
 const dateTimeFormatter = new Intl.DateTimeFormat('tr-TR', {
   day: '2-digit',
@@ -21,15 +29,92 @@ const dateTimeFormatter = new Intl.DateTimeFormat('tr-TR', {
 })
 
 export function RecordDetailPage({ role }: { role: UserRole }) {
+  return apiMode === 'backend'
+    ? <BackendRecordDetailPage role={role} />
+    : <MockRecordDetailPage role={role} />
+}
+
+function MockRecordDetailPage({ role }: { role: UserRole }) {
   const { recordId } = useParams()
   const { records, visibleRecords } = useWorkflow()
   const record = visibleRecords.find((item) => item.id === recordId)
 
   if (!record) return <Navigate to={records.some((item) => item.id === recordId) ? '/403' : '/404'} replace />
 
+  return <RecordDetailContent record={record} role={role} source="mock" />
+}
+
+function BackendRecordDetailPage({ role }: { role: UserRole }) {
+  const { recordId } = useParams()
+  const { categories, status: categoryStatus, reloadCategories } = useCategories()
+  const categoryRevision = categories.map((category) => `${category.id}:${category.name}`).join('|')
+  const recordQuery = useQuery({
+    queryKey: queryKeys.records.detail(recordId ?? 'missing', categoryRevision),
+    queryFn: () => getRecordDetail(recordId!, categories),
+    enabled: Boolean(recordId) && categoryStatus === 'ready',
+    refetchInterval: 30_000,
+  })
+
+  if (!recordId) return <Navigate to="/404" replace />
+  if (categoryStatus === 'error') {
+    return (
+      <section className="rounded-xl border border-rose-200 bg-rose-50 px-5 py-6 text-center dark:border-rose-900/70 dark:bg-rose-950/40">
+        <h1 className="font-bold text-rose-900 dark:text-rose-100">Kategoriler yüklenemedi</h1>
+        <button type="button" onClick={reloadCategories} className="mt-4 rounded-lg border border-rose-300 px-4 py-2 text-sm font-bold text-rose-800 dark:border-rose-800 dark:text-rose-200">
+          Tekrar dene
+        </button>
+      </section>
+    )
+  }
+  if (recordQuery.error instanceof ApiClientError && recordQuery.error.status === 403) {
+    return <Navigate to="/403" replace />
+  }
+  if (recordQuery.error instanceof ApiClientError && recordQuery.error.status === 404) {
+    return <Navigate to="/404" replace />
+  }
+
+  if (recordQuery.isPending) {
+    return (
+      <div className="rounded-xl border border-app-border bg-app-surface px-5 py-8 text-center text-sm text-app-text-muted" role="status">
+        Kayıt yükleniyor…
+      </div>
+    )
+  }
+
+  if (recordQuery.isError || !recordQuery.data) {
+    return (
+      <section className="rounded-xl border border-rose-200 bg-rose-50 px-5 py-6 text-center dark:border-rose-900/70 dark:bg-rose-950/40">
+        <h1 className="font-bold text-rose-900 dark:text-rose-100">Kayıt yüklenemedi</h1>
+        <p className="mt-2 text-sm text-rose-800 dark:text-rose-200">
+          {recordQuery.error instanceof Error ? recordQuery.error.message : 'Beklenmeyen bir hata oluştu.'}
+        </p>
+        <button
+          type="button"
+          onClick={() => recordQuery.refetch()}
+          className="mt-4 rounded-lg border border-rose-300 px-4 py-2 text-sm font-bold text-rose-800 transition hover:bg-rose-100 dark:border-rose-800 dark:text-rose-200 dark:hover:bg-rose-900/40"
+        >
+          Tekrar dene
+        </button>
+      </section>
+    )
+  }
+
+  return <RecordDetailContent record={recordQuery.data} role={role} source="backend" />
+}
+
+function RecordDetailContent({
+  record,
+  role,
+  source,
+}: {
+  record: WorkflowRecord
+  role: UserRole
+  source: 'mock' | 'backend'
+}) {
   const history = record.history.toReversed()
   const latestEvent = history[0]
   const latestNotedEvent = latestEvent?.note?.trim() ? latestEvent : undefined
+  const editable = role === 'CALISAN' && (record.status === 'TASLAK' || record.status === 'DUZENLEME_BEKLIYOR')
 
   return (
     <article className="mx-auto max-w-[1400px] space-y-4">
@@ -60,7 +145,22 @@ export function RecordDetailPage({ role }: { role: UserRole }) {
         </div>
       </header>
 
-      <RecordActionPanel record={record} role={role} />
+      {source === 'mock' ? <RecordActionPanel record={record} role={role} /> : null}
+      {source === 'backend' && editable ? (
+        <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-app-border bg-app-surface px-5 py-4" aria-label="Kayıt işlemleri">
+          <div>
+            <h2 className="font-bold text-app-text">Taslağı düzenleyin</h2>
+            <p className="mt-1 text-sm text-app-text-muted">Değişiklikleriniz veritabanına kaydedilir.</p>
+          </div>
+          <Link
+            to={`/kayitlar/${record.id}/duzenle`}
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-bold text-white transition hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+          >
+            <FilePenLine className="size-4" aria-hidden="true" />
+            Düzenle
+          </Link>
+        </section>
+      ) : null}
 
       <section className="rounded-xl border border-app-border bg-app-surface px-5 py-5 sm:px-6 sm:py-6">
         <div>
@@ -70,10 +170,14 @@ export function RecordDetailPage({ role }: { role: UserRole }) {
 
         <div className="mt-6 border-t border-app-border-subtle pt-6">
           <h2 className="text-base font-bold text-app-text">
-            Ek Dosyalar <span className="font-medium text-app-text-subtle">({record.attachments.length})</span>
+            Ek Dosyalar {source === 'mock' ? <span className="font-medium text-app-text-subtle">({record.attachments.length})</span> : null}
           </h2>
 
-          {record.attachments.length > 0 ? (
+          {source === 'backend' ? (
+            <p className="mt-4 rounded-lg border border-dashed border-app-border px-4 py-5 text-center text-sm text-app-text-subtle">
+              Dosya listeleme endpointi tamamlandığında kayıt ekleri burada gösterilecek.
+            </p>
+          ) : record.attachments.length > 0 ? (
             <ul className="mt-4 space-y-2">
               {record.attachments.map((attachment) => (
                 <li key={attachment.id} className="flex items-center gap-3 rounded-lg border border-app-border px-3 py-2.5 sm:px-4">

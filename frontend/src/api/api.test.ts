@@ -8,6 +8,8 @@ import {
 } from './notifications'
 import { searchRecords } from './recordSearch'
 import { listRecords } from './records'
+import { listCategories } from './categories'
+import { getRecordDetail } from './recordDetails'
 
 const employeeCredentials = {
   email: 'john.doe@kurum.gov.tr',
@@ -61,13 +63,14 @@ describe('OpenAPI istemcisi ve MSW sözleşmesi', () => {
 
   it('RBAC kapsamındaki kayıtları arar ve kategori kimliğini merkezi kategori adıyla eşleştirir', async () => {
     await loginAs(employeeCredentials.email)
+    const categories = await listCategories()
 
     const result = await searchRecords({
       q: 'sunucu',
       categoryId: 4,
       page: 0,
       size: 5,
-    })
+    }, categories)
 
     expect(result).toMatchObject({
       page: 0,
@@ -145,9 +148,22 @@ describe('OpenAPI istemcisi ve MSW sözleşmesi', () => {
     await loginAs(employeeCredentials.email)
     const history = await api.auditLogs.getGecmis({ recordId })
     expect(history.map((item) => item.action)).toEqual([
-      'ONAYLA',
-      'BASKANA_ILET',
       'GONDER',
+      'BASKANA_ILET',
+      'ONAYLA',
+    ])
+
+    const detail = await getRecordDetail(recordId, await listCategories())
+    expect(detail).toMatchObject({
+      id: recordId,
+      status: 'ONAYLANDI',
+      category: 'Bilgi İşlem',
+      lastAction: 'Kayıt onaylandı',
+    })
+    expect(detail.history.map((item) => item.action)).toEqual([
+      'Başkan Yardımcısına gönderildi',
+      'Başkana iletildi',
+      'Kayıt onaylandı',
     ])
   })
 

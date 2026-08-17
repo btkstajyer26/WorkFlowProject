@@ -9,6 +9,7 @@ import { getDemoUserByRole } from '../mocks/users'
 import { seedAuthenticatedUser } from '../test/auth'
 import { apiBaseUrl } from '../api/config'
 import { apiMockServer } from '../mocks/api/server'
+import { AppQueryProvider } from '../query/queryClient'
 import { RecordsPage } from './RecordsPage'
 
 function LocationProbe() {
@@ -21,12 +22,14 @@ async function renderEmployeeRecords(initialEntry: string) {
   const employee = getDemoUserByRole('CALISAN')
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
-      <CategoryProvider>
-        <WorkflowProvider user={employee}>
-          <RecordsPage role={employee.role} />
-          <LocationProbe />
-        </WorkflowProvider>
-      </CategoryProvider>
+      <AppQueryProvider>
+        <CategoryProvider>
+          <WorkflowProvider user={employee}>
+            <RecordsPage role={employee.role} />
+            <LocationProbe />
+          </WorkflowProvider>
+        </CategoryProvider>
+      </AppQueryProvider>
     </MemoryRouter>,
   )
 }

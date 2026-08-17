@@ -6,10 +6,6 @@ export type RecordCategoryOption = {
   name: string
 }
 
-let categoryCache: RecordCategoryOption[] | null = null
-let categoryRequest: Promise<RecordCategoryOption[]> | null = null
-let categoryGeneration = 0
-
 function normalizeCategories(value: Awaited<ReturnType<typeof api.categories.getAllCategories>>) {
   const categories = value.flatMap((category) => (
     Number.isInteger(category.id) && category.id! > 0 && category.name?.trim()
@@ -29,28 +25,5 @@ function normalizeCategories(value: Awaited<ReturnType<typeof api.categories.get
 }
 
 export function listCategories() {
-  if (categoryCache) return Promise.resolve(categoryCache)
-  if (categoryRequest) return categoryRequest
-
-  const requestGeneration = categoryGeneration
-  const request = api.categories.getAllCategories()
-    .then(normalizeCategories)
-    .then((categories) => {
-      if (requestGeneration === categoryGeneration) categoryCache = categories
-      return categories
-    })
-
-  let trackedRequest: Promise<RecordCategoryOption[]>
-  trackedRequest = request.finally(() => {
-    if (categoryRequest === trackedRequest) categoryRequest = null
-  })
-  categoryRequest = trackedRequest
-
-  return categoryRequest
-}
-
-export function clearCategoryCache() {
-  categoryGeneration += 1
-  categoryCache = null
-  categoryRequest = null
+  return api.categories.getAllCategories().then(normalizeCategories)
 }
