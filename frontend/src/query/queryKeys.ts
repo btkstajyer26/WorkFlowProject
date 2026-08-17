@@ -12,4 +12,11 @@ export const queryKeys = {
         : ['records', 'detail', recordId] as const
     ),
   },
+  notifications: {
+    all: ['notifications'] as const,
+    lists: () => ['notifications', 'list'] as const,
+    list: () => ['notifications', 'list', 'all'] as const,
+    unread: ['notifications', 'unread'] as const,
+    unreadCount: ['notifications', 'unread-count'] as const,
+  },
 }

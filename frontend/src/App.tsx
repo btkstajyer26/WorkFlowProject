@@ -15,7 +15,7 @@ import {
   startAuthSession,
   subscribeAuthSessionExpired,
 } from './auth/authSession'
-import { isApiMockEnabled } from './api/config'
+import { apiMode, isApiMockEnabled } from './api/config'
 import { CategoryProvider } from './context/CategoryContext'
 import { demoAccounts } from './mocks/users'
 import { DashboardPage } from './pages/DashboardPage'
@@ -32,6 +32,7 @@ import { AdminLogsPage } from './pages/admin/AdminLogsPage'
 import { AdminUsersPage } from './pages/admin/AdminUsersPage'
 import type { AuthUser, UserRole } from './types/auth'
 import { AppQueryProvider } from './query/queryClient'
+import { useUnreadNotificationCount } from './hooks/useNotificationCenter'
 
 async function startDemoAuthSession(role: UserRole) {
   const account = demoAccounts.find((candidate) => candidate.role === role)
@@ -214,9 +215,14 @@ function WorkflowApplication({
 }) {
   const {
     notifications,
-    unreadNotificationCount,
+    unreadNotificationCount: mockUnreadNotificationCount,
     markNotificationRead,
   } = useWorkflow()
+  const backendMode = apiMode === 'backend'
+  const unreadNotificationCountQuery = useUnreadNotificationCount(backendMode)
+  const unreadNotificationCount = backendMode
+    ? unreadNotificationCountQuery.data ?? 0
+    : mockUnreadNotificationCount
 
   return (
     <AppShell user={user} unreadNotificationCount={unreadNotificationCount} onRoleChange={onRoleChange} onLogout={onLogout}>
