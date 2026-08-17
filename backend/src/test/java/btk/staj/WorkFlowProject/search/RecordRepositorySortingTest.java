@@ -19,6 +19,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -122,6 +123,9 @@ class RecordRepositorySortingTest {
         user.setPasswordHash("test-parola-ozeti");
         user.setRole(calisan);
         user.setActive(true);
+        // users.created_at NOT NULL ve kolonun varsayilani yok; entity de
+        // otomatik doldurmuyor (bkz. User#createdAt), bu yuzden elle verilir.
+        user.setCreatedAt(LocalDateTime.now());
 
         return userRepository.saveAndFlush(user).getId();
     }
