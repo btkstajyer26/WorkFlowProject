@@ -67,6 +67,7 @@ public class RecordController {
             @RequestParam(required = false) String q,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+            @RequestParam(required = false) String creator,
             Pageable pageable) {
 
         RecordSearchCriteria criteria = new RecordSearchCriteria();
@@ -75,6 +76,7 @@ public class RecordController {
         criteria.setQ(q);
         criteria.setFrom(from);
         criteria.setTo(to);
+        criteria.setCreator(creator);
 
         PagedResponse<RecordSearchResponse> response = recordSearchService.search(criteria, pageable);
         return ResponseEntity.ok(response);
