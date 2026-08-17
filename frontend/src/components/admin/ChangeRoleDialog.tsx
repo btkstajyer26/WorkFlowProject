@@ -9,6 +9,7 @@ import { roleLabels } from '../../types/auth'
 import type { ManagedUser } from '../../types/admin'
 import { AdminDialog } from './AdminDialog'
 import { useSingleFlight } from '../../hooks/useSingleFlight'
+import { useAdminUserOptions } from '../../hooks/useAdminUserOptions'
 
 export function ChangeRoleDialog({
   user,
@@ -20,6 +21,7 @@ export function ChangeRoleDialog({
   onClose: () => void
 }) {
   const { users, changeUserRole } = useAdmin()
+  const userOptions = useAdminUserOptions(users, open)
   const { showToast } = useToast()
   const { busy: mutationBusy, run: runMutation } = useSingleFlight()
   const [replacementDeputyId, setReplacementDeputyId] = useState('')
@@ -37,10 +39,10 @@ export function ChangeRoleDialog({
 
   const selectedRole = watch('role')
   const activeDeputy = selectedRole === 'BASKAN_YARDIMCISI'
-    ? users.find((item) => item.id !== user?.id && item.isActive && item.role === 'BASKAN_YARDIMCISI')
+    ? userOptions.users.find((item) => item.id !== user?.id && item.isActive && item.role === 'BASKAN_YARDIMCISI')
     : undefined
   const leavingDeputy = user?.role === 'BASKAN_YARDIMCISI' && selectedRole !== 'BASKAN_YARDIMCISI'
-  const replacementCandidates = users.filter((item) => (
+  const replacementCandidates = userOptions.users.filter((item) => (
     item.id !== user?.id && item.isActive && item.role === 'CALISAN'
   ))
 
@@ -51,7 +53,12 @@ export function ChangeRoleDialog({
         setError('root', { message: 'Yerine atanacak aktif Çalışanı seçin.' })
         return
       }
-      await changeUserRole(user.id, values.role, replacementDeputyId || undefined)
+      await changeUserRole(
+        user.id,
+        values.role,
+        replacementDeputyId || undefined,
+        activeDeputy?.id,
+      )
       showToast({
         title: 'Kullanıcı rolü güncellendi',
         description: `${user.firstName} ${user.lastName} artık ${roleLabels[values.role]} rolünde.`,
@@ -104,10 +111,16 @@ export function ChangeRoleDialog({
             </select>
           </label>
         ) : null}
+        {userOptions.isPending ? (
+          <p className="mt-3 text-sm font-semibold text-app-text-muted" role="status">Rol seçenekleri yükleniyor…</p>
+        ) : null}
+        {userOptions.isError ? (
+          <p className="mt-3 text-sm font-semibold text-rose-700 dark:text-rose-300" role="alert">Rol seçenekleri yüklenemedi. Pencereyi kapatıp tekrar deneyin.</p>
+        ) : null}
         {errors.root ? <p className="mt-3 text-sm font-semibold text-rose-700 dark:text-rose-300" role="alert">{errors.root.message}</p> : null}
         <div className="mt-6 grid grid-cols-2 gap-3">
           <button type="button" onClick={onClose} className="min-h-11 rounded-xl border border-app-border px-4 text-sm font-bold text-app-text-secondary hover:bg-app-surface-muted">Vazgeç</button>
-          <button type="submit" disabled={mutationBusy} className="min-h-11 rounded-xl bg-brand-700 px-4 text-sm font-bold text-white hover:bg-brand-800 disabled:opacity-60">Değiştir</button>
+          <button type="submit" disabled={mutationBusy || userOptions.isPending || userOptions.isError} className="min-h-11 rounded-xl bg-brand-700 px-4 text-sm font-bold text-white hover:bg-brand-800 disabled:opacity-60">Değiştir</button>
         </div>
       </form>
     </AdminDialog>

@@ -1,8 +1,12 @@
 import { Search, UsersRound } from 'lucide-react'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router'
+import { listAdminAuditLogs } from '../../api/admin'
+import { apiMode } from '../../api/config'
 import { useAdmin } from '../../context/adminState'
 import { useDebouncedSearchParam } from '../../hooks/useDebouncedSearchParam'
+import { queryKeys } from '../../query/queryKeys'
 
 const pageSize = 8
 
@@ -13,23 +17,37 @@ export function AdminLogsPage() {
   const [searchInput, setSearchInput] = useDebouncedSearchParam(searchParams, setSearchParams)
   const rawPage = Number(searchParams.get('sayfa'))
   const requestedPage = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1
+  const backendMode = apiMode === 'backend'
+  const serverQuery = { page: requestedPage - 1, size: pageSize }
+  const logsQuery = useQuery({
+    queryKey: queryKeys.admin.auditLogs.list(serverQuery),
+    queryFn: () => listAdminAuditLogs(serverQuery),
+    enabled: backendMode,
+    placeholderData: keepPreviousData,
+  })
   const filteredLogs = useMemo(() => logs.filter((log) => {
     const searchable = `${log.actionLabel} ${log.actor} ${log.target} ${log.description} ${log.recordNumber ?? ''}`.toLocaleLowerCase('tr-TR')
     return !query || searchable.includes(query)
   }), [logs, query])
-  const pageCount = Math.max(1, Math.ceil(filteredLogs.length / pageSize))
+  const pageCount = backendMode
+    ? Math.max(1, logsQuery.data?.totalPages ?? 1)
+    : Math.max(1, Math.ceil(filteredLogs.length / pageSize))
   const currentPage = Math.min(requestedPage, pageCount)
-  const visibleLogs = filteredLogs.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  const visibleLogs = backendMode
+    ? logsQuery.data?.content ?? []
+    : filteredLogs.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  const totalLogCount = backendMode ? logsQuery.data?.totalElements ?? 0 : filteredLogs.length
 
   useEffect(() => {
     const next = new URLSearchParams(searchParams)
+    if (backendMode) next.delete('q')
     if (!Number.isInteger(rawPage) || rawPage <= 1) next.delete('sayfa')
-    else if (rawPage > pageCount) {
+    else if ((!backendMode || !logsQuery.isPending) && rawPage > pageCount) {
       if (pageCount <= 1) next.delete('sayfa')
       else next.set('sayfa', String(pageCount))
     }
     if (next.toString() !== searchParams.toString()) setSearchParams(next, { replace: true })
-  }, [pageCount, rawPage, searchParams, setSearchParams])
+  }, [backendMode, logsQuery.isPending, pageCount, rawPage, searchParams, setSearchParams])
 
   const setPage = (page: number) => {
     const next = new URLSearchParams(searchParams)
@@ -47,7 +65,7 @@ export function AdminLogsPage() {
         </div>
       </header>
 
-      <section className="rounded-2xl border border-app-border bg-app-surface p-4 shadow-sm" aria-label="Log filtreleri">
+      {!backendMode ? <section className="rounded-2xl border border-app-border bg-app-surface p-4 shadow-sm" aria-label="Log filtreleri">
         <div>
           <label className="relative block">
             <span className="sr-only">İşlem kaydı ara</span>
@@ -55,11 +73,18 @@ export function AdminLogsPage() {
             <input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Kullanıcı veya işlem ara" className="min-h-11 w-full rounded-xl border border-app-border bg-app-surface pl-10 pr-3 text-sm text-app-text-strong outline-none placeholder:text-app-text-faint focus:border-brand-400 focus:ring-4 focus:ring-brand-100 dark:focus:ring-brand-800/60" />
           </label>
         </div>
-      </section>
+      </section> : null}
 
       <section className="overflow-hidden rounded-2xl border border-app-border bg-app-surface shadow-sm">
-        <div className="border-b border-app-border-subtle px-4 py-3 text-xs font-semibold text-app-text-subtle sm:px-6">{filteredLogs.length} işlem kaydı bulundu</div>
-        {visibleLogs.length ? (
+        <div className="border-b border-app-border-subtle px-4 py-3 text-xs font-semibold text-app-text-subtle sm:px-6">{totalLogCount} işlem kaydı bulundu</div>
+        {backendMode && logsQuery.isPending ? (
+          <div className="px-5 py-14 text-center text-sm font-semibold text-app-text-muted" role="status">İşlem kayıtları yükleniyor…</div>
+        ) : backendMode && logsQuery.isError ? (
+          <div className="px-5 py-14 text-center" role="alert">
+            <h2 className="font-bold text-app-text-strong">İşlem kayıtları yüklenemedi</h2>
+            <button type="button" onClick={() => void logsQuery.refetch()} className="mt-4 min-h-10 rounded-lg border border-app-border px-4 text-xs font-bold text-app-text-secondary hover:bg-app-surface-muted">Tekrar dene</button>
+          </div>
+        ) : visibleLogs.length ? (
           <div className="divide-y divide-app-border-subtle">
             {visibleLogs.map((log) => (
               <article key={log.id} className="grid gap-3 px-4 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_12rem] lg:items-start">

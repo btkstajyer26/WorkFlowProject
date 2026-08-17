@@ -5,7 +5,6 @@ import { AppErrorBoundary } from './components/errors/AppErrorBoundary'
 import { WorkflowProvider } from './context/WorkflowContext'
 import { useWorkflow } from './context/workflowState'
 import { AdminProvider } from './context/AdminContext'
-import { AdminDataBoundary } from './components/admin/AdminDataBoundary'
 import { ThemeProvider } from './context/ThemeContext'
 import { ToastProvider } from './context/ToastContext'
 import {
@@ -269,9 +268,9 @@ function AdminApplication({
       onLogout={onLogout}
     >
       <Routes>
-        <Route path="/admin" element={<AdminDataBoundary><AdminDashboardPage /></AdminDataBoundary>} />
-        <Route path="/admin/kullanicilar" element={<AdminDataBoundary><AdminUsersPage /></AdminDataBoundary>} />
-        <Route path="/admin/loglar" element={<AdminDataBoundary><AdminLogsPage /></AdminDataBoundary>} />
+        <Route path="/admin" element={<AdminDashboardPage />} />
+        <Route path="/admin/kullanicilar" element={<AdminUsersPage />} />
+        <Route path="/admin/loglar" element={<AdminLogsPage />} />
         <Route path="/profil" element={<ProfilePage user={user} />} />
         <Route path="/403" element={<ErrorStatePage type="403" />} />
         <Route path="/404" element={<ErrorStatePage type="404" />} />
