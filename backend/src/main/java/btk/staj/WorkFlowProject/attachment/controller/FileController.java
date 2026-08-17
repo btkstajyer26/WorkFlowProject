@@ -1,9 +1,9 @@
 package btk.staj.WorkFlowProject.attachment.controller;
 
 import btk.staj.WorkFlowProject.attachment.dto.FileResponseDto;
-import btk.staj.WorkFlowProject.attachment.entity.FileEntity;
 import btk.staj.WorkFlowProject.attachment.service.FileService;
 import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
+import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
@@ -13,6 +13,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -21,59 +22,52 @@ public class FileController {
 
     private final FileService fileService;
 
-    // YENİ UÇ ADRESİ: POST /api/records/{id}/files
     @PreAuthorize("hasRole('CALISAN')")
     @PostMapping(value = "/api/records/{id}/files", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<?> uploadFile(
-            @PathVariable("id") UUID recordId, // @RequestParam yerine @PathVariable yapıldı
+    public ResponseEntity<FileResponseDto> uploadFile(
+            @PathVariable("id") UUID recordId,
             @RequestPart("file") MultipartFile file,
             @AuthenticationPrincipal AuthenticatedUser currentUser) {
 
-        try {
-            FileEntity saved = fileService.uploadFile(file, recordId, currentUser.getId());
-            FileResponseDto response = toDto(saved);
-            return ResponseEntity.ok(response);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+        FileResponseDto response = fileService.uploadFile(file, recordId, currentUser.getId());
+        return ResponseEntity.ok(response);
     }
 
-    // İndirme adresi aynen korundu: GET /api/files/{id}/download
+    @GetMapping("/api/records/{id}/files")
+    public ResponseEntity<List<FileResponseDto>> listFiles(
+            @PathVariable("id") UUID recordId,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+
+        RoleName role = RoleName.valueOf(currentUser.getRoleName());
+        List<FileResponseDto> files = fileService.listByRecord(recordId, role, currentUser.getId());
+        return ResponseEntity.ok(files);
+    }
+
     @GetMapping("/api/files/{id}/download")
-    public ResponseEntity<Resource> downloadFile(@PathVariable UUID id) {
-        return fileService.downloadFile(id);
-    }
-
-    // Önizleme adresi aynen korundu: GET /api/files/{id}/preview
-    @GetMapping("/api/files/{id}/preview")
-    public ResponseEntity<Resource> previewFile(@PathVariable UUID id) {
-        return fileService.previewFile(id);
-    }
-
-    // Silme adresi aynen korundu: DELETE /api/files/{id}
-    @PreAuthorize("hasRole('CALISAN')")
-    @DeleteMapping("/api/files/{id}")
-    public ResponseEntity<?> deleteFile(
+    public ResponseEntity<Resource> downloadFile(
             @PathVariable UUID id,
             @AuthenticationPrincipal AuthenticatedUser currentUser) {
 
-        try {
-            fileService.deleteFile(id, currentUser.getId());
-            return ResponseEntity.noContent().build();
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(404).body(e.getMessage());
-        }
+        RoleName role = RoleName.valueOf(currentUser.getRoleName());
+        return fileService.downloadFile(id, role, currentUser.getId());
     }
 
-    private FileResponseDto toDto(FileEntity entity) {
-        return new FileResponseDto(
-                entity.getId(),
-                entity.getRecordId(),
-                entity.getOriginalName(),
-                entity.getMimeType(),
-                entity.getFileSize(),
-                entity.getUploadedBy(),
-                entity.getUploadedAt()
-        );
+    @GetMapping("/api/files/{id}/preview")
+    public ResponseEntity<Resource> previewFile(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+
+        RoleName role = RoleName.valueOf(currentUser.getRoleName());
+        return fileService.previewFile(id, role, currentUser.getId());
+    }
+
+    @PreAuthorize("hasRole('CALISAN')")
+    @DeleteMapping("/api/files/{id}")
+    public ResponseEntity<Void> deleteFile(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+
+        fileService.deleteFile(id, currentUser.getId());
+        return ResponseEntity.noContent().build();
     }
 }
