@@ -51,7 +51,7 @@ Handler'lar JWT yerine yalnızca test amaçlı opaque token kullanır; istemcini
 - Çıkış onayı `POST /api/auth/logout` çağrısını başlatır ve ağ sonucu ne olursa olsun yerel oturumu kapatır.
 - Kategori dropdown ve filtreleri `GET /api/categories` cevabını tek bir merkezi provider üzerinden kullanır; frontend içinde ikinci bir sabit kategori listesi tutulmaz.
 - Bildirimlerin `GET /api/notifications/unread`, `GET /api/notifications/unread/count` ve `PUT /api/notifications/{id}/read` sözleşmeleri ortak MSW veritabanı üzerinden çalışır ve sahiplik kontrolünü taklit eder.
-- `GET /api/records/search` için RBAC kapsamı, metin/durum/kategori/oluşturulma tarihi filtreleri ve sayfalama aynı MSW kayıt durumundan üretilir. API adapterı `categoryId` değerini merkezi kategori listesindeki adla eşleştirir.
+- `GET /api/records` için RBAC kapsamı, metin/durum/kategori/oluşturulma tarihi filtreleri ve sayfalama aynı MSW kayıt durumundan üretilir. API adapterı `categoryId` değerini merkezi kategori listesindeki adla eşleştirir. (Ayrı `/api/records/search` ucu ve ona ait `recordSearchHandlers` kaldırıldı; `recordSearch.ts` facade'ı artık `/api/records`'e gidiyor.)
 - Token yenileme uygulama açılışına bağlı ve testlidir; henüz korumalı isteklerde otomatik 401 retry akışına bağlanmamıştır.
 
 Login cevabında kullanıcı adı ve rolü bulunmadığından kullanıcı görünümü geçici olarak mevcut demo profiliyle e-posta üzerinden eşleştirilir. Backend kullanıcı özeti döndürdüğünde bu geçici eşleştirme kaldırılacaktır.
@@ -67,7 +67,7 @@ Bu nedenle kayıt ekranlarının mevcut `WorkflowContext` state'i hemen kaldır�
 - kullanıcı profili (`GET /api/users/me` backend'de hazır, henüz MSW/API katmanına bağlanmadı) veya login sırasında kullanıcı özeti;
 - zengin kayıt detay cevabı ya da gerekli ayrı endpointler;
 - kayda ait dosyaları listeleme;
-- okunmuş bildirim geçmişini de sağlayan `GET /api/notifications` listeleme endpointi **backend'de tamamlandı**; frontend tarafında MSW handler'ı ve “Tümü” görünümünün bağlanması bekliyor.
+- okunmuş bildirim geçmişini de sağlayan `GET /api/notifications` listeleme endpointi **backend'de tamamlandı**, frontend'in `listNotifications` facade'ı ve sayfalı MSW handler'ı da hazır; geriye yalnız “Tümü” görünümünün bu facade'a bağlanması kaldı.
 
 Bildirimleri topluca okundu yapma işlemi kapsam dışıdır. Frontend “Tümü” ve “Okunmamış” görünümlerini korur. Okuma işlemi yalnızca `PUT /api/notifications/{id}/read` ile tekil olarak yapılır.
 

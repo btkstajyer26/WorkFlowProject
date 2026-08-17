@@ -8,8 +8,8 @@ için ayrı dosya artık tutulmuyor; kalan test boşlukları
 
 13 Ağustos'un ikinci turunda karar bekleyen maddelerin tamamı kapandı
 (listeleme birleştirmesi dahil). **Backend tarafında yazılacak uç kalmadı;
-geriye frontend'in yeni ucu bağlaması, bir ölü kod kalıntısı ve sızan bir
-kimlik bilgisinin geçersiz kılınması kaldı.**
+geriye bildirim panelinin arayüz bağlantısı ve sızan bir kimlik bilgisinin
+geçersiz kılınması kaldı.**
 
 13 Ağustos'un üçüncü turunda `fix/workflow-flush` ve `feature/nisan-sumeyye`
 entegre edildi: kayıt güncellemesi artık `saveAndFlush`, refresh ucu pasif
@@ -23,33 +23,26 @@ edildi: e-posta gövdesi Thymeleaf şablonuna taşındı ve **kalan tek backend 
 geride kalan iki yeri (§8 koltuk devri, §6 örnek JSON) koddan doğrulanarak
 düzeltildi; **artık sözleşme ile backend arasında bilinen bir sapma yok.**
 
+17 Ağustos'taki beşinci turda `feature/nisan-sumeyye` (`common` testleri) ve
+`feature/frontend-uygulamasi` (TanStack Query, genişletilmiş backend
+entegrasyonu) alındı — bkz. 2.7. Ölü kod kalıntısı temizlendi; geriye
+bildirim panelinin arayüz bağlantısı kaldı.
+
 ---
 
 ## 1. Kalan işler
 
-### 1.1 Frontend'de ölü kod: `RecordSearchController.ts` 🔴
+### 1.1 Bildirim geçmişinin arayüze bağlanması 🟢
 
-**Sorumlu:** Frontend ekibi (backend'deki listeleme birleştirmesinin —
-bkz. 2.2 — frontend karşılığı)
+**Sorumlu:** Frontend ekibi
 
-Backend'de `RecordSearchController` (`/api/records/search`) kaldırıldı,
-listeleme `GET /api/records`'e taşındı (bkz. 2.2). Ama frontend hâlâ eski
-uca göre üretilmiş kod taşıyor:
+`GET /api/notifications` backend'de yazıldı (2.6) ve frontend'in API katmanı
+da hazır: `listNotifications` facade'ı, sayfalı MSW handler'ı ve `api.test.ts`
+kapsaması beşinci turda geldi (2.7).
 
-- `frontend/src/api/generated/RecordSearchController.ts`
-- `frontend/src/api/recordSearch.ts` (facade)
-- `frontend/src/mocks/api/handlers/recordSearchHandlers.ts` (MSW handler)
-
-Şu an hiçbir sayfa veya context bu facade'ı çağırmıyor (yalnız kendi testi
-ve `api/index.ts` barrel export'u referans veriyor) — yani **çalışan bir
-akışı bozmuyor**, ama `VITE_API_MODE=backend` ile gerçek backend'e
-bağlanıldığında bu dosyalar 404 üreten bir uç için hâlâ orada duruyor
-olacak. OpenAPI yeniden üretildiğinde (`npm run api:generate`) otomatik
-silinir; elle temizlenmesi de düşünülebilir.
-
-`/api/v1` önekiyle aynı kökten geliyor: ikisi de backend'in listeleme
-birleştirmesinden (§2) önce üretilmiş generated kod kalıntısı. `/api/v1`
-tarafı düzeltildi (bkz. 2.5); bu, aynı kategoriden kalan tek parça.
+Kalan tek adım **arayüz tarafı**: bildirim panelindeki "Tümü" görünümü hâlâ
+`listNotifications`'ı çağırmıyor. Facade'ı kullanan bir sayfa/context yok
+(`api/index.ts` barrel export'u ve kendi testi dışında referansı bulunmuyor).
 
 ---
 
@@ -187,6 +180,45 @@ tamamlandı. Bildirim modülü artık `NotificationServiceTest`,
 `NotificationControllerTest` ve `MailServiceTest` ile kaplı — sonuncusu şablonu
 gerçek dosyadan işleyip kaçış davranışını da doğruluyor.
 
+### 2.7 `feature/nisan-sumeyye` ve `feature/frontend-uygulamasi` entegre edildi
+
+Beşinci tur. Her iki dal da bu entegrasyon dalının üstüne kurulmuştu, çakışma
+çıkmadı.
+
+**`nisan-sumeyye` (`0be40a7`)** — `common` paketinin ilk testleri:
+`GlobalExceptionHandlerTest` (131 satır) ve `ApiErrorTest` (55 satır).
+[EKSIK_SINIFLAR_VE_ONCELIK.md](EKSIK_SINIFLAR_VE_ONCELIK.md) Faz 1'deki
+"`common` testleri" maddesi kapandı; backend 314 → 330 test.
+
+> 🔴 **Merge sırasında düzeltildi:** aynı commit, beş test dosyasından
+> kullanılan `import`'ları silmişti (`RecordServiceImplTest`,
+> `UserServiceTest`, `AuthServiceTest`, `AdminControllerTest`,
+> `NotificationServiceTest`). Bu hâliyle **test kaynakları derlenmiyordu**;
+> muhtemelen editörün "organize imports" adımı eski bir dosya sürümü üzerinde
+> çalışmış. Import'lar geri konuldu. `AuditLogControllerTest` ve
+> `AuthControllerTest`'te aynı işlem import'ları static import'ların altına
+> taşımıştı (derleniyor ama tutarsız); onlar da yukarı alındı.
+
+**`frontend-uygulamasi` (`046d2c0`, `792d3d0`)** — gerçek backend
+entegrasyonunun genişletilmesi ve kayıt verilerinin TanStack Query'ye
+taşınması. İki iş listesi maddesini etkiledi:
+
+- **Ölü `RecordSearchController.ts` temizlendi** (eski 1.1 / öncelik 3):
+  generated istemci `UserController.ts` olarak yeniden üretildi,
+  `recordSearchHandlers.ts` silindi, `recordSearch.ts` facade'ı artık
+  `/api/records` ucunu çağırıyor — yani ölü değil, canlı kod.
+- **`GET /api/notifications` frontend'e kısmen bağlandı:** `listNotifications`
+  facade'ı, sayfalı MSW handler'ı ve `api.test.ts` kapsaması geldi. Henüz
+  hiçbir sayfa/context bu facade'ı çağırmıyor, yani arayüzdeki "Tümü" görünümü
+  hâlâ mock veriyle çalışıyor. Kalan iş öncelik tablosunda.
+
+> ⚠️ **Test çalıştırırken:** depoda takip edilmeyen bir `frontend/.env`
+> varsa ve içinde `VITE_API_MODE=backend` yazıyorsa, `npm test` MSW yerine
+> gerçek backend'e gider ve 26 test kırmızı olur. Testler mock modunda
+> çalışmalı: `VITE_API_MODE=mock npm test` (veya `.env`'i geçici olarak
+> kaldırın). Bu bir kod hatası değil, yerel yapılandırma tuzağıdır — dal tek
+> başına 89/89 geçiyor.
+
 ---
 
 ## 3. Karar bekleyenler 🔴
@@ -211,8 +243,9 @@ gerekiyor. Ertelendi.
 | Sıra | İş | Sorumlu | Durum |
 |---|---|---|---|
 | 1 | **Sızan Mailtrap parolasının geçersiz kılınması** (2.6) | Melih | 🔴 açık — yalnız Mailtrap hesabına erişimi olan yapabilir |
-| 2 | `GET /api/notifications`'ın frontend'e bağlanması: OpenAPI'nin yeniden üretilmesi, MSW handler'ı ve "Tümü" görünümünün gerçek API'ye taşınması | Frontend ekibi | 🟢 açık |
-| 3 | Frontend'deki ölü `RecordSearchController.ts` kalıntısının temizlenmesi | Frontend ekibi | 🟢 açık |
-| 4 | §12 netleştirmeleri | Ekip | 🟡 ertelendi |
+| 2 | Bildirim panelindeki "Tümü" görünümünün `listNotifications`'a bağlanması (1.1) | Frontend ekibi | 🟢 açık — API katmanı hazır, yalnız UI kaldı |
+| 3 | §12 netleştirmeleri | Ekip | 🟡 ertelendi |
+| — | ~~Ölü `RecordSearchController.ts` kalıntısı~~ | Frontend ekibi | ✅ beşinci turda temizlendi (2.7) |
+| — | ~~`common` paketi testleri~~ | Sümeyye | ✅ beşinci turda yazıldı (2.7) |
 | — | ~~Sözleşme §8 koltuk devri metni (2.4)~~ | Nisan · Sümeyye | ✅ dördüncü turda yazıldı |
 | — | ~~Sözleşme §6 örnek JSON'u (2.3)~~ | Ebrar | ✅ dördüncü turda düzeltildi |
