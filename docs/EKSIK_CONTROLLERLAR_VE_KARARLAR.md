@@ -30,6 +30,12 @@ bildirim panelinin arayüz bağlantısı kaldı.
 
 ---
 
+> **17 Ağustos:** Frontend ekibi gerçek API entegrasyonu sırasında gördüğü
+> backend eksiklerini ayrı bir belgeyle iletti. Dokuz maddenin tamamı güncel
+> kodda doğrulandı ve kişi bazlı dağıtıldı:
+> [BACKEND_ACIK_ISLER_VE_GOREV_DAGILIMI.md](BACKEND_ACIK_ISLER_VE_GOREV_DAGILIMI.md).
+> Bu dosyadaki liste onunla çakışmıyor; oradakiler **yeni** açılan işler.
+
 ## 1. Kalan işler
 
 ### 1.1 Bildirim geçmişinin arayüze bağlanması 🟢
