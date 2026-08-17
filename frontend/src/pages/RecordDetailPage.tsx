@@ -117,7 +117,7 @@ function RecordDetailContent({
   const editable = role === 'CALISAN' && (record.status === 'TASLAK' || record.status === 'DUZENLEME_BEKLIYOR')
 
   return (
-    <article className="mx-auto max-w-[1400px] space-y-4">
+    <article className="mx-auto max-w-[1400px] space-y-4 [overflow-wrap:anywhere]">
       <Link
         to="/kayitlar"
         className="inline-flex items-center gap-2 text-[15px] font-bold text-app-text-muted transition hover:text-brand-700 dark:hover:text-brand-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
