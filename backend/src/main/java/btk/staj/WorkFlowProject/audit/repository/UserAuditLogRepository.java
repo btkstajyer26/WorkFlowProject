@@ -48,9 +48,13 @@ public interface UserAuditLogRepository extends Repository<UserAuditLog, UUID> {
                        l.previousActive,
                        l.newActive,
                        l.comment,
+                       l.httpMethod,
+                       l.requestPath,
+                       l.httpStatus,
+                       l.errorCode,
                        l.createdAt)
             FROM UserAuditLog l
-            JOIN User tu ON tu.id = l.targetUserId
+            LEFT JOIN User tu ON tu.id = l.targetUserId
             LEFT JOIN User pu ON pu.id = l.performedBy
             LEFT JOIN Role pr ON pr.id = l.previousRoleId
             LEFT JOIN Role nr ON nr.id = l.newRoleId

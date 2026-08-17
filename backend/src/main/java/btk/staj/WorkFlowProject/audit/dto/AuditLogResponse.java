@@ -15,5 +15,9 @@ public record AuditLogResponse(
         String previousStatus,
         String newStatus,
         String comment,
+        String httpMethod,
+        String requestPath,
+        Integer httpStatus,
+        String errorCode,
         LocalDateTime createdAt) {
 }

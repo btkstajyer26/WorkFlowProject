@@ -1,5 +1,7 @@
 package btk.staj.WorkFlowProject.attachment.service;
 
+import btk.staj.WorkFlowProject.common.exception.BusinessRuleException;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
@@ -86,15 +88,32 @@ class FileContentValidatorTest {
         byte[] exeBytes = new byte[]{'M', 'Z', (byte) 0x90, 0, 3, 0, 0, 0, 4, 0, 0, 0};
 
         assertThatThrownBy(() -> validator.detectAndValidate(dosya("rapor.pdf", exeBytes)))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("Desteklenmeyen dosya formatı");
+    }
+
+    @Test
+    @DisplayName("izinli turde ama uzantisi uyusmayan dosya reddedilir")
+    void uzantisiIcerikleUyusmayanDosyaReddedilir() {
+        // Gercek PDF icerigi, ama adi .png: tur izinli listede olsa da uzanti tutmuyor.
+        assertThatThrownBy(() -> validator.detectAndValidate(dosya("rapor.png", pdfBytes())))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("uyuşmuyor");
+    }
+
+    @Test
+    @DisplayName("dosya adi bos olamaz")
+    void dosyaAdiBosOlamaz() {
+        assertThatThrownBy(() -> validator.detectAndValidate(dosya("", pdfBytes())))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("Dosya adı");
     }
 
     @Test
     @DisplayName("duz metin reddedilir")
     void duzMetinReddedilir() {
         assertThatThrownBy(() -> validator.detectAndValidate(dosya("not.txt", "merhaba".getBytes())))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("Desteklenmeyen dosya formatı");
     }
 }

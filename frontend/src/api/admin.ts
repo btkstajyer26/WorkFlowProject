@@ -1,4 +1,5 @@
 import type {
+  AuditLogResponse,
   ListAuditLogsData,
   ListUsersData,
   UserAuditLogResponse,
@@ -6,7 +7,7 @@ import type {
 } from './generated/data-contracts'
 import { apiHttpClient } from './client'
 import { ApiClientError } from './errors'
-import type { AdminAuditLog, ManagedUser } from '../types/admin'
+import type { AdminAuditLog, AdminLogType, ManagedUser } from '../types/admin'
 import type { UserRole } from '../types/auth'
 
 export type AdminUserListQuery = {
@@ -41,6 +42,13 @@ const userActionLabels: Record<string, string> = {
   ACCOUNT_ACTIVATED: 'Hesap etkinleştirildi',
   ACCOUNT_DEACTIVATED: 'Hesap pasifleştirildi',
   BOOTSTRAP_ADMIN_CREATED: 'İlk Admin oluşturuldu',
+  LOGIN: 'Giriş yapıldı',
+  LOGIN_FAILED: 'Giriş başarısız',
+  LOGOUT: 'Çıkış yapıldı',
+  TOKEN_REFRESH: 'Oturum yenilendi',
+  TOKEN_REFRESH_FAILED: 'Oturum yenileme başarısız',
+  PASSWORD_CHANGED: 'Şifre değiştirildi',
+  HTTP_REQUEST: 'API isteği',
 }
 
 function invalidAdminResponse(message: string): never {
@@ -85,7 +93,7 @@ export function normalizeManagedUser(response: UserResponse): ManagedUser {
 }
 
 function normalizeAdminLog(response: UserAuditLogResponse): AdminAuditLog {
-  if (!response.id || !response.action || !response.targetUserFullName?.trim() || !response.createdAt) {
+  if (!response.id || !response.action || !response.createdAt) {
     return invalidAdminResponse('Sunucu geçerli kullanıcı işlem kaydı döndürmedi.')
   }
 
@@ -95,9 +103,35 @@ function normalizeAdminLog(response: UserAuditLogResponse): AdminAuditLog {
     action: response.action,
     actionLabel: userActionLabels[response.action] ?? response.action,
     actor: response.performedByFullName?.trim() || 'Sistem',
-    target: response.targetUserFullName.trim(),
+    target: response.targetUserFullName?.trim() || response.requestPath?.trim() || 'Bilinmeyen kullanıcı',
     description: response.comment?.trim() || 'Kullanıcı hesabında işlem yapıldı.',
     createdAt: response.createdAt,
+    httpMethod: response.httpMethod,
+    requestPath: response.requestPath,
+    httpStatus: response.httpStatus,
+    errorCode: response.errorCode,
+  }
+}
+
+function normalizeRecordAuditLog(response: AuditLogResponse): AdminAuditLog {
+  if (!response.id || !response.action || !response.createdAt) {
+    return invalidAdminResponse('Sunucu geçerli evrak/admin işlem kaydı döndürmedi.')
+  }
+
+  return {
+    id: response.id,
+    type: 'RECORD',
+    action: response.action,
+    actionLabel: userActionLabels[response.action] ?? response.action,
+    actor: response.userFullName?.trim() || 'Sistem',
+    target: response.requestPath?.trim() || response.recordId || 'Evrak / admin işlemi',
+    description: response.comment?.trim() || 'İşlem kaydedildi.',
+    createdAt: response.createdAt,
+    recordId: response.recordId,
+    httpMethod: response.httpMethod,
+    requestPath: response.requestPath,
+    httpStatus: response.httpStatus,
+    errorCode: response.errorCode,
   }
 }
 
@@ -152,15 +186,20 @@ export async function listAllAdminUsers(
 export async function listAdminAuditLogs({
   page = 0,
   size = 10,
+  type = 'USER',
 }: {
   page?: number
   size?: number
+  type?: AdminLogType
 } = {}): Promise<AdminAuditLogListResult> {
   const response = await apiHttpClient.request<ListAuditLogsData>({
     path: '/api/admin/audit-logs',
     method: 'GET',
-    query: { page, size, sort: 'createdAt,desc' },
+    query: { page, size, sort: 'createdAt,desc', type },
     secure: true,
   })
+  if (type === 'RECORD') {
+    return normalizePage(response as { content?: AuditLogResponse[], page?: number, size?: number, totalElements?: number, totalPages?: number }, normalizeRecordAuditLog)
+  }
   return normalizePage(response, normalizeAdminLog)
 }

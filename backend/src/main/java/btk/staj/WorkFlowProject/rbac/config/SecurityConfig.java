@@ -1,6 +1,8 @@
 package btk.staj.WorkFlowProject.rbac.config;
 
+import btk.staj.WorkFlowProject.audit.RequestAuditFilter;
 import btk.staj.WorkFlowProject.auth.security.JwtAuthenticationFilter;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -42,13 +44,16 @@ public class SecurityConfig {
     };
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final RequestAuditFilter requestAuditFilter;
     private final AuthenticationEntryPoint authenticationEntryPoint;
     private final AccessDeniedHandler accessDeniedHandler;
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
+                          RequestAuditFilter requestAuditFilter,
                           AuthenticationEntryPoint authenticationEntryPoint,
                           AccessDeniedHandler accessDeniedHandler) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.requestAuditFilter = requestAuditFilter;
         this.authenticationEntryPoint = authenticationEntryPoint;
         this.accessDeniedHandler = accessDeniedHandler;
     }
@@ -68,9 +73,22 @@ public class SecurityConfig {
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler))
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(requestAuditFilter, JwtAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    /**
+     * Servlet konteynerinin filtreyi ikinci kez (JWT'den once) calistirmasini
+     * engeller; yalnizca SecurityFilterChain icindeki sira gecerlidir.
+     */
+    @Bean
+    public FilterRegistrationBean<RequestAuditFilter> disableDuplicateRequestAuditFilter(
+            RequestAuditFilter requestAuditFilter) {
+        FilterRegistrationBean<RequestAuditFilter> registration = new FilterRegistrationBean<>(requestAuditFilter);
+        registration.setEnabled(false);
+        return registration;
     }
 
     @Bean
