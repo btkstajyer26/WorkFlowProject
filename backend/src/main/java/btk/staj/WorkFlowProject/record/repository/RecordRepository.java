@@ -6,6 +6,7 @@ import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying; // Eklendi
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -14,8 +15,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 public interface RecordRepository extends JpaRepository<Record, UUID>, JpaSpecificationExecutor<Record> {
-// ...
-    
+
     // 1. Oluşturan kullanıcıya göre arama (Kayıtlarım Listesi)
     Page<Record> findByCreatedByAndDeletedAtIsNull(UUID userId, Pageable pageable);
 
@@ -32,4 +32,8 @@ public interface RecordRepository extends JpaRepository<Record, UUID>, JpaSpecif
     @Query("SELECT r FROM Record r WHERE LOWER(r.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(r.description) LIKE LOWER(CONCAT('%', :keyword, '%'))")
     Page<Record> searchByTitleOrDescription(@Param("keyword") String keyword, Pageable pageable);
 
+    // 6. Eski kullanıcının (Başkan, Bşk. Yrd. vb.) üzerindeki tüm kayıtları yeni kullanıcıya devretme
+    @Modifying
+    @Query("UPDATE Record r SET r.assignedTo = :yeniKullaniciId WHERE r.assignedTo = :eskiKullaniciId")
+    int devretBekleyenIsleri(@Param("eskiKullaniciId") UUID eskiKullaniciId, @Param("yeniKullaniciId") UUID yeniKullaniciId);
 }
