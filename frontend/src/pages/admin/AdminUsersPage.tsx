@@ -13,6 +13,7 @@ import { useDebouncedSearchParam } from '../../hooks/useDebouncedSearchParam'
 import { roleLabels, type UserRole } from '../../types/auth'
 import type { ManagedUser } from '../../types/admin'
 import { queryKeys } from '../../query/queryKeys'
+import { ListLoadingSkeleton } from '../../components/feedback/LoadingSkeleton'
 
 const pageSize = 6
 const roleValues: UserRole[] = ['CALISAN', 'BASKAN_YARDIMCISI', 'BASKAN', 'ADMIN']
@@ -132,7 +133,7 @@ export function AdminUsersPage() {
           {totalUserCount} kullanıcı bulundu
         </div>
         {backendMode && usersQuery.isPending ? (
-          <div className="px-5 py-14 text-center text-sm font-semibold text-app-text-muted" role="status">Kullanıcılar yükleniyor…</div>
+          <ListLoadingSkeleton label="Kullanıcılar yükleniyor" rows={pageSize} />
         ) : backendMode && usersQuery.isError ? (
           <div className="px-5 py-14 text-center" role="alert">
             <h2 className="font-bold text-app-text-strong">Kullanıcılar yüklenemedi</h2>

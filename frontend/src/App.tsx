@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router'
 import { AppShell } from './components/layout/AppShell'
 import { AppErrorBoundary } from './components/errors/AppErrorBoundary'
@@ -17,21 +17,23 @@ import {
 import { apiMode, isApiMockEnabled } from './api/config'
 import { CategoryProvider } from './context/CategoryContext'
 import { demoAccounts } from './mocks/users'
-import { DashboardPage } from './pages/DashboardPage'
-import { ErrorStatePage } from './pages/ErrorStatePage'
-import { LoginPage } from './pages/LoginPage'
-import { NotificationsPage } from './pages/NotificationsPage'
-import { ProfilePage } from './pages/ProfilePage'
-import { PasswordChangePage } from './pages/PasswordChangePage'
-import { RecordDetailPage } from './pages/RecordDetailPage'
-import { RecordEditPage } from './pages/RecordEditPage'
-import { RecordsPage } from './pages/RecordsPage'
-import { AdminDashboardPage } from './pages/admin/AdminDashboardPage'
-import { AdminLogsPage } from './pages/admin/AdminLogsPage'
-import { AdminUsersPage } from './pages/admin/AdminUsersPage'
 import type { AuthUser, UserRole } from './types/auth'
 import { AppQueryProvider } from './query/queryClient'
 import { useUnreadNotificationCount } from './hooks/useNotificationCenter'
+import { RoutePageSkeleton } from './components/feedback/LoadingSkeleton'
+
+const DashboardPage = lazy(() => import('./pages/DashboardPage').then((module) => ({ default: module.DashboardPage })))
+const ErrorStatePage = lazy(() => import('./pages/ErrorStatePage').then((module) => ({ default: module.ErrorStatePage })))
+const LoginPage = lazy(() => import('./pages/LoginPage').then((module) => ({ default: module.LoginPage })))
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage').then((module) => ({ default: module.NotificationsPage })))
+const ProfilePage = lazy(() => import('./pages/ProfilePage').then((module) => ({ default: module.ProfilePage })))
+const PasswordChangePage = lazy(() => import('./pages/PasswordChangePage').then((module) => ({ default: module.PasswordChangePage })))
+const RecordDetailPage = lazy(() => import('./pages/RecordDetailPage').then((module) => ({ default: module.RecordDetailPage })))
+const RecordEditPage = lazy(() => import('./pages/RecordEditPage').then((module) => ({ default: module.RecordEditPage })))
+const RecordsPage = lazy(() => import('./pages/RecordsPage').then((module) => ({ default: module.RecordsPage })))
+const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage').then((module) => ({ default: module.AdminDashboardPage })))
+const AdminLogsPage = lazy(() => import('./pages/admin/AdminLogsPage').then((module) => ({ default: module.AdminLogsPage })))
+const AdminUsersPage = lazy(() => import('./pages/admin/AdminUsersPage').then((module) => ({ default: module.AdminUsersPage })))
 
 async function startDemoAuthSession(role: UserRole) {
   const account = demoAccounts.find((candidate) => candidate.role === role)
@@ -86,12 +88,17 @@ function App() {
     setSessionEndPath(path)
   }
 
+  const handleLogout = () => {
+    void endAuthSession().catch(() => undefined)
+    endSessionAt('/giris')
+  }
+
   return (
     <AppQueryProvider key={`${user?.id ?? 'anonymous'}:${user?.role ?? 'none'}`}>
       <ThemeProvider>
         <ToastProvider>
           <AppErrorBoundary>
-            {authReady ? <Routes>
+            {authReady ? <Suspense fallback={<RoutePageSkeleton label="Oturum sayfası yükleniyor" />}><Routes>
             <Route
               path="/giris"
               element={(
@@ -113,7 +120,9 @@ function App() {
             />
             <Route
               path="/*"
-              element={user?.mustChangePassword
+              element={sessionEndPath
+                ? <Navigate to={sessionEndPath} replace />
+                : user?.mustChangePassword
                 ? <Navigate to="/sifre-degistir" replace />
                 : (
                   <ProtectedApplication
@@ -121,10 +130,11 @@ function App() {
                     onUserChange={(nextUser) => {
                       setUser(nextUser)
                     }}
+                    onLogout={handleLogout}
                   />
                 )}
             />
-            </Routes> : <AuthBootstrapScreen />}
+            </Routes></Suspense> : <AuthBootstrapScreen />}
           </AppErrorBoundary>
         </ToastProvider>
       </ThemeProvider>
@@ -135,9 +145,11 @@ function App() {
 function ProtectedApplication({
   user,
   onUserChange,
+  onLogout,
 }: {
   user: AuthUser | null
   onUserChange: (user: AuthUser | null) => void
+  onLogout: () => void
 }) {
   const location = useLocation()
   const navigate = useNavigate()
@@ -159,19 +171,13 @@ function ProtectedApplication({
     }
   }
 
-  const handleLogout = () => {
-    void endAuthSession().catch(() => undefined)
-    navigate('/giris', { replace: true })
-    onUserChange(null)
-  }
-
   if (user.role === 'ADMIN') {
     return (
       <AdminProvider actor={user}>
         <AdminApplication
           user={user}
           onRoleChange={handleRoleChange}
-          onLogout={handleLogout}
+          onLogout={onLogout}
         />
       </AdminProvider>
     )
@@ -183,7 +189,7 @@ function ProtectedApplication({
         <WorkflowApplication
           user={user}
           onRoleChange={handleRoleChange}
-          onLogout={handleLogout}
+          onLogout={onLogout}
         />
       </WorkflowProvider>
     </CategoryProvider>
@@ -225,7 +231,7 @@ function WorkflowApplication({
 
   return (
     <AppShell user={user} unreadNotificationCount={unreadNotificationCount} onRoleChange={onRoleChange} onLogout={onLogout}>
-      <Routes>
+      <Suspense fallback={<RoutePageSkeleton />}><Routes>
         <Route path="/dashboard" element={<DashboardPage user={user} />} />
         <Route path="/kayitlar" element={<RecordsPage role={user.role} />} />
         <Route path="/kayitlar/:recordId/duzenle" element={<RecordEditPage role={user.role} />} />
@@ -246,7 +252,7 @@ function WorkflowApplication({
         <Route path="/admin/*" element={<Navigate to="/403" replace />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<ErrorStatePage type="404" />} />
-      </Routes>
+      </Routes></Suspense>
     </AppShell>
   )
 }
@@ -267,7 +273,7 @@ function AdminApplication({
       onRoleChange={onRoleChange}
       onLogout={onLogout}
     >
-      <Routes>
+      <Suspense fallback={<RoutePageSkeleton />}><Routes>
         <Route path="/admin" element={<AdminDashboardPage />} />
         <Route path="/admin/kullanicilar" element={<AdminUsersPage />} />
         <Route path="/admin/loglar" element={<AdminLogsPage />} />
@@ -279,7 +285,7 @@ function AdminApplication({
         <Route path="/bildirimler" element={<Navigate to="/403" replace />} />
         <Route path="/" element={<Navigate to="/admin" replace />} />
         <Route path="*" element={<ErrorStatePage type="404" />} />
-      </Routes>
+      </Routes></Suspense>
     </AppShell>
   )
 }

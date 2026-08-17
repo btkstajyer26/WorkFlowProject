@@ -19,6 +19,7 @@ import { useCategories } from '../context/categoryState'
 import { queryKeys } from '../query/queryKeys'
 import type { UserRole } from '../types/auth'
 import type { WorkflowRecord } from '../types/record'
+import { DetailLoadingSkeleton } from '../components/feedback/LoadingSkeleton'
 
 const dateTimeFormatter = new Intl.DateTimeFormat('tr-TR', {
   day: '2-digit',
@@ -74,11 +75,7 @@ function BackendRecordDetailPage({ role }: { role: UserRole }) {
   }
 
   if (recordQuery.isPending) {
-    return (
-      <div className="rounded-xl border border-app-border bg-app-surface px-5 py-8 text-center text-sm text-app-text-muted" role="status">
-        Kayıt yükleniyor…
-      </div>
-    )
+    return <DetailLoadingSkeleton />
   }
 
   if (recordQuery.isError || !recordQuery.data) {

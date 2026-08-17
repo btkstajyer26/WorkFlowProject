@@ -4,6 +4,7 @@ import { Link, useSearchParams } from 'react-router'
 import { apiMode } from '../api/config'
 import { useNotificationCenter, type NotificationViewItem } from '../hooks/useNotificationCenter'
 import type { NotificationItem } from '../types/notification'
+import { ListLoadingSkeleton } from '../components/feedback/LoadingSkeleton'
 
 type NotificationsPageProps = {
   notifications: NotificationItem[]
@@ -79,9 +80,7 @@ export function NotificationsPage({
         </div>
 
         {backendMode && notificationCenter.isPending ? (
-          <div className="flex min-h-80 items-center justify-center p-6 text-center text-sm font-semibold text-app-text-muted" role="status">
-            Bildirimler yükleniyor…
-          </div>
+          <ListLoadingSkeleton label="Bildirimler yükleniyor" rows={5} />
         ) : backendMode && notificationCenter.isError ? (
           <div className="flex min-h-80 flex-col items-center justify-center p-6 text-center" role="alert">
             <h2 className="font-bold text-app-text">Bildirimler yüklenemedi</h2>

@@ -154,11 +154,12 @@ export function LoginPage({ user, onLogin }: LoginPageProps) {
                 {errors.email ? <FieldError id="login-email-error" message={errors.email.message} /> : null}
               </label>
 
-              <label className="block">
-                <span className="mb-2 block text-sm font-bold text-app-text-emphasis">Şifre</span>
+              <div>
+                <label htmlFor="login-password" className="mb-2 block text-sm font-bold text-app-text-emphasis">Şifre</label>
                 <span className="relative block">
                   <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 size-[18px] -translate-y-1/2 text-app-text-faint" aria-hidden="true" />
                   <input
+                    id="login-password"
                     type={passwordVisible ? 'text' : 'password'}
                     {...register('password')}
                     autoComplete="current-password"
@@ -170,7 +171,7 @@ export function LoginPage({ user, onLogin }: LoginPageProps) {
                   <PasswordVisibilityButton visible={passwordVisible} onToggle={() => setPasswordVisible((visible) => !visible)} />
                 </span>
                 {errors.password ? <FieldError id="login-password-error" message={errors.password.message} /> : null}
-              </label>
+              </div>
 
               {errors.root ? (
                 <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 dark:border-rose-800/70 dark:bg-rose-950/40 dark:text-rose-300" role="alert">

@@ -7,6 +7,7 @@ import { apiMode } from '../../api/config'
 import { useAdmin } from '../../context/adminState'
 import { useDebouncedSearchParam } from '../../hooks/useDebouncedSearchParam'
 import { queryKeys } from '../../query/queryKeys'
+import { ListLoadingSkeleton } from '../../components/feedback/LoadingSkeleton'
 
 const pageSize = 8
 
@@ -78,7 +79,7 @@ export function AdminLogsPage() {
       <section className="overflow-hidden rounded-2xl border border-app-border bg-app-surface shadow-sm">
         <div className="border-b border-app-border-subtle px-4 py-3 text-xs font-semibold text-app-text-subtle sm:px-6">{totalLogCount} işlem kaydı bulundu</div>
         {backendMode && logsQuery.isPending ? (
-          <div className="px-5 py-14 text-center text-sm font-semibold text-app-text-muted" role="status">İşlem kayıtları yükleniyor…</div>
+          <ListLoadingSkeleton label="İşlem kayıtları yükleniyor" rows={pageSize} />
         ) : backendMode && logsQuery.isError ? (
           <div className="px-5 py-14 text-center" role="alert">
             <h2 className="font-bold text-app-text-strong">İşlem kayıtları yüklenemedi</h2>
