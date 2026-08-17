@@ -1,5 +1,6 @@
 package btk.staj.WorkFlowProject.record.service;
 
+import btk.staj.WorkFlowProject.audit.service.AuditLogService; // Ebrar'ın audit servisi
 import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
 import btk.staj.WorkFlowProject.common.exception.BusinessRuleException;
 import btk.staj.WorkFlowProject.common.exception.ForbiddenException;
@@ -15,6 +16,7 @@ import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -26,24 +28,20 @@ public class RecordServiceImpl implements RecordService {
     private final RecordMapper recordMapper;
     private final RecordAccessPolicy recordAccessPolicy;
     private final PermissionService permissionService;
+    private final AuditLogService auditLogService; // AuditLogService kullanılıyor
 
     public RecordServiceImpl(RecordRepository recordRepository,
                              RecordMapper recordMapper,
                              RecordAccessPolicy recordAccessPolicy,
-                             PermissionService permissionService) {
+                             PermissionService permissionService,
+                             AuditLogService auditLogService) {
         this.recordRepository = recordRepository;
         this.recordMapper = recordMapper;
         this.recordAccessPolicy = recordAccessPolicy;
         this.permissionService = permissionService;
+        this.auditLogService = auditLogService;
     }
 
-    /**
-     * SecurityContextHolder'daki giris yapmis kullaniciyi doner.
-     *
-     * <p>Bu noktaya ulasilmesi icin istek zaten SecurityConfig'teki
-     * anyRequest().authenticated() kuralindan gecmis olmalidir; buradaki
-     * kontrol savunma amaclidir.
-     */
     private AuthenticatedUser getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
@@ -73,6 +71,7 @@ public class RecordServiceImpl implements RecordService {
     // ---------------------------------------------------------------
 
     @Override
+    @Transactional
     public RecordResponse createRecord(RecordCreateRequest request) {
         RoleName role = getCurrentUserRole();
 
@@ -82,8 +81,22 @@ public class RecordServiceImpl implements RecordService {
 
         Record record = recordMapper.toEntity(request, getCurrentUserId());
         record.setCreatedAt(LocalDateTime.now());
+        
+        // Şartnameye göre yeni kaydın durumu TASLAK olmalı
+        record.setStatus(RecordStatus.TASLAK); 
 
         Record savedRecord = recordRepository.save(record);
+
+        // AuditLogService'in beklediği 6 parametreli metot çağrısı
+        auditLogService.recordLifecycleEvent(
+                savedRecord.getId(),
+                getCurrentUserId(),
+                role,
+                "RECORD_CREATED",
+                savedRecord.getStatus(),
+                "Kayıt oluşturuldu."
+        );
+
         return recordMapper.toResponse(savedRecord);
     }
 
@@ -101,11 +114,8 @@ public class RecordServiceImpl implements RecordService {
         return recordMapper.toResponse(record);
     }
 
-    // Listeleme burada degil: filtreleme ve gorunurluk kapsami RecordSearchService'e
-    // tasindi (karar 2.2). Ayni erişim kuralının iki ayrı yerde uygulanmasını
-    // onlemek icin tekil kaynak search modulu.
-
     @Override
+    @Transactional
     public RecordResponse updateRecord(UUID id, RecordUpdateRequest request) {
         Record record = findRecordOrThrow(id);
         RoleName role = getCurrentUserRole();
@@ -118,24 +128,32 @@ public class RecordServiceImpl implements RecordService {
             throw new ForbiddenException("Bu kaydı düzenleme yetkiniz yok!");
         }
 
-        // Standart Lombok getter kullanımları
         record.setTitle(request.getTitle());
         record.setDescription(request.getDescription());
         record.setCategoryId(request.getCategoryId());
         record.setUpdatedAt(LocalDateTime.now());
 
-        Record updatedRecord = recordRepository.save(record);
+        Record updatedRecord = recordRepository.saveAndFlush(record);
+
+        // AuditLogService'in beklediği 6 parametreli metot çağrısı
+        auditLogService.recordLifecycleEvent(
+                updatedRecord.getId(),
+                getCurrentUserId(),
+                role,
+                "RECORD_UPDATED",
+                updatedRecord.getStatus(),
+                "Başlık ve kategori güncellendi."
+        );
+
         return recordMapper.toResponse(updatedRecord);
     }
 
     @Override
+    @Transactional
     public void deleteRecord(UUID id) {
         Record record = findRecordOrThrow(id);
         RoleName role = getCurrentUserRole();
 
-        // Silme, duzenlemeden daha dar: PermissionService.canEditOrDeleteDraft
-        // hem TASLAK hem DUZENLEME_BEKLIYOR'da true donebilir, ama silme
-        // yalnizca TASLAK durumunda gecerlidir (PermissionService javadoc'u).
         if (!permissionService.canEditOrDeleteDraft(role, record.getStatus())
                 || record.getStatus() != RecordStatus.TASLAK) {
             throw new BusinessRuleException("Sadece taslak durumundaki kayıtlar silinebilir!");
@@ -147,9 +165,15 @@ public class RecordServiceImpl implements RecordService {
 
         record.setDeletedAt(LocalDateTime.now());
         recordRepository.save(record);
-    }
 
-    // Durum gecisleri bu sinifta degil: onay akisi WorkflowActionService
-    // uzerinden durum makinesini calistirir. Buradaki setStatus cagrilari gecis
-    // kurallarini, zorunlu aciklamayi ve denetim izini atliyordu.
+        // AuditLogService'in beklediği 6 parametreli metot çağrısı
+        auditLogService.recordLifecycleEvent(
+                record.getId(),
+                getCurrentUserId(),
+                role,
+                "RECORD_DELETED",
+                record.getStatus(),
+                "Kayıt soft delete işlemiyle silindi."
+        );
+    }
 }
