@@ -1,7 +1,10 @@
 import { Bell, BellRing, Check, ChevronRight, Inbox } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router'
+import { apiMode } from '../api/config'
+import { useNotificationCenter, type NotificationViewItem } from '../hooks/useNotificationCenter'
 import type { NotificationItem } from '../types/notification'
+import { ListLoadingSkeleton } from '../components/feedback/LoadingSkeleton'
 
 type NotificationsPageProps = {
   notifications: NotificationItem[]
@@ -22,13 +25,21 @@ export function NotificationsPage({
 }: NotificationsPageProps) {
   const [searchParams, setSearchParams] = useSearchParams()
   const unreadOnly = searchParams.get('gorunum') === 'okunmamis'
-  const unreadCount = notifications.reduce(
+  const backendMode = apiMode === 'backend'
+  const notificationCenter = useNotificationCenter({ enabled: backendMode, unreadOnly })
+  const mockUnreadCount = notifications.reduce(
     (count, notification) => count + Number(!notification.isRead),
     0,
   )
-  const visibleNotifications = unreadOnly
+  const mockVisibleNotifications = unreadOnly
     ? notifications.filter((notification) => !notification.isRead)
     : notifications
+  const visibleNotifications: NotificationViewItem[] = backendMode
+    ? notificationCenter.notifications
+    : mockVisibleNotifications
+  const unreadCount = backendMode ? notificationCenter.unreadCount : mockUnreadCount
+  const totalCount = backendMode ? notificationCenter.totalCount : notifications.length
+  const markRead = backendMode ? notificationCenter.markRead : onMarkRead
 
   const setView = (nextUnreadOnly: boolean) => {
     if (nextUnreadOnly) setSearchParams({ gorunum: 'okunmamis' })
@@ -60,7 +71,7 @@ export function NotificationsPage({
 
           <div className="grid grid-cols-2 rounded-xl bg-app-surface-strong p-1" role="group" aria-label="Bildirim görünümü">
             <FilterButton active={!unreadOnly} onClick={() => setView(false)}>
-              Tümü <span className="text-[11px] opacity-70">{notifications.length}</span>
+              Tümü <span className="text-[11px] opacity-70">{totalCount}</span>
             </FilterButton>
             <FilterButton active={unreadOnly} onClick={() => setView(true)}>
               Okunmamış <span className="text-[11px] opacity-70">{unreadCount}</span>
@@ -68,16 +79,47 @@ export function NotificationsPage({
           </div>
         </div>
 
-        {visibleNotifications.length > 0 ? (
-          <ul className="divide-y divide-app-border-subtle" aria-label="Bildirim listesi">
-            {visibleNotifications.map((notification) => (
-              <NotificationRow
-                key={notification.id}
-                notification={notification}
-                onMarkRead={onMarkRead}
-              />
-            ))}
-          </ul>
+        {backendMode && notificationCenter.isPending ? (
+          <ListLoadingSkeleton label="Bildirimler yükleniyor" rows={5} />
+        ) : backendMode && notificationCenter.isError ? (
+          <div className="flex min-h-80 flex-col items-center justify-center p-6 text-center" role="alert">
+            <h2 className="font-bold text-app-text">Bildirimler yüklenemedi</h2>
+            <p className="mt-1 max-w-sm text-sm leading-6 text-app-text-subtle">
+              {notificationCenter.error instanceof Error ? notificationCenter.error.message : 'Beklenmeyen bir hata oluştu.'}
+            </p>
+            <button
+              type="button"
+              onClick={() => void notificationCenter.retry()}
+              className="mt-5 min-h-11 rounded-xl border border-app-border px-4 text-sm font-bold text-app-text-secondary transition hover:bg-app-surface-muted"
+            >
+              Tekrar dene
+            </button>
+          </div>
+        ) : visibleNotifications.length > 0 ? (
+          <>
+            <ul className="divide-y divide-app-border-subtle" aria-label="Bildirim listesi">
+              {visibleNotifications.map((notification) => (
+                <NotificationRow
+                  key={notification.id}
+                  notification={notification}
+                  onMarkRead={markRead}
+                  marking={backendMode && notificationCenter.markingId === notification.id}
+                />
+              ))}
+            </ul>
+            {backendMode && notificationCenter.hasNextPage ? (
+              <div className="border-t border-app-border-subtle p-4 text-center">
+                <button
+                  type="button"
+                  disabled={notificationCenter.isFetchingNextPage}
+                  onClick={() => void notificationCenter.fetchNextPage()}
+                  className="min-h-10 rounded-xl border border-app-border px-4 text-xs font-bold text-app-text-secondary transition hover:bg-app-surface-muted disabled:cursor-wait disabled:opacity-60"
+                >
+                  {notificationCenter.isFetchingNextPage ? 'Yükleniyor…' : 'Daha fazla göster'}
+                </button>
+              </div>
+            ) : null}
+          </>
         ) : (
           <div className="flex min-h-80 flex-col items-center justify-center p-6 text-center">
             <span className="flex size-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
@@ -98,6 +140,11 @@ export function NotificationsPage({
             ) : null}
           </div>
         )}
+        {backendMode && notificationCenter.markReadError ? (
+          <p className="border-t border-rose-200 bg-rose-50 px-5 py-3 text-xs font-semibold text-rose-800 dark:border-rose-900/70 dark:bg-rose-950/40 dark:text-rose-200" role="alert">
+            Bildirim okundu olarak işaretlenemedi. Lütfen tekrar deneyin.
+          </p>
+        ) : null}
       </section>
     </div>
   )
@@ -106,9 +153,11 @@ export function NotificationsPage({
 function NotificationRow({
   notification,
   onMarkRead,
+  marking,
 }: {
-  notification: NotificationItem
+  notification: NotificationViewItem
   onMarkRead: (notificationId: string) => void
+  marking: boolean
 }) {
   return (
     <li className={`relative p-4 transition hover:bg-app-surface-muted/80 sm:px-5 ${notification.isRead ? 'bg-app-surface' : 'bg-brand-50/35 dark:bg-brand-900/20'}`}>
@@ -149,11 +198,12 @@ function NotificationRow({
             {!notification.isRead ? (
               <button
                 type="button"
+                disabled={marking}
                 onClick={() => onMarkRead(notification.id)}
-                className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-bold text-app-text-muted transition hover:bg-app-surface hover:text-app-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-bold text-app-text-muted transition hover:bg-app-surface hover:text-app-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-wait disabled:opacity-60"
               >
                 <Check className="size-3.5" aria-hidden="true" />
-                Okundu yap
+                {marking ? 'İşleniyor…' : 'Okundu yap'}
               </button>
             ) : null}
           </div>

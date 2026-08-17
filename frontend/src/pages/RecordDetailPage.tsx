@@ -19,6 +19,7 @@ import { useCategories } from '../context/categoryState'
 import { queryKeys } from '../query/queryKeys'
 import type { UserRole } from '../types/auth'
 import type { WorkflowRecord } from '../types/record'
+import { DetailLoadingSkeleton } from '../components/feedback/LoadingSkeleton'
 
 const dateTimeFormatter = new Intl.DateTimeFormat('tr-TR', {
   day: '2-digit',
@@ -74,11 +75,7 @@ function BackendRecordDetailPage({ role }: { role: UserRole }) {
   }
 
   if (recordQuery.isPending) {
-    return (
-      <div className="rounded-xl border border-app-border bg-app-surface px-5 py-8 text-center text-sm text-app-text-muted" role="status">
-        Kayıt yükleniyor…
-      </div>
-    )
+    return <DetailLoadingSkeleton />
   }
 
   if (recordQuery.isError || !recordQuery.data) {
@@ -117,7 +114,7 @@ function RecordDetailContent({
   const editable = role === 'CALISAN' && (record.status === 'TASLAK' || record.status === 'DUZENLEME_BEKLIYOR')
 
   return (
-    <article className="mx-auto max-w-[1400px] space-y-4">
+    <article className="mx-auto max-w-[1400px] space-y-4 [overflow-wrap:anywhere]">
       <Link
         to="/kayitlar"
         className="inline-flex items-center gap-2 text-[15px] font-bold text-app-text-muted transition hover:text-brand-700 dark:hover:text-brand-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
@@ -145,7 +142,10 @@ function RecordDetailContent({
         </div>
       </header>
 
-      {source === 'mock' ? <RecordActionPanel record={record} role={role} /> : null}
+      {source === 'mock' ? <RecordActionPanel record={record} role={role} source="mock" /> : null}
+      {source === 'backend' && !editable ? (
+        <RecordActionPanel record={record} role={role} source="backend" />
+      ) : null}
       {source === 'backend' && editable ? (
         <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-app-border bg-app-surface px-5 py-4" aria-label="Kayıt işlemleri">
           <div>

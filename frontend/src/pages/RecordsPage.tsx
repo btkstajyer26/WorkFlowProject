@@ -22,6 +22,7 @@ import { searchRecords, type RecordSearchListItem } from '../api/recordSearch'
 import { queryKeys } from '../query/queryKeys'
 import type { UserRole } from '../types/auth'
 import type { RecordStatus, WorkflowRecord } from '../types/record'
+import { ListLoadingSkeleton } from '../components/feedback/LoadingSkeleton'
 
 const viewConfigs: Record<string, { title: string; statuses: RecordStatus[] }> = {
   taslaklar: { title: 'Taslaklarım', statuses: ['TASLAK'] },
@@ -355,9 +356,7 @@ export function RecordsPage({ role }: { role: UserRole }) {
         </div>
 
         {recordsPending ? (
-          <div className="flex min-h-72 items-center justify-center px-6 py-12 text-center" role="status">
-            <p className="text-sm font-semibold text-app-text-muted">Kayıtlar yükleniyor…</p>
-          </div>
+          <ListLoadingSkeleton label="Kayıtlar yükleniyor" rows={pageSize > 5 ? 6 : pageSize} />
         ) : recordsError ? (
           <div className="flex min-h-72 flex-col items-center justify-center px-6 py-12 text-center" role="alert">
             <h2 className="font-bold text-app-text-strong">Kayıtlar yüklenemedi</h2>

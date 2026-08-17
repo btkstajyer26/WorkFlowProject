@@ -1,4 +1,5 @@
-import { Info, Mail, ShieldCheck, UserRound } from 'lucide-react'
+import { Info, KeyRound, Mail, ShieldCheck, UserRound } from 'lucide-react'
+import { Link } from 'react-router'
 import { UserAvatar } from '../components/users/UserAvatar'
 import { roleLabels, type AuthUser } from '../types/auth'
 
@@ -59,6 +60,16 @@ export function ProfilePage({ user }: { user: AuthUser }) {
               Ekran ve işlem yetkileriniz sistem rolünüze göre belirlenir. Rolünüzü veya hesap bilgilerinizi
               bu ekrandan değiştiremezsiniz.
             </p>
+            <Link
+              to="/sifre-degistir"
+              className="group relative mt-5 flex min-h-11 w-full overflow-hidden rounded-xl border border-app-border bg-app-surface-muted px-4 text-sm font-bold text-app-text-emphasis transition-[color,border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-brand-500 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 active:translate-y-0"
+            >
+              <span className="absolute inset-0 bg-brand-600 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-active:bg-brand-700" aria-hidden="true" />
+              <span className="relative flex items-center justify-center gap-2">
+                <KeyRound className="size-4" aria-hidden="true" />
+                Şifreyi değiştir
+              </span>
+            </Link>
           </section>
 
           <section className="flex gap-3 rounded-2xl border border-blue-100 dark:border-blue-900/70 bg-blue-50/70 dark:bg-blue-950/40 p-4 text-blue-950 dark:text-blue-100">

@@ -1,7 +1,4 @@
-import type {
-  NotificationResponse,
-  PagedResponseNotificationResponse,
-} from './generated/data-contracts'
+import type { NotificationResponse, PagedResponseNotificationResponse } from './generated/data-contracts'
 import { api, apiHttpClient } from './client'
 import { ApiClientError } from './errors'
 
@@ -18,8 +15,12 @@ export type NotificationListQuery = {
   sort?: string[]
 }
 
-export type NotificationListResult = Omit<PagedResponseNotificationResponse, 'content'> & {
+export type NotificationListResult = {
   content: NotificationListItem[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
 }
 
 function invalidNotificationResponse(message: string): never {
@@ -52,6 +53,13 @@ function normalizeNotification(notification: NotificationResponse): Notification
   }
 }
 
+function requirePageNumber(value: number | undefined, field: string, minimum = 0) {
+  if (!Number.isSafeInteger(value) || value! < minimum) {
+    return invalidNotificationResponse(`Sunucu geçerli ${field} bilgisi döndürmedi.`)
+  }
+  return value!
+}
+
 export async function listNotifications({
   page = 0,
   size = 20,
@@ -67,8 +75,11 @@ export async function listNotifications({
   })
 
   return {
-    ...response,
     content: (response.content ?? []).map(normalizeNotification),
+    page: requirePageNumber(response.page, 'sayfa'),
+    size: requirePageNumber(response.size, 'sayfa boyutu', 1),
+    totalElements: requirePageNumber(response.totalElements, 'toplam bildirim sayısı'),
+    totalPages: requirePageNumber(response.totalPages, 'toplam sayfa sayısı'),
   }
 }
 

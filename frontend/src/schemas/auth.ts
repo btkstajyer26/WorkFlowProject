@@ -21,6 +21,9 @@ export const changePasswordSchema = z.object({
       'Yeni şifre en az 8 karakter olmalı, en az bir harf ve bir rakam içermelidir.',
     ),
   newPasswordConfirm: z.string().min(1, 'Yeni şifrenizi tekrar yazın.'),
+}).refine((values) => values.newPassword !== values.currentPassword, {
+  path: ['newPassword'],
+  message: 'Yeni şifreniz mevcut şifrenizle aynı olamaz.',
 }).refine((values) => values.newPassword === values.newPasswordConfirm, {
   path: ['newPasswordConfirm'],
   message: 'Yeni şifreler birbiriyle eşleşmiyor.',

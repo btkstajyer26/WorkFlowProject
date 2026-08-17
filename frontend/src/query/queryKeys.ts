@@ -12,4 +12,23 @@ export const queryKeys = {
         : ['records', 'detail', recordId] as const
     ),
   },
+  notifications: {
+    all: ['notifications'] as const,
+    lists: () => ['notifications', 'list'] as const,
+    list: () => ['notifications', 'list', 'all'] as const,
+    unread: ['notifications', 'unread'] as const,
+    unreadCount: ['notifications', 'unread-count'] as const,
+  },
+  admin: {
+    all: ['admin'] as const,
+    users: {
+      all: ['admin', 'users'] as const,
+      list: (query: object) => ['admin', 'users', 'list', query] as const,
+      options: ['admin', 'users', 'options'] as const,
+    },
+    auditLogs: {
+      all: ['admin', 'audit-logs'] as const,
+      list: (query: object) => ['admin', 'audit-logs', 'list', query] as const,
+    },
+  },
 }

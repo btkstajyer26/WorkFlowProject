@@ -45,9 +45,12 @@ function renderPage(
 }
 
 describe('PasswordChangePage', () => {
-  it('zorunlu olmayan kullanıcıyı ana sayfasına yönlendirir', async () => {
+  it('zorunlu olmayan kullanıcıya isteğe bağlı değişiklik formunu gösterir', () => {
     renderPage({ ...firstLoginUser, mustChangePassword: false })
-    await waitFor(() => expect(screen.getByLabelText('Geçerli adres')).toHaveTextContent('/dashboard'))
+
+    expect(screen.getByText('Hesap güvenliği')).toBeInTheDocument()
+    expect(screen.getByLabelText('Mevcut şifre')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Profile dön' })).toHaveAttribute('href', '/profil')
   })
 
   it('eşleşmeyen yeni şifreleri endpoint çağrısından önce reddeder', async () => {
@@ -60,6 +63,20 @@ describe('PasswordChangePage', () => {
     await user.click(screen.getByRole('button', { name: 'Şifreyi Güncelle' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Yeni şifreler birbiriyle eşleşmiyor.')
+  })
+
+  it('mevcut şifrenin yeni şifre olarak tekrar kullanılmasını endpoint çağrısından önce reddeder', async () => {
+    const user = userEvent.setup()
+    const onPasswordChanged = vi.fn()
+    renderPage(firstLoginUser, onPasswordChanged)
+
+    await user.type(screen.getByLabelText('Mevcut şifre'), 'Gecici123')
+    await user.type(screen.getByLabelText('Yeni şifre'), 'Gecici123')
+    await user.type(screen.getByLabelText('Yeni şifre tekrar'), 'Gecici123')
+    await user.click(screen.getByRole('button', { name: 'Şifreyi Güncelle' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Yeni şifreniz mevcut şifrenizle aynı olamaz.')
+    expect(onPasswordChanged).not.toHaveBeenCalled()
   })
 
   it('yanlış mevcut şifreyi alan bazlı gösterir', async () => {

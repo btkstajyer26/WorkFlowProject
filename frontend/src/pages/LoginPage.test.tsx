@@ -21,6 +21,8 @@ describe('LoginPage', () => {
       </MemoryRouter>,
     )
 
+    await user.type(screen.getByLabelText('E-posta adresi'), 'john.doe@kurum.gov.tr')
+    await user.type(screen.getByLabelText('Şifre'), 'demo123')
     await user.click(screen.getByRole('button', { name: 'Giriş Yap' }))
 
     expect(onLogin).toHaveBeenCalledWith(expect.objectContaining({
@@ -42,7 +44,7 @@ describe('LoginPage', () => {
       </MemoryRouter>,
     )
 
-    await user.clear(screen.getByLabelText('Şifre'))
+    await user.type(screen.getByLabelText('E-posta adresi'), 'john.doe@kurum.gov.tr')
     await user.type(screen.getByLabelText('Şifre'), 'yanlis123')
     await user.click(screen.getByRole('button', { name: 'Giriş Yap' }))
 
@@ -61,9 +63,7 @@ describe('LoginPage', () => {
       </MemoryRouter>,
     )
 
-    await user.clear(screen.getByLabelText('E-posta adresi'))
     await user.type(screen.getByLabelText('E-posta adresi'), 'ilk.giris@kurum.gov.tr')
-    await user.clear(screen.getByLabelText('Şifre'))
     await user.type(screen.getByLabelText('Şifre'), 'Gecici123')
     await user.click(screen.getByRole('button', { name: 'Giriş Yap' }))
 
@@ -86,5 +86,24 @@ describe('LoginPage', () => {
     expect(screen.queryByRole('button', { name: 'Kayıt Ol' })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Kayıt olun' })).not.toBeInTheDocument()
     expect(screen.getByText(/Hesabınız kurumunuzun sistem yöneticisi tarafından oluşturulur/)).toBeInTheDocument()
+  })
+
+  it('giriş bilgilerini gerçek değer yerine placeholder olarak gösterir', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter initialEntries={['/giris']}>
+        <LoginPage user={null} onLogin={vi.fn()} />
+      </MemoryRouter>,
+    )
+
+    const emailInput = screen.getByLabelText('E-posta adresi')
+    const passwordInput = screen.getByLabelText('Şifre')
+    expect(emailInput).toHaveValue('')
+    expect(emailInput).toHaveAttribute('placeholder', 'ad.soyad@kurum.gov.tr')
+    expect(passwordInput).toHaveValue('')
+    expect(passwordInput).toHaveAttribute('placeholder', 'Şifrenizi girin')
+
+    await user.type(emailInput, 'a')
+    expect(emailInput).toHaveValue('a')
   })
 })

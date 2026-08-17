@@ -1,17 +1,55 @@
 import { FileClock, ShieldCheck, UserCheck, UsersRound } from 'lucide-react'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
+import { listAdminAuditLogs, listAdminUsers, type AdminUserListQuery } from '../../api/admin'
+import { apiMode } from '../../api/config'
 import { useAdmin } from '../../context/adminState'
+import { queryKeys } from '../../query/queryKeys'
 import { roleLabels } from '../../types/auth'
+
+const userStats: Array<{ key: string; filters: Pick<AdminUserListQuery, 'active' | 'role'> }> = [
+  { key: 'total', filters: {} },
+  { key: 'active', filters: { active: true } },
+  { key: 'CALISAN', filters: { active: true, role: 'CALISAN' } },
+  { key: 'BASKAN_YARDIMCISI', filters: { active: true, role: 'BASKAN_YARDIMCISI' } },
+  { key: 'BASKAN', filters: { active: true, role: 'BASKAN' } },
+  { key: 'ADMIN', filters: { active: true, role: 'ADMIN' } },
+]
 
 export function AdminDashboardPage() {
   const { users, logs } = useAdmin()
+  const backendMode = apiMode === 'backend'
+  const statQueries = useQueries({
+    queries: userStats.map(({ key, filters }) => ({
+      queryKey: queryKeys.admin.users.list({ scope: 'dashboard', key, ...filters }),
+      queryFn: () => listAdminUsers({ ...filters, page: 0, size: 1 }),
+      enabled: backendMode,
+    })),
+  })
+  const recentLogsQuery = useQuery({
+    queryKey: queryKeys.admin.auditLogs.list({ scope: 'dashboard', page: 0, size: 6 }),
+    queryFn: () => listAdminAuditLogs({ page: 0, size: 6 }),
+    enabled: backendMode,
+  })
+  const serverCounts = new Map(
+    userStats.map((stat, index) => [stat.key, statQueries[index]?.data?.totalElements ?? 0]),
+  )
   const activeUsers = users.filter((user) => user.isActive)
   const privilegedUsers = activeUsers.filter((user) => user.role !== 'CALISAN')
+  const totalUsers = backendMode ? serverCounts.get('total') ?? 0 : users.length
+  const activeUserCount = backendMode ? serverCounts.get('active') ?? 0 : activeUsers.length
+  const privilegedUserCount = backendMode
+    ? ['BASKAN_YARDIMCISI', 'BASKAN', 'ADMIN'].reduce((total, role) => total + (serverCounts.get(role) ?? 0), 0)
+    : privilegedUsers.length
+  const totalLogCount = backendMode ? recentLogsQuery.data?.totalElements ?? 0 : logs.length
+  const recentLogs = backendMode ? recentLogsQuery.data?.content ?? [] : logs.slice(0, 6)
+  const dashboardPending = backendMode && (statQueries.some((query) => query.isPending) || recentLogsQuery.isPending)
+  const dashboardError = backendMode && (statQueries.some((query) => query.isError) || recentLogsQuery.isError)
   const cards = [
-    { label: 'Toplam kullanıcı', value: users.length, icon: UsersRound, tone: 'bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300' },
-    { label: 'Aktif hesap', value: activeUsers.length, icon: UserCheck, tone: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300' },
-    { label: 'Yetkili hesap', value: privilegedUsers.length, icon: ShieldCheck, tone: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300' },
-    { label: 'Denetim kaydı', value: logs.length, icon: FileClock, tone: 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300' },
+    { label: 'Toplam kullanıcı', value: totalUsers, icon: UsersRound, tone: 'bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300' },
+    { label: 'Aktif hesap', value: activeUserCount, icon: UserCheck, tone: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300' },
+    { label: 'Yetkili hesap', value: privilegedUserCount, icon: ShieldCheck, tone: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300' },
+    { label: 'Denetim kaydı', value: totalLogCount, icon: FileClock, tone: 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300' },
   ]
 
   return (
@@ -26,6 +64,12 @@ export function AdminDashboardPage() {
         </Link>
       </header>
 
+      {dashboardError ? (
+        <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800 dark:border-rose-900/70 dark:bg-rose-950/40 dark:text-rose-200" role="alert">
+          Yönetim özeti yüklenemedi. Kullanıcı ve işlem kayıtları sayfalarından tekrar deneyebilirsiniz.
+        </p>
+      ) : null}
+
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Yönetim özeti">
         {cards.map((card) => {
           const Icon = card.icon
@@ -35,7 +79,7 @@ export function AdminDashboardPage() {
                 <Icon className="size-5" aria-hidden="true" />
               </span>
               <p className="mt-4 text-xs font-semibold text-app-text-subtle sm:text-sm">{card.label}</p>
-              <p className="mt-1 text-2xl font-bold text-app-text sm:text-3xl">{card.value}</p>
+              <p className="mt-1 text-2xl font-bold text-app-text sm:text-3xl">{dashboardPending ? '—' : card.value}</p>
             </article>
           )
         })}
@@ -51,7 +95,7 @@ export function AdminDashboardPage() {
             <Link to="/admin/loglar" className="text-xs font-bold text-brand-700 dark:text-brand-300 hover:text-brand-800 dark:hover:text-brand-200">Tümünü gör</Link>
           </div>
           <div className="divide-y divide-app-border-subtle">
-            {logs.slice(0, 6).map((log) => (
+            {recentLogs.map((log) => (
               <div key={log.id} className="flex gap-3 px-4 py-4 sm:px-6">
                 <span className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl ${log.type === 'USER' ? 'bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300' : 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300'}`}>
                   {log.type === 'USER' ? <UsersRound className="size-4" aria-hidden="true" /> : <FileClock className="size-4" aria-hidden="true" />}
@@ -75,7 +119,13 @@ export function AdminDashboardPage() {
               {(['CALISAN', 'BASKAN_YARDIMCISI', 'BASKAN', 'ADMIN'] as const).map((role) => (
                 <div key={role} className="flex items-center justify-between gap-3 text-sm">
                   <span className="text-app-text-muted">{roleLabels[role]}</span>
-                  <strong className="text-app-text">{users.filter((user) => user.isActive && user.role === role).length}</strong>
+                  <strong className="text-app-text">
+                    {dashboardPending
+                      ? '—'
+                      : backendMode
+                        ? serverCounts.get(role) ?? 0
+                        : users.filter((user) => user.isActive && user.role === role).length}
+                  </strong>
                 </div>
               ))}
             </div>

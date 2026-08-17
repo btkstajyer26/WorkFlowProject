@@ -23,6 +23,8 @@ describe('App authorization boundaries', () => {
     const user = userEvent.setup()
     renderApp('/giris')
 
+    await user.type(await screen.findByLabelText('E-posta adresi'), 'john.doe@kurum.gov.tr')
+    await user.type(screen.getByLabelText('Şifre'), 'demo123')
     await user.click(await screen.findByRole('button', { name: 'Giriş Yap' }))
     expect(await screen.findByRole('heading', { name: /Hoş geldiniz/ })).toBeInTheDocument()
 

@@ -7,12 +7,14 @@ import {
   X,
   XCircle,
 } from 'lucide-react'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
+import type { WorkflowActionRequest } from '../../api/generated/data-contracts'
 import { useWorkflow } from '../../context/workflowState'
 import { useToast } from '../../context/toastState'
 import { getDemoUserByRole } from '../../mocks/users'
 import { useModalDialog } from '../../hooks/useModalDialog'
 import { useSingleFlight } from '../../hooks/useSingleFlight'
+import { useRecordWorkflowAction } from '../../hooks/useRecordWorkflowAction'
 import type { UserRole } from '../../types/auth'
 import type { WorkflowRecord } from '../../types/record'
 
@@ -65,15 +67,25 @@ const commentCopy: Record<Exclude<ReviewAction, 'submit'>, { label: string; plac
   },
 }
 
-export function RecordActionPanel({ record, role }: { record: WorkflowRecord; role: UserRole }) {
+export function RecordActionPanel({
+  record,
+  role,
+  source = 'mock',
+}: {
+  record: WorkflowRecord
+  role: UserRole
+  source?: 'mock' | 'backend'
+}) {
   const { applyAction } = useWorkflow()
   const { showToast } = useToast()
+  const navigate = useNavigate()
+  const workflowMutation = useRecordWorkflowAction(record.id)
   const [comment, setComment] = useState('')
   const [returnTarget, setReturnTarget] = useState<'CALISAN' | 'BASKAN_YARDIMCISI'>('CALISAN')
   const [activeAction, setActiveAction] = useState<ReviewAction | null>(null)
   const { busy: mutationBusy, run: runMutation } = useSingleFlight()
 
-  const employeeCanEdit = role === 'CALISAN' && (record.status === 'TASLAK' || record.status === 'DUZENLEME_BEKLIYOR')
+  const employeeCanEdit = source === 'mock' && role === 'CALISAN' && (record.status === 'TASLAK' || record.status === 'DUZENLEME_BEKLIYOR')
   const viceChairCanReview = role === 'BASKAN_YARDIMCISI' && record.status === 'BSK_YRD_INCELEMESINDE'
   const chairCanReview = role === 'BASKAN' && record.status === 'BASKAN_INCELEMESINDE'
 
@@ -84,29 +96,46 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
 
   if (!employeeCanEdit && !viceChairCanReview && !chairCanReview) return null
 
-  const completeAction = () => runMutation(() => {
+  const completeAction = () => runMutation(async () => {
     if (!activeAction) return
 
-    const deputy = getDemoUserByRole('BASKAN_YARDIMCISI')
-    const chair = getDemoUserByRole('BASKAN')
-    const workflowInput = activeAction === 'submit'
-      ? {
-          action: record.status === 'TASLAK' ? 'GONDER' as const : 'TEKRAR_GONDER' as const,
-          targetUser: deputy,
-          comment,
-        }
-      : activeAction === 'forward'
-        ? { action: 'BASKANA_ILET' as const, targetUser: chair, comment }
-        : activeAction === 'return'
-          ? returnTarget === 'CALISAN'
-            ? { action: 'CALISANA_GERI_GONDER' as const, comment }
-            : { action: 'BASKAN_YARDIMCISINA_GERI_GONDER' as const, comment, targetUser: deputy }
-          : activeAction === 'approve'
-            ? { action: 'ONAYLA' as const, comment }
-            : { action: 'REDDET' as const, comment }
-
     try {
-      applyAction(record.id, workflowInput)
+      if (source === 'backend') {
+        if (activeAction === 'submit') throw new Error('Bu gönderim akışı henüz backend sözleşmesinde netleşmedi.')
+        const normalizedComment = comment.trim()
+        const request: WorkflowActionRequest = {
+          action: activeAction === 'forward'
+            ? 'BASKANA_ILET'
+            : activeAction === 'return'
+              ? returnTarget === 'CALISAN'
+                ? 'CALISANA_GERI_GONDER'
+                : 'BASKAN_YARDIMCISINA_GERI_GONDER'
+              : activeAction === 'approve'
+                ? 'ONAYLA'
+                : 'REDDET',
+          ...(normalizedComment ? { comment: normalizedComment } : {}),
+        }
+        await workflowMutation.mutateAsync(request)
+      } else {
+        const deputy = getDemoUserByRole('BASKAN_YARDIMCISI')
+        const chair = getDemoUserByRole('BASKAN')
+        const workflowInput = activeAction === 'submit'
+          ? {
+              action: record.status === 'TASLAK' ? 'GONDER' as const : 'TEKRAR_GONDER' as const,
+              targetUser: deputy,
+              comment,
+            }
+          : activeAction === 'forward'
+            ? { action: 'BASKANA_ILET' as const, targetUser: chair, comment }
+            : activeAction === 'return'
+              ? returnTarget === 'CALISAN'
+                ? { action: 'CALISANA_GERI_GONDER' as const, comment }
+                : { action: 'BASKAN_YARDIMCISINA_GERI_GONDER' as const, comment, targetUser: deputy }
+              : activeAction === 'approve'
+                ? { action: 'ONAYLA' as const, comment }
+                : { action: 'REDDET' as const, comment }
+        applyAction(record.id, workflowInput)
+      }
       const successCopy: Record<ReviewAction, string> = {
         submit: record.status === 'TASLAK' ? 'Kayıt incelemeye gönderildi' : 'Kayıt yeniden incelemeye gönderildi',
         forward: 'Kayıt Başkana iletildi',
@@ -119,6 +148,7 @@ export function RecordActionPanel({ record, role }: { record: WorkflowRecord; ro
       showToast({ title: successCopy[activeAction], tone: 'success' })
       setActiveAction(null)
       setComment('')
+      if (source === 'backend') navigate('/kayitlar')
     } catch (caughtError) {
       showToast({
         title: 'İşlem tamamlanamadı',

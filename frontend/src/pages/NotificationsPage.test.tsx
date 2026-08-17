@@ -2,8 +2,10 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { NotificationsPage } from './NotificationsPage'
 import type { NotificationItem } from '../types/notification'
+import { createAppQueryClient } from '../query/createQueryClient'
 
 const notifications: NotificationItem[] = [
   {
@@ -24,19 +26,25 @@ const notifications: NotificationItem[] = [
   },
 ]
 
+function renderNotificationsPage(
+  onMarkRead: (notificationId: string) => void,
+) {
+  const queryClient = createAppQueryClient()
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <NotificationsPage notifications={notifications} onMarkRead={onMarkRead} />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+}
+
 describe('NotificationsPage', () => {
   it('tek bildirimi okundu yapma aksiyonunu iletir', async () => {
     const user = userEvent.setup()
     const onMarkRead = vi.fn()
 
-    render(
-      <MemoryRouter>
-        <NotificationsPage
-          notifications={notifications}
-          onMarkRead={onMarkRead}
-        />
-      </MemoryRouter>,
-    )
+    renderNotificationsPage(onMarkRead)
 
     await user.click(screen.getByRole('button', { name: 'Okundu yap' }))
     expect(onMarkRead).toHaveBeenCalledWith('notification-unread')
@@ -45,11 +53,7 @@ describe('NotificationsPage', () => {
 
   it('Tümü ve Okunmamış görünümleri arasında geçiş yapar', async () => {
     const user = userEvent.setup()
-    render(
-      <MemoryRouter>
-        <NotificationsPage notifications={notifications} onMarkRead={() => undefined} />
-      </MemoryRouter>,
-    )
+    renderNotificationsPage(() => undefined)
 
     expect(screen.getByText('İncelemeniz gereken yeni bir kayıt var.')).toBeInTheDocument()
     expect(screen.getByText('Kaydınız sonuçlandırıldı.')).toBeInTheDocument()

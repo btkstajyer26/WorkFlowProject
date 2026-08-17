@@ -5,10 +5,13 @@ import type { AdminAuditLog, CreateManagedUserInput, ManagedUser } from '../type
 export type AdminContextValue = {
   users: ManagedUser[]
   logs: AdminAuditLog[]
-  loadStatus: 'loading' | 'ready' | 'error'
-  retryLoad: () => Promise<void>
   createUser: (input: CreateManagedUserInput) => Promise<ManagedUser>
-  changeUserRole: (userId: string, role: UserRole, replacementDeputyId?: string) => Promise<void>
+  changeUserRole: (
+    userId: string,
+    role: UserRole,
+    replacementDeputyId?: string,
+    activeDeputyId?: string,
+  ) => Promise<void>
   setUserActive: (userId: string, isActive: boolean) => Promise<void>
 }
 

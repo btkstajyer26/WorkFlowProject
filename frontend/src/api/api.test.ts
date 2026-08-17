@@ -10,6 +10,7 @@ import { searchRecords } from './recordSearch'
 import { listRecords } from './records'
 import { listCategories } from './categories'
 import { getRecordDetail } from './recordDetails'
+import { listAdminAuditLogs, listAdminUsers } from './admin'
 
 const employeeCredentials = {
   email: 'john.doe@kurum.gov.tr',
@@ -236,5 +237,49 @@ describe('OpenAPI istemcisi ve MSW sözleşmesi', () => {
       email: 'yeni.kullanici@kurum.gov.tr',
       roleName: 'CALISAN',
     })
+  })
+
+  it('admin kullanıcı listesini sunucu filtreleri ve sayfalamasıyla normalize eder', async () => {
+    await loginAs('admin@kurum.gov.tr')
+
+    const result = await listAdminUsers({
+      q: 'elif',
+      role: 'CALISAN',
+      active: true,
+      page: 0,
+      size: 1,
+    })
+
+    expect(result).toMatchObject({
+      page: 0,
+      size: 1,
+      totalElements: 1,
+      totalPages: 1,
+    })
+    expect(result.content).toEqual([
+      expect.objectContaining({
+        email: 'elif.akin@kurum.gov.tr',
+        role: 'CALISAN',
+        isActive: true,
+      }),
+    ])
+  })
+
+  it('admin denetim kayıtlarını sunucu tarafında sayfalayıp ekran modeline dönüştürür', async () => {
+    await loginAs('admin@kurum.gov.tr')
+
+    const result = await listAdminAuditLogs({ page: 0, size: 2 })
+
+    expect(result).toMatchObject({
+      page: 0,
+      size: 2,
+      totalElements: 3,
+      totalPages: 2,
+    })
+    expect(result.content).toHaveLength(2)
+    expect(result.content[0]).toEqual(expect.objectContaining({
+      type: 'USER',
+      actor: 'Zeynep Yönetici',
+    }))
   })
 })

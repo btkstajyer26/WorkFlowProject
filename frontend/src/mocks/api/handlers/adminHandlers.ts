@@ -1,11 +1,94 @@
 import { http, HttpResponse } from 'msw'
-import type { CreateUserRequest, UserResponse } from '../../../api/generated/data-contracts'
+import type {
+  CreateUserRequest,
+  PagedResponseUserAuditLogResponse,
+  PagedResponseUserResponse,
+  UserAuditLogResponse,
+  UserResponse,
+} from '../../../api/generated/data-contracts'
 import { apiBaseUrl } from '../../../api/config'
+import { mockAdminAuditLogs, mockManagedUsers } from '../../admin'
 import { getAuthenticatedMockUser, mockApiUsers } from '../auth'
 import { mockApiDb } from '../db'
 import { apiErrorResponse, forbiddenResponse, unauthorizedResponse } from '../responses'
 
 export const adminHandlers = [
+  http.get(`${apiBaseUrl}/api/admin/users`, ({ request }) => {
+    const actor = getAuthenticatedMockUser(request)
+    if (!actor) return unauthorizedResponse()
+    if (actor.role !== 'ADMIN') return forbiddenResponse()
+
+    const url = new URL(request.url)
+    const q = url.searchParams.get('q')?.trim().toLocaleLowerCase('tr-TR') ?? ''
+    const role = url.searchParams.get('role')
+    const activeParam = url.searchParams.get('active')
+    const page = Math.max(Number(url.searchParams.get('page')) || 0, 0)
+    const size = Math.max(Number(url.searchParams.get('size')) || 10, 1)
+    const active = activeParam === null ? undefined : activeParam === 'true'
+    const createdUsers = mockApiDb.createdUsers.map((user) => ({
+      id: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      role: user.role,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+    }))
+    const filtered = [...mockManagedUsers, ...createdUsers]
+      .filter((user) => !q || `${user.firstName} ${user.lastName} ${user.email}`.toLocaleLowerCase('tr-TR').includes(q))
+      .filter((user) => !role || user.role === role)
+      .filter((user) => active === undefined || user.isActive === active)
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+    const content: UserResponse[] = filtered
+      .slice(page * size, page * size + size)
+      .map((user) => ({
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        roleName: user.role,
+        active: user.isActive,
+        createdAt: user.createdAt,
+      }))
+    const response: PagedResponseUserResponse = {
+      content,
+      page,
+      size,
+      totalElements: filtered.length,
+      totalPages: Math.ceil(filtered.length / size),
+    }
+    return HttpResponse.json(response)
+  }),
+
+  http.get(`${apiBaseUrl}/api/admin/audit-logs`, ({ request }) => {
+    const actor = getAuthenticatedMockUser(request)
+    if (!actor) return unauthorizedResponse()
+    if (actor.role !== 'ADMIN') return forbiddenResponse()
+
+    const url = new URL(request.url)
+    const page = Math.max(Number(url.searchParams.get('page')) || 0, 0)
+    const size = Math.max(Number(url.searchParams.get('size')) || 10, 1)
+    const userLogs = mockAdminAuditLogs.filter((log) => log.type === 'USER')
+    const content: UserAuditLogResponse[] = userLogs
+      .slice(page * size, page * size + size)
+      .map((log) => ({
+        id: log.id,
+        action: log.action,
+        comment: log.description,
+        performedByFullName: log.actor,
+        targetUserFullName: log.target,
+        createdAt: log.createdAt,
+      }))
+    const response: PagedResponseUserAuditLogResponse = {
+      content,
+      page,
+      size,
+      totalElements: userLogs.length,
+      totalPages: Math.ceil(userLogs.length / size),
+    }
+    return HttpResponse.json(response)
+  }),
+
   http.post(`${apiBaseUrl}/api/admin/users`, async ({ request }) => {
     const body = await request.json() as CreateUserRequest
     const fieldErrors = [
