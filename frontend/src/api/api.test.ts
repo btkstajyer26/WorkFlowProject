@@ -116,6 +116,7 @@ describe('OpenAPI istemcisi ve MSW sözleşmesi', () => {
 
     const result = await searchRecords({
       q: 'sunucu',
+      creator: 'John Doe',
       categoryId: 4,
       page: 0,
       size: 5,

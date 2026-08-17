@@ -19,6 +19,7 @@ export type RecordSearchQuery = {
   categoryId?: number
   createdFrom?: string
   createdTo?: string
+  creator?: string
   page?: number
   size?: number
 }
