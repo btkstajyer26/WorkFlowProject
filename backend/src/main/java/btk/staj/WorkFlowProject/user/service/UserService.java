@@ -4,7 +4,7 @@ import btk.staj.WorkFlowProject.audit.service.UserAuditLogService;
 import btk.staj.WorkFlowProject.common.dto.PagedResponse;
 import btk.staj.WorkFlowProject.common.exception.BusinessRuleException;
 import btk.staj.WorkFlowProject.rbac.Role;
-import btk.staj.WorkFlowProject.record.repository.RecordRepository; // Yeni eklendi
+import btk.staj.WorkFlowProject.record.repository.RecordRepository;
 import btk.staj.WorkFlowProject.user.dto.AdminUserSearchCriteria;
 import btk.staj.WorkFlowProject.user.dto.RoleResponse;
 import btk.staj.WorkFlowProject.user.dto.UserResponse;
@@ -38,7 +38,7 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final UserAuditLogService userAuditLogService;
     private final CurrentActorProvider currentActorProvider;
-    private final RecordRepository recordRepository; // Yeni eklendi
+    private final RecordRepository recordRepository;
 
     public UserService(UserRepository userRepository,
                        RoleRepository roleRepository,
@@ -46,14 +46,14 @@ public class UserService {
                        PasswordEncoder passwordEncoder,
                        UserAuditLogService userAuditLogService,
                        CurrentActorProvider currentActorProvider,
-                       RecordRepository recordRepository) { // Constructor'a eklendi
+                       RecordRepository recordRepository) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.tokenRepository = tokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.userAuditLogService = userAuditLogService;
         this.currentActorProvider = currentActorProvider;
-        this.recordRepository = recordRepository; // Ataması yapıldı
+        this.recordRepository = recordRepository;
     }
 
     /**
@@ -91,6 +91,21 @@ public class UserService {
         return saved;
     }
 
+    /**
+     * Kurumsal gorevlendirme degistiginde rolu gunceller.
+     *
+     * <p>ADMIN, BASKAN ve BASKAN_YARDIMCISI rolleri "tekil" roller: ayni anda
+     * yalnizca bir kisi tutabilir. Bu rollerden birine atama yapilirken, o rol
+     * zaten baska bir kullaniciya aitse istek reddedilir.
+     *
+     * <p>Bir kullanici BASKAN_YARDIMCISI rolundeyken baska bir tekil role
+     * (BASKAN veya ADMIN) geciyorsa, BASKAN_YARDIMCISI koltugu bosalir.
+     * Bu durumda istekte {@code replacementBaskanYardimcisiId} zorunludur;
+     * belirtilen kullanici ayni istekte yeni BASKAN_YARDIMCISI yapilir.
+     * Otomatik/rastgele atama yapilmaz — devir Admin'in acikca sectigi
+     * kullaniciya, ayni transaction icinde uygulanir. Eski yardimcinin
+     * uzerindeki kayitlar da yeni yardimciya atanir.
+     */
     @Transactional
     public User changeRole(UUID userId, String newRoleName, UUID replacementBaskanYardimcisiId) {
         User user = userRepository.findById(userId)
@@ -162,8 +177,6 @@ public class UserService {
         replacement.setRole(baskanYardimcisiRole);
         userRepository.save(replacement);
 
-        // --- YENİ EKLENEN KISIM: OTOMATİK GÖREV DEVRİ ---
-        // Başkan Yardımcısı değiştiğinde eski Bşk. Yrd. üzerindeki tüm kayıtları yenisine devrediyoruz.
         kullaniciIsleriniDevret(previousHolderId, replacementUserId);
 
         userAuditLogService.logIslem(
@@ -178,9 +191,8 @@ public class UserService {
     }
 
     /**
-     * Eski kullanıcının üzerindeki tüm evrakları yeni kullanıcıya devreder.
-     * Bu metot otomatik olarak çalışabileceği gibi, Admin API'si üzerinden Başkan değişimi 
-     * gibi senaryolarda manuel (REST ucuyla) de tetiklenebilir.
+     * Eski kullanicinin uzerindeki kayitlari yeni kullaniciya atar.
+     * Baskan Yardimcisi koltuk devrinde ayni transaction icinde cagrilir.
      */
     @Transactional
     public void kullaniciIsleriniDevret(UUID eskiKullaniciId, UUID yeniKullaniciId) {
@@ -197,6 +209,10 @@ public class UserService {
                 devredilenSayi + " adet bekleyen evrak başarıyla yeni kullanıcıya devredildi.");
     }
 
+    /**
+     * Admin kullanici listesi: arama (ad/soyad/e-posta), rol ve aktiflik
+     * filtreleri ile sayfali sonuc. Filtreler bos birakilirsa etkisizdir.
+     */
     public PagedResponse<UserResponse> searchUsers(AdminUserSearchCriteria criteria, Pageable pageable) {
         Page<User> userPage = userRepository.findAll(UserSpecifications.withFilters(criteria), pageable);
 
@@ -208,6 +224,12 @@ public class UserService {
                 userPage.getTotalPages());
     }
 
+    /**
+     * Hesap etkinlestirme/pasiflestirme. Admin hesabi bu yoldan
+     * pasiflestirilemez; Baskan Yardimcisi de rolu once {@link #changeRole}
+     * ile devredilmeden pasiflestirilemez (aksi halde o rol bosta kalir).
+     * Pasiflestirmede kullanicinin aktif refresh token'lari da iptal edilir.
+     */
     @Transactional
     public User setActive(UUID userId, boolean active) {
         User user = userRepository.findById(userId)

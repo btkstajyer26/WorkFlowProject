@@ -56,17 +56,16 @@ class UserServiceTest {
     @Mock
     private CurrentActorProvider currentActorProvider;
     @Mock
-    private RecordRepository recordRepository; // Yeni eklendi
+    private RecordRepository recordRepository;
 
     private UserService userService;
 
     @BeforeEach
     void setUp() {
-        // Constructor'a recordRepository eklendi
         userService = new UserService(
                 userRepository, roleRepository, tokenRepository,
                 passwordEncoder, userAuditLogService, currentActorProvider, recordRepository);
-        
+
         lenient().when(currentActorProvider.currentActor())
                 .thenReturn(new CurrentActor(ADMIN_ACTOR_ID, RoleName.ADMIN));
     }
@@ -161,16 +160,12 @@ class UserServiceTest {
         when(roleRepository.findByName("BASKAN_YARDIMCISI")).thenReturn(Optional.of(bskYrd));
         when(userRepository.findByRole_NameAndActive("BASKAN", true)).thenReturn(List.of());
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
-        
-        // Yeni eklenen metodun başarılı bir şekilde çalıştığını (örneğin 5 kayıt devrettiğini) mockluyoruz
         when(recordRepository.devretBekleyenIsleri(targetId, replacementId)).thenReturn(5);
 
         User result = userService.changeRole(targetId, "BASKAN", replacementId);
 
         assertThat(result.getRole().getName()).isEqualTo("BASKAN");
         assertThat(replacement.getRole().getName()).isEqualTo("BASKAN_YARDIMCISI");
-        
-        // Devir işleminin gerçekten veritabanına yansıtıldığını doğruluyoruz
         verify(recordRepository).devretBekleyenIsleri(targetId, replacementId);
     }
 
