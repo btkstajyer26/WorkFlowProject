@@ -11,11 +11,9 @@ import {
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Navigate, useNavigate, useSearchParams } from 'react-router'
-import { isApiMockEnabled } from '../api/config'
 import { ApiClientError } from '../api/errors'
 import { startAuthSession } from '../auth/authSession'
 import { Brand } from '../components/layout/Brand'
-import { defaultDemoAccount } from '../mocks/users'
 import { loginSchema, type LoginFormValues } from '../schemas/auth'
 import type { AuthUser } from '../types/auth'
 
@@ -36,8 +34,8 @@ export function LoginPage({ user, onLogin }: LoginPageProps) {
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: isApiMockEnabled ? defaultDemoAccount.email : '',
-      password: isApiMockEnabled ? defaultDemoAccount.password : '',
+      email: '',
+      password: '',
     },
   })
 
@@ -164,9 +162,10 @@ export function LoginPage({ user, onLogin }: LoginPageProps) {
                     type={passwordVisible ? 'text' : 'password'}
                     {...register('password')}
                     autoComplete="current-password"
+                    placeholder="Şifrenizi girin"
                     aria-invalid={Boolean(errors.password)}
                     aria-describedby={errors.password ? 'login-password-error' : undefined}
-                    className="h-13 w-full rounded-xl border border-app-border bg-app-surface pl-11 pr-12 text-sm text-app-text outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100 dark:focus:ring-brand-800/60"
+                    className="h-13 w-full rounded-xl border border-app-border bg-app-surface pl-11 pr-12 text-sm text-app-text outline-none transition placeholder:text-app-text-faint focus:border-brand-400 focus:ring-4 focus:ring-brand-100 dark:focus:ring-brand-800/60"
                   />
                   <PasswordVisibilityButton visible={passwordVisible} onToggle={() => setPasswordVisible((visible) => !visible)} />
                 </span>
