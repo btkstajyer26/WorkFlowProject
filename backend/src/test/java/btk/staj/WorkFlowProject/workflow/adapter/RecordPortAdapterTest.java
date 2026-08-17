@@ -2,10 +2,12 @@ package btk.staj.WorkFlowProject.workflow.adapter;
 
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
+import btk.staj.WorkFlowProject.workflow.exception.WorkflowApplicationException;
 import btk.staj.WorkFlowProject.workflow.exception.WorkflowRecordNotFoundException;
 import btk.staj.WorkFlowProject.workflow.model.WorkflowRecordSnapshot;
 import btk.staj.WorkFlowProject.workflow.model.WorkflowRecordUpdate;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
+import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -108,10 +110,11 @@ class RecordPortAdapterTest {
         stored.setVersion(4);
         when(recordRepository.findById(RECORD_ID)).thenReturn(Optional.of(stored));
 
-        assertThatExceptionOfType(ObjectOptimisticLockingFailureException.class)
+        assertThatExceptionOfType(WorkflowApplicationException.class)
                 .isThrownBy(() -> adapter.update(new WorkflowRecordUpdate(
                         RECORD_ID, RecordStatus.BASKAN_INCELEMESINDE, NEW_ASSIGNED_TO, NEW_LAST_DEPUTY,
-                        0, Instant.parse("2026-08-11T09:15:00Z"))));
+                        0, Instant.parse("2026-08-11T09:15:00Z"))))
+                .matches(ex -> ex.errorCode() == WorkflowErrorCode.WORKFLOW_VERSION_CONFLICT);
 
         assertThat(stored.getStatus()).isEqualTo(RecordStatus.BSK_YRD_INCELEMESINDE);
         assertThat(stored.getAssignedTo()).isEqualTo(ASSIGNED_TO);
@@ -120,20 +123,27 @@ class RecordPortAdapterTest {
         verify(recordRepository, never()).saveAndFlush(any());
     }
 
+    /**
+     * Asil surum korumasi burasidir: elle yapilan karsilastirma ayni transaction
+     * icinde genellikle esit cikar, catismayi Hibernate flush aninda yakalar.
+     * Port sozlesmesi geregi Spring'e ozgu tip bu siniri gecmemeli.
+     */
     @Test
-    @DisplayName("flush optimistic lock hatasini aynen yayar")
-    void propagatesTheSameOptimisticLockingFailureFromFlush() {
+    @DisplayName("flush optimistic lock hatasini workflow koduna cevirir")
+    void translatesTheOptimisticLockingFailureFromFlush() {
         Record stored = record(RecordStatus.BSK_YRD_INCELEMESINDE, null);
         ObjectOptimisticLockingFailureException failure =
                 new ObjectOptimisticLockingFailureException(Record.class, RECORD_ID);
         when(recordRepository.findById(RECORD_ID)).thenReturn(Optional.of(stored));
         when(recordRepository.saveAndFlush(stored)).thenThrow(failure);
 
-        assertThatExceptionOfType(ObjectOptimisticLockingFailureException.class)
+        assertThatExceptionOfType(WorkflowApplicationException.class)
                 .isThrownBy(() -> adapter.update(new WorkflowRecordUpdate(
                         RECORD_ID, RecordStatus.BASKAN_INCELEMESINDE, NEW_ASSIGNED_TO, NEW_LAST_DEPUTY,
                         0, Instant.parse("2026-08-11T09:15:00Z"))))
-                .isSameAs(failure);
+                .matches(ex -> ex.errorCode() == WorkflowErrorCode.WORKFLOW_VERSION_CONFLICT)
+                // Ozgun yigin izi kaybolmamali; gercek catismayi arastirabilmek gerekir.
+                .withCause(failure);
 
         verify(recordRepository).saveAndFlush(stored);
         verify(recordRepository, never()).save(any());

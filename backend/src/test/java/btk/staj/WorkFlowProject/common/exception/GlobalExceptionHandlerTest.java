@@ -2,10 +2,13 @@ package btk.staj.WorkFlowProject.common.exception;
 
 import btk.staj.WorkFlowProject.user.service.AdminLimitExceededException;
 import btk.staj.WorkFlowProject.user.service.RoleNotFoundException;
+import btk.staj.WorkFlowProject.workflow.exception.WorkflowApplicationException;
+import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.InvalidDataAccessApiUsageException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -75,6 +78,40 @@ class GlobalExceptionHandlerTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(response.getBody().getMessage()).isEqualTo("Bu kayıt zaten mevcut");
+    }
+
+    /**
+     * Emniyet agi: onay akisi disindaki yazmalarda (ornegin kayit guncelleme)
+     * olusan surum catismasi. Bu handler olmasaydi genel Exception handler'ina
+     * duser ve gecici bir catisma 500 olarak donerdi.
+     */
+    @Test
+    @DisplayName("OptimisticLockingFailureException -> 409 CONFLICT, kod VERSION_CONFLICT")
+    void optimisticLocking_returns409() {
+        ResponseEntity<ApiError> response = handler.handleOptimisticLocking(
+                new OptimisticLockingFailureException("row was updated by another transaction"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getBody().getCode()).isEqualTo("VERSION_CONFLICT");
+        assertThat(response.getBody().getMessage())
+                .isEqualTo("Kayıt siz işlem yaparken değişti, sayfayı yenileyip tekrar deneyin");
+    }
+
+    /**
+     * Onay akisi yolu: {@code RecordPortAdapter} catismayi bu koda cevirir.
+     * Kod kalici bir kural ihlali degil gecici bir catisma bildirir; 400 degil
+     * 409 donmeli ki istemci kaydi yenileyip tekrar deneyebilsin.
+     */
+    @Test
+    @DisplayName("WORKFLOW_VERSION_CONFLICT -> 409 CONFLICT")
+    void workflowVersionConflict_returns409() {
+        ResponseEntity<ApiError> response = handler.handleWorkflow(
+                new WorkflowApplicationException(WorkflowErrorCode.WORKFLOW_VERSION_CONFLICT));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getBody().getCode()).isEqualTo("WORKFLOW_VERSION_CONFLICT");
+        assertThat(response.getBody().getMessage())
+                .isEqualTo("Kayıt siz işlem yaparken değişti, sayfayı yenileyip tekrar deneyin");
     }
 
     @Test

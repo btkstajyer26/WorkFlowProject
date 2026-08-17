@@ -353,6 +353,8 @@ Bean Validation hatalarında ayrıca `fieldErrors` bulunur. Mevcut `ApiError` mo
 | `WORKFLOW_TARGET_ROLE_INVALID` | `400` | Hedef bulunamazsa veya beklenen rolde değilse |
 | `WORKFLOW_TARGET_INACTIVE` | `400` | Hedef kullanıcı pasifse |
 | `WORKFLOW_STATUS_NOT_CONFIGURED` | `500` | Rezerve kod; mevcut enum-tabanlı akışta bunu üreten bir yol yoktur |
+| `WORKFLOW_VERSION_CONFLICT` | `409` | Kayıt, istek hazırlanırken başka bir işlem tarafından değiştirilmişse. Durum makinesi üretmez; `RecordPortAdapter` flush anındaki `@Version` çatışmasını bu koda çevirir |
+| `VERSION_CONFLICT` | `409` | Aynı çatışmanın workflow dışı yazmalarda (ör. kayıt güncelleme) oluşan hâli; `GlobalExceptionHandler` emniyet ağı üretir |
 | `WORKFLOW_ROLE_NOT_CONFIGURED` | `409` | Tekil rol hedefi çözülemezse: `BASKANA_ILET` için aktif Başkan, `GONDER`/`TEKRAR_GONDER` için aktif Başkan Yardımcısı sayısı 1 değilse. Kalıcı kural ihlali değil geçici çatışma olduğu için `4xx`; sunucu tarafında `WARN` olarak loglanır |
 | `VALIDATION_ERROR` | `400` | `action` yoksa veya `comment` 2000 karakteri aşarsa |
 | `UNAUTHORIZED` | `401` | Geçerli kimlik doğrulama yoksa |
@@ -368,11 +370,13 @@ Kayıt entity'sindeki sürüm alanı optimistic locking için kullanılır. Uygu
 3. Durum, atama ve `lastDeputyId` alanlarını değiştirir.
 4. `saveAndFlush` ile veritabanı hatasını transaction bitmeden görünür hale getirir.
 
+> 2. adımdaki karşılaştırma **ikincil** bir savunmadır: çağrıyla aynı transaction içinde 1. adımdaki okuma persistence context'ten aynı managed entity'yi döndürdüğü için sürümler genellikle eşit çıkar. Asıl koruma 4. adımdaki flush anında Hibernate'in `@Version` kontrolüdür — ürettiği `UPDATE ... WHERE id = ? AND version = ?` ifadesi sıfır satır güncellediğinde çatışma doğar.
+
 Soft-delete edilmiş kayıt, workflow uygulama servisi tarafından bulunamamış gibi değerlendirilir ve `404 RESOURCE_NOT_FOUND` döner.
 
-> Optimistic-lock HTTP eşlemesi henüz tamamlanmamıştır. `RecordPortAdapter` sürüm çatışmasında doğrudan `ObjectOptimisticLockingFailureException` fırlatır; `GlobalExceptionHandler` bu tipi özel olarak yakalamadığı için gerçek istek şu anda genel `500 INTERNAL_ERROR` cevabına düşer. `WORKFLOW_VERSION_CONFLICT` enum değeri mevcut olsa da adaptör bu koda çevirmemekte, handler da bu kodu `409` olarak eşlememektedir. İstenen kararlı davranış `409 WORKFLOW_VERSION_CONFLICT` olmalı; bu belge mevcut davranışı gizlemez.
+Sürüm çatışması `409 WORKFLOW_VERSION_CONFLICT` olarak döner. `RecordPortAdapter`, altyapıya özgü `OptimisticLockingFailureException`'ı port sınırını geçmeden bu koda çevirir (özgün istisna `cause` olarak korunur), böylece workflow çekirdeği persistence teknolojisini tanımamaya devam eder. Workflow dışındaki yazmalarda (örneğin `RecordServiceImpl`) oluşan çatışmalar ise `GlobalExceptionHandler`'daki emniyet ağına düşer ve `409 VERSION_CONFLICT` döner; ikisi de aynı kullanıcı mesajını taşır ve `WARN` olarak loglanır.
 
-İstemci, eşleme düzeltildikten sonra `409 WORKFLOW_VERSION_CONFLICT` aldığında kayıt detayını yeniden çekmeli, kullanıcıya güncel durumu göstermeli ve aksiyonu otomatik olarak tekrarlamamalıdır.
+İstemci `409` aldığında kayıt detayını yeniden çekmeli, kullanıcıya güncel durumu göstermeli ve aksiyonu otomatik olarak tekrarlamamalıdır.
 
 ## Test kapsamı
 
@@ -394,15 +398,14 @@ Son incelenen `test` commit'inin GitHub Actions çalışması başarılıdır: b
 
 Önemli eksik testler:
 
-- gerçek PostgreSQL üzerinde iki eşzamanlı workflow isteğinin yarış testi;
-- optimistic-lock exception'ının uçtan uca `409` sözleşme testi;
+- gerçek PostgreSQL üzerinde iki eşzamanlı workflow isteğinin yarış testi (uçtan uca `409` sözleşmesi artık `WorkflowTransitionPersistenceIntegrationTest` ile kapsanıyor, ancak gerçek paralel istek yarışı hâlâ test edilmiyor);
 - record update + audit + uygulama içi bildirimin birlikte rollback entegrasyon testi;
 - backend ve gerçek frontend arasında workflow uçtan uca testi;
 - bildirim geçmişinin gerçek PostgreSQL'de kullanıcı kapsamı, sırası ve sayfalama testi.
 
 ## Bilinen boşluklar ve kararlar
 
-1. **Optimistic-lock hata eşlemesi:** Gerçek çatışma şu anda `500` olur; `409 WORKFLOW_VERSION_CONFLICT` uygulanmalıdır.
+1. ~~**Optimistic-lock hata eşlemesi**~~ — **çözüldü.** `RecordPortAdapter` çatışmayı `WORKFLOW_VERSION_CONFLICT`'e çeviriyor, handler bu kodu `409`'a eşliyor ve workflow dışı yazmalar için `OptimisticLockingFailureException` → `409 VERSION_CONFLICT` emniyet ağı var. Uçtan uca doğrulama `WorkflowTransitionPersistenceIntegrationTest` içinde.
 2. ~~**Tekil Başkan Yardımcısı ve istek hedefi**~~ — **çözüldü (C1).** `GONDER`/`TEKRAR_GONDER` hedefini artık backend, `BASKANA_ILET` ile aynı yoldan tek aktif kullanıcıdan çözer; istemci hedef göndermez, gönderirse istek reddedilir. Geriye kalan tek risk aşağıdaki 10. maddededir: tekil rol invariant'ı veritabanı kısıtıyla değil okuma anında zorlanır.
 3. **Frontend entegrasyonu:** Ana ekranlar hâlâ kısmen mock/local state kullanır. Workflow cevabından sonra kayıt yeniden yükleme ve hata kodu eşlemeleri gerçek backend ile tamamlanmalıdır.
 4. **İlk parola değişimi:** `mustChangePassword` istemciye dönse de workflow dahil diğer korumalı uçlar backend seviyesinde henüz engellenmez.
