@@ -10,7 +10,8 @@ import java.util.UUID;
 /**
  * Sartnamedeki "Kayit Gorunurlugu Kapsami" kuralini uygular:
  * Calisan yalnizca kendi olusturdugu kayitlari, Baskan Yardimcisi kendisine
- * atanan kayitlari, Baskan ise onay asamasina gelen kayitlari gorebilir.
+ * atanan kayitlari (ve duzeltme bekleyenleri), Baskan ise onay asamasina
+ * gelen kayitlari gorebilir.
  */
 @Component
 public class RecordAccessPolicy {
@@ -23,7 +24,10 @@ public class RecordAccessPolicy {
 
         return switch (role) {
             case CALISAN -> currentUserId.equals(recordCreatedBy);
-            case BASKAN_YARDIMCISI -> currentUserId.equals(recordAssignedTo);
+            // Bsk. Yrd. kendisine atanan kayitlari VE duzeltme bekleyen kayitlari
+            // gorur (salt okunur takip; geri gonderdigi evraki kaybetmesin).
+            case BASKAN_YARDIMCISI -> currentUserId.equals(recordAssignedTo)
+                    || status == RecordStatus.DUZENLEME_BEKLIYOR;
             case BASKAN -> status == RecordStatus.BASKAN_INCELEMESINDE
                     || currentUserId.equals(recordAssignedTo);
             // ADMIN yalnizca kullanici ve rol yonetiminden sorumludur; evrak goremez.

@@ -123,8 +123,10 @@ public final class RecordSpecifications {
             // Calisan yalnizca kendi olusturdugu kayitlari gorur.
             case CALISAN -> cb.equal(root.get("createdBy"), currentUserId);
 
-            // Bsk. Yrd. kendisine atanan kayitlari gorur.
-            case BASKAN_YARDIMCISI -> cb.equal(root.get("assignedTo"), currentUserId);
+            // Bsk. Yrd. kendisine atanan kayitlari VE duzeltme bekleyen kayitlari gorur.
+            case BASKAN_YARDIMCISI -> cb.or(
+                    cb.equal(root.get("assignedTo"), currentUserId),
+                    cb.equal(root.get("status"), RecordStatus.DUZENLEME_BEKLIYOR));
 
             // Baskan onay asamasina gelenleri ve kendisine atananlari gorur.
             case BASKAN -> cb.or(
