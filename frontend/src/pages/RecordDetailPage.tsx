@@ -145,7 +145,10 @@ function RecordDetailContent({
         </div>
       </header>
 
-      {source === 'mock' ? <RecordActionPanel record={record} role={role} /> : null}
+      {source === 'mock' ? <RecordActionPanel record={record} role={role} source="mock" /> : null}
+      {source === 'backend' && !editable ? (
+        <RecordActionPanel record={record} role={role} source="backend" />
+      ) : null}
       {source === 'backend' && editable ? (
         <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-app-border bg-app-surface px-5 py-4" aria-label="Kayıt işlemleri">
           <div>
