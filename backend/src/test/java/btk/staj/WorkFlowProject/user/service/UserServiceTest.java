@@ -4,6 +4,7 @@ import btk.staj.WorkFlowProject.audit.service.UserAuditLogService;
 import btk.staj.WorkFlowProject.common.exception.BusinessRuleException;
 import btk.staj.WorkFlowProject.common.exception.ResourceNotFoundException;
 import btk.staj.WorkFlowProject.rbac.Role;
+import btk.staj.WorkFlowProject.record.repository.RecordRepository;
 import btk.staj.WorkFlowProject.user.entity.User;
 import btk.staj.WorkFlowProject.user.repository.RoleRepository;
 import btk.staj.WorkFlowProject.user.repository.TokenRepository;
@@ -54,6 +55,8 @@ class UserServiceTest {
     private UserAuditLogService userAuditLogService;
     @Mock
     private CurrentActorProvider currentActorProvider;
+    @Mock
+    private RecordRepository recordRepository;
 
     private UserService userService;
 
@@ -61,7 +64,8 @@ class UserServiceTest {
     void setUp() {
         userService = new UserService(
                 userRepository, roleRepository, tokenRepository,
-                passwordEncoder, userAuditLogService, currentActorProvider);
+                passwordEncoder, userAuditLogService, currentActorProvider, recordRepository);
+
         lenient().when(currentActorProvider.currentActor())
                 .thenReturn(new CurrentActor(ADMIN_ACTOR_ID, RoleName.ADMIN));
     }
@@ -141,7 +145,7 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("replacement verildiginde koltuk devri ayni islemde uygulanir")
+    @DisplayName("replacement verildiginde koltuk devri ayni islemde uygulanir ve isler devredilir")
     void changeRole_replacementVerilinceKoltukDevrediliyor() {
         UUID targetId = UUID.randomUUID();
         UUID replacementId = UUID.randomUUID();
@@ -156,11 +160,13 @@ class UserServiceTest {
         when(roleRepository.findByName("BASKAN_YARDIMCISI")).thenReturn(Optional.of(bskYrd));
         when(userRepository.findByRole_NameAndActive("BASKAN", true)).thenReturn(List.of());
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(recordRepository.devretBekleyenIsleri(targetId, replacementId)).thenReturn(5);
 
         User result = userService.changeRole(targetId, "BASKAN", replacementId);
 
         assertThat(result.getRole().getName()).isEqualTo("BASKAN");
         assertThat(replacement.getRole().getName()).isEqualTo("BASKAN_YARDIMCISI");
+        verify(recordRepository).devretBekleyenIsleri(targetId, replacementId);
     }
 
     @Test
