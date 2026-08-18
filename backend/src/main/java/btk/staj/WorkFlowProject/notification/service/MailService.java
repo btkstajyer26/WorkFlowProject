@@ -86,7 +86,12 @@ public class MailService {
         context.setVariable("status", status);
         context.setVariable("explanation",
                 (reason == null || reason.isBlank()) ? NO_EXPLANATION : reason);
+<<<<<<< Updated upstream
         context.setVariable("deepLink", frontendUrl + "/records/" + recordId);
+=======
+        // İş D2: Frontend kanonik rotasına uygun olarak /kayitlar/{id} olarak güncellendi
+        context.setVariable("deepLink", frontendUrl + "/kayitlar/" + recordId);
+>>>>>>> Stashed changes
         return templateEngine.process(TEMPLATE, context);
     }
 
@@ -95,4 +100,8 @@ public class MailService {
         String id = recordId.toString();
         return "EBYS - Evrak Durum Değişikliği Bildirimi [#" + id.substring(0, 8) + "]";
     }
+<<<<<<< Updated upstream
 }
+=======
+}
+>>>>>>> Stashed changes

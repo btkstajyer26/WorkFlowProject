@@ -15,8 +15,16 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+<<<<<<< Updated upstream
 import java.util.Objects;
 import java.util.Optional;
+=======
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+>>>>>>> Stashed changes
 import java.util.UUID;
 
 /**
@@ -55,6 +63,7 @@ public class WorkflowStatusChangedListener {
 
     @EventListener
     public void createInAppNotification(WorkflowStatusChangedEvent event) {
+<<<<<<< Updated upstream
         UUID recipientId = recipientOf(event);
         if (recipientId == null) {
             return;
@@ -65,10 +74,28 @@ public class WorkflowStatusChangedListener {
                 event.recordId(),
                 message(event),
                 NotificationType.of(event.action()));
+=======
+        Set<UUID> recipients = recipientsOf(event);
+        if (recipients.isEmpty()) {
+            return;
+        }
+
+        String msg = message(event);
+        NotificationType type = NotificationType.of(event.action());
+
+        for (UUID recipientId : recipients) {
+            notificationService.create(
+                    recipientId,
+                    event.recordId(),
+                    msg,
+                    type);
+        }
+>>>>>>> Stashed changes
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void sendMail(WorkflowStatusChangedEvent event) {
+<<<<<<< Updated upstream
         UUID recipientId = recipientOf(event);
         if (recipientId == null) {
             return;
@@ -102,6 +129,67 @@ public class WorkflowStatusChangedListener {
         return recordRepository.findById(event.recordId())
                 .map(Record::getCreatedBy)
                 .orElse(null);
+=======
+        Set<UUID> recipients = recipientsOf(event);
+        if (recipients.isEmpty()) {
+            return;
+        }
+
+        String title = recordTitle(event.recordId());
+        String statusName = event.newStatus().name();
+
+        for (UUID recipientId : recipients) {
+            Optional<User> recipient = userRepository.findById(recipientId);
+            if (recipient.isEmpty()) {
+                log.warn("Bildirim e-postası gönderilemedi, kullanıcı bulunamadı: {}", recipientId);
+                continue;
+            }
+
+            User user = recipient.get();
+            mailService.sendStatusChangeMail(
+                    user.getEmail(),
+                    fullName(user),
+                    event.recordId(),
+                    title,
+                    statusName,
+                    event.comment());
+        }
+    }
+
+    /**
+     * Bildirimi kim(ler) almali:
+     * <ul>
+     *   <li>{@code event.assignedTo() != null} -> yalniz atanan kisi.</li>
+     *   <li>{@code assignedTo == null} (nihai onay/ret) -> kaydi olusturan ve
+     *       kaydi Baskana ileten yardimci ({@code Record.lastDeputyId}).</li>
+     * </ul>
+     * LinkedHashSet sira garantisi verir ve ayni kisi iki role denk geldiginde mukerrerligi onler.
+     */
+    public Set<UUID> recipientsOf(WorkflowStatusChangedEvent event) {
+        Set<UUID> recipients = new LinkedHashSet<>();
+
+        if (event.assignedTo() != null) {
+            recipients.add(event.assignedTo());
+            return recipients;
+        }
+
+        Optional<Record> recordOpt = recordRepository.findById(event.recordId());
+        if (recordOpt.isEmpty()) {
+            return Collections.emptySet();
+        }
+
+        Record record = recordOpt.get();
+
+        if (record.getCreatedBy() != null) {
+            recipients.add(record.getCreatedBy());
+        }
+
+        if (record.getLastDeputyId() != null) {
+            recipients.add(record.getLastDeputyId());
+        }
+
+        return recipients;
+>>>>>>> Stashed changes
     }
 
     private String recordTitle(UUID recordId) {
@@ -133,4 +221,8 @@ public class WorkflowStatusChangedListener {
     private static String truncate(String value) {
         return value.length() <= 500 ? value : value.substring(0, 497) + "...";
     }
+<<<<<<< Updated upstream
 }
+=======
+}
+>>>>>>> Stashed changes

@@ -6,6 +6,11 @@ services:
       POSTGRES_DB: ${DB_NAME:-workflowdb}
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+<<<<<<< Updated upstream
+=======
+      MAIL_USERNAME: smtp@mailtrap.io
+      MAIL_PASSWORD: 0fb8043f39ef19e03dd4b87252a52d0f
+>>>>>>> Stashed changes
     ports:
       - "${DB_PORT:-5432}:5432"
     volumes:
