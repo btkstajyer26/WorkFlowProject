@@ -15,16 +15,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
-<<<<<<< Updated upstream
-import java.util.Objects;
-import java.util.Optional;
-=======
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
->>>>>>> Stashed changes
 import java.util.UUID;
 
 /**
@@ -63,18 +58,6 @@ public class WorkflowStatusChangedListener {
 
     @EventListener
     public void createInAppNotification(WorkflowStatusChangedEvent event) {
-<<<<<<< Updated upstream
-        UUID recipientId = recipientOf(event);
-        if (recipientId == null) {
-            return;
-        }
-
-        notificationService.create(
-                recipientId,
-                event.recordId(),
-                message(event),
-                NotificationType.of(event.action()));
-=======
         Set<UUID> recipients = recipientsOf(event);
         if (recipients.isEmpty()) {
             return;
@@ -90,46 +73,10 @@ public class WorkflowStatusChangedListener {
                     msg,
                     type);
         }
->>>>>>> Stashed changes
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void sendMail(WorkflowStatusChangedEvent event) {
-<<<<<<< Updated upstream
-        UUID recipientId = recipientOf(event);
-        if (recipientId == null) {
-            return;
-        }
-
-        Optional<User> recipient = userRepository.findById(recipientId);
-        if (recipient.isEmpty()) {
-            log.warn("Bildirim e-postası gönderilemedi, kullanıcı bulunamadı: {}", recipientId);
-            return;
-        }
-
-        User user = recipient.get();
-        mailService.sendStatusChangeMail(
-                user.getEmail(),
-                fullName(user),
-                event.recordId(),
-                recordTitle(event.recordId()),
-                event.newStatus().name(),
-                event.comment());
-    }
-
-    /**
-     * Bildirimi kim almali: gecis sonrasi sirasi gelen kisi. Onay ve reddin
-     * ardindan kayit kimseye atanmaz; o zaman haberi olmasi gereken kisi
-     * evragi olusturandir.
-     */
-    private UUID recipientOf(WorkflowStatusChangedEvent event) {
-        if (event.assignedTo() != null) {
-            return event.assignedTo();
-        }
-        return recordRepository.findById(event.recordId())
-                .map(Record::getCreatedBy)
-                .orElse(null);
-=======
         Set<UUID> recipients = recipientsOf(event);
         if (recipients.isEmpty()) {
             return;
@@ -189,7 +136,6 @@ public class WorkflowStatusChangedListener {
         }
 
         return recipients;
->>>>>>> Stashed changes
     }
 
     private String recordTitle(UUID recordId) {
@@ -221,8 +167,4 @@ public class WorkflowStatusChangedListener {
     private static String truncate(String value) {
         return value.length() <= 500 ? value : value.substring(0, 497) + "...";
     }
-<<<<<<< Updated upstream
 }
-=======
-}
->>>>>>> Stashed changes
