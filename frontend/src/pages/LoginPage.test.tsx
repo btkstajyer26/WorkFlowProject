@@ -86,6 +86,7 @@ describe('LoginPage', () => {
     expect(screen.queryByRole('button', { name: 'Kayıt Ol' })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Kayıt olun' })).not.toBeInTheDocument()
     expect(screen.getByText(/Hesabınız kurumunuzun sistem yöneticisi tarafından oluşturulur/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Şifremi unuttum' })).toHaveAttribute('href', '/sifre-sifirla')
   })
 
   it('giriş bilgilerini gerçek değer yerine placeholder olarak gösterir', async () => {

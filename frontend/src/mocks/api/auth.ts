@@ -59,6 +59,7 @@ export const mockApiUsers: MockApiUser[] = [
 ]
 
 const initialMockApiUsers = mockApiUsers.map((user) => ({ ...user }))
+const issuedPasswordResetTokens = new Map<string, string>()
 
 function accessTokenFor(user: MockApiUser) {
   return `msw-access-${user.id}`
@@ -83,6 +84,31 @@ export function changeMockPassword(user: MockApiUser, newPassword: string) {
 
 export function resetMockAuthState() {
   mockApiUsers.splice(0, mockApiUsers.length, ...initialMockApiUsers.map((user) => ({ ...user })))
+  issuedPasswordResetTokens.clear()
+}
+
+export function mockPasswordResetTokenFor(userId: string) {
+  return `msw-password-reset-${userId}`
+}
+
+export function issueMockPasswordReset(email?: string) {
+  const user = mockApiUsers.find((candidate) => candidate.email === email?.trim().toLowerCase())
+  if (!user) return
+
+  const token = mockPasswordResetTokenFor(user.id)
+  issuedPasswordResetTokens.set(token, user.id)
+}
+
+export function consumeMockPasswordReset(token?: string, newPassword?: string) {
+  if (!token || !newPassword) return false
+
+  const userId = issuedPasswordResetTokens.get(token)
+  const user = userId ? mockApiUsers.find((candidate) => candidate.id === userId) : undefined
+  if (!user) return false
+
+  changeMockPassword(user, newPassword)
+  issuedPasswordResetTokens.delete(token)
+  return true
 }
 
 export function findMockUserByCredentials(email?: string, password?: string) {

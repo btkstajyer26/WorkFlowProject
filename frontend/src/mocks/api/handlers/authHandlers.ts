@@ -3,15 +3,26 @@ import type { LoginRequest, LogoutRequest, RefreshTokenRequest } from '../../../
 import { apiBaseUrl } from '../../../api/config'
 import {
   changeMockPassword,
+  consumeMockPasswordReset,
   createMockTokenPair,
   findMockUserByCredentials,
   findMockUserByRefreshToken,
   getAuthenticatedMockUser,
+  issueMockPasswordReset,
 } from '../auth'
 import { apiErrorResponse, unauthorizedResponse } from '../responses'
 
 type ChangePasswordRequest = {
   currentPassword?: string
+  newPassword?: string
+}
+
+type ForgotPasswordRequest = {
+  email?: string
+}
+
+type ResetPasswordRequest = {
+  token?: string
   newPassword?: string
 }
 
@@ -80,5 +91,31 @@ export const authHandlers = [
 
     changeMockPassword(user, body.newPassword!)
     return HttpResponse.text('Şifre değiştirildi')
+  }),
+
+  http.post(`${apiBaseUrl}/api/auth/forgot-password`, async ({ request }) => {
+    const body = await request.json() as ForgotPasswordRequest
+    issueMockPasswordReset(body.email)
+
+    // Hesabın varlığını dışarı sızdırmamak için her e-posta aynı cevabı alır.
+    return new HttpResponse(null, { status: 202 })
+  }),
+
+  http.post(`${apiBaseUrl}/api/auth/reset-password`, async ({ request }) => {
+    const body = await request.json() as ResetPasswordRequest
+    const fieldErrors = !body.newPassword
+      ? [{ field: 'newPassword', message: 'Yeni şifre boş olamaz' }]
+      : !/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(body.newPassword)
+        ? [{ field: 'newPassword', message: 'Şifre en az 8 karakter olmalı, en az bir harf ve bir rakam içermeli' }]
+        : []
+
+    if (fieldErrors.length) {
+      return apiErrorResponse(400, 'VALIDATION_ERROR', 'Girilen veriler geçersiz', fieldErrors)
+    }
+    if (!consumeMockPasswordReset(body.token, body.newPassword)) {
+      return apiErrorResponse(400, 'INVALID_OR_EXPIRED_RESET_TOKEN', 'Şifre sıfırlama bağlantısı geçersiz veya süresi dolmuş')
+    }
+
+    return new HttpResponse(null, { status: 204 })
   }),
 ]
