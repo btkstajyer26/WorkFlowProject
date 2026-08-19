@@ -147,7 +147,7 @@ class RecordServiceImplTest {
         when(recordRepository.findById(recordId)).thenReturn(Optional.of(kayit));
 
         doThrow(new ForbiddenException("Bu kaydı görüntüleme yetkiniz yok"))
-                .when(recordAccessPolicy).assertCanView(RoleName.CALISAN, otherUserId, ownerId, null, RecordStatus.TASLAK);
+                .when(recordAccessPolicy).assertCanView(RoleName.CALISAN, otherUserId, ownerId, null, null, RecordStatus.TASLAK);
 
         assertThrows(ForbiddenException.class, () -> service().getRecordById(recordId));
     }
@@ -161,7 +161,7 @@ class RecordServiceImplTest {
                 .thenReturn(new RecordResponse());
 
         assertNotNull(service().getRecordById(recordId));
-        verify(recordAccessPolicy).assertCanView(RoleName.CALISAN, ownerId, ownerId, null, RecordStatus.TASLAK);
+        verify(recordAccessPolicy).assertCanView(RoleName.CALISAN, ownerId, ownerId, null, null, RecordStatus.TASLAK);
     }
 
     // ---------------------------------------------------------------

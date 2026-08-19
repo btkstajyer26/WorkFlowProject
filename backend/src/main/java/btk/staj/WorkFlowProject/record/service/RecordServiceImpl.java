@@ -117,6 +117,7 @@ public class RecordServiceImpl implements RecordService {
                 userId,
                 record.getCreatedBy(),
                 record.getAssignedTo(),
+                record.getLastDeputyId(),
                 record.getStatus());
 
         // Kaydi gorebilmek guncel icerigi gormek demek degil: geri gonderen

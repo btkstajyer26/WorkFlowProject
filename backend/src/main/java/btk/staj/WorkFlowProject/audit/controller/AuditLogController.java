@@ -50,6 +50,7 @@ public class AuditLogController {
                 actor.id(),
                 record.getCreatedBy(),
                 record.getAssignedTo(),
+                record.getLastDeputyId(),
                 record.getStatus());
 
         // Kaydi gorebilmek butun gecmisi gormek demek degil: evraki elinden

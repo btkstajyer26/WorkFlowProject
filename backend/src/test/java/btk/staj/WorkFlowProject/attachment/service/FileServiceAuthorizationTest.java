@@ -93,7 +93,7 @@ class FileServiceAuthorizationTest {
         when(fileRepository.findByIdAndDeletedAtIsNull(fileId)).thenReturn(Optional.of(fileEntity));
         when(recordRepository.findById(recordId)).thenReturn(Optional.of(recordEntity));
         doThrow(new ForbiddenException("Görüntüleme yetkisi yok"))
-                .when(recordAccessPolicy).assertCanView(eq(RoleName.CALISAN), eq(otherUserId), eq(ownerId), any(), eq(RecordStatus.TASLAK));
+                .when(recordAccessPolicy).assertCanView(eq(RoleName.CALISAN), eq(otherUserId), eq(ownerId), any(), any(), eq(RecordStatus.TASLAK));
 
         assertThrows(ForbiddenException.class, () ->
                 fileService.downloadFile(fileId, RoleName.CALISAN, otherUserId)
@@ -138,7 +138,7 @@ class FileServiceAuthorizationTest {
                 fileService.downloadFile(fileId, RoleName.BASKAN_YARDIMCISI, otherUserId)
         );
 
-        verify(recordAccessPolicy).assertCanView(RoleName.BASKAN_YARDIMCISI, otherUserId, ownerId, otherUserId, RecordStatus.BSK_YRD_INCELEMESINDE);
+        verify(recordAccessPolicy).assertCanView(RoleName.BASKAN_YARDIMCISI, otherUserId, ownerId, otherUserId, null, RecordStatus.BSK_YRD_INCELEMESINDE);
     }
 
     @Test
@@ -164,7 +164,7 @@ class FileServiceAuthorizationTest {
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(fileId, result.get(0).getId());
-        verify(recordAccessPolicy).assertCanView(RoleName.CALISAN, ownerId, ownerId, null, RecordStatus.TASLAK);
+        verify(recordAccessPolicy).assertCanView(RoleName.CALISAN, ownerId, ownerId, null, null, RecordStatus.TASLAK);
     }
 
     @Test
@@ -217,7 +217,7 @@ class FileServiceAuthorizationTest {
     void listByRecord_WhenUnauthorized_ShouldThrowForbiddenException() {
         when(recordRepository.findById(recordId)).thenReturn(Optional.of(recordEntity));
         doThrow(new ForbiddenException("Görüntüleme yetkisi yok"))
-                .when(recordAccessPolicy).assertCanView(eq(RoleName.CALISAN), eq(otherUserId), eq(ownerId), any(), eq(RecordStatus.TASLAK));
+                .when(recordAccessPolicy).assertCanView(eq(RoleName.CALISAN), eq(otherUserId), eq(ownerId), any(), any(), eq(RecordStatus.TASLAK));
 
         assertThrows(ForbiddenException.class, () ->
                 fileService.listByRecord(recordId, RoleName.CALISAN, otherUserId)

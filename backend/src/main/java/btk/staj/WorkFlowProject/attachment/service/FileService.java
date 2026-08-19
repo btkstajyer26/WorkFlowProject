@@ -42,7 +42,8 @@ public class FileService {
         Record record = recordRepository.findById(recordId)
                 .orElseThrow(() -> new ResourceNotFoundException("Kayıt bulunamadı: " + recordId));
         recordAccessPolicy.assertCanView(
-                role, currentUserId, record.getCreatedBy(), record.getAssignedTo(), record.getStatus());
+                role, currentUserId, record.getCreatedBy(), record.getAssignedTo(),
+                record.getLastDeputyId(), record.getStatus());
         return record;
     }
 
