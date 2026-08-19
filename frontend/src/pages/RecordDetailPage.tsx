@@ -3,7 +3,6 @@ import {
   ArrowLeft,
   CalendarDays,
   Download,
-  FilePenLine,
   FileText,
   FolderOpen,
 } from 'lucide-react'
@@ -115,7 +114,6 @@ function RecordDetailContent({
   const history = record.history.toReversed()
   const latestEvent = history[0]
   const latestNotedEvent = latestEvent?.note?.trim() ? latestEvent : undefined
-  const editable = role === 'CALISAN' && (record.status === 'TASLAK' || record.status === 'DUZENLEME_BEKLIYOR')
 
   return (
     <article className="mx-auto max-w-[1400px] space-y-4 [overflow-wrap:anywhere]">
@@ -147,21 +145,6 @@ function RecordDetailContent({
       </header>
 
       <RecordActionPanel record={record} role={role} source={source} />
-      {source === 'backend' && editable ? (
-        <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-app-border bg-app-surface px-5 py-4" aria-label="Kayıt işlemleri">
-          <div>
-            <h2 className="font-bold text-app-text">Taslağı düzenleyin</h2>
-            <p className="mt-1 text-sm text-app-text-muted">Değişiklikleriniz veritabanına kaydedilir.</p>
-          </div>
-          <Link
-            to={`/kayitlar/${record.id}/duzenle`}
-            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-bold text-white transition hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
-          >
-            <FilePenLine className="size-4" aria-hidden="true" />
-            Düzenle
-          </Link>
-        </section>
-      ) : null}
 
       <section className="rounded-xl border border-app-border bg-app-surface px-5 py-5 sm:px-6 sm:py-6">
         <div>

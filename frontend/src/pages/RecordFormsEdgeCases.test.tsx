@@ -129,4 +129,37 @@ describe('Kayıt formu edge-case davranışları', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('“notlar.txt” desteklenmiyor')
     expect(screen.queryByText('notlar.txt')).not.toBeInTheDocument()
   })
+
+  it('düzeltme bekleyen kaydın düzenleme ekranında düzeltme talebini gösterir ve yeniden gönderir', async () => {
+    const user = userEvent.setup()
+    await renderEmployeeApp('/kayitlar/rec-002/duzenle')
+
+    expect(await screen.findByRole('heading', { name: 'Düzeltmeleri Tamamla' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Düzeltme Talebi' })).toBeInTheDocument()
+    expect(screen.getByText('Lisans adedi ve kullanım süresi bilgisi eklenmelidir.')).toBeInTheDocument()
+
+    const submitButton = screen.getByRole('button', { name: 'Yeniden Gönder' })
+    expect(submitButton).toBeInTheDocument()
+
+    await user.clear(screen.getByLabelText(/Kayıt açıklaması/))
+    await user.type(screen.getByLabelText(/Kayıt açıklaması/), 'Tasarım lisansı için 5 adet 1 yıllık lisans talep edilmektedir.')
+
+    await user.click(submitButton)
+
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toBeInTheDocument()
+    const confirmBtn = within(dialog).getByRole('button', { name: 'Yeniden Gönder' })
+    expect(confirmBtn).toBeInTheDocument()
+
+    await user.click(confirmBtn)
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+
+    expect(await screen.findByRole('heading', { name: 'Yazılım Lisansı Talebi' })).toBeInTheDocument()
+    expect(screen.getByText('Bşk. Yrd. İncelemesinde')).toBeInTheDocument()
+  })
 })
+
+

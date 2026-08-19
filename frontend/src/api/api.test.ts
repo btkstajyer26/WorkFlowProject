@@ -330,4 +330,29 @@ describe('OpenAPI istemcisi ve MSW sözleşmesi', () => {
       actor: 'Zeynep Yönetici',
     }))
   })
+
+  it('teknik sunucu ve HTTP metot hatalarını kullanıcı dostu Türkçe mesaja dönüştürür', async () => {
+    const { toApiClientError } = await import('./errors')
+    const { AxiosError } = await import('axios')
+
+    const raw405Error = new AxiosError('Request failed with status code 405')
+    raw405Error.response = {
+      status: 405,
+      statusText: 'Method Not Allowed',
+      headers: {},
+      config: {} as any,
+      data: {
+        timestamp: '2026-08-19T11:35:00.000Z',
+        status: 405,
+        code: 'METHOD_NOT_ALLOWED',
+        message: "Request method 'GET' is not supported",
+      },
+    }
+
+    const clientError = toApiClientError(raw405Error)
+    expect(clientError.message).toBe('İstenen işlem bu kaynak için geçerli değil veya desteklenmiyor.')
+    expect(clientError.status).toBe(405)
+    expect(clientError.code).toBe('METHOD_NOT_ALLOWED')
+  })
 })
+
