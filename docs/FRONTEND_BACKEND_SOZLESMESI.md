@@ -224,6 +224,8 @@ Oluşturma/güncelleme gövdesi:
 
 Tekil kayıt cevabı düz bir modeldir ve `id`, `title`, `description`, `categoryId`, `status`, `createdAt` alanlarını taşır. Liste cevabındaki öğeler bunlara ek olarak `createdBy`, `assignedTo` ve `updatedAt` alanlarını içerir. Kategori adı `/api/categories`, ek dosyalar dosya endpointleri ve işlem geçmişi audit endpointi üzerinden alınır.
 
+Mevcut `createdBy` alanı yalnız kullanıcı UUID'sidir. Normal kullanıcıların başka kullanıcıları çözümleyebileceği genel bir kullanıcı listeleme endpointi bulunmadığından kayıt ekranında oluşturan kişinin adını göstermek için backend cevaplarında en az `createdByFullName` gibi güvenli bir gösterim alanı sağlanmalıdır. Oluşturan kişiye göre sunucu taraflı filtreleme isteniyorsa `GET /api/records` ayrıca `createdById` parametresini desteklemelidir. Serbest metin `q` araması başlık ve açıklamayla sınırlı kalır; kişi adı araması gerekiyorsa bunun davranışı ayrı bir parametreyle kesinleştirilmelidir.
+
 ### İş akışı aksiyonu
 
 Backend workflow uygulama katmanının mevcut HTTP sözleşmesi tek bir aksiyon endpointi tanımlar:
@@ -279,6 +281,10 @@ Başarılı aksiyon cevabı tam kayıt modeli değil, backend tarafından hesapl
 Frontend başarılı cevaptan sonra ilgili kayıt, liste ve geçmiş sorgularını geçersiz kılarak güncel veriyi yeniden ister. Bu davranış API/query katmanında tutulur; component katmanına doğrudan `fetch` çağrısı eklenmez.
 
 Endpoint somut controller ve uygulama servisiyle çalışır; durum/atama güncellemesi, audit kaydı ve bildirim aynı transaction içinde yürütülür. Yetkili aktör JWT'den belirlenir ve hedef kullanıcı backend tarafından çözülür.
+
+#### Frontend yeniden gönderme davranışı
+
+`DUZENLEME_BEKLIYOR` durumundaki kaydı formda kaydetmek yalnız `PUT /api/records/{id}` isteğiyle içeriği günceller; kayıt durumunu değiştirmez. Kullanıcı daha sonra `TEKRAR_GONDER` workflow aksiyonunu ayrıca çalıştırmalıdır. Frontend, geri dönen kaydın detayında **Yeniden Gönder** aksiyonunu göstermeli; düzenleme ekranında yalnız kaydetme sunuluyorsa kaydetme sonrasında kullanıcıyı bu aksiyona açıkça yönlendirmelidir. Bu davranış backend teslimi değil, frontend takip işidir.
 
 ### Kayıt detay cevap modeli
 
@@ -449,8 +455,9 @@ Beklenen HTTP durumları:
 
 1. `POST /api/auth/forgot-password` ve `POST /api/auth/reset-password` endpointleri, e-posta gönderimi ve tek kullanımlık token yaşam döngüsü
 2. Kayıt başına azami ek dosya adedi ve buna karşılık gelecek hata kodu
-3. README'deki ortak hata sözleşmesini tamamlamak için `ApiError` cevabına istek yolu (`path`) eklenmesi; dağıtık izleme kullanılacaksa `traceId` alanının ayrıca kararlaştırılması
-4. Merkezi test ortamı açılırsa API base URL'si ve o ortama özel CORS origin yapılandırması
+3. Kayıt liste/detay cevaplarında oluşturan kişinin güvenli gösterim adı ve `GET /api/records` için oluşturan kullanıcı filtresi
+4. README'deki ortak hata sözleşmesini tamamlamak için `ApiError` cevabına istek yolu (`path`) eklenmesi; dağıtık izleme kullanılacaksa `traceId` alanının ayrıca kararlaştırılması
+5. Merkezi test ortamı açılırsa API base URL'si ve o ortama özel CORS origin yapılandırması
 
 Yerel geliştirmede API, Swagger/OpenAPI, JWT akışı, 0 tabanlı sayfalama, kayıt filtreleri, workflow aksiyonu, tekil rol hedefleme, kategori/Admin API'leri, ortak hata cevabı ve `http://localhost:5173` CORS izni mevcut backend tarafından sağlanmaktadır.
 
@@ -459,5 +466,6 @@ Frontend ekibinin veritabanı bağlantı bilgisine veya şifresine ihtiyacı yok
 ## 13. Açık ürün kararları
 
 - `notifications.record_id` zorunluysa kayıttan bağımsız sistem duyuruları desteklenmeyecek; gerekiyorsa şema değişmeli.
+- `ADMIN`, `BASKAN` ve `BASKAN_YARDIMCISI` tekil kalır. Başkan Yardımcısı için atomik devir modeli uygulanmıştır ve devredilecek kişi açıkça seçilir; rastgele kullanıcı atanmaz. Başkan için eşdeğer bir devir alanı/işlemi yoktur: mevcut Başkan varken başka bir kullanıcıyı Başkan yapma isteği `409 ADMIN_LIMIT_EXCEEDED` döner. Ürün kararı olarak bu davranışın korunacağı veya yeni Başkanı açıkça seçen atomik bir Başkanlık devri sözleşmesi ekleneceği netleştirilmelidir.
 - Profil güncelleme endpointi henüz kapsam dışıdır. Zorunlu ilk giriş parola değişikliği `POST /api/auth/change-password` ile desteklenir.
 - Self-service kayıt/signup ekranı kapsam dışıdır; kullanıcı hesaplarını yetkili sistem yöneticisi oluşturur.
