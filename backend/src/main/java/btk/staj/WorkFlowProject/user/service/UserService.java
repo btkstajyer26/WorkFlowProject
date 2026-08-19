@@ -4,6 +4,7 @@ import btk.staj.WorkFlowProject.audit.service.UserAuditLogService;
 import btk.staj.WorkFlowProject.common.dto.PagedResponse;
 import btk.staj.WorkFlowProject.common.exception.BusinessRuleException;
 import btk.staj.WorkFlowProject.rbac.Role;
+import btk.staj.WorkFlowProject.record.repository.RecordRepository;
 import btk.staj.WorkFlowProject.user.dto.AdminUserSearchCriteria;
 import btk.staj.WorkFlowProject.user.dto.RoleResponse;
 import btk.staj.WorkFlowProject.user.dto.UserResponse;
@@ -37,19 +38,22 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final UserAuditLogService userAuditLogService;
     private final CurrentActorProvider currentActorProvider;
+    private final RecordRepository recordRepository;
 
     public UserService(UserRepository userRepository,
                        RoleRepository roleRepository,
                        TokenRepository tokenRepository,
                        PasswordEncoder passwordEncoder,
                        UserAuditLogService userAuditLogService,
-                       CurrentActorProvider currentActorProvider) {
+                       CurrentActorProvider currentActorProvider,
+                       RecordRepository recordRepository) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.tokenRepository = tokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.userAuditLogService = userAuditLogService;
         this.currentActorProvider = currentActorProvider;
+        this.recordRepository = recordRepository;
     }
 
     /**
@@ -99,7 +103,8 @@ public class UserService {
      * Bu durumda istekte {@code replacementBaskanYardimcisiId} zorunludur;
      * belirtilen kullanici ayni istekte yeni BASKAN_YARDIMCISI yapilir.
      * Otomatik/rastgele atama yapilmaz — devir Admin'in acikca sectigi
-     * kullaniciya, ayni transaction icinde uygulanir.
+     * kullaniciya, ayni transaction icinde uygulanir. Eski yardimcinin
+     * uzerindeki kayitlar da yeni yardimciya atanir.
      */
     @Transactional
     public User changeRole(UUID userId, String newRoleName, UUID replacementBaskanYardimcisiId) {
@@ -172,6 +177,8 @@ public class UserService {
         replacement.setRole(baskanYardimcisiRole);
         userRepository.save(replacement);
 
+        kullaniciIsleriniDevret(previousHolderId, replacementUserId);
+
         userAuditLogService.logIslem(
                 replacement.getId(),
                 currentActorProvider.currentActor().id(),
@@ -180,10 +187,27 @@ public class UserService {
                 baskanYardimcisiRole.getId(),
                 null,
                 null,
-                "Başkan Yardımcısı koltuğu boşaldığı için admin tarafından atandı");
+                "Başkan Yardımcısı koltuğu boşaldığı için admin tarafından atandı ve görev devri yapıldı");
     }
 
-
+    /**
+     * Eski kullanicinin uzerindeki kayitlari yeni kullaniciya atar.
+     * Baskan Yardimcisi koltuk devrinde ayni transaction icinde cagrilir.
+     */
+    @Transactional
+    public void kullaniciIsleriniDevret(UUID eskiKullaniciId, UUID yeniKullaniciId) {
+        int devredilenSayi = recordRepository.devretBekleyenIsleri(eskiKullaniciId, yeniKullaniciId);
+        
+        userAuditLogService.logIslem(
+                yeniKullaniciId,
+                currentActorProvider.currentActor().id(),
+                "TASKS_REASSIGNED",
+                null,
+                null,
+                null,
+                null,
+                devredilenSayi + " adet bekleyen evrak başarıyla yeni kullanıcıya devredildi.");
+    }
 
     /**
      * Admin kullanici listesi: arama (ad/soyad/e-posta), rol ve aktiflik

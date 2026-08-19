@@ -560,6 +560,15 @@ class WorkflowTransitionPersistenceIntegrationTest {
     private void deleteRecordAndUsers(UUID recordId, List<UUID> userIds) {
         jdbc.update("DELETE FROM notifications WHERE record_id = ?", recordId);
         jdbc.update("DELETE FROM audit_logs WHERE record_id = ?", recordId);
+        // HTTP istek filtresi CALISAN/BASKAN_YARDIMCISI isteklerini user_audit_logs'a
+        // (ve ADMIN icin record_id'siz audit_logs'a) yazar; kullanici silinmeden once
+        // bu satırlar kalkmali (fk_user_audit_target / fk_audit_user RESTRICT).
+        userIds.forEach(userId -> {
+            jdbc.update("DELETE FROM user_audit_logs WHERE target_user_id = ? OR performed_by = ?",
+                    userId, userId);
+            jdbc.update("DELETE FROM audit_logs WHERE user_id = ?", userId);
+            jdbc.update("DELETE FROM tokens WHERE user_id = ?", userId);
+        });
         jdbc.update("DELETE FROM records WHERE id = ?", recordId);
         userIds.forEach(userId -> jdbc.update("DELETE FROM users WHERE id = ?", userId));
     }

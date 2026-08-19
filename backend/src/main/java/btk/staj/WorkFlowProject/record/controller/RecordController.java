@@ -52,7 +52,7 @@ public class RecordController {
     }
 
     /**
-     * Kayıt listeleme — şartname §5: GET /api/records?page&size&status&categoryId&q&from&to&sort
+     * Kayıt listeleme — şartname §5: GET /api/records?page&size&status&categoryId&q&from&to&creator&sort
      *
      * <p>Uç burada ({@code RecordController}) kalır, ancak filtreleme ve görünürlük
      * kapsamı mantığı {@code RecordSearchService}'ten gelir. Aynı erişim kuralının
@@ -67,6 +67,7 @@ public class RecordController {
             @RequestParam(required = false) String q,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+            @RequestParam(required = false) String creator,
             Pageable pageable) {
 
         RecordSearchCriteria criteria = new RecordSearchCriteria();
@@ -75,6 +76,7 @@ public class RecordController {
         criteria.setQ(q);
         criteria.setFrom(from);
         criteria.setTo(to);
+        criteria.setCreator(creator);
 
         PagedResponse<RecordSearchResponse> response = recordSearchService.search(criteria, pageable);
         return ResponseEntity.ok(response);

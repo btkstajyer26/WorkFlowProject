@@ -191,7 +191,20 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
-    void parolaDegisimiBekleyenKullanici_cikisVeKendiKimligineErisebilir() throws Exception {
+    void parolaDegisimiBekleyenKullanici_cikisUcunaErisebilir() throws Exception {
+        givenAuthenticatedUser(true);
+        request.setMethod("POST");
+        request.setRequestURI("/api/auth/logout");
+
+        filter.doFilterInternal(request, response, filterChain);
+
+        verify(filterChain).doFilter(request, response);
+        verifyNoInteractions(apiErrorWriter);
+        assertNotNull(SecurityContextHolder.getContext().getAuthentication());
+    }
+
+    @Test
+    void parolaDegisimiBekleyenKullanici_kendiKimligineErisebilir() throws Exception {
         givenAuthenticatedUser(true);
         request.setMethod("GET");
         request.setRequestURI("/api/users/me");
@@ -200,6 +213,22 @@ class JwtAuthenticationFilterTest {
 
         verify(filterChain).doFilter(request, response);
         verifyNoInteractions(apiErrorWriter);
+        assertNotNull(SecurityContextHolder.getContext().getAuthentication());
+    }
+
+    @Test
+    void parolaDegisimiBekleyenKullanici_izinliUcFarkliMethodlaCagrilirsaEngellenmeli() throws Exception {
+        // Whitelist yol bazlı değil yol+method bazlı olmalı: /api/auth/change-password
+        // GET ile çağrılırsa (POST değil) hâlâ engellenmeli.
+        givenAuthenticatedUser(true);
+        request.setMethod("GET");
+        request.setRequestURI("/api/auth/change-password");
+
+        filter.doFilterInternal(request, response, filterChain);
+
+        verify(apiErrorWriter).write(response, org.springframework.http.HttpStatus.FORBIDDEN,
+                "PASSWORD_CHANGE_REQUIRED", "Devam etmeden önce parolanızı değiştirmelisiniz");
+        verifyNoInteractions(filterChain);
     }
 
     @Test
