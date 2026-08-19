@@ -52,6 +52,17 @@ public class AuditLogController {
                 record.getAssignedTo(),
                 record.getStatus());
 
-        return auditLogService.getGecmis(recordId);
+        // Kaydi gorebilmek butun gecmisi gormek demek degil: evraki elinden
+        // cikarmis olan kullanici, kaydin baskasindayken aldigi islemleri
+        // gormez. Karar RecordAccessPolicy'nin, kirpma AuditLogService'in isi.
+        boolean untilHandoff = recordAccessPolicy.seesRecordAsOfHandoff(
+                actor.role(),
+                actor.id(),
+                record.getAssignedTo(),
+                record.getStatus());
+
+        return untilHandoff
+                ? auditLogService.getGecmisDevreKadar(recordId)
+                : auditLogService.getGecmis(recordId);
     }
 }

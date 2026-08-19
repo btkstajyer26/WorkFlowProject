@@ -21,6 +21,16 @@ export const forgotPasswordSchema = z.object({
 
 export type ForgotPasswordFormValues = z.infer<typeof forgotPasswordSchema>
 
+export const resetCodeSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .min(1, 'Doğrulama kodunu yazın.')
+    .regex(/^\d{6}$/, 'Doğrulama kodu 6 rakamdan oluşur.'),
+})
+
+export type ResetCodeFormValues = z.infer<typeof resetCodeSchema>
+
 const newPasswordSchema = z
   .string()
   .min(1, 'Yeni şifrenizi yazın.')

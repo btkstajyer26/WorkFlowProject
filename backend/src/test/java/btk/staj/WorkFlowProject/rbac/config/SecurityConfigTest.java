@@ -1,6 +1,7 @@
 package btk.staj.WorkFlowProject.rbac.config;
 
 import btk.staj.WorkFlowProject.attachment.repository.FileRepository;
+import btk.staj.WorkFlowProject.auth.repository.PasswordResetCodeRepository;
 import btk.staj.WorkFlowProject.audit.repository.AuditLogRepository;
 import btk.staj.WorkFlowProject.notification.repository.NotificationRepository;
 import btk.staj.WorkFlowProject.audit.repository.UserAuditLogRepository;
@@ -52,6 +53,9 @@ class SecurityConfigTest {
 
     @MockitoBean
     private TokenRepository tokenRepository;
+
+    @MockitoBean
+    private PasswordResetCodeRepository passwordResetCodeRepository;
 
     @MockitoBean
     private RecordRepository recordRepository;

@@ -39,10 +39,20 @@ export function PasswordResetPage({ token, onPasswordReset }: PasswordResetPageP
           }
         }
 
+        // Eski şifreyi arayüz bilmediği için bu kuralı yalnızca sunucu
+        // doğrulayabilir; cevabı şifre alanının hatasına çeviriyoruz.
+        if (error.code === 'PASSWORD_REUSED') {
+          setError('newPassword', {
+            type: 'server',
+            message: 'Yeni şifreniz mevcut şifrenizle aynı olamaz.',
+          })
+          return
+        }
+
         if (error.code === 'INVALID_OR_EXPIRED_RESET_TOKEN') {
           setError('root', {
             type: 'server',
-            message: 'Bu şifre sıfırlama bağlantısı geçersiz, kullanılmış veya süresi dolmuş.',
+            message: 'Bu şifre sıfırlama kodu geçersiz, kullanılmış veya süresi dolmuş.',
           })
           return
         }
@@ -86,6 +96,7 @@ export function PasswordResetPage({ token, onPasswordReset }: PasswordResetPageP
           <ul className="mt-2 grid gap-1.5 text-sm text-app-text-muted sm:grid-cols-2">
             <li className="flex items-center gap-2"><Check className="size-3.5 text-emerald-600" aria-hidden="true" />En az 8 karakter</li>
             <li className="flex items-center gap-2"><Check className="size-3.5 text-emerald-600" aria-hidden="true" />En az bir harf ve bir rakam</li>
+            <li className="flex items-center gap-2"><Check className="size-3.5 text-emerald-600" aria-hidden="true" />Mevcut şifrenizden farklı</li>
           </ul>
         </div>
 
@@ -108,9 +119,9 @@ export function PasswordResetPage({ token, onPasswordReset }: PasswordResetPageP
           {errors.root ? (
             <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 dark:border-rose-800/70 dark:bg-rose-950/40 dark:text-rose-300" role="alert">
               <p>{errors.root.message}</p>
-              {errors.root.message?.includes('bağlantısı') ? (
+              {errors.root.message?.includes('kodu') ? (
                 <Link to="/sifre-sifirla" className="mt-2 inline-flex items-center gap-1 underline underline-offset-2">
-                  Yeni bağlantı iste
+                  Yeni kod iste
                   <ArrowRight className="size-3.5" aria-hidden="true" />
                 </Link>
               ) : null}

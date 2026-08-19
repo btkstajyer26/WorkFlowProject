@@ -32,6 +32,8 @@ public class MailService {
 
     private static final String TEMPLATE = "mail/workflow-status";
 
+    private static final String PASSWORD_RESET_TEMPLATE = "mail/password-reset-code";
+
     private final JavaMailSender mailSender;
     private final TemplateEngine templateEngine;
 
@@ -76,6 +78,45 @@ public class MailService {
         } catch (Exception e) {
             log.error("E-posta gönderilirken hata oluştu! Alıcı: {}, Hata: {}", toEmail, e.getMessage());
         }
+    }
+
+    /**
+     * "Şifremi unuttum" kodunu gönderir.
+     *
+     * <p>Durum bildirimlerinden farklı olarak hata yutulamaz: kod ulaşmazsa
+     * kullanıcı akışı tamamlayamaz. Yine de {@code @Async} kalır ve istisna
+     * yalnızca loglanır &mdash; uca dönen cevap, hesabın varlığını sızdırmamak
+     * için her koşulda aynı olmalıdır.
+     */
+    @Async
+    public void sendPasswordResetCode(String toEmail, String recipientName, String code, int validForMinutes) {
+        try {
+            log.info("Şifre sıfırlama kodu gönderiliyor. Alıcı: {}", toEmail);
+
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(
+                    mimeMessage, false, StandardCharsets.UTF_8.name());
+
+            helper.setFrom(mailFrom);
+            helper.setTo(toEmail);
+            helper.setSubject("EBYS - Şifre Sıfırlama Doğrulama Kodu");
+            helper.setText(renderPasswordResetCode(recipientName, code, validForMinutes), true);
+
+            mailSender.send(mimeMessage);
+            log.info("Şifre sıfırlama kodu gönderildi: {}", toEmail);
+
+        } catch (Exception e) {
+            // Kodun kendisi loglanmaz: log dosyası okuyan biri hesabı ele geçirebilirdi.
+            log.error("Şifre sıfırlama kodu gönderilemedi! Alıcı: {}, Hata: {}", toEmail, e.getMessage());
+        }
+    }
+
+    private String renderPasswordResetCode(String recipientName, String code, int validForMinutes) {
+        Context context = new Context();
+        context.setVariable("recipientName", recipientName);
+        context.setVariable("code", code);
+        context.setVariable("validForMinutes", validForMinutes);
+        return templateEngine.process(PASSWORD_RESET_TEMPLATE, context);
     }
 
     private String render(String recipientName, UUID recordId, String title, String status, String reason) {

@@ -3,6 +3,7 @@ package btk.staj.WorkFlowProject.auth.service;
 import btk.staj.WorkFlowProject.auth.dto.LoginRequest;
 import btk.staj.WorkFlowProject.auth.dto.LoginResponse;
 import btk.staj.WorkFlowProject.audit.RequestAuditContext;
+import btk.staj.WorkFlowProject.auth.exception.PasswordReuseException;
 import btk.staj.WorkFlowProject.common.exception.InvalidCredentialsException;
 import btk.staj.WorkFlowProject.rbac.config.JwtUtil;
 import btk.staj.WorkFlowProject.user.entity.Token;
@@ -121,6 +122,13 @@ public class AuthService {
 
         if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
             throw new InvalidCredentialsException("Mevcut şifre yanlış");
+        }
+
+        // Arayüz de aynı kuralı uyguluyor, ancak zorunlu şifre değişimi buradan
+        // geçtiği için kural sunucuda da tutulmalı: aksi halde geçici şifre
+        // kendisiyle "değiştirilip" mustChangePassword kapatılabilirdi.
+        if (passwordEncoder.matches(newPassword, user.getPasswordHash())) {
+            throw new PasswordReuseException("Yeni şifreniz mevcut şifrenizle aynı olamaz");
         }
 
         user.setPasswordHash(passwordEncoder.encode(newPassword));

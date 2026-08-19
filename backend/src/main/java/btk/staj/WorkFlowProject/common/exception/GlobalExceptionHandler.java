@@ -1,5 +1,8 @@
 package btk.staj.WorkFlowProject.common.exception;
 
+import btk.staj.WorkFlowProject.auth.exception.InvalidResetCodeException;
+import btk.staj.WorkFlowProject.auth.exception.InvalidResetTokenException;
+import btk.staj.WorkFlowProject.auth.exception.PasswordReuseException;
 import btk.staj.WorkFlowProject.user.service.AdminLimitExceededException;
 import btk.staj.WorkFlowProject.user.service.RoleNotFoundException;
 import btk.staj.WorkFlowProject.workflow.exception.WorkflowApplicationException;
@@ -121,6 +124,32 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidCredentialsException.class)
     public ResponseEntity<ApiError> handleInvalidCredentials(InvalidCredentialsException ex) {
         return build("INVALID_CREDENTIALS", ex.getMessage(), HttpStatus.UNAUTHORIZED);
+    }
+
+    // ---------- Sifre sifirlama ----------
+
+    /**
+     * Kod yanlis, suresi dolmus veya deneme hakki bitmis. 401 degil 400: burada
+     * dogrulanan bir kimlik degil, tek kullanimlik bir kod var; arayuz de bunu
+     * oturum hatasi gibi ele almamali.
+     */
+    @ExceptionHandler(InvalidResetCodeException.class)
+    public ResponseEntity<ApiError> handleInvalidResetCode(InvalidResetCodeException ex) {
+        return build("INVALID_OR_EXPIRED_RESET_CODE", ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(InvalidResetTokenException.class)
+    public ResponseEntity<ApiError> handleInvalidResetToken(InvalidResetTokenException ex) {
+        return build("INVALID_OR_EXPIRED_RESET_TOKEN", ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * Yeni sifre eskisiyle ayni. Genel kural ihlalinden ayri bir kod donuyor ki
+     * arayuz mesaji dogrudan sifre alaninin altinda gosterebilsin.
+     */
+    @ExceptionHandler(PasswordReuseException.class)
+    public ResponseEntity<ApiError> handlePasswordReuse(PasswordReuseException ex) {
+        return build("PASSWORD_REUSED", ex.getMessage(), HttpStatus.BAD_REQUEST);
     }
 
     // ---------- Is akisi ----------

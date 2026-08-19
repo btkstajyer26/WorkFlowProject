@@ -9,6 +9,7 @@ import {
   findMockUserByRefreshToken,
   getAuthenticatedMockUser,
   issueMockPasswordReset,
+  verifyMockPasswordResetCode,
 } from '../auth'
 import { apiErrorResponse, unauthorizedResponse } from '../responses'
 
@@ -19,6 +20,11 @@ type ChangePasswordRequest = {
 
 type ForgotPasswordRequest = {
   email?: string
+}
+
+type VerifyResetCodeRequest = {
+  email?: string
+  code?: string
 }
 
 type ResetPasswordRequest = {
@@ -88,6 +94,9 @@ export const authHandlers = [
     if (user.password !== body.currentPassword) {
       return apiErrorResponse(401, 'INVALID_CREDENTIALS', 'Mevcut şifre yanlış')
     }
+    if (user.password === body.newPassword) {
+      return apiErrorResponse(400, 'PASSWORD_REUSED', 'Yeni şifreniz mevcut şifrenizle aynı olamaz')
+    }
 
     changeMockPassword(user, body.newPassword!)
     return HttpResponse.text('Şifre değiştirildi')
@@ -101,6 +110,16 @@ export const authHandlers = [
     return new HttpResponse(null, { status: 202 })
   }),
 
+  http.post(`${apiBaseUrl}/api/auth/verify-reset-code`, async ({ request }) => {
+    const body = await request.json() as VerifyResetCodeRequest
+    const resetToken = verifyMockPasswordResetCode(body.email, body.code)
+    if (!resetToken) {
+      return apiErrorResponse(400, 'INVALID_OR_EXPIRED_RESET_CODE', 'Doğrulama kodu geçersiz veya süresi dolmuş')
+    }
+
+    return HttpResponse.json({ resetToken, expiresInSeconds: 900 })
+  }),
+
   http.post(`${apiBaseUrl}/api/auth/reset-password`, async ({ request }) => {
     const body = await request.json() as ResetPasswordRequest
     const fieldErrors = !body.newPassword
@@ -112,8 +131,12 @@ export const authHandlers = [
     if (fieldErrors.length) {
       return apiErrorResponse(400, 'VALIDATION_ERROR', 'Girilen veriler geçersiz', fieldErrors)
     }
-    if (!consumeMockPasswordReset(body.token, body.newPassword)) {
-      return apiErrorResponse(400, 'INVALID_OR_EXPIRED_RESET_TOKEN', 'Şifre sıfırlama bağlantısı geçersiz veya süresi dolmuş')
+    const outcome = consumeMockPasswordReset(body.token, body.newPassword)
+    if (outcome === 'invalid-token') {
+      return apiErrorResponse(400, 'INVALID_OR_EXPIRED_RESET_TOKEN', 'Şifre sıfırlama anahtarı geçersiz veya süresi dolmuş')
+    }
+    if (outcome === 'password-reused') {
+      return apiErrorResponse(400, 'PASSWORD_REUSED', 'Yeni şifreniz mevcut şifrenizle aynı olamaz')
     }
 
     return new HttpResponse(null, { status: 204 })
