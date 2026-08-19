@@ -33,6 +33,7 @@ function renderPage(
             <PasswordChangePage
               user={user}
               onPasswordChanged={onPasswordChanged}
+              onPasswordReset={vi.fn()}
               onUseAnotherAccount={onUseAnotherAccount}
             />
             <LocationProbe />

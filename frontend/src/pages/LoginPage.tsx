@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { Navigate, useNavigate, useSearchParams } from 'react-router'
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router'
 import { ApiClientError } from '../api/errors'
 import { startAuthSession } from '../auth/authSession'
 import { Brand } from '../components/layout/Brand'
@@ -135,6 +135,11 @@ export function LoginPage({ user, onLogin }: LoginPageProps) {
                 Şifreniz değiştirildi. Yeni şifrenizle tekrar giriş yapın.
               </p>
             ) : null}
+            {reason === 'password-reset' ? (
+              <p className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 dark:border-emerald-800/70 dark:bg-emerald-950/40 dark:text-emerald-200" role="status">
+                Şifreniz sıfırlandı. Yeni şifrenizle giriş yapabilirsiniz.
+              </p>
+            ) : null}
 
             <form className="mt-8 space-y-5" noValidate onSubmit={submit}>
               <label className="block">
@@ -171,6 +176,14 @@ export function LoginPage({ user, onLogin }: LoginPageProps) {
                   <PasswordVisibilityButton visible={passwordVisible} onToggle={() => setPasswordVisible((visible) => !visible)} />
                 </span>
                 {errors.password ? <FieldError id="login-password-error" message={errors.password.message} /> : null}
+                <div className="mt-2 flex justify-end">
+                  <Link
+                    to="/sifre-sifirla"
+                    className="rounded-md text-xs font-bold text-brand-700 transition hover:text-brand-900 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 dark:text-brand-300 dark:hover:text-brand-100"
+                  >
+                    Şifremi unuttum
+                  </Link>
+                </div>
               </div>
 
               {errors.root ? (

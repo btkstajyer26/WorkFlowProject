@@ -24,6 +24,7 @@ import { RoutePageSkeleton } from './components/feedback/LoadingSkeleton'
 
 const DashboardPage = lazy(() => import('./pages/DashboardPage').then((module) => ({ default: module.DashboardPage })))
 const ErrorStatePage = lazy(() => import('./pages/ErrorStatePage').then((module) => ({ default: module.ErrorStatePage })))
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage').then((module) => ({ default: module.ForgotPasswordPage })))
 const LoginPage = lazy(() => import('./pages/LoginPage').then((module) => ({ default: module.LoginPage })))
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage').then((module) => ({ default: module.NotificationsPage })))
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then((module) => ({ default: module.ProfilePage })))
@@ -109,11 +110,16 @@ function App() {
               )}
             />
             <Route
+              path="/sifre-sifirla"
+              element={<ForgotPasswordPage user={user} />}
+            />
+            <Route
               path="/sifre-degistir"
               element={(
                 <PasswordChangePage
                   user={user}
                   onPasswordChanged={() => endSessionAt('/giris?reason=password-changed')}
+                  onPasswordReset={() => endSessionAt('/giris?reason=password-reset')}
                   onUseAnotherAccount={() => endSessionAt('/giris')}
                 />
               )}
