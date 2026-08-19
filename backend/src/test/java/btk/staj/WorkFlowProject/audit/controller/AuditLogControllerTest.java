@@ -22,6 +22,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -93,6 +95,43 @@ class AuditLogControllerTest {
                 .isThrownBy(() -> controller.getGecmis(RECORD_ID));
 
         verifyNoInteractions(auditLogService);
+    }
+
+    @Test
+    @DisplayName("geri gonderdigi kaydin gecmisini Bsk. Yrd. yalnizca devre kadar gorur")
+    void theDeputyOnlySeesTheHistoryUpToTheHandoff() {
+        givenActor(DEPUTY_ID, RoleName.BASKAN_YARDIMCISI);
+        givenRecord(OWNER_ID, OWNER_ID, RecordStatus.DUZENLEME_BEKLIYOR);
+        when(auditLogService.getGecmisDevreKadar(RECORD_ID)).thenReturn(List.of(row()));
+
+        assertThat(controller.getGecmis(RECORD_ID)).hasSize(1);
+
+        // Kirpilmamis gecmis hic istenmemeli.
+        verify(auditLogService, never()).getGecmis(RECORD_ID);
+    }
+
+    @Test
+    @DisplayName("kayit kendisine geri atandiginda Bsk. Yrd. gecmisin tamamini gorur")
+    void theDeputySeesTheWholeHistoryOnceTheRecordComesBack() {
+        givenActor(DEPUTY_ID, RoleName.BASKAN_YARDIMCISI);
+        givenRecord(OWNER_ID, DEPUTY_ID, RecordStatus.BSK_YRD_INCELEMESINDE);
+        when(auditLogService.getGecmis(RECORD_ID)).thenReturn(List.of(row(), row()));
+
+        assertThat(controller.getGecmis(RECORD_ID)).hasSize(2);
+
+        verify(auditLogService, never()).getGecmisDevreKadar(RECORD_ID);
+    }
+
+    @Test
+    @DisplayName("kaydin sahibi Calisan duzeltme sirasinda kendi gecmisini eksiksiz gorur")
+    void theOwnerKeepsTheWholeHistoryWhileCorrecting() {
+        givenActor(OWNER_ID, RoleName.CALISAN);
+        givenRecord(OWNER_ID, OWNER_ID, RecordStatus.DUZENLEME_BEKLIYOR);
+        when(auditLogService.getGecmis(RECORD_ID)).thenReturn(List.of(row(), row()));
+
+        assertThat(controller.getGecmis(RECORD_ID)).hasSize(2);
+
+        verify(auditLogService, never()).getGecmisDevreKadar(RECORD_ID);
     }
 
     private void givenActor(UUID userId, RoleName role) {

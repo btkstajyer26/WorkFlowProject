@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { AlertCircle, ArrowLeft, Save, Trash2, X } from 'lucide-react'
+import { AlertCircle, ArrowLeft, Save, Send, Trash2, X } from 'lucide-react'
 import { Navigate, useNavigate, useParams } from 'react-router'
 import { ApiClientError } from '../api/errors'
 import { deleteRecordDraft, getRecordDetail, updateRecordDraft } from '../api/recordDetails'
@@ -11,7 +11,9 @@ import { RecordStatusBadge } from '../components/records/RecordStatusBadge'
 import { RecordFilesPanel } from '../components/records/RecordFilesPanel'
 import { maxRecordTitleLength } from '../config/records'
 import { useCategories } from '../context/categoryState'
+import { useWorkflow } from '../context/workflowState'
 import { useModalDialog } from '../hooks/useModalDialog'
+import { useRecordWorkflowAction } from '../hooks/useRecordWorkflowAction'
 import { queryKeys } from '../query/queryKeys'
 import { recordFormSchema, type RecordFormValues } from '../schemas/record'
 import type { UserRole } from '../types/auth'
@@ -76,13 +78,15 @@ function BackendEditableRecordForm({ record }: { record: WorkflowRecord }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { categories, status: categoryStatus, reloadCategories } = useCategories()
-  const [activeDialog, setActiveDialog] = useState<'delete' | 'discard' | null>(null)
+  const { user } = useWorkflow()
+  const [activeDialog, setActiveDialog] = useState<'delete' | 'discard' | 'submit' | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
   const dialogRef = useRef<HTMLElement>(null)
   const dialogCloseButtonRef = useRef<HTMLButtonElement>(null)
   const {
     register,
     handleSubmit,
+    getValues,
     watch,
     reset,
     formState: { errors, isDirty },
@@ -124,6 +128,9 @@ function BackendEditableRecordForm({ record }: { record: WorkflowRecord }) {
       ])
     },
   })
+  /** Gondermeden yalnizca kaydetmek icin; form dogrulamasi yine calisir. */
+  const saveDraft = handleSubmit((values) => updateMutation.mutate(values))
+
   const deleteMutation = useMutation({
     mutationFn: () => deleteRecordDraft(record.id),
     onSuccess: async () => {
@@ -132,8 +139,34 @@ function BackendEditableRecordForm({ record }: { record: WorkflowRecord }) {
       navigate('/kayitlar?gorunum=taslaklar', { replace: true })
     },
   })
-  const mutationError = updateMutation.error ?? deleteMutation.error
-  const mutationBusy = updateMutation.isPending || deleteMutation.isPending
+  const workflowMutation = useRecordWorkflowAction(record.id, user)
+
+  /**
+   * Gonderme, kaydetmenin yerine gecmez: once formdaki son hali veritabanina
+   * yazariz, sonra durumu ilerletiriz. Sira onemli - once durum degisseydi
+   * kayit BSK_YRD_INCELEMESINDE'ye gecer, guncelleme ucu onu artik
+   * duzenlenebilir saymaz ve son degisiklikler kaybolurdu.
+   */
+  const submitMutation = useMutation({
+    mutationFn: async () => {
+      const values = getValues()
+      await updateRecordDraft(record.id, values)
+      await workflowMutation.mutateAsync({
+        action: record.status === 'TASLAK' ? 'GONDER' : 'TEKRAR_GONDER',
+      })
+      return values
+    },
+    onSuccess: async (values) => {
+      // Form artik kirli sayilmamali; aksi halde detaya donerken
+      // "kaydedilmemis degisiklik" uyarisi cikardi.
+      reset(values)
+      await queryClient.invalidateQueries({ queryKey: queryKeys.records.lists() })
+      navigate(`/kayitlar/${record.id}`)
+    },
+  })
+
+  const mutationError = updateMutation.error ?? deleteMutation.error ?? submitMutation.error
+  const mutationBusy = updateMutation.isPending || deleteMutation.isPending || submitMutation.isPending
 
   return (
     <div className="space-y-5">
@@ -159,7 +192,7 @@ function BackendEditableRecordForm({ record }: { record: WorkflowRecord }) {
         <RecordStatusBadge status={record.status} />
       </header>
 
-      <form className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]" noValidate onSubmit={handleSubmit((values) => updateMutation.mutate(values))}>
+      <form className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]" noValidate onSubmit={handleSubmit(() => setActiveDialog('submit'))}>
         <section className="rounded-2xl border border-app-border bg-app-surface p-5 shadow-sm sm:p-6">
           <div className="space-y-5">
             <label className="block" htmlFor="edit-record-title">
@@ -213,14 +246,22 @@ function BackendEditableRecordForm({ record }: { record: WorkflowRecord }) {
           ) : null}
 
           <section className="rounded-2xl border border-app-border bg-app-surface p-5 shadow-sm">
-            <h2 className="font-bold text-app-text">Taslağı Kaydet</h2>
-            <p className="mt-2 text-xs leading-5 text-app-text-muted">Kaydettiğiniz taslağı kayıt detayından incelemeye gönderebilirsiniz.</p>
+            <h2 className="font-bold text-app-text">Kaydet ve Gönder</h2>
+            <p className="mt-2 text-xs leading-5 text-app-text-muted">
+              {record.status === 'TASLAK'
+                ? 'Göndermeden önce değişikliklerinizi taslak olarak kaydedebilirsiniz.'
+                : 'Düzeltmeleriniz siz gönderene kadar yalnızca sizde görünür.'}
+            </p>
             {feedback ? <p className="mt-4 rounded-xl bg-emerald-50 px-3 py-2.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200" role="status">{feedback}</p> : null}
             {mutationError ? <p className="mt-4 rounded-xl bg-rose-50 px-3 py-2.5 text-xs font-semibold text-rose-800 dark:bg-rose-950/40 dark:text-rose-200" role="alert">{mutationError instanceof Error ? mutationError.message : 'İşlem tamamlanamadı.'}</p> : null}
             <div className="mt-5 grid gap-2">
-              <button type="submit" disabled={mutationBusy || categoryStatus !== 'ready'} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-700 px-4 text-sm font-bold text-white transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-60">
+              <button type="button" onClick={saveDraft} disabled={mutationBusy || categoryStatus !== 'ready'} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-app-border px-4 text-sm font-bold text-app-text-secondary transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-60 dark:hover:border-brand-700/60 dark:hover:bg-brand-900/30 dark:hover:text-brand-300">
                 <Save className="size-4" aria-hidden="true" />
-                Taslağı Kaydet
+                {record.status === 'TASLAK' ? 'Taslağı Kaydet' : 'Değişiklikleri Kaydet'}
+              </button>
+              <button type="submit" disabled={mutationBusy || categoryStatus !== 'ready'} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-700 px-4 text-sm font-bold text-white transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-60">
+                <Send className="size-4" aria-hidden="true" />
+                {record.status === 'TASLAK' ? 'İncelemeye Gönder' : 'Yeniden Gönder'}
               </button>
               {record.status === 'TASLAK' ? (
                 <button type="button" onClick={() => setActiveDialog('delete')} disabled={mutationBusy} className="mt-2 flex min-h-11 items-center justify-center gap-2 border-t border-app-border-subtle pt-3 text-sm font-bold text-rose-600 transition hover:text-rose-700 disabled:opacity-60 dark:text-rose-400 dark:hover:text-rose-300">
@@ -239,10 +280,18 @@ function BackendEditableRecordForm({ record }: { record: WorkflowRecord }) {
             <div className="flex items-start gap-3">
               <div className="min-w-0 flex-1">
                 <h2 id="backend-record-dialog-title" className="text-lg font-bold text-app-text">
-                  {activeDialog === 'delete' ? 'Taslak silinsin mi?' : 'Kaydedilmemiş değişiklikler silinsin mi?'}
+                  {activeDialog === 'delete'
+                    ? 'Taslak silinsin mi?'
+                    : activeDialog === 'submit'
+                      ? record.status === 'TASLAK' ? 'Kayıt incelemeye gönderilsin mi?' : 'Kayıt yeniden gönderilsin mi?'
+                      : 'Kaydedilmemiş değişiklikler silinsin mi?'}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-app-text-muted">
-                  {activeDialog === 'delete' ? 'Bu işlem geri alınamaz.' : 'Kayıt detayına dönerseniz formdaki değişiklikler kaybolacak.'}
+                  {activeDialog === 'delete'
+                    ? 'Bu işlem geri alınamaz.'
+                    : activeDialog === 'submit'
+                      ? 'Değişiklikleriniz kaydedilip Başkan Yardımcısına iletilecek. Gönderdikten sonra kaydı düzenleyemezsiniz.'
+                      : 'Kayıt detayına dönerseniz formdaki değişiklikler kaybolacak.'}
                 </p>
               </div>
               <button ref={dialogCloseButtonRef} type="button" onClick={() => setActiveDialog(null)} className="flex size-10 shrink-0 items-center justify-center rounded-xl text-app-text-subtle hover:bg-app-surface-strong" aria-label="Pencereyi kapat">
@@ -258,11 +307,18 @@ function BackendEditableRecordForm({ record }: { record: WorkflowRecord }) {
                   const action = activeDialog
                   setActiveDialog(null)
                   if (action === 'delete') deleteMutation.mutate()
+                  else if (action === 'submit') submitMutation.mutate()
                   else navigate(`/kayitlar/${record.id}`)
                 }}
-                className="min-h-11 rounded-xl bg-rose-600 px-4 text-sm font-bold text-white transition hover:bg-rose-700 disabled:opacity-60"
+                className={`min-h-11 rounded-xl px-4 text-sm font-bold text-white transition disabled:opacity-60 ${
+                  activeDialog === 'submit' ? 'bg-brand-700 hover:bg-brand-800' : 'bg-rose-600 hover:bg-rose-700'
+                }`}
               >
-                {activeDialog === 'delete' ? 'Evet, Taslağı Sil' : 'Değişiklikleri Sil'}
+                {activeDialog === 'delete'
+                  ? 'Evet, Taslağı Sil'
+                  : activeDialog === 'submit'
+                    ? record.status === 'TASLAK' ? 'Kaydet ve Gönder' : 'Kaydet ve Yeniden Gönder'
+                    : 'Değişiklikleri Sil'}
               </button>
             </div>
           </section>

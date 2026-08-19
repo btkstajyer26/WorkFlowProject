@@ -10,17 +10,20 @@ import btk.staj.WorkFlowProject.common.exception.ForbiddenException;
 import btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
+import btk.staj.WorkFlowProject.record.view.RecordContentView;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.Spy;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mock.web.MockMultipartFile;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -45,6 +48,14 @@ class FileServiceAuthorizationTest {
     private RecordRepository recordRepository;
     @Mock
     private RecordAccessPolicy recordAccessPolicy;
+
+    /**
+     * Mock degil gercek: icerik gorunurlugu kurali kendi RecordAccessPolicy'si
+     * uzerinden calissin. Mock'lansaydi her cagri null doner ve testler
+     * kuralin dogru uygulandigini degil, yalnizca cagrildigini gosterirdi.
+     */
+    @Spy
+    private RecordContentView recordContentView = new RecordContentView(new RecordAccessPolicy());
 
     @InjectMocks
     private FileService fileService;
@@ -154,6 +165,51 @@ class FileServiceAuthorizationTest {
         assertEquals(1, result.size());
         assertEquals(fileId, result.get(0).getId());
         verify(recordAccessPolicy).assertCanView(RoleName.CALISAN, ownerId, ownerId, null, RecordStatus.TASLAK);
+    }
+
+    @Test
+    @DisplayName("Düzeltmedeki kayıtta Bsk. Yrd. yalnızca devir anındaki ekleri görür")
+    void listByRecord_WhenRecordIsBeingCorrected_ShouldFreezeTheAttachmentList() {
+        UUID deputyId = UUID.randomUUID();
+        LocalDateTime handoff = LocalDateTime.of(2026, 8, 19, 10, 0);
+        recordEntity.setStatus(RecordStatus.DUZENLEME_BEKLIYOR);
+        recordEntity.setAssignedTo(ownerId);
+        recordEntity.setSnapshotAt(handoff);
+        recordEntity.setSnapshotTitle("Gönderilen başlık");
+
+        // Devirde duran ek.
+        fileEntity.setUploadedAt(handoff.minusMinutes(5));
+
+        // Çalışanın düzeltme sırasında eklediği ek: yardımcıya görünmemeli.
+        FileEntity addedDuringCorrection = new FileEntity();
+        addedDuringCorrection.setId(UUID.randomUUID());
+        addedDuringCorrection.setRecordId(recordId);
+        addedDuringCorrection.setOriginalName("sonradan.pdf");
+        addedDuringCorrection.setStoredName("sonradan-stored.pdf");
+        addedDuringCorrection.setMimeType("application/pdf");
+        addedDuringCorrection.setUploadedAt(handoff.plusMinutes(30));
+
+        // Devirde duran ama sonradan silinen ek: yardımcıda hâlâ görünmeli.
+        FileEntity deletedDuringCorrection = new FileEntity();
+        deletedDuringCorrection.setId(UUID.randomUUID());
+        deletedDuringCorrection.setRecordId(recordId);
+        deletedDuringCorrection.setOriginalName("silinen.pdf");
+        deletedDuringCorrection.setStoredName("silinen-stored.pdf");
+        deletedDuringCorrection.setMimeType("application/pdf");
+        deletedDuringCorrection.setUploadedAt(handoff.minusMinutes(10));
+        deletedDuringCorrection.setDeletedAt(handoff.plusMinutes(20));
+
+        when(recordRepository.findById(recordId)).thenReturn(Optional.of(recordEntity));
+        when(fileRepository.findAllByRecordId(recordId))
+                .thenReturn(List.of(fileEntity, addedDuringCorrection, deletedDuringCorrection));
+
+        List<FileResponseDto> result =
+                fileService.listByRecord(recordId, RoleName.BASKAN_YARDIMCISI, deputyId);
+
+        assertEquals(2, result.size());
+        assertTrue(result.stream().anyMatch(dto -> "test.pdf".equals(dto.getOriginalName())));
+        assertTrue(result.stream().anyMatch(dto -> "silinen.pdf".equals(dto.getOriginalName())));
+        assertTrue(result.stream().noneMatch(dto -> "sonradan.pdf".equals(dto.getOriginalName())));
     }
 
     @Test

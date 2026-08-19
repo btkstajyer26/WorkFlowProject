@@ -67,7 +67,7 @@ Her geçiş tek transaction içinde kaydı güncellemeli, audit log eklemeli ve 
 
 ## 4. Kimlik doğrulama
 
-Mevcut endpointler ve beklenen parola sıfırlama uçları:
+Mevcut endpointler:
 
 | Metot | Adres | Koruma | Amaç |
 |---|---|---|---|
@@ -75,8 +75,9 @@ Mevcut endpointler ve beklenen parola sıfırlama uçları:
 | `POST` | `/api/auth/refresh` | Açık | Gövdedeki refresh tokenı döndürerek access/refresh token çiftini yeniler |
 | `POST` | `/api/auth/logout` | Açık | Gövdedeki aktif refresh tokenı iptal eder |
 | `POST` | `/api/auth/change-password` | Bearer | Mevcut parolayı doğrulayıp parolayı değiştirir |
-| `POST` | `/api/auth/forgot-password` | Açık | E-posta adresine tek kullanımlık parola sıfırlama bağlantısı yollar |
-| `POST` | `/api/auth/reset-password` | Açık | Tek kullanımlık tokenla yeni parola belirler |
+| `POST` | `/api/auth/forgot-password` | Açık | E-posta adresine 6 haneli doğrulama kodu yollar |
+| `POST` | `/api/auth/verify-reset-code` | Açık | Kodu doğrular, tek kullanımlık sıfırlama anahtarı üretir |
+| `POST` | `/api/auth/reset-password` | Açık | Sıfırlama anahtarıyla yeni parola belirler |
 | `GET` | `/api/users/me` | Bearer | Aktif kullanıcının kimlik ve rol bilgisini döner |
 
 Giriş isteği:
@@ -107,11 +108,13 @@ Giriş cevabı:
 }
 ```
 
-Yeni parola en az 8 karakter olmalı, en az bir harf ve bir rakam içermelidir. Başarılı değişiklik `mustChangePassword=false` yapar ve kullanıcının aktif refresh tokenlarını iptal eder. Frontend yerel oturumu temizleyip kullanıcıdan yeni parolasıyla tekrar giriş yapmasını ister.
+Yeni parola en az 8 karakter olmalı, en az bir harf ve bir rakam içermelidir. Ayrıca mevcut paroladan farklı olmalıdır; aynıysa backend `400 PASSWORD_REUSED` döner ve frontend mesajı yeni parola alanının altında gösterir. Başarılı değişiklik `mustChangePassword=false` yapar ve kullanıcının aktif refresh tokenlarını iptal eder. Frontend yerel oturumu temizleyip kullanıcıdan yeni parolasıyla tekrar giriş yapmasını ister.
 
-### Unutulan parola akışı — backend bekleniyor
+### Unutulan parola akışı
 
-Frontend `/sifre-sifirla` talep ekranını ve `/sifre-degistir?token=...` parola belirleme ekranını hazırlar. Talep isteği:
+Akış üç adımdır ve oturum gerektirmez: kullanıcı giriş ekranındaki **Şifremi unuttum** bağlantısıyla `/sifre-sifirla` adresine gider, e-postasına gelen 6 haneli kodu aynı ekranda girer, kod doğrulanınca `/sifre-degistir?token=...` parola belirleme ekranına yönlendirilir.
+
+**1. Kod talebi** — `POST /api/auth/forgot-password`
 
 ```json
 {
@@ -119,22 +122,40 @@ Frontend `/sifre-sifirla` talep ekranını ve `/sifre-degistir?token=...` parola
 }
 ```
 
-`POST /api/auth/forgot-password`, e-posta sistemde bulunsa da bulunmasa da aynı genel cevapla `202 Accepted` dönmelidir. Hesap varsa backend süreli, kriptografik olarak güvenli ve tek kullanımlık token üretip aşağıdaki biçimde e-posta yollar:
+E-posta sistemde bulunsa da bulunmasa da cevap aynıdır: `202 Accepted`, gövdesiz. Farklı bir cevap ucu kayıtlı e-postaları keşfetmek için kullanılabilir hâle getirirdi. Hesap varsa ve aktifse backend rastgele bir 6 haneli kod üretip e-postayla yollar; kodun yalnızca BCrypt özeti saklanır. Aynı hesap için önceki açık kodlar geçersiz kılınır ve bekleme süresi (varsayılan 60 sn) dolmadan ikinci kod üretilmez.
 
-```text
-http://localhost:5173/sifre-degistir?token=<tek-kullanimlik-token>
-```
-
-Parola sıfırlama isteği:
+**2. Kod doğrulama** — `POST /api/auth/verify-reset-code`
 
 ```json
 {
-  "token": "tek-kullanimlik-token",
+  "email": "john.doe@kurum.gov.tr",
+  "code": "135790"
+}
+```
+
+Cevap `200 OK`:
+
+```json
+{
+  "resetToken": "tek-kullanimlik-anahtar",
+  "expiresInSeconds": 900
+}
+```
+
+Kod varsayılan olarak 10 dakika geçerlidir ve 5 yanlış denemeden sonra ölür; her başarısız durum ortak hata sözleşmesiyle `400 INVALID_OR_EXPIRED_RESET_CODE` döner (hangi sebep olduğu bilgisi sızdırılmaz). Dönen anahtar 256 bit rastgeledir, veritabanında SHA-256 özetiyle tutulur ve varsayılan 15 dakika geçerlidir.
+
+**3. Parola belirleme** — `POST /api/auth/reset-password`
+
+```json
+{
+  "token": "tek-kullanimlik-anahtar",
   "newPassword": "YeniParola123"
 }
 ```
 
-Başarılı `POST /api/auth/reset-password` isteği `204 No Content` döner; token yeniden kullanılamaz ve kullanıcının mevcut refresh tokenları iptal edilir. Geçersiz, kullanılmış veya süresi dolmuş token için ortak hata sözleşmesiyle `INVALID_OR_EXPIRED_RESET_TOKEN` kodu dönmesi beklenir. Frontend başarılı sıfırlamadan sonra `/giris?reason=password-reset` adresine gider. Bu iki endpoint ve e-posta üretimi henüz backend tarafından sağlanmayı beklemektedir.
+Başarılı istek `204 No Content` döner; anahtar yeniden kullanılamaz, parola BCrypt ile özetlenerek saklanır, `mustChangePassword=false` olur ve kullanıcının mevcut refresh tokenları iptal edilir. Geçersiz, kullanılmış veya süresi dolmuş anahtar `INVALID_OR_EXPIRED_RESET_TOKEN` kodunu döner. Yeni parola mevcut paroladan farklı olmalıdır: aynıysa `PASSWORD_REUSED` döner ve anahtar tüketilmez, kullanıcı başka bir parolayla tekrar deneyebilir. Frontend başarılı sıfırlamadan sonra `/giris?reason=password-reset` adresine gider.
+
+Süreler ve bekleme aralığı `app.password-reset.*` ayarlarıyla (ortam değişkeni karşılıkları `PASSWORD_RESET_CODE_TTL_MINUTES`, `PASSWORD_RESET_TOKEN_TTL_MINUTES`, `PASSWORD_RESET_RESEND_COOLDOWN_SECONDS`) değiştirilebilir.
 
 Refresh ve logout istekleri `{ "refreshToken": "..." }` gövdesini kullanır. Başarılı refresh işleminde eski token iptal edilip yeni access/refresh çifti üretilir. Varsayılan access süresi 1 saat, refresh süresi 7 gündür ve ortam değişkenleriyle değiştirilebilir. Geçersiz veya süresi dolmuş giriş/refresh bilgisi `401 INVALID_CREDENTIALS` döner.
 
@@ -211,6 +232,25 @@ Rol bazlı `gorunum` eşlemeleri:
 | `GET` | `/api/records/{id}` | Yetki kapsamındaki kayıt detayı |
 | `POST` | `/api/records` | Çalışanın yeni taslağını oluşturur |
 | `PUT` | `/api/records/{id}` | Sahibi olan çalışanın taslak/düzeltme kaydını günceller |
+
+#### Düzeltmedeki kaydın içeriği dondurulur
+
+Kayıt `CALISANA_GERI_GONDER` ile düzeltmeye düştüğünde içeriğinin o anki hali
+(`title`, `description`, `categoryId`) kaydın üzerinde saklanır. Başkan
+Yardımcısı `duzeltmede-olanlar` sekmesinden bu kaydı izlemeye devam eder, ancak
+evrak o sırada Çalışanın elindedir: yardımcıya **devir anındaki kopya**
+gösterilir. Çalışanın düzeltme sırasında kaydettiği değişiklikler ona yansımaz;
+`TEKRAR_GONDER` ile kayıt yeniden yardımcıya atandığında güncel içerik açılır.
+
+Kural detay ucunda, liste/arama ucunda ve ek dosya listesinde birlikte
+uygulanır — yalnızca biri dondurulsaydı liste başlığı ya da yeni yüklenen bir ek
+sızdırmaya devam ederdi. Ek dosyalar ayrıca kopyalanmaz; `uploaded_at` ve
+`deleted_at` üzerinden devir anına göre süzülür, dolayısıyla devirde duran ama
+sonradan silinen bir ek yardımcıda hâlâ görünür, sonradan eklenen görünmez.
+Listede gizlenen bir eke kimliğiyle doğrudan erişim de `404` döner.
+
+Kaydın sahibi Çalışan ve Başkan bu dondurmadan etkilenmez; ikisi de her zaman
+güncel içeriği görür. Aynı kural işlem geçmişi için de geçerlidir (bkz. §6).
 | `DELETE` | `/api/records/{id}` | Yalnız `TASLAK` kaydını siler veya soft-delete yapar |
 
 Oluşturma/güncelleme gövdesi:
@@ -307,6 +347,15 @@ Bu cevap kategori, dosya veya geçmiş nesnelerini içine gömmez. Frontend gere
 | Metot | Adres | Amaç |
 |---|---|---|
 | `GET` | `/api/audit-logs/record/{recordId}` | Kullanıcının görmeye yetkili olduğu kaydın işlem geçmişi ve kesinleşmiş açıklamaları |
+
+Kaydı görebilmek geçmişin tamamını görebilmek anlamına gelmez. Başkan Yardımcısı
+`duzeltmede-olanlar` sekmesi sayesinde geri gönderdiği kaydı `DUZENLEME_BEKLIYOR`
+durumunda izlemeye devam eder, ancak evrak o sırada Çalışanın elindedir: bu
+aralıkta geçmiş **devir anına kadar kırpılmış** döner. Çalışanın düzeltme
+sırasında ürettiği satırlar (`RECORD_UPDATED`) listeye girmez. Çalışan
+`TEKRAR_GONDER` ile kaydı geri yolladığında kayıt yeniden yardımcıya atanır ve
+geçmiş bütünüyle açılır. Kırpma sunucuda yapılır; gizlenen satırlar cevaba hiç
+konmaz. Kaydın sahibi Çalışan ve Başkan bu kırpmadan etkilenmez.
 
 Cevap `AuditLogResponse` listesidir. İşlemi yapan kişi **iç içe `actor` nesnesi
 değil, düz alanlar** olarak döner (`userId`, `userFullName`, `roleId`,
@@ -454,11 +503,10 @@ Beklenen HTTP durumları:
 
 ## 12. Kalan backend entegrasyon ihtiyaçları
 
-1. `POST /api/auth/forgot-password` ve `POST /api/auth/reset-password` endpointleri, e-posta gönderimi ve tek kullanımlık token yaşam döngüsü
-2. Kayıt başına azami ek dosya adedi ve buna karşılık gelecek hata kodu
-3. Kayıt liste/detay cevaplarında oluşturan kişinin güvenli gösterim adı
-4. README'deki ortak hata sözleşmesini tamamlamak için `ApiError` cevabına istek yolu (`path`) eklenmesi; dağıtık izleme kullanılacaksa `traceId` alanının ayrıca kararlaştırılması
-5. Merkezi test ortamı açılırsa API base URL'si ve o ortama özel CORS origin yapılandırması
+1. Kayıt başına azami ek dosya adedi ve buna karşılık gelecek hata kodu
+2. Kayıt liste/detay cevaplarında oluşturan kişinin güvenli gösterim adı
+3. README'deki ortak hata sözleşmesini tamamlamak için `ApiError` cevabına istek yolu (`path`) eklenmesi; dağıtık izleme kullanılacaksa `traceId` alanının ayrıca kararlaştırılması
+4. Merkezi test ortamı açılırsa API base URL'si ve o ortama özel CORS origin yapılandırması
 
 Yerel geliştirmede API, Swagger/OpenAPI, JWT akışı, 0 tabanlı sayfalama, kayıt filtreleri, workflow aksiyonu, tekil rol hedefleme, kategori/Admin API'leri, ortak hata cevabı ve `http://localhost:5173` CORS izni mevcut backend tarafından sağlanmaktadır.
 

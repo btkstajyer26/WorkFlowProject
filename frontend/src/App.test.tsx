@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router'
 import { describe, expect, it } from 'vitest'
 import App from './App'
 import { requestPasswordReset } from './api/auth'
-import { getMockUserByRole, mockPasswordResetTokenFor } from './mocks/api/auth'
+import { MOCK_PASSWORD_RESET_CODE, getMockUserByRole, verifyMockPasswordResetCode } from './mocks/api/auth'
 import { api } from './api/client'
 import { apiBaseUrl } from './api/config'
 import { apiMockServer } from './mocks/api/server'
@@ -109,11 +109,20 @@ describe('App authorization boundaries', () => {
     expect(await screen.findByText('Şifreniz değiştirildi. Yeni şifrenizle tekrar giriş yapın.')).toBeInTheDocument()
   })
 
-  it('e-posta bağlantısındaki tek kullanımlık token ile oturumsuz şifre sıfırlar', async () => {
+  it('giriş ekranından başlayan şifremi unuttum akışını kodla tamamlar', async () => {
     const user = userEvent.setup()
-    await requestPasswordReset({ email: 'john.doe@kurum.gov.tr' })
-    const token = mockPasswordResetTokenFor('user-demo-001')
-    renderApp(`/sifre-degistir?token=${encodeURIComponent(token)}`)
+    renderApp('/giris')
+
+    await user.click(await screen.findByRole('link', { name: 'Şifremi unuttum' }))
+    // Giriş ekranında da aynı etiket var; sıfırlama sayfası yüklenmeden yazmaya
+    // başlarsak e-posta yanlış forma gider.
+    await screen.findByRole('heading', { name: 'Şifrenizi sıfırlayın' })
+    await user.type(screen.getByLabelText('E-posta adresi'), 'john.doe@kurum.gov.tr')
+    await user.click(screen.getByRole('button', { name: 'Doğrulama kodu gönder' }))
+
+    await screen.findByRole('heading', { name: 'E-postanızı kontrol edin' })
+    await user.type(screen.getByLabelText('Doğrulama kodu'), MOCK_PASSWORD_RESET_CODE)
+    await user.click(screen.getByRole('button', { name: 'Kodu doğrula' }))
 
     expect(await screen.findByRole('heading', { name: 'Yeni şifrenizi belirleyin' })).toBeInTheDocument()
     expect(screen.queryByLabelText('Mevcut şifre')).not.toBeInTheDocument()
@@ -130,7 +139,25 @@ describe('App authorization boundaries', () => {
     expect(await screen.findByRole('heading', { name: /Hoş geldiniz/ })).toBeInTheDocument()
   })
 
-  it('geçersiz şifre sıfırlama tokenı için yeni bağlantı istemeyi önerir', async () => {
+  it('sıfırlanan şifre eskisiyle aynıysa kaydetmez', async () => {
+    const user = userEvent.setup()
+    // Hesabın mevcut şifresi, yeni şifre kurallarını da karşılıyor; böylece
+    // istek arayüz doğrulamasına takılmadan sunucuya ulaşır.
+    const email = 'ilk.giris@kurum.gov.tr'
+    await requestPasswordReset({ email })
+    const token = verifyMockPasswordResetCode(email, MOCK_PASSWORD_RESET_CODE)
+    renderApp(`/sifre-degistir?token=${encodeURIComponent(token!)}`)
+
+    await screen.findByRole('heading', { name: 'Yeni şifrenizi belirleyin' })
+    await user.type(screen.getByLabelText('Yeni şifre'), 'Gecici123')
+    await user.type(screen.getByLabelText('Yeni şifre tekrar'), 'Gecici123')
+    await user.click(screen.getByRole('button', { name: 'Şifreyi sıfırla' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Yeni şifreniz mevcut şifrenizle aynı olamaz.')
+    expect(screen.getByRole('heading', { name: 'Yeni şifrenizi belirleyin' })).toBeInTheDocument()
+  })
+
+  it('geçersiz şifre sıfırlama anahtarı için yeni kod istemeyi önerir', async () => {
     const user = userEvent.setup()
     renderApp('/sifre-degistir?token=gecersiz-token')
 
@@ -140,7 +167,7 @@ describe('App authorization boundaries', () => {
     await user.click(screen.getByRole('button', { name: 'Şifreyi sıfırla' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('geçersiz, kullanılmış veya süresi dolmuş')
-    expect(screen.getByRole('link', { name: 'Yeni bağlantı iste' })).toHaveAttribute('href', '/sifre-sifirla')
+    expect(screen.getByRole('link', { name: 'Yeni kod iste' })).toHaveAttribute('href', '/sifre-sifirla')
   })
 
   it('kayıt detayında API tarafından adları sağlanmayan kişi alanlarını göstermez', async () => {

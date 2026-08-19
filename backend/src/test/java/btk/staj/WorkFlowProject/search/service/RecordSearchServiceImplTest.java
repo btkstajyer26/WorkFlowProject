@@ -2,7 +2,9 @@ package btk.staj.WorkFlowProject.search.service;
 
 import btk.staj.WorkFlowProject.common.dto.PagedResponse;
 import btk.staj.WorkFlowProject.record.entity.Record;
+import btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
+import btk.staj.WorkFlowProject.record.view.RecordContentView;
 import btk.staj.WorkFlowProject.search.dto.RecordSearchCriteria;
 import btk.staj.WorkFlowProject.search.dto.RecordSearchResponse;
 import btk.staj.WorkFlowProject.workflow.model.CurrentActor;
@@ -35,7 +37,8 @@ class RecordSearchServiceImplTest {
     private final RecordRepository recordRepository = mock(RecordRepository.class);
     private final CurrentActorProvider currentActorProvider = mock(CurrentActorProvider.class);
     private final RecordSearchServiceImpl service =
-            new RecordSearchServiceImpl(recordRepository, currentActorProvider);
+            new RecordSearchServiceImpl(recordRepository, currentActorProvider,
+                    new RecordContentView(new RecordAccessPolicy()));
 
     @Test
     @DisplayName("sayfalama bilgisini oldugu gibi aktarir")

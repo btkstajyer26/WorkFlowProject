@@ -10,6 +10,7 @@ import btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy;
 import btk.staj.WorkFlowProject.record.dto.*;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.mapper.RecordMapper;
+import btk.staj.WorkFlowProject.record.view.RecordContentView;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
@@ -29,17 +30,20 @@ public class RecordServiceImpl implements RecordService {
     private final RecordAccessPolicy recordAccessPolicy;
     private final PermissionService permissionService;
     private final AuditLogService auditLogService;
+    private final RecordContentView recordContentView;
 
     public RecordServiceImpl(RecordRepository recordRepository,
                              RecordMapper recordMapper,
                              RecordAccessPolicy recordAccessPolicy,
                              PermissionService permissionService,
-                             AuditLogService auditLogService) {
+                             AuditLogService auditLogService,
+                             RecordContentView recordContentView) {
         this.recordRepository = recordRepository;
         this.recordMapper = recordMapper;
         this.recordAccessPolicy = recordAccessPolicy;
         this.permissionService = permissionService;
         this.auditLogService = auditLogService;
+        this.recordContentView = recordContentView;
     }
 
     /**
@@ -105,15 +109,19 @@ public class RecordServiceImpl implements RecordService {
     @Override
     public RecordResponse getRecordById(UUID id) {
         Record record = findRecordOrThrow(id);
+        RoleName role = getCurrentUserRole();
+        UUID userId = getCurrentUserId();
 
         recordAccessPolicy.assertCanView(
-                getCurrentUserRole(),
-                getCurrentUserId(),
+                role,
+                userId,
                 record.getCreatedBy(),
                 record.getAssignedTo(),
                 record.getStatus());
 
-        return recordMapper.toResponse(record);
+        // Kaydi gorebilmek guncel icerigi gormek demek degil: geri gonderen
+        // yetkiliye devir anindaki kopya gosterilir.
+        return recordMapper.toResponse(record, recordContentView.visibleContent(record, role, userId));
     }
 
     // Listeleme burada degil: filtreleme ve gorunurluk kapsami RecordSearchService'e

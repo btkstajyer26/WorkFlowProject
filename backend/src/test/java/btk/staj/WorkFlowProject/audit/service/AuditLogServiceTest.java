@@ -158,6 +158,86 @@ class AuditLogServiceTest {
                 });
     }
 
+    // ---------------- devre kadar kirpilmis gecmis ----------------
+
+    @Test
+    @DisplayName("geri gonderme sonrasi yapilan duzenlemeleri gecmisten cikarir")
+    void hidesTheEditsMadeAfterTheRecordWasHandedBack() {
+        LocalDateTime start = LocalDateTime.of(2026, 8, 19, 9, 0);
+        when(auditLogRepository.findHistoryByRecordId(RECORD_ID)).thenReturn(List.of(
+                transitionRow("GONDER", "TASLAK", "BSK_YRD_INCELEMESINDE", start),
+                transitionRow("CALISANA_GERI_GONDER", "BSK_YRD_INCELEMESINDE",
+                        "DUZENLEME_BEKLIYOR", start.plusMinutes(10)),
+                lifecycleRow("RECORD_UPDATED", "DUZENLEME_BEKLIYOR", start.plusMinutes(20)),
+                lifecycleRow("RECORD_UPDATED", "DUZENLEME_BEKLIYOR", start.plusMinutes(30))));
+
+        assertThat(service.getGecmisDevreKadar(RECORD_ID))
+                .extracting(AuditLogResponse::action)
+                .containsExactly("GONDER", "CALISANA_GERI_GONDER");
+    }
+
+    @Test
+    @DisplayName("kirpma yalnizca son geri gondermeye gore yapilir")
+    void trimsAtTheMostRecentHandoff() {
+        LocalDateTime start = LocalDateTime.of(2026, 8, 19, 9, 0);
+        when(auditLogRepository.findHistoryByRecordId(RECORD_ID)).thenReturn(List.of(
+                transitionRow("CALISANA_GERI_GONDER", "BSK_YRD_INCELEMESINDE",
+                        "DUZENLEME_BEKLIYOR", start),
+                lifecycleRow("RECORD_UPDATED", "DUZENLEME_BEKLIYOR", start.plusMinutes(5)),
+                transitionRow("TEKRAR_GONDER", "DUZENLEME_BEKLIYOR",
+                        "BSK_YRD_INCELEMESINDE", start.plusMinutes(10)),
+                transitionRow("CALISANA_GERI_GONDER", "BSK_YRD_INCELEMESINDE",
+                        "DUZENLEME_BEKLIYOR", start.plusMinutes(20)),
+                lifecycleRow("RECORD_UPDATED", "DUZENLEME_BEKLIYOR", start.plusMinutes(25))));
+
+        // Ikinci turdaki duzenleme gizlenir; kapanmis onceki turun tamami acik kalir.
+        assertThat(service.getGecmisDevreKadar(RECORD_ID))
+                .extracting(AuditLogResponse::action)
+                .containsExactly("CALISANA_GERI_GONDER", "RECORD_UPDATED", "TEKRAR_GONDER",
+                        "CALISANA_GERI_GONDER");
+    }
+
+    @Test
+    @DisplayName("devir anini aciklayan gecis yoksa hicbir satir donmez")
+    void returnsNothingWhenTheHandoffCannotBeLocated() {
+        LocalDateTime start = LocalDateTime.of(2026, 8, 19, 9, 0);
+        when(auditLogRepository.findHistoryByRecordId(RECORD_ID)).thenReturn(List.of(
+                lifecycleRow("RECORD_CREATED", "TASLAK", start),
+                lifecycleRow("RECORD_UPDATED", "DUZENLEME_BEKLIYOR", start.plusMinutes(5))));
+
+        assertThat(service.getGecmisDevreKadar(RECORD_ID)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("kirpilmamis gecmis butun satirlari dondurmeye devam eder")
+    void theUntrimmedHistoryStillReturnsEverything() {
+        LocalDateTime start = LocalDateTime.of(2026, 8, 19, 9, 0);
+        when(auditLogRepository.findHistoryByRecordId(RECORD_ID)).thenReturn(List.of(
+                transitionRow("CALISANA_GERI_GONDER", "BSK_YRD_INCELEMESINDE",
+                        "DUZENLEME_BEKLIYOR", start),
+                lifecycleRow("RECORD_UPDATED", "DUZENLEME_BEKLIYOR", start.plusMinutes(5))));
+
+        assertThat(service.getGecmis(RECORD_ID)).hasSize(2);
+    }
+
+    private static AuditLogResponse transitionRow(String action, String previousStatus,
+                                                  String newStatus, LocalDateTime createdAt) {
+        return historyRow(action, previousStatus, newStatus, createdAt);
+    }
+
+    /** Olusturma/guncelleme satiri: gecis olmadigi icin previous_status tasimaz. */
+    private static AuditLogResponse lifecycleRow(String action, String currentStatus,
+                                                 LocalDateTime createdAt) {
+        return historyRow(action, null, currentStatus, createdAt);
+    }
+
+    private static AuditLogResponse historyRow(String action, String previousStatus,
+                                               String newStatus, LocalDateTime createdAt) {
+        return new AuditLogResponse(
+                UUID.randomUUID(), RECORD_ID, ACTOR_ID, "Ahmet Yılmaz", 1, "CALISAN",
+                action, previousStatus, newStatus, null, null, null, null, null, createdAt);
+    }
+
     private void givenRole(String roleName, Integer roleId) {
         Role role = new Role();
         role.setId(roleId);

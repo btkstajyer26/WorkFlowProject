@@ -12,6 +12,7 @@ import btk.staj.WorkFlowProject.record.dto.RecordResponse;
 import btk.staj.WorkFlowProject.record.dto.RecordUpdateRequest;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.mapper.RecordMapper;
+import btk.staj.WorkFlowProject.record.view.RecordContentView;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
@@ -52,8 +53,14 @@ class RecordServiceImplTest {
     private final UUID ownerId = UUID.randomUUID();
     private final UUID otherUserId = UUID.randomUUID();
 
+    /**
+     * RecordContentView mock'lanmaz: icerik gorunurlugu kurali gercek
+     * RecordAccessPolicy uzerinden calissin, boylece testler kaydin dogru
+     * icerikle donduruldugunu de dogrular.
+     */
     private RecordServiceImpl service() {
-        return new RecordServiceImpl(recordRepository, recordMapper, recordAccessPolicy, permissionService, auditLogService);
+        return new RecordServiceImpl(recordRepository, recordMapper, recordAccessPolicy, permissionService,
+                auditLogService, new RecordContentView(new RecordAccessPolicy()));
     }
 
     /** Verilen kullanici id/rolunu SecurityContextHolder'a giris yapmis kullanici olarak kaydeder. */
@@ -150,7 +157,8 @@ class RecordServiceImplTest {
         girisYapmisKullaniciOlustur(ownerId, RoleName.CALISAN);
         Record kayit = ornekKayit(RecordStatus.TASLAK, ownerId);
         when(recordRepository.findById(recordId)).thenReturn(Optional.of(kayit));
-        when(recordMapper.toResponse(kayit)).thenReturn(new RecordResponse());
+        when(recordMapper.toResponse(eq(kayit), any(RecordContentView.Content.class)))
+                .thenReturn(new RecordResponse());
 
         assertNotNull(service().getRecordById(recordId));
         verify(recordAccessPolicy).assertCanView(RoleName.CALISAN, ownerId, ownerId, null, RecordStatus.TASLAK);

@@ -167,6 +167,42 @@ class RecordPortAdapterTest {
         assertThatNullPointerException().isThrownBy(() -> adapter.update(null));
     }
 
+    @Test
+    @DisplayName("kayit duzeltmeye duserken icerigin anlik goruntusunu alir")
+    void freezesTheContentWhenTheRecordGoesBackForCorrection() {
+        Record stored = record(RecordStatus.BSK_YRD_INCELEMESINDE, null);
+        stored.setTitle("Gönderilen başlık");
+        stored.setDescription("Gönderilen açıklama");
+        stored.setCategoryId(3);
+        when(recordRepository.findById(RECORD_ID)).thenReturn(Optional.of(stored));
+
+        Instant handoff = Instant.parse("2026-08-19T09:15:00Z");
+        adapter.update(new WorkflowRecordUpdate(
+                RECORD_ID, RecordStatus.DUZENLEME_BEKLIYOR, CREATED_BY, LAST_DEPUTY, 0, handoff));
+
+        // Kopyalanan degerler gecis oncesi haldir.
+        assertThat(stored.getSnapshotTitle()).isEqualTo("Gönderilen başlık");
+        assertThat(stored.getSnapshotDescription()).isEqualTo("Gönderilen açıklama");
+        assertThat(stored.getSnapshotCategoryId()).isEqualTo(3);
+        assertThat(stored.getSnapshotAt())
+                .isEqualTo(LocalDateTime.ofInstant(handoff, ZoneId.systemDefault()));
+    }
+
+    @Test
+    @DisplayName("duzeltmeye dusmeyen geciste anlik goruntu alinmaz")
+    void doesNotFreezeOnOtherTransitions() {
+        Record stored = record(RecordStatus.BSK_YRD_INCELEMESINDE, null);
+        stored.setTitle("Gönderilen başlık");
+        when(recordRepository.findById(RECORD_ID)).thenReturn(Optional.of(stored));
+
+        adapter.update(new WorkflowRecordUpdate(
+                RECORD_ID, RecordStatus.BASKAN_INCELEMESINDE, NEW_ASSIGNED_TO, NEW_LAST_DEPUTY,
+                0, Instant.parse("2026-08-19T09:15:00Z")));
+
+        assertThat(stored.getSnapshotAt()).isNull();
+        assertThat(stored.getSnapshotTitle()).isNull();
+    }
+
     private static Record record(RecordStatus status, LocalDateTime deletedAt) {
         Record record = new Record();
         record.setId(RECORD_ID);

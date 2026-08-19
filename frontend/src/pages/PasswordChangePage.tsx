@@ -50,6 +50,11 @@ export function PasswordChangePage({ user, onPasswordChanged, onPasswordReset, o
           }
         }
 
+        if (error.code === 'PASSWORD_REUSED') {
+          setError('newPassword', { type: 'server', message: 'Yeni şifreniz mevcut şifrenizle aynı olamaz.' })
+          return
+        }
+
         if (error.status === 401 || error.code === 'INVALID_CREDENTIALS') {
           setError('currentPassword', { type: 'server', message: 'Mevcut şifreniz doğru değil.' })
           return
