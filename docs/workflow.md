@@ -95,13 +95,20 @@ Kayıt listeleme/detay görünürlüğü ile workflow aksiyonu yapma yetkisi ayn
 | Rol | Kayıt okuma kapsamı |
 | --- | --- |
 | `CALISAN` | Yaşam döngüsü boyunca kendisinin oluşturduğu kayıtlar |
-| `BASKAN_YARDIMCISI` | Yalnız o anda kendisine atanmış kayıtlar |
-| `BASKAN` | `BASKAN_INCELEMESINDE` durumundaki veya kendisine atanmış kayıtlar |
+| `BASKAN_YARDIMCISI` | Kendisine atanmış kayıtlar, `DUZENLEME_BEKLIYOR` durumundakiler ve bir kez kendi elinden geçmiş kayıtlar (`last_deputy_id`) |
+| `BASKAN` | `BASKAN_INCELEMESINDE` durumundaki, sonuçlanmış (`ONAYLANDI`/`REDDEDILDI`) veya kendisine atanmış kayıtlar |
 | `ADMIN` | Hiçbir workflow kaydı |
+
+Kapsamın iki kolu, `assigned_to`'nun geçişte boşalması yüzünden gerekli:
+
+- **Başkan Yardımcısı**, `BASKANA_ILET` ile `assigned_to`'yu Başkana devreder ama `last_deputy_id` kendisinde kalır. Bu kol olmasaydı ilettiği evrağı anında kaybeder; "Sonuçlananlar" ve panodaki "Son Kayıtlar" listeleri kalıcı olarak boş görünürdü.
+- **Başkan**, `ONAYLA`/`REDDET` ile `assigned_to`'yu boşaltır. Sonuçlanan iki durum kapsama açıkça yazılmasaydı kendi verdiği karardan sonra kaydı kaybeder; "Onaylananlar" ve "Reddedilenler" sekmeleri boş kalırdı. Bu iki duruma yalnız Başkanın kararıyla gelinebildiği için kapsam genişlemez.
 
 Liste sorguları soft-delete edilmiş kayıtları dışlar. Kayıt audit geçmişi ucu da okumadan önce aynı `RecordAccessPolicy` kuralını uygular.
 
-Workflow controller'ı ayrıca `RecordAccessPolicy` çağırmaz. Aksiyon yetkisi; rol, durum ve `createdBy`/`assignedTo` ilişkisi üzerinden durum makinesinde belirlenir. Başkan Yardımcısı kaydı Başkana ilettiğinde `assignedTo` değiştiği için, daha önce işlem yaptığı bu kaydı artık yalnız geçmişte işlem yapmış olması nedeniyle göremez.
+Aynı kural iki biçimde durur: tek kayıt için `RecordAccessPolicy`, sorgu koşulu olarak `RecordSpecifications.visibilityScope`. **Biri değişirse diğeri de değişmelidir** — ikisi ayrıştığında detay ucu kaydı açarken liste ucu onu hiç döndürmez.
+
+Workflow controller'ı ayrıca `RecordAccessPolicy` çağırmaz. Aksiyon yetkisi; rol, durum ve `createdBy`/`assignedTo` ilişkisi üzerinden durum makinesinde belirlenir. Okuma kapsamı bir kaydı görünür kılması, o kayıt üzerinde aksiyon yapılabileceği anlamına gelmez: ilettiği evrağı izleyen Başkan Yardımcısı onu salt okunur görür.
 
 ## Kayıt durumları
 

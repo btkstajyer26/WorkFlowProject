@@ -37,7 +37,17 @@ public class RecordAccessPolicy {
             case BASKAN_YARDIMCISI -> currentUserId.equals(recordAssignedTo)
                     || status == RecordStatus.DUZENLEME_BEKLIYOR
                     || currentUserId.equals(recordLastDeputyId);
+            // Baskanin kapsami role bagli, kullaniciya degil: onayina gelen her
+            // kaydi zaten atanmis olup olmadigina bakmadan gorur.
+            //
+            // Sonuclanan kayitlar da kapsamda: ONAYLA/REDDET aksiyonu
+            // assignedTo'yu bosaltir, dolayisiyla kendi verdigi karardan sonra
+            // kayit ona kapanirdi. "Onaylananlar" ve "Reddedilenler" sekmeleri
+            // bu yuzden kalici olarak bos gorunuyordu. Bu iki duruma yalnizca
+            // Baskanin karariyla gelinebildigi icin kapsami genisletmez.
             case BASKAN -> status == RecordStatus.BASKAN_INCELEMESINDE
+                    || status == RecordStatus.ONAYLANDI
+                    || status == RecordStatus.REDDEDILDI
                     || currentUserId.equals(recordAssignedTo);
             // ADMIN yalnizca kullanici ve rol yonetiminden sorumludur; evrak goremez.
             case ADMIN -> false;
@@ -84,5 +94,27 @@ public class RecordAccessPolicy {
         return role == RoleName.BASKAN_YARDIMCISI
                 && status == RecordStatus.DUZENLEME_BEKLIYOR
                 && !Objects.equals(currentUserId, recordAssignedTo);
+    }
+
+    /**
+     * Baskanin islem gecmisini, evragin kendisine ilk ulastigi andan itibaren
+     * gordugunu bildirir. Oncesindeki Calisan&ndash;Baskan Yardimcisi trafigi
+     * (olusturma, duzeltme turlari, geri gonderme notlari) ona kapalidir.
+     *
+     * <p>{@link #seesRecordAsOfHandoff} ile ayni fikrin ters yonu: orada
+     * kullanici evraki elinden <em>cikardigi</em> anda kesilir, burada evrak
+     * eline <em>gectigi</em> anda baslar.
+     *
+     * <p>Kesme noktasi ilk iletimdir, sonuncusu degil. Baskan evraki
+     * yardimciya geri gonderip tekrar aldiginda son iletime gore kirpmak, kendi
+     * yazdigi ret/geri gonderme gerekcesini de gizlerdi; karar verirken en cok
+     * ihtiyac duydugu satir odur.
+     *
+     * <p>Rol disinda kosul aranmaz: Baskan bir kaydi zaten ancak onayina
+     * geldiyse veya sonuclandirdiysa gorebiliyor ({@link #canView}), ikisinde de
+     * evrak en az bir kez kendisine iletilmis olur.
+     */
+    public boolean seesHistoryFromPresidentHandover(RoleName role) {
+        return role == RoleName.BASKAN;
     }
 }

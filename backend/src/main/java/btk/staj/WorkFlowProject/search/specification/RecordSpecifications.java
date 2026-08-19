@@ -123,14 +123,24 @@ public final class RecordSpecifications {
             // Calisan yalnizca kendi olusturdugu kayitlari gorur.
             case CALISAN -> cb.equal(root.get("createdBy"), currentUserId);
 
-            // Bsk. Yrd. kendisine atanan kayitlari VE duzeltme bekleyen kayitlari gorur.
+            // Bsk. Yrd. kendisine atanan kayitlari, duzeltme bekleyen kayitlari VE
+            // bir kez kendi elinden gecmis kayitlari gorur. Ucuncu kol
+            // RecordAccessPolicy'de vardi ama burada yoktu: detay ucu kaydi
+            // aciyor, liste ucu ise ayni kaydi hic dondurmuyordu. Yardimcinin
+            // "Sonuclananlar" ve panodaki "Son Kayitlar" listeleri bu yuzden
+            // bos gorunuyordu.
             case BASKAN_YARDIMCISI -> cb.or(
                     cb.equal(root.get("assignedTo"), currentUserId),
-                    cb.equal(root.get("status"), RecordStatus.DUZENLEME_BEKLIYOR));
+                    cb.equal(root.get("status"), RecordStatus.DUZENLEME_BEKLIYOR),
+                    cb.equal(root.get("lastDeputyId"), currentUserId));
 
-            // Baskan onay asamasina gelenleri ve kendisine atananlari gorur.
+            // Baskan onay asamasina gelenleri, sonuclandirdiklarini ve
+            // kendisine atananlari gorur. ONAYLA/REDDET assignedTo'yu
+            // bosalttigi icin sonuclanan iki durum acikca sayilmali.
             case BASKAN -> cb.or(
                     cb.equal(root.get("status"), RecordStatus.BASKAN_INCELEMESINDE),
+                    cb.equal(root.get("status"), RecordStatus.ONAYLANDI),
+                    cb.equal(root.get("status"), RecordStatus.REDDEDILDI),
                     cb.equal(root.get("assignedTo"), currentUserId));
 
             // ADMIN yalnizca kullanici ve rol yonetiminden sorumludur; evrak goremez.
