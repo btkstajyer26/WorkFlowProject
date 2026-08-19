@@ -17,19 +17,13 @@ import java.util.UUID;
 
 /**
  * Durum degisikligi e-postasini uretir ve gonderir.
- *
- * <p>Govde {@code templates/mail/workflow-status.html} sablonundan uretilir;
- * bicim degisikligi Java kodunu degistirmeyi gerektirmez ve kullanicidan gelen
- * degerler (evrak basligi, aciklama) sablon motoru tarafindan kacisli yazilir.
  */
 @Service
 public class MailService {
 
     private static final Logger log = LoggerFactory.getLogger(MailService.class);
 
-    /** Bos aciklama sablonda "null" gorunmemeli. */
     private static final String NO_EXPLANATION = "—";
-
     private static final String TEMPLATE = "mail/workflow-status";
 
     private static final String PASSWORD_RESET_TEMPLATE = "mail/password-reset-code";
@@ -48,11 +42,6 @@ public class MailService {
         this.templateEngine = Objects.requireNonNull(templateEngine, "templateEngine");
     }
 
-    /**
-     * E-posta gonderimi cagiran akisi bilerek etkilemez: gonderim
-     * {@code @Async} calisir ve hata yalnizca loglanir. Onay akisi disaridaki
-     * SMTP sunucusuna bagli kalmamalidir.
-     */
     @Async
     public void sendStatusChangeMail(String toEmail,
                                      String recipientName,
@@ -131,7 +120,6 @@ public class MailService {
         return templateEngine.process(TEMPLATE, context);
     }
 
-    /** Konu basligindaki kisa kimlik; UUID'nin tamami basliga sigmiyor. */
     private static String subject(UUID recordId) {
         String id = recordId.toString();
         return "EBYS - Evrak Durum Değişikliği Bildirimi [#" + id.substring(0, 8) + "]";
