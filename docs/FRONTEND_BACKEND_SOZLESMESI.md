@@ -160,6 +160,7 @@ Desteklenen parametreler:
 | `categoryId` | integer/uuid | Kategori filtresi |
 | `from` | ISO 8601 date-time | Oluşturulma tarihi başlangıcı |
 | `to` | ISO 8601 date-time | Oluşturulma tarihi bitişi |
+| `creator` | string | Oluşturan kişinin ad/soyad bilgisinde arama |
 | `sort` | string | Spring Data sıralaması; ör. `updatedAt,desc` |
 
 Sayfalı cevap:
@@ -224,7 +225,7 @@ Oluşturma/güncelleme gövdesi:
 
 Tekil kayıt cevabı düz bir modeldir ve `id`, `title`, `description`, `categoryId`, `status`, `createdAt` alanlarını taşır. Liste cevabındaki öğeler bunlara ek olarak `createdBy`, `assignedTo` ve `updatedAt` alanlarını içerir. Kategori adı `/api/categories`, ek dosyalar dosya endpointleri ve işlem geçmişi audit endpointi üzerinden alınır.
 
-Mevcut `createdBy` alanı yalnız kullanıcı UUID'sidir. Normal kullanıcıların başka kullanıcıları çözümleyebileceği genel bir kullanıcı listeleme endpointi bulunmadığından kayıt ekranında oluşturan kişinin adını göstermek için backend cevaplarında en az `createdByFullName` gibi güvenli bir gösterim alanı sağlanmalıdır. Oluşturan kişiye göre sunucu taraflı filtreleme isteniyorsa `GET /api/records` ayrıca `createdById` parametresini desteklemelidir. Serbest metin `q` araması başlık ve açıklamayla sınırlı kalır; kişi adı araması gerekiyorsa bunun davranışı ayrı bir parametreyle kesinleştirilmelidir.
+Mevcut `createdBy` alanı yalnız kullanıcı UUID'sidir. Normal kullanıcıların başka kullanıcıları çözümleyebileceği genel bir kullanıcı listeleme endpointi bulunmadığından kayıt ekranında oluşturan kişinin adını göstermek için backend cevaplarında en az `createdByFullName` gibi güvenli bir gösterim alanı sağlanmalıdır. Oluşturan kişiye göre sunucu taraflı filtreleme `GET /api/records?creator=` parametresiyle desteklenir; bu parametre oluşturucunun ad ve soyadında arama yapar. Serbest metin `q` araması başlık ve açıklamayla sınırlı kalır.
 
 ### İş akışı aksiyonu
 
@@ -382,7 +383,7 @@ gövdesinde yapılır:
 
 - `roleName` zorunludur. `replacementBaskanYardimcisiId` normalde gönderilmez.
 - Bir kullanıcı **`BASKAN_YARDIMCISI` rolünden çıkıyorsa** koltuk boşalacağı için `replacementBaskanYardimcisiId` **aynı istekte zorunludur**; gönderilmezse `400 BUSINESS_RULE_VIOLATION`. Backend rastgele/otomatik atama yapmaz, devredilecek kişiyi Admin açıkça seçer.
-- Belirtilen kullanıcı aynı transaction içinde `BASKAN_YARDIMCISI` yapılır ve iki rol değişikliği için de birer `user_audit_logs` kaydı üretilir.
+- Belirtilen kullanıcı aynı transaction içinde `BASKAN_YARDIMCISI` yapılır, eski Başkan Yardımcısına atanmış kayıtlar yeni kullanıcıya devredilir ve rol/görev devri audit kayıtları üretilir.
 - Yerine atanacak kullanıcı koltuğu boşaltan kişinin kendisi olamaz ve pasif bir hesap olamaz → `400 BUSINESS_RULE_VIOLATION`. Kullanıcı bulunamazsa `404 RESOURCE_NOT_FOUND`.
 - **Aktif Başkan Yardımcısı doğrudan pasifleştirilemez.** `PATCH /api/admin/users/{id}/active` isteği `400 BUSINESS_RULE_VIOLATION` döner ("Önce Başkan Yardımcısı rolünü başka bir aktif kullanıcıya devredin"). Arayüz önce yukarıdaki devir isteğini yaptırmalı, pasifleştirmeyi ondan sonra denemelidir.
 - Admin hesabı da bu ekrandan pasifleştirilemez → `400 BUSINESS_RULE_VIOLATION`.
@@ -455,7 +456,7 @@ Beklenen HTTP durumları:
 
 1. `POST /api/auth/forgot-password` ve `POST /api/auth/reset-password` endpointleri, e-posta gönderimi ve tek kullanımlık token yaşam döngüsü
 2. Kayıt başına azami ek dosya adedi ve buna karşılık gelecek hata kodu
-3. Kayıt liste/detay cevaplarında oluşturan kişinin güvenli gösterim adı ve `GET /api/records` için oluşturan kullanıcı filtresi
+3. Kayıt liste/detay cevaplarında oluşturan kişinin güvenli gösterim adı
 4. README'deki ortak hata sözleşmesini tamamlamak için `ApiError` cevabına istek yolu (`path`) eklenmesi; dağıtık izleme kullanılacaksa `traceId` alanının ayrıca kararlaştırılması
 5. Merkezi test ortamı açılırsa API base URL'si ve o ortama özel CORS origin yapılandırması
 
