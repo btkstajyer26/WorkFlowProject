@@ -43,9 +43,9 @@ function MockRecordEditPage({ role }: { role: UserRole }) {
   const { records, visibleRecords } = useWorkflow()
   const record = visibleRecords.find((item) => item.id === recordId)
 
-  const editable = record && role === 'CALISAN' && (record.status === 'TASLAK' || record.status === 'DUZENLEME_BEKLIYOR')
   if (!record) return <Navigate to={records.some((item) => item.id === recordId) ? '/403' : '/404'} replace />
-  if (!editable) return <Navigate to="/403" replace />
+  const editable = role === 'CALISAN' && (record.status === 'TASLAK' || record.status === 'DUZENLEME_BEKLIYOR')
+  if (!editable) return <Navigate to={`/kayitlar/${record.id}`} replace />
 
   return <EditableRecordForm key={record.id} record={record} />
 }
@@ -97,11 +97,12 @@ function EditableRecordForm({ record }: { record: WorkflowRecord }) {
 
   const toDraftInput = (values: RecordFormValues) => {
     const selectedCategory = categories.find((category) => category.id === values.categoryId)
-    if (!selectedCategory) throw new Error('Geçerli bir kategori seçin.')
+    const categoryName = selectedCategory?.name ?? record.category
+    if (!categoryName) throw new Error('Geçerli bir kategori seçin.')
 
     return {
       ...values,
-      categoryName: selectedCategory.name,
+      categoryName,
       attachments,
     }
   }
@@ -345,14 +346,18 @@ function EditableRecordForm({ record }: { record: WorkflowRecord }) {
                     ? 'Taslağı silmek istediğinize emin misiniz?'
                     : activeDialog === 'discard'
                       ? 'Kaydedilmemiş değişikliklerden vazgeçilsin mi?'
-                      : 'Başkan Yardımcısına gönder'}
+                      : record.status === 'TASLAK'
+                        ? 'Başkan Yardımcısına gönder'
+                        : 'Başkan Yardımcısına yeniden gönder'}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-app-text-muted">
                   {activeDialog === 'delete'
                     ? 'Bu işlem geri alınamaz. Taslak ve taslağa eklediğiniz dosyalar kalıcı olarak silinecek.'
                     : activeDialog === 'discard'
                       ? 'Kaydetmeden ayrılırsanız formdaki değişiklikler silinecek.'
-                      : 'Kayıt inceleme akışına alınacak ve gönderildikten sonra düzenlenemeyecek.'}
+                      : record.status === 'TASLAK'
+                        ? 'Kayıt inceleme akışına alınacak ve gönderildikten sonra düzenlenemeyecek.'
+                        : 'Kaydınız yaptığınız düzeltmelerle birlikte tekrar Başkan Yardımcısının incelemesine sunulacak.'}
                 </p>
               </div>
               <button
@@ -390,7 +395,13 @@ function EditableRecordForm({ record }: { record: WorkflowRecord }) {
                   activeDialog === 'delete' || activeDialog === 'discard' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-brand-700 hover:bg-brand-800'
                 }`}
               >
-                {activeDialog === 'delete' ? 'Evet, Taslağı Sil' : activeDialog === 'discard' ? 'Değişiklikleri Sil' : 'İncelemeye Gönder'}
+                {activeDialog === 'delete'
+                  ? 'Evet, Taslağı Sil'
+                  : activeDialog === 'discard'
+                    ? 'Değişiklikleri Sil'
+                    : record.status === 'TASLAK'
+                      ? 'İncelemeye Gönder'
+                      : 'Yeniden Gönder'}
               </button>
             </div>
           </section>
