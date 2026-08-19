@@ -19,6 +19,14 @@ public class RecordSearchResponse {
 
     private UUID createdBy;
 
+    /**
+     * Olusturan kisinin gorunur adi. Normal kullanicilar baska kullanicilari
+     * cozebilecekleri bir uca sahip olmadigi icin ad listeyle birlikte gelir
+     * (sozlesme §5); istemci yalnizca UUID alsaydi adi gostermek icin denetim
+     * izini tarardi ve gecmisi kirpilan roller yanlis ad gorurdu.
+     */
+    private String createdByFullName;
+
     private UUID assignedTo;
 
     private LocalDateTime createdAt;
@@ -74,6 +82,14 @@ public class RecordSearchResponse {
 
     public void setCreatedBy(UUID createdBy) {
         this.createdBy = createdBy;
+    }
+
+    public String getCreatedByFullName() {
+        return createdByFullName;
+    }
+
+    public void setCreatedByFullName(String createdByFullName) {
+        this.createdByFullName = createdByFullName;
     }
 
     public UUID getAssignedTo() {

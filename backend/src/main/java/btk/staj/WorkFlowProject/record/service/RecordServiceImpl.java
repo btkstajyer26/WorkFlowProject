@@ -17,6 +17,7 @@ import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import btk.staj.WorkFlowProject.user.repository.UserRepository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -31,19 +32,22 @@ public class RecordServiceImpl implements RecordService {
     private final PermissionService permissionService;
     private final AuditLogService auditLogService;
     private final RecordContentView recordContentView;
+    private final UserRepository userRepository;
 
     public RecordServiceImpl(RecordRepository recordRepository,
                              RecordMapper recordMapper,
                              RecordAccessPolicy recordAccessPolicy,
                              PermissionService permissionService,
                              AuditLogService auditLogService,
-                             RecordContentView recordContentView) {
+                             RecordContentView recordContentView,
+                             UserRepository userRepository) {
         this.recordRepository = recordRepository;
         this.recordMapper = recordMapper;
         this.recordAccessPolicy = recordAccessPolicy;
         this.permissionService = permissionService;
         this.auditLogService = auditLogService;
         this.recordContentView = recordContentView;
+        this.userRepository = userRepository;
     }
 
     /**
@@ -122,7 +126,24 @@ public class RecordServiceImpl implements RecordService {
 
         // Kaydi gorebilmek guncel icerigi gormek demek degil: geri gonderen
         // yetkiliye devir anindaki kopya gosterilir.
-        return recordMapper.toResponse(record, recordContentView.visibleContent(record, role, userId));
+        return recordMapper.toResponse(
+                record,
+                recordContentView.visibleContent(record, role, userId),
+                creatorFullName(record.getCreatedBy()));
+    }
+
+    /**
+     * Olusturanin gorunur adi. Kullanici silinmisse ad bos kalir; istemci
+     * kimlige geri duser. Adi cevaba koymak sart: gecmisi kirpilan roller
+     * (Baskan) olusturma satirini gormedigi icin denetim izinden turetemez.
+     */
+    private String creatorFullName(UUID createdBy) {
+        if (createdBy == null) {
+            return null;
+        }
+        return userRepository.findById(createdBy)
+                .map(user -> (user.getFirstName() + " " + user.getLastName()).trim())
+                .orElse(null);
     }
 
     // Listeleme burada degil: filtreleme ve gorunurluk kapsami RecordSearchService'e

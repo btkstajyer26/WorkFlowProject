@@ -14,4 +14,15 @@ public class RecordResponse {
     private Integer categoryId;
     private RecordStatus status;
     private LocalDateTime createdAt;
+
+    /** Kaydi olusturan kullanici. */
+    private UUID createdBy;
+
+    /**
+     * Olusturanin gorunur adi. Liste cevabindaki alanin detay karsiligi
+     * (sozlesme §5); istemci adi denetim izinden turetmek zorunda kalmasin.
+     * Gecmisi kirpilan roller olusturma satirini gormedigi icin o yol yanlis
+     * kisiyi gosteriyordu.
+     */
+    private String createdByFullName;
 }

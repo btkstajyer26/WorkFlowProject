@@ -19,8 +19,8 @@ Bu belge EBYS frontendinin kullandığı API sözleşmesini ve henüz tamamlanma
 | API değeri | Arayüz etiketi | Temel kapsam |
 |---|---|---|
 | `CALISAN` | Çalışan | Yalnız kendi kayıtları |
-| `BASKAN_YARDIMCISI` | Başkan Yardımcısı | Kendisine atanan ve kendi işlem yaptığı kayıtlar |
-| `BASKAN` | Başkan | Onay aşamasında kendisine gelen ve kendi işlem yaptığı kayıtlar |
+| `BASKAN_YARDIMCISI` | Başkan Yardımcısı | Kendisine atanan, düzeltme bekleyen ve bir kez kendi elinden geçmiş kayıtlar |
+| `BASKAN` | Başkan | Onayına gelen ve sonuçlandırdığı (`ONAYLANDI`/`REDDEDILDI`) kayıtlar |
 | `ADMIN` | Sistem Yöneticisi | Kullanıcı/rol yönetimi ve sistem genelindeki audit kayıtlarını görüntüleme |
 
 `ADMIN` workflow aktörü veya hedefi olamaz. Yetkili bir Admin başka bir aktif kullanıcıya `ADMIN` rolü atayabilir.
@@ -250,7 +250,8 @@ sonradan silinen bir ek yardımcıda hâlâ görünür, sonradan eklenen görün
 Listede gizlenen bir eke kimliğiyle doğrudan erişim de `404` döner.
 
 Kaydın sahibi Çalışan ve Başkan bu dondurmadan etkilenmez; ikisi de her zaman
-güncel içeriği görür. Aynı kural işlem geçmişi için de geçerlidir (bkz. §6).
+güncel içeriği görür. İşlem geçmişinde ise Başkanın da kendi kırpması vardır:
+geçmiş, evrak kendisine ilk iletildiği anda başlar (bkz. §6).
 | `DELETE` | `/api/records/{id}` | Yalnız `TASLAK` kaydını siler veya soft-delete yapar |
 
 Oluşturma/güncelleme gövdesi:
@@ -263,9 +264,9 @@ Oluşturma/güncelleme gövdesi:
 }
 ```
 
-Tekil kayıt cevabı düz bir modeldir ve `id`, `title`, `description`, `categoryId`, `status`, `createdAt` alanlarını taşır. Liste cevabındaki öğeler bunlara ek olarak `createdBy`, `assignedTo` ve `updatedAt` alanlarını içerir. Kategori adı `/api/categories`, ek dosyalar dosya endpointleri ve işlem geçmişi audit endpointi üzerinden alınır.
+Tekil kayıt cevabı düz bir modeldir ve `id`, `title`, `description`, `categoryId`, `status`, `createdAt`, `createdBy`, `createdByFullName` alanlarını taşır. Liste cevabındaki öğeler bunlara ek olarak `assignedTo` ve `updatedAt` alanlarını içerir. Kategori adı `/api/categories`, ek dosyalar dosya endpointleri ve işlem geçmişi audit endpointi üzerinden alınır.
 
-Mevcut `createdBy` alanı yalnız kullanıcı UUID'sidir. Normal kullanıcıların başka kullanıcıları çözümleyebileceği genel bir kullanıcı listeleme endpointi bulunmadığından kayıt ekranında oluşturan kişinin adını göstermek için backend cevaplarında en az `createdByFullName` gibi güvenli bir gösterim alanı sağlanmalıdır. Oluşturan kişiye göre sunucu taraflı filtreleme `GET /api/records?creator=` parametresiyle desteklenir; bu parametre oluşturucunun ad ve soyadında arama yapar. Serbest metin `q` araması başlık ve açıklamayla sınırlı kalır.
+`createdBy` kullanıcı UUID'sidir; `createdByFullName` ise onun gösterim adıdır ve **hem liste hem detay cevabında** gelir. Normal kullanıcıların başka kullanıcıları çözümleyebileceği genel bir kullanıcı listeleme endpointi yok, bu yüzden ad kayıtla birlikte gönderilir. İstemci adı işlem geçmişindeki `RECORD_CREATED` satırından türetmemelidir: geçmişi kırpılan roller (Başkan) o satırı hiç görmez ve geri düşülen ilk satır başka birini gösterir (bkz. §6). Kullanıcı silinmişse alan boş gelir; istemci kimliğe geri düşer. Oluşturan kişiye göre sunucu taraflı filtreleme `GET /api/records?creator=` parametresiyle desteklenir; bu parametre oluşturucunun ad ve soyadında arama yapar. Serbest metin `q` araması başlık ve açıklamayla sınırlı kalır.
 
 ### İş akışı aksiyonu
 
@@ -348,14 +349,30 @@ Bu cevap kategori, dosya veya geçmiş nesnelerini içine gömmez. Frontend gere
 |---|---|---|
 | `GET` | `/api/audit-logs/record/{recordId}` | Kullanıcının görmeye yetkili olduğu kaydın işlem geçmişi ve kesinleşmiş açıklamaları |
 
-Kaydı görebilmek geçmişin tamamını görebilmek anlamına gelmez. Başkan Yardımcısı
-`duzeltmede-olanlar` sekmesi sayesinde geri gönderdiği kaydı `DUZENLEME_BEKLIYOR`
-durumunda izlemeye devam eder, ancak evrak o sırada Çalışanın elindedir: bu
-aralıkta geçmiş **devir anına kadar kırpılmış** döner. Çalışanın düzeltme
-sırasında ürettiği satırlar (`RECORD_UPDATED`) listeye girmez. Çalışan
-`TEKRAR_GONDER` ile kaydı geri yolladığında kayıt yeniden yardımcıya atanır ve
-geçmiş bütünüyle açılır. Kırpma sunucuda yapılır; gizlenen satırlar cevaba hiç
-konmaz. Kaydın sahibi Çalışan ve Başkan bu kırpmadan etkilenmez.
+Kaydı görebilmek geçmişin tamamını görebilmek anlamına gelmez. Kural tek
+cümleyle: **kullanıcı evrağı yalnız kendi masasında olduğu dönem boyunca
+görür.** Bunun iki yönü var ve kırpma her ikisinde de sunucuda yapılır;
+gizlenen satırlar cevaba hiç konmaz.
+
+**Geriye doğru kırpma (Başkan Yardımcısı).** `duzeltmede-olanlar` sekmesi
+sayesinde geri gönderdiği kaydı `DUZENLEME_BEKLIYOR` durumunda izlemeye devam
+eder, ancak evrak o sırada Çalışanın elindedir: bu aralıkta geçmiş **devir
+anına kadar kırpılmış** döner. Çalışanın düzeltme sırasında ürettiği satırlar
+(`RECORD_UPDATED`) listeye girmez. Çalışan `TEKRAR_GONDER` ile kaydı geri
+yolladığında kayıt yeniden yardımcıya atanır ve geçmiş bütünüyle açılır.
+
+**İleriye doğru kırpma (Başkan).** Geçmiş, evrağın Başkana **ilk iletildiği
+andan itibaren** başlar; öncesindeki Çalışan–Başkan Yardımcısı trafiği
+(oluşturma, düzeltme turları, geri gönderme gerekçeleri) ona kapalıdır. Kesme
+noktası ilk iletimdir, sonuncusu değil: Başkan evrağı yardımcıya geri gönderip
+tekrar aldığında son iletime göre kırpmak, kendi yazdığı gerekçeyi de gizlerdi.
+İletimi açıklayan geçiş satırı bulunamazsa (veri tutarsızlığı) cevap boş döner.
+
+Kaydın sahibi Çalışan her iki kırpmadan da etkilenmez; geçmişini eksiksiz görür.
+
+Geçmişi kırpılan roller oluşturma satırını görmediği için, **kaydı oluşturanın
+adı denetim izinden türetilmemelidir**; `createdByFullName` alanı hem liste hem
+detay cevabında bu yüzden vardır (bkz. §5).
 
 Cevap `AuditLogResponse` listesidir. İşlemi yapan kişi **iç içe `actor` nesnesi
 değil, düz alanlar** olarak döner (`userId`, `userFullName`, `roleId`,

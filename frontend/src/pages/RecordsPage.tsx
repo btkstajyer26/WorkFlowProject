@@ -74,14 +74,18 @@ function isValidDateParam(value: string | null) {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value
 }
 
+/**
+ * Ad backend'den `createdByFullName` ile gelir. Buradaki geri dusme yollari
+ * yalnizca mock modu ve alani tasimayan eski cevaplar icindir; islem gecmisini
+ * tarayarak ad cozmek artik yapilmiyor, cunku gecmisi kirpilan roller (Baskan)
+ * olusturma satirini hic gormedigi icin yanlis kisiyi gosterirdi.
+ */
 function formatCreatorName(
   createdBy?: string,
   createdByFullName?: string,
   currentUser?: AuthUser,
-  resolvedName?: string,
 ) {
   if (createdByFullName?.trim()) return createdByFullName.trim()
-  if (resolvedName?.trim()) return resolvedName.trim()
   if (!createdBy) return '—'
   if (currentUser && currentUser.id === createdBy) {
     return `${currentUser.firstName} ${currentUser.lastName}`
@@ -240,35 +244,6 @@ export function RecordsPage({ role }: { role: UserRole }) {
       ? serverRecords.slice(pageStart, pageStart + pageSize)
       : serverRecords
     : filteredRecords.slice(pageStart, pageStart + pageSize)
-
-  const unresolvedRecordIds = backendMode
-    ? visibleRecords
-        .filter((record) => record.createdBy && !record.createdByFullName && record.createdBy !== user?.id && !getDemoUserById(record.createdBy))
-        .map((record) => record.id)
-    : []
-
-  const creatorQueries = useQueries({
-    queries: unresolvedRecordIds.map((recordId) => ({
-      queryKey: ['records', 'creator-name', recordId],
-      queryFn: async () => {
-        try {
-          const logs = await api.auditLogs.getGecmis({ recordId })
-          const createdLog = logs.find((item) => item.action === 'RECORD_CREATED') ?? logs[0]
-          return { recordId, name: createdLog?.userFullName?.trim() || null }
-        } catch {
-          return { recordId, name: null }
-        }
-      },
-      staleTime: 5 * 60 * 1000,
-    })),
-  })
-
-  const resolvedCreators = Object.fromEntries(
-    creatorQueries
-      .map((query) => query.data)
-      .filter((data): data is { recordId: string; name: string } => Boolean(data && data.name))
-      .map(({ recordId, name }) => [recordId, name]),
-  )
 
   const recordsPending = backendMode && categoryStatus !== 'error' && serverQueries.some((query) => query.isPending)
   const recordsError = backendMode && (categoryStatus === 'error' || serverQueries.some((query) => query.isError))
@@ -465,7 +440,7 @@ export function RecordsPage({ role }: { role: UserRole }) {
                       <td className="truncate px-4 py-4 text-sm font-medium text-app-text-muted">{record.category}</td>
                       <td className="px-4 py-4"><RecordStatusBadge status={record.status} /></td>
                       <td className="whitespace-nowrap px-4 py-4 text-xs font-medium text-app-text-subtle">{dateFormatter.format(new Date(record.createdAt))}</td>
-                      <td className="truncate whitespace-nowrap px-4 py-4 text-xs font-medium text-app-text-secondary">{formatCreatorName(record.createdBy, record.createdByFullName, user, resolvedCreators[record.id])}</td>
+                      <td className="truncate whitespace-nowrap px-4 py-4 text-xs font-medium text-app-text-secondary">{formatCreatorName(record.createdBy, record.createdByFullName, user)}</td>
                       <td className="px-5 py-4 text-right">
                         <Link
                           to={canEditRecord(role, record) ? `/kayitlar/${record.id}/duzenle` : `/kayitlar/${record.id}`}
@@ -497,7 +472,7 @@ export function RecordsPage({ role }: { role: UserRole }) {
                     </div>
                     <div>
                       <dt className="font-semibold text-app-text-subtle">Oluşturan</dt>
-                      <dd className="mt-1 font-bold text-app-text-emphasis">{formatCreatorName(record.createdBy, record.createdByFullName, user, resolvedCreators[record.id])}</dd>
+                      <dd className="mt-1 font-bold text-app-text-emphasis">{formatCreatorName(record.createdBy, record.createdByFullName, user)}</dd>
                     </div>
                     <div>
                       <dt className="font-semibold text-app-text-subtle">Oluşturulma</dt>

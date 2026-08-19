@@ -27,6 +27,15 @@ public class RecordMapper {
         return toResponse(record, RecordContentView.live(record));
     }
 
+    /** Olusturanin adiyla birlikte; adi cozebilen cagiranlar icin. */
+    public RecordResponse toResponse(Record record,
+                                     RecordContentView.Content content,
+                                     String createdByFullName) {
+        RecordResponse response = toResponse(record, content);
+        response.setCreatedByFullName(createdByFullName);
+        return response;
+    }
+
     /**
      * Icerigi disaridan verilen haliyle doner. Kaydi elinden cikarmis Baskan
      * Yardimcisina devir anindaki kopya gosterilir; kalan alanlar (durum,
@@ -40,6 +49,7 @@ public class RecordMapper {
         response.setCategoryId(content.categoryId());
         response.setStatus(record.getStatus());
         response.setCreatedAt(record.getCreatedAt());
+        response.setCreatedBy(record.getCreatedBy());
         return response;
     }
 }

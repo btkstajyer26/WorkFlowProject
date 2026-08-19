@@ -83,7 +83,14 @@ export async function getRecordDetail(recordId: string, categories: RecordCatego
   const history = auditLogs
     .map(normalizeHistoryItem)
     .toSorted((left, right) => left.date.localeCompare(right.date))
-  const creatorItem = history.find((item) => item.action === 'Kayıt oluşturuldu') ?? history[0]
+  // Olusturan bilgisi kaydin kendisinden okunur, gecmisten turetilmez:
+  // Baskanin gecmisi evrak kendisine iletildigi anda basladigi icin
+  // "Kayıt oluşturuldu" satirini hic gormez ve geri dusulen history[0]
+  // ona Baskan Yardimcisini olusturan gibi gosterirdi.
+  const detail = record as RecordResponse & { createdBy?: string; createdByFullName?: string }
+  const creatorItem = history.find((item) => item.action === 'Kayıt oluşturuldu')
+  const createdById = detail.createdBy ?? creatorItem?.actorId
+  const createdByName = detail.createdByFullName?.trim() || creatorItem?.actor || ''
   return {
     id: record.id,
     recordNumber: '',
@@ -92,8 +99,8 @@ export async function getRecordDetail(recordId: string, categories: RecordCatego
     categoryId: record.categoryId,
     category: categoryName,
     status: record.status,
-    createdBy: creatorItem?.actor ?? '',
-    createdById: creatorItem?.actorId,
+    createdBy: createdByName,
+    createdById,
     assignedTo: null,
     assignedToId: null,
     lastDeputyId: null,

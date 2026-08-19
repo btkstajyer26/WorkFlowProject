@@ -75,14 +75,60 @@ class AuditLogControllerTest {
         verifyNoInteractions(auditLogService);
     }
 
+    /**
+     * Baskan kaydi gorur ama gecmisin tamamini gormez: evrak kendisine
+     * ulasmadan onceki Calisan-Bsk. Yrd. trafigi ona kapali.
+     */
     @Test
-    @DisplayName("onay asamasindaki kaydin gecmisini Baskan gorur")
+    @DisplayName("onay asamasindaki kaydin gecmisini Baskan iletimden itibaren gorur")
     void thePresidentCanReadARecordAwaitingApproval() {
         givenActor(UUID.randomUUID(), RoleName.BASKAN);
         givenRecord(OWNER_ID, DEPUTY_ID, RecordStatus.BASKAN_INCELEMESINDE);
-        when(auditLogService.getGecmis(RECORD_ID)).thenReturn(List.of(row()));
+        when(auditLogService.getGecmisIletimdenItibaren(RECORD_ID)).thenReturn(List.of(row()));
 
         assertThat(controller.getGecmis(RECORD_ID)).hasSize(1);
+
+        // Kirpilmamis gecmis hic istenmemeli.
+        verify(auditLogService, never()).getGecmis(RECORD_ID);
+    }
+
+    @Test
+    @DisplayName("sonuclandirdigi kaydin gecmisini de Baskan iletimden itibaren gorur")
+    void thePresidentStillGetsTheTrimmedHistoryAfterDeciding() {
+        givenActor(UUID.randomUUID(), RoleName.BASKAN);
+        givenRecord(OWNER_ID, null, RecordStatus.REDDEDILDI);
+        when(auditLogService.getGecmisIletimdenItibaren(RECORD_ID)).thenReturn(List.of(row()));
+
+        assertThat(controller.getGecmis(RECORD_ID)).hasSize(1);
+
+        verify(auditLogService, never()).getGecmis(RECORD_ID);
+    }
+
+    /**
+     * ONAYLA/REDDET assignedTo'yu bosaltir; kapsam durum uzerinden acik
+     * yazilmasaydi Baskan kendi verdigi karardan sonra kaydi kaybederdi.
+     */
+    @Test
+    @DisplayName("reddettigi kaydin gecmisine Baskan karardan sonra da erisir")
+    void thePresidentKeepsAccessAfterRejecting() {
+        givenActor(UUID.randomUUID(), RoleName.BASKAN);
+        givenRecord(OWNER_ID, null, RecordStatus.REDDEDILDI);
+
+        assertThat(controller.getGecmis(RECORD_ID)).isNotNull();
+    }
+
+    /**
+     * Kayit Baskana iletilince assignedTo Baskana gecer; yardimci onu yalnizca
+     * lastDeputyId sayesinde izlemeye devam eder.
+     */
+    @Test
+    @DisplayName("Baskana ilettigi kaydin gecmisini Bsk. Yrd. gormeye devam eder")
+    void theDeputyKeepsReadingTheHistoryOfARecordTheyForwarded() {
+        givenActor(DEPUTY_ID, RoleName.BASKAN_YARDIMCISI);
+        givenRecord(OWNER_ID, UUID.randomUUID(), DEPUTY_ID, RecordStatus.BASKAN_INCELEMESINDE);
+        when(auditLogService.getGecmis(RECORD_ID)).thenReturn(List.of(row(), row()));
+
+        assertThat(controller.getGecmis(RECORD_ID)).hasSize(2);
     }
 
     @Test
@@ -139,10 +185,15 @@ class AuditLogControllerTest {
     }
 
     private void givenRecord(UUID createdBy, UUID assignedTo, RecordStatus status) {
+        givenRecord(createdBy, assignedTo, null, status);
+    }
+
+    private void givenRecord(UUID createdBy, UUID assignedTo, UUID lastDeputyId, RecordStatus status) {
         Record record = new Record();
         record.setId(RECORD_ID);
         record.setCreatedBy(createdBy);
         record.setAssignedTo(assignedTo);
+        record.setLastDeputyId(lastDeputyId);
         record.setStatus(status);
         when(recordRepository.findById(RECORD_ID)).thenReturn(Optional.of(record));
     }

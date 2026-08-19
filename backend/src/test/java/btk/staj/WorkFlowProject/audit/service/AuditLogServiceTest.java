@@ -220,6 +220,63 @@ class AuditLogServiceTest {
         assertThat(service.getGecmis(RECORD_ID)).hasSize(2);
     }
 
+    @Test
+    @DisplayName("Baskana iletilmeden onceki satirlari gecmisten cikarir")
+    void hidesEverythingBeforeTheRecordReachedThePresident() {
+        LocalDateTime start = LocalDateTime.of(2026, 8, 19, 9, 0);
+        when(auditLogRepository.findHistoryByRecordId(RECORD_ID)).thenReturn(List.of(
+                lifecycleRow("RECORD_CREATED", "TASLAK", start),
+                transitionRow("GONDER", "TASLAK", "BSK_YRD_INCELEMESINDE", start.plusMinutes(5)),
+                transitionRow("CALISANA_GERI_GONDER", "BSK_YRD_INCELEMESINDE",
+                        "DUZENLEME_BEKLIYOR", start.plusMinutes(10)),
+                lifecycleRow("RECORD_UPDATED", "DUZENLEME_BEKLIYOR", start.plusMinutes(15)),
+                transitionRow("TEKRAR_GONDER", "DUZENLEME_BEKLIYOR",
+                        "BSK_YRD_INCELEMESINDE", start.plusMinutes(20)),
+                transitionRow("BASKANA_ILET", "BSK_YRD_INCELEMESINDE",
+                        "BASKAN_INCELEMESINDE", start.plusMinutes(25)),
+                transitionRow("REDDET", "BASKAN_INCELEMESINDE", "REDDEDILDI", start.plusMinutes(30))));
+
+        assertThat(service.getGecmisIletimdenItibaren(RECORD_ID))
+                .extracting(AuditLogResponse::action)
+                .containsExactly("BASKANA_ILET", "REDDET");
+    }
+
+    /**
+     * Kesme noktasi ilk iletim: Baskan evraki yardimciya geri gonderip tekrar
+     * aldiginda son iletime gore kirpmak, kendi yazdigi geri gonderme
+     * gerekcesini de gizlerdi.
+     */
+    @Test
+    @DisplayName("kirpma ilk iletime gore yapilir, Baskanin kendi satirlari kalir")
+    void trimsAtTheFirstHandoverSoThePresidentKeepsTheirOwnRows() {
+        LocalDateTime start = LocalDateTime.of(2026, 8, 19, 9, 0);
+        when(auditLogRepository.findHistoryByRecordId(RECORD_ID)).thenReturn(List.of(
+                transitionRow("GONDER", "TASLAK", "BSK_YRD_INCELEMESINDE", start),
+                transitionRow("BASKANA_ILET", "BSK_YRD_INCELEMESINDE",
+                        "BASKAN_INCELEMESINDE", start.plusMinutes(10)),
+                transitionRow("BASKAN_YARDIMCISINA_GERI_GONDER", "BASKAN_INCELEMESINDE",
+                        "BSK_YRD_INCELEMESINDE", start.plusMinutes(20)),
+                transitionRow("BASKANA_ILET", "BSK_YRD_INCELEMESINDE",
+                        "BASKAN_INCELEMESINDE", start.plusMinutes(30)),
+                transitionRow("ONAYLA", "BASKAN_INCELEMESINDE", "ONAYLANDI", start.plusMinutes(40))));
+
+        assertThat(service.getGecmisIletimdenItibaren(RECORD_ID))
+                .extracting(AuditLogResponse::action)
+                .containsExactly("BASKANA_ILET", "BASKAN_YARDIMCISINA_GERI_GONDER",
+                        "BASKANA_ILET", "ONAYLA");
+    }
+
+    @Test
+    @DisplayName("iletim anini aciklayan gecis yoksa hicbir satir donmez")
+    void returnsNothingWhenTheHandoverCannotBeLocated() {
+        LocalDateTime start = LocalDateTime.of(2026, 8, 19, 9, 0);
+        when(auditLogRepository.findHistoryByRecordId(RECORD_ID)).thenReturn(List.of(
+                lifecycleRow("RECORD_CREATED", "TASLAK", start),
+                lifecycleRow("RECORD_UPDATED", "BASKAN_INCELEMESINDE", start.plusMinutes(5))));
+
+        assertThat(service.getGecmisIletimdenItibaren(RECORD_ID)).isEmpty();
+    }
+
     private static AuditLogResponse transitionRow(String action, String previousStatus,
                                                   String newStatus, LocalDateTime createdAt) {
         return historyRow(action, previousStatus, newStatus, createdAt);

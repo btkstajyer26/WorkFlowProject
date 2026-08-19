@@ -53,17 +53,27 @@ public class AuditLogController {
                 record.getLastDeputyId(),
                 record.getStatus());
 
-        // Kaydi gorebilmek butun gecmisi gormek demek degil: evraki elinden
-        // cikarmis olan kullanici, kaydin baskasindayken aldigi islemleri
-        // gormez. Karar RecordAccessPolicy'nin, kirpma AuditLogService'in isi.
-        boolean untilHandoff = recordAccessPolicy.seesRecordAsOfHandoff(
+        // Kaydi gorebilmek butun gecmisi gormek demek degil. Iki yonlu kirpma
+        // var, ikisi de ayni fikrin farkli ucu: kullanici evraki yalnizca
+        // kendi masasinda oldugu donem boyunca gorur. Karar
+        // RecordAccessPolicy'nin, kirpma AuditLogService'in isi.
+
+        // Evraki elinden cikarmis olan kullanici, kaydin baskasindayken aldigi
+        // islemleri gormez.
+        if (recordAccessPolicy.seesRecordAsOfHandoff(
                 actor.role(),
                 actor.id(),
                 record.getAssignedTo(),
-                record.getStatus());
+                record.getStatus())) {
+            return auditLogService.getGecmisDevreKadar(recordId);
+        }
 
-        return untilHandoff
-                ? auditLogService.getGecmisDevreKadar(recordId)
-                : auditLogService.getGecmis(recordId);
+        // Baskan da evrak kendisine ulasmadan onceki Calisan-Bsk. Yrd.
+        // trafigini gormez; gecmis ilk iletimden itibaren baslar.
+        if (recordAccessPolicy.seesHistoryFromPresidentHandover(actor.role())) {
+            return auditLogService.getGecmisIletimdenItibaren(recordId);
+        }
+
+        return auditLogService.getGecmis(recordId);
     }
 }

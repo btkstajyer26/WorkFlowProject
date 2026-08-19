@@ -180,6 +180,49 @@ public class AuditLogService implements AuditService {
                 .toList();
     }
 
+    /**
+     * Ayni gecmisin, evragin Baskana ilk iletildigi andan itibaren baslayan
+     * hali. Oncesindeki satirlar donmez.
+     *
+     * <p>{@link #getGecmisDevreKadar} ile ayni fikrin ters yonu: orada gecmis
+     * devirde <em>kesilir</em>, burada devirde <em>baslar</em>. Karar yine
+     * {@code RecordAccessPolicy.seesHistoryFromPresidentHandover}'in, kirpma
+     * burasinin isi; gizlenen satirlar cevaba hic konmaz.
+     *
+     * <p>Baslangic ani, kaydi {@code BASKAN_INCELEMESINDE} durumuna sokan
+     * <em>ilk</em> gecis satiridir. Sonuncusu degil: Baskan evraki yardimciya
+     * geri gonderip tekrar aldiginda son iletime gore kirpmak, kendi yazdigi
+     * geri gonderme gerekcesini de gizlerdi. {@code previousStatus} kontrolu
+     * sart; olusturma/guncelleme satirlari da {@code newStatus} olarak kaydin o
+     * anki durumunu tasir ama gecis degildir.
+     */
+    public List<AuditLogResponse> getGecmisIletimdenItibaren(UUID recordId) {
+        Objects.requireNonNull(recordId, "recordId");
+        List<AuditLogResponse> history = auditLogRepository.findHistoryByRecordId(recordId);
+
+        LocalDateTime handover = null;
+        for (AuditLogResponse row : history) {
+            if (row.previousStatus() != null
+                    && RecordStatus.BASKAN_INCELEMESINDE.name().equals(row.newStatus())) {
+                // Sorgu createdAt'e gore artan sirali; ilk eslesme ilk iletimdir.
+                handover = row.createdAt();
+                break;
+            }
+        }
+
+        if (handover == null) {
+            // Kayit Baskanin kapsaminda gorunuyor ama bunu aciklayan iletim
+            // satiri yok: veri tutarsiz. Tamamini donmek, gizlenmesi gereken
+            // satirlari acmak olurdu; bilerek bos donuluyor.
+            return List.of();
+        }
+
+        LocalDateTime cutoff = handover;
+        return history.stream()
+                .filter(row -> !row.createdAt().isBefore(cutoff))
+                .toList();
+    }
+
     private Integer resolveRoleId(RoleName role) {
         return roleRepository.findByName(role.name())
                 .map(Role::getId)
