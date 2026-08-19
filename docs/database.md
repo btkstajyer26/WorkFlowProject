@@ -2,10 +2,10 @@
 
 Bu belge PostgreSQL şemasını, tasarım kararlarını ve migration yönetimini tanımlar. Kaynağı `backend/src/main/resources/db/migration/` altındaki Flyway dosyalarıdır.
 
-> Son kod doğrulaması 19 Ağustos 2026 tarihinde `test` dalının `2b5016a` commit'i üzerinde yapılmıştır. Şema değiştiğinde bu belge aynı değişiklik kapsamında güncellenmelidir.
+> Son kod doğrulaması 19 Ağustos 2026 tarihinde `test` dalının `9e44125` commit'i üzerinde yapılmıştır. Şema değiştiğinde bu belge aynı değişiklik kapsamında güncellenmelidir.
 
 - **Veritabanı:** PostgreSQL 15.18
-- **Migration:** Flyway (`V1`–`V7`)
+- **Migration:** Flyway (`V1`–`V9`)
 - **ORM:** Spring Data JPA / Hibernate, `ddl-auto=validate`
 
 ## İçindekiler
@@ -46,9 +46,11 @@ erDiagram
     users ||--o{ audit_logs : "user_id"
     users ||--o{ notifications : "user_id"
     users ||--o{ user_audit_logs : "target_user_id"
+    users ||--o{ password_reset_codes : "user_id"
     records ||--o{ files : "record_id"
     records ||--o{ audit_logs : "record_id"
     records ||--o{ notifications : "record_id"
+    categories |o--o{ records : "snapshot_category_id"
 ```
 
 ## Tablo sözlüğü
@@ -118,6 +120,35 @@ Sistemin ana varlığı.
 | `created_at` | `TIMESTAMP` | hayır | |
 | `updated_at` | `TIMESTAMP` | evet | Her workflow geçişinde güncellenir |
 | `deleted_at` | `TIMESTAMP` | evet | Soft delete işareti. Dolu kayıt okuma ve workflow uçlarında `404` sayılır |
+| `snapshot_title` | `VARCHAR(255)` | evet | `V9` — devir anındaki başlık |
+| `snapshot_description` | `TEXT` | evet | `V9` — devir anındaki açıklama |
+| `snapshot_category_id` | `INT` | evet | `V9` — devir anındaki kategori |
+| `snapshot_at` | `TIMESTAMP` | evet | `V9` — anlık görüntünün alındığı an |
+
+> **`snapshot_*` kolonları neden var?** Başkan Yardımcısı, Çalışana geri gönderdiği evrağı izlemeye devam eder; ama evrak o sırada Çalışanın elindedir. Bu kolonlar olmadan Çalışanın kaydettiği her değişiklik yardımcının ekranına anında yansırdı. Yardımcı düzeltmeleri ancak `TEKRAR_GONDER` ile geri geldiğinde görmelidir — bu yüzden gördüğü içerik devir anında dondurulur.
+>
+> Değerler yalnızca kayıt `DUZENLEME_BEKLIYOR` durumundayken okunur, bu yüzden yeniden gönderimde temizlenmeleri gerekmez; bir sonraki geri gönderme üzerlerine yazar. Ekler ayrıca kopyalanmaz: `files` tablosundaki `uploaded_at`/`deleted_at` ile devir anına göre süzmek yeterlidir.
+
+### `password_reset_codes`
+
+Parola sıfırlama akışı (`V8`). Üç adım tek satırda izlenir: kod üretimi → kod doğrulama → parolanın değiştirilmesi.
+
+| Kolon | Tip | Null | Açıklama |
+| --- | --- | --- | --- |
+| `id` | `UUID` | hayır | |
+| `user_id` | `UUID` | hayır | Kodun sahibi |
+| `code_hash` | `VARCHAR(255)` | hayır | 6 haneli kodun **BCrypt** özeti. Kodun kendisi hiçbir yerde saklanmaz |
+| `attempts` | `INT` | hayır | Kaba kuvvet sayacı; üst sınıra ulaşınca kod ölür |
+| `reset_token_hash` | `VARCHAR(64)` | evet | Benzersiz. Kod doğrulandıktan sonra üretilen tek kullanımlık anahtarın **SHA-256** özeti |
+| `reset_token_expires_at` | `TIMESTAMP` | evet | Anahtarın son kullanma anı |
+| `verified_at` | `TIMESTAMP` | evet | Kodun doğrulandığı an |
+| `consumed_at` | `TIMESTAMP` | evet | Dolu ise satır tüketilmiştir: parola değişti, yeni kod istendi ya da deneme hakkı bitti |
+| `created_at` | `TIMESTAMP` | hayır | |
+| `expires_at` | `TIMESTAMP` | hayır | Kodun son kullanma anı |
+
+> **İki farklı özet algoritması bilinçlidir.** Kod yalnızca 10⁶ olasılık taşır; kaba kuvvetin pahalı olması için BCrypt kullanılır. Sıfırlama anahtarı ise 256 bit rastgeledir, bu yüzden SHA-256 yeterlidir — ayrıca tek yönlü olmasına rağmen sorguda doğrudan aranabilir.
+>
+> **Neden `tokens` tablosuna eklenmedi?** Oradaki satırlar refresh token yaşam döngüsüne (`revoked`/`expired`) aittir; deneme sayacı ve iki aşamalı doğrulama o modele sığmıyordu.
 
 ### `files`
 
@@ -191,8 +222,8 @@ Evraktan bağımsız kullanıcı yönetimi denetim izi. Ayrı tablo olmasının 
 
 | Politika | Nerede | Gerekçe |
 | --- | --- | --- |
-| `RESTRICT` | `users.role_id`, `records.category_id`, `records.created_by`, `files.uploaded_by`, `audit_logs.user_id`, `audit_logs.role_id`, `user_audit_logs.target_user_id`, `user_audit_logs.previous_role_id`, `user_audit_logs.new_role_id` | Geçmişi olan bir kullanıcı, rol veya kategori silinemez. Denetim izinin "kim, hangi rolle" bilgisi kaybolamaz |
-| `CASCADE` | `tokens.user_id`, `audit_logs.record_id`, `files.record_id`, `notifications.user_id`, `notifications.record_id` | Sahibi olmadan anlamı kalmayan yan veriler. Kayıtlar zaten soft delete edildiği için bu yol pratikte tetiklenmez |
+| `RESTRICT` | `users.role_id`, `records.category_id`, `records.snapshot_category_id`, `records.created_by`, `files.uploaded_by`, `audit_logs.user_id`, `audit_logs.role_id`, `user_audit_logs.target_user_id`, `user_audit_logs.previous_role_id`, `user_audit_logs.new_role_id` | Geçmişi olan bir kullanıcı, rol veya kategori silinemez. Denetim izinin "kim, hangi rolle" bilgisi kaybolamaz |
+| `CASCADE` | `tokens.user_id`, `audit_logs.record_id`, `files.record_id`, `notifications.user_id`, `notifications.record_id`, `password_reset_codes.user_id` | Sahibi olmadan anlamı kalmayan yan veriler. Kayıtlar zaten soft delete edildiği için bu yol pratikte tetiklenmez |
 | `SET NULL` | `records.assigned_to`, `records.last_deputy_id`, `files.deleted_by`, `user_audit_logs.performed_by` | Referans kaybolabilir ama satırın kendisi anlamlı kalır |
 
 ## Kısıtlar
@@ -209,7 +240,7 @@ Evraktan bağımsız kullanıcı yönetimi denetim izi. Ayrı tablo olmasının 
 
 ## İndeksler
 
-Toplam 21 indeks; hepsi bir sorgu deseninden türetilmiştir.
+Toplam 23 indeks; hepsi bir sorgu deseninden türetilmiştir.
 
 | İndeks | Tablo / kolonlar | Hangi sorgu için |
 | --- | --- | --- |
@@ -234,6 +265,8 @@ Toplam 21 indeks; hepsi bir sorgu deseninden türetilmiştir.
 | `idx_user_audit_performed_by` | `user_audit_logs (performed_by)` | Admin'in yaptığı işlemler |
 | `idx_user_audit_created_at` | `user_audit_logs (created_at)` | Zaman sıralı liste |
 | `idx_user_audit_http_status` | `user_audit_logs (http_status)` | `V7` |
+| **`idx_password_reset_user_open`** | `password_reset_codes (user_id, created_at) WHERE consumed_at IS NULL` | `V8` — **kısmi + bileşik.** Kullanıcının açık kodunu bulmak en sık sorgudur; tüketilmiş satırlar indekse hiç girmez |
+| `idx_password_reset_expires_at` | `password_reset_codes (expires_at)` | `V8` — süresi dolmuş kodların temizlenmesi |
 
 ## Başlangıç verisi
 
@@ -254,6 +287,8 @@ Kullanıcı tohumlanmaz. İlk Admin, `BOOTSTRAP_ADMIN_EMAIL` ve `BOOTSTRAP_ADMIN
 | `V5__add_notification_type.sql` | `notifications.notification_type` ve indeksi |
 | `V6__drop_record_notes.sql` | `record_notes` tablosunun kaldırılması |
 | `V7__request_and_auth_audit_columns.sql` | Audit tablolarında evrak zorunluluğunun kaldırılması; HTTP istek kolonları |
+| `V8__password_reset_codes.sql` | `password_reset_codes` tablosu ve iki indeksi |
+| `V9__record_handoff_snapshot.sql` | `records`'a `snapshot_*` kolonları; mevcut `DUZENLEME_BEKLIYOR` kayıtları için geri doldurma |
 
 ### Numaralandırmadaki boşluk
 
