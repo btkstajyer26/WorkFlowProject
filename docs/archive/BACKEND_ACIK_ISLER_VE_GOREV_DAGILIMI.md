@@ -1,5 +1,27 @@
 # Backend Açık İşler ve Görev Dağılımı
 
+> [!NOTE]
+> **Bu belge 19 Ağustos 2026'da kapatılmıştır ve tarihsel kayıttır.**
+> Aşağıdaki durum tabloları 17 Ağustos'taki entegrasyon durumunu yansıtır.
+> Güncel durum için [README](../README.md) "Mevcut durum" ve "Bilinen eksikler"
+> bölümlerine, workflow davranışı için [workflow.md](workflow.md)'ye bakınız.
+>
+> **Kapanış durumu:** §3 tablosundaki 12 işin **11'i tamamlandı** —
+> **A1** (`JwtAuthenticationFilter` parola değişimini zorluyor),
+> **A2** (dosya yetkilendirmesi), **A3** (`UserService.java:169` aday `CALISAN`
+> kontrolü), **A4** (refresh token `jti`), **B1** (dosya listesi ucu),
+> **B2** (`creator` filtresi), **C1a** (durum makinesi hedef bayrağı),
+> **C1b** (`TargetUserResolver` tekil yardımcıyı backend'de çözüyor),
+> **C2a** (`RecordServiceImpl`'de üç `recordLifecycleEvent` çağrısı),
+> **C2b** (`recordLifecycleEvent`) ve C3 dışındaki her şey.
+>
+> **Açık kalan tek iş: C3 — e-posta ve bildirim alıcı matrisi (Melih).**
+> Kodu `origin/feature/notification-service` dalında hazır ancak `test`'e
+> entegre edilmedi; `WorkflowStatusChangedListener` hâlâ olay başına tek alıcı
+> seçiyor. Şartname §4.5 onay durumunda "tüm ilgililer" diyor.
+>
+> **Test durumu:** 352 test / 3 hata → **383 test / 0 hata** (temiz PostgreSQL 15).
+
 **Tarih:** 17 Ağustos 2026
 **Kaynak:** Frontend ekibinin *"Frontend–Backend Güncel Eksikler ve Karar
 Noktaları"* belgesi (16 Ağustos)

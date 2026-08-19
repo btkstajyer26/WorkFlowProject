@@ -1,5 +1,20 @@
 # Eksik Controller'lar ve Kararlar
 
+> [!NOTE]
+> **Bu belge 19 Ağustos 2026'da kapatılmıştır ve tarihsel kayıttır.**
+> Aşağıdaki tablolar kapatıldığı tarihteki entegrasyon durumunu yansıtır.
+> Güncel durum için [README](../README.md) "Mevcut durum" ve "Bilinen eksikler"
+> bölümlerine, workflow davranışı için [workflow.md](workflow.md)'ye bakınız.
+>
+> **Kapanış durumu:** §1.1'deki tek açık madde — bildirim geçmişinin arayüze
+> bağlanması — **kapandı.** `hooks/useNotificationCenter.ts` `listNotifications`
+> facade'ını çağırıyor ve `NotificationsPage` bu hook'u kullanıyor.
+> Backend'de yazılacak uç kalmadı.
+>
+> §3'teki "karar bekleyenler" maddeleri sözleşme metnine ait netleştirmelerdir;
+> sözleşme belgesi bu turun kapsamı dışında bırakıldığı için oldukları gibi
+> durmaktadır.
+
 **Tarih:** 13 Ağustos 2026
 **Kaynak:** `integration/tum-feature-branchleri` × [FRONTEND_BACKEND_SOZLESMESI.md](FRONTEND_BACKEND_SOZLESMESI.md)
 **Kapsam:** `auth` ve `user` modülleri **hariç** — o iş listesi tamamlandığı
