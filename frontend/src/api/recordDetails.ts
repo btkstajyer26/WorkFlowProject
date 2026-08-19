@@ -83,6 +83,7 @@ export async function getRecordDetail(recordId: string, categories: RecordCatego
   const history = auditLogs
     .map(normalizeHistoryItem)
     .toSorted((left, right) => left.date.localeCompare(right.date))
+  const creatorItem = history.find((item) => item.action === 'Kayıt oluşturuldu') ?? history[0]
   return {
     id: record.id,
     recordNumber: '',
@@ -91,8 +92,8 @@ export async function getRecordDetail(recordId: string, categories: RecordCatego
     categoryId: record.categoryId,
     category: categoryName,
     status: record.status,
-    createdBy: '',
-    createdById: history.find((item) => item.action === 'Kayıt oluşturuldu')?.actorId,
+    createdBy: creatorItem?.actor ?? '',
+    createdById: creatorItem?.actorId,
     assignedTo: null,
     assignedToId: null,
     lastDeputyId: null,

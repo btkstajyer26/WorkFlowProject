@@ -5,6 +5,7 @@ import {
   Download,
   FileText,
   FolderOpen,
+  User,
 } from 'lucide-react'
 import { Link, Navigate, useParams } from 'react-router'
 import { apiMode } from '../api/config'
@@ -136,6 +137,15 @@ function RecordDetailContent({
             <FolderOpen className="size-4 text-app-text-faint" aria-hidden="true" />
             {record.category}
           </span>
+          {record.createdBy ? (
+            <>
+              <span className="text-app-text-faint" aria-hidden="true">•</span>
+              <span className="inline-flex items-center gap-2">
+                <User className="size-4 text-app-text-faint" aria-hidden="true" />
+                {record.createdBy}
+              </span>
+            </>
+          ) : null}
           <span className="text-app-text-faint" aria-hidden="true">•</span>
           <span className="inline-flex items-center gap-2">
             <CalendarDays className="size-4 text-app-text-faint" aria-hidden="true" />
