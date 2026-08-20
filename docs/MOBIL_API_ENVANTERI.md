@@ -1,6 +1,6 @@
 # Mobil API Envanteri
 
-**Durum:** Taslak — Sprint 0'da tamamlanacak (M0)
+**Durum:** Uç envanteri tamam; TEST ortamı bekleniyor (M0 · M9)
 **Son kod doğrulaması:** 20 Ağustos 2026, `test` dalı `0e4043a`
 
 Mobil istemcinin kullanacağı uçların tam listesi. Her satır koda bakılarak
@@ -12,11 +12,12 @@ Swagger `/swagger-ui.html`, ham şema `/v3/api-docs`.
 
 ---
 
-## ⚠️ Sprint 0'da kapatılması gereken iki boşluk
+## ⚠️ Sprint 0'da kapatılması gereken boşluk
 
-**1. TEST ortamı yok — sahibi belirlenmedi.** Bugün yalnız `localhost:8080` var.
-Gerçek cihaz `localhost`'a bağlanamaz, dolayısıyla **push bildirimi hiç test
-edilemez** (Sprint 4 buna bağlı). Aşağıdaki tablo ortam ayağa kalkınca doldurulur:
+**1. TEST ortamı yok — sorumlu: Burak Kaya (M9).** Bugün yalnız
+`localhost:8080` var. Gerçek cihaz `localhost`'a bağlanamaz, dolayısıyla **push
+bildirimi hiç test edilemez** (Sprint 4 buna bağlı). Aşağıdaki tabloyu ortam
+ayağa kalkınca Burak doldurur:
 
 | | Adres | Örnek hesaplar | Veri |
 |---|---|---|---|
@@ -24,13 +25,21 @@ edilemez** (Sprint 4 buna bağlı). Aşağıdaki tablo ortam ayağa kalkınca do
 | `TEST` | _(belirlenmedi)_ | _(belirlenmedi)_ | _(belirlenmedi)_ |
 | `PROD` | _(kapsam dışı)_ | — | — |
 
-**2. Sürüm sabitlenmiş `openapi.json` yok.** springdoc ayakta ama çıktı hiçbir
-yere sabitlenmemiş. Mobil istemci kodu bundan üretileceği için sabit bir kopya
-gerekiyor:
+**2. ~~Sürüm sabitlenmiş `openapi.json` yok.~~ ✅ Sabitlendi:
+[docs/openapi.json](openapi.json)** — 20 Ağustos 2026, `0e4043a`.
+27 uç, 31 şema. Mobil istemci kodu bundan üretilir.
+
+Yeniden üretmek için (backend ayaktayken):
 
 ```bash
-curl -s http://localhost:8080/v3/api-docs > docs/openapi.json
+curl -s http://localhost:8080/v3/api-docs   | python -c "import sys,json;print(json.dumps(json.load(sys.stdin),ensure_ascii=False,indent=2))"   > docs/openapi.json
 ```
+
+Biçimlendirme bilerek yapılıyor: springdoc tek satır JSON üretiyor ve o hâlde
+her değişiklik tek satırlık okunamaz bir diff'e dönüşüyor.
+
+> Dosyadaki `servers[0].url` `http://localhost:8080` — üretildiği ortamın
+> adresidir. Mobil base URL'i kendi yapılandırmasından alır, bu alanı kullanmaz.
 
 ---
 

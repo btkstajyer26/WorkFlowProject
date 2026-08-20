@@ -104,7 +104,7 @@ o satırı hiç görmez (kural 1). Web'de bu hata yaşandı ve düzeltildi.
 
 | Sprint | Ne |
 |---|---|
-| 0 | Stack onayı, **deep-link sözleşmesi**, **TEST ortamı sahibi**, M0 envanter + M1, Expo proje, Firebase + APNs, development build |
+| 0 | Stack onayı, **deep-link sözleşmesi**, **M9 TEST ortamı**, M0 envanter + M1, Expo proje, Firebase + APNs, development build |
 | 1 | Kişi1 auth ekranları |
 | 2 | Kişi2 kayıt/liste/detay/onay |
 | 3 | Kişi3 dosya + bildirim merkezi; Melih M2; Ecesu M6 kararı + M7 |
@@ -117,7 +117,7 @@ o satırı hiç görmez (kural 1). Web'de bu hata yaşandı ve düzeltildi.
 
 ## Backend — yalnız açık işler
 
-### 👤 Entegrasyon — M0 🟡 *Sprint 0 · taslak hazır, sahibi aranıyor*
+### 👤 Entegrasyon — M0 🟡 *Sprint 0 · envanter hazır, M9 bekliyor*
 
 **Çıktı:** [MOBIL_API_ENVANTERI.md](MOBIL_API_ENVANTERI.md) — **yazıldı.**
 
@@ -132,15 +132,13 @@ request/response ve hata kodu var. Kapsanan konular:
 - `createdByFullName` kullanımı ve geçmişten ad türetme yasağı
 - Dosya izin listesi, boyut sınırı, devir anındaki dosya görünürlüğü
 
-**Kalan iş — bu ikisi sahipsiz olduğu için M0 kapanmadı:**
+**`openapi.json` sabitlendi:** [docs/openapi.json](openapi.json) — 27 uç,
+31 şema. Mobil istemci kodu bundan üretilir; yeniden üretme komutu envanterde.
 
-1. **TEST ortamını kim ayağa kaldıracak?** Envanterdeki ortam tablosu boş.
-   Bu olmadan gerçek cihazdan istek atılamaz, **push testi (Sprint 4) yapılamaz.**
-2. **`openapi.json` sabitlemesi.** Komut envanterde yazılı, çalıştırılıp
-   çıktının repoya konması gerekiyor.
+**Kalan iş:** TEST ortamı — **M9, Burak Kaya** (aşağıda).
 
 **Bitti sayılır:** Kişi1/2/3 envantere bakarak bağlayabiliyor **ve** TEST
-adresine gerçek cihazdan istek atılabiliyor. Birincisi sağlandı, ikincisi bekliyor.
+adresine gerçek cihazdan istek atılabiliyor. Birincisi sağlandı; ikincisi M9'a bağlı.
 
 ##### Ayrıca sağlanacak
 
@@ -392,6 +390,32 @@ Liste ucu için yeni endpoint yazılmaz (`GET /api/records/{id}/files` zaten var
 
 ---
 
+### 👤 Burak Kaya — ortam
+
+#### M9 — TEST ortamı 🔴 *Sprint 0 · engelleyici*
+
+**Neden engelleyici:** Bugün yalnız `localhost:8080` var. Gerçek cihaz
+`localhost`'a bağlanamaz; bu ortam olmadan **push bildirimi hiç test edilemez**
+ve Sprint 4 doğrulanamaz. MOB-16 release hazırlığı da buna bakar.
+
+Gerekenler:
+
+1. Ekipçe erişilebilen bir adres (backend + PostgreSQL). `docker-compose.yml`
+   zaten var; ek servis yazmaya gerek yok.
+2. **HTTPS.** Android 9+ ve iOS varsayılan olarak düz HTTP'yi engeller; sertifika
+   olmadan mobil istekleri sessizce düşer.
+3. `CORS_ALLOWED_ORIGINS`, `JWT_SECRET`, `BOOTSTRAP_ADMIN_*` ve `MAIL_*`
+   değişkenleri ortama verilir — **repoya yazılmaz**.
+4. Her rol için birer örnek hesap (`CALISAN`, `BASKAN_YARDIMCISI`, `BASKAN`) ve
+   akışı uçtan uca yürütmeye yetecek örnek kayıt.
+5. Adres, hesaplar ve verinin ne olduğu
+   [MOBIL_API_ENVANTERI.md](MOBIL_API_ENVANTERI.md) ortam tablosuna yazılır.
+
+**Bitti sayılır:** Gerçek bir telefondan TEST adresine giriş yapılıp kayıt
+listesi görülebiliyor.
+
+---
+
 ### Açık işi olmayan modüller
 
 Bu modüller mobil için hazır; **yeniden yazılmayacak.** Sahipleri web
@@ -399,7 +423,7 @@ regresyonundan ve kendi alanlarına gelen sorulardan sorumlu:
 
 | Sahip | Modül | Neden açık iş yok |
 |---|---|---|
-| Esra Öncü · Burak Kaya | `workflow` | Durum makinesi, geçiş kuralları ve `POST /api/records/{recordId}/workflow/actions` mobilin ihtiyacını karşılıyor. Hedef kullanıcı backend'de çözülüyor, mobil `targetUserId` göndermiyor. |
+| Esra Öncü · Burak Kaya | `workflow` (Burak ayrıca M9) | Durum makinesi, geçiş kuralları ve `POST /api/records/{recordId}/workflow/actions` mobilin ihtiyacını karşılıyor. Hedef kullanıcı backend'de çözülüyor, mobil `targetUserId` göndermiyor. |
 | Irmak Tanrıverdi | `search` | `GET /api/records` sayfalama, filtre ve `sort` destekliyor; geçersiz `sort` 400 dönüyor. `createdByFullName` eklendi. |
 
 Hacer'in `common` paketindeki hata formatı mobilde olduğu gibi kullanılır;
@@ -586,7 +610,7 @@ Gerçek cihaz (Android + iOS), ekran boyutları, imza / provisioning.
 | **Alperen · Fevzi** | `record` | — (M5 kapandı) |
 | **Ecesu** | `attachment` | M6, M7 |
 | **Hacer** | `rbac`, `common` | M8 |
-| **Esra · Burak** | `workflow` | — (hazır) |
+| **Esra · Burak** | `workflow` / ortam | M9 (Burak) — `workflow` tarafında açık iş yok |
 | **Irmak** | `search` | — (hazır) |
 | **Kişi1** | mobil | MOB-1 … MOB-5 |
 | **Kişi2** | mobil | MOB-6 … MOB-10 |
@@ -606,7 +630,7 @@ dosya listesi ucu, `notifications` ve `tokens` tabloları, Flutter.
 
 1. Stack onayı → MOB-1 (backend M0–M8 beklemez)
 2. M0 → mobil API bağlama
-3. **TEST API ortamı → gerçek cihaz testi → push testi.** Zincirin en kırılgan
+3. **M9 (TEST ortamı) → gerçek cihaz testi → push testi.** Zincirin en kırılgan
    halkası; ortam yoksa Sprint 4 hiç doğrulanamaz.
 4. Deep-link sözleşmesi (Sprint 0) → M3 payload'u **ve** MOB-12 yönlendirmesi
 5. MOB-3 → Kişi2/3 korumalı ekranlar
