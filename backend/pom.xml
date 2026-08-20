@@ -53,6 +53,13 @@
 			<artifactId>spring-boot-starter-mail</artifactId>
 		</dependency>
 
+		<!-- Mobil push bildirimleri icin Firebase Admin SDK. -->
+		<dependency>
+			<groupId>com.google.firebase</groupId>
+			<artifactId>firebase-admin</artifactId>
+			<version>9.3.0</version>
+		</dependency>
+
 		<!-- Bildirim e-postasinin HTML govdesi Thymeleaf sablonundan uretilir
 		     (templates/mail/workflow-status.html). Sablon Java kodundan ayri
 		     durdugu icin bicim degisikligi MailService'i derlemeye zorlamaz;

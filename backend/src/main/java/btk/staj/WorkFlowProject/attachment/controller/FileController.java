@@ -24,12 +24,12 @@ public class FileController {
 
     @PreAuthorize("hasRole('CALISAN')")
     @PostMapping(value = "/api/records/{id}/files", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<FileResponseDto> uploadFile(
+    public ResponseEntity<List<FileResponseDto>> uploadFiles(
             @PathVariable("id") UUID recordId,
-            @RequestPart("file") MultipartFile file,
+            @RequestPart("file") MultipartFile[] files,
             @AuthenticationPrincipal AuthenticatedUser currentUser) {
 
-        FileResponseDto response = fileService.uploadFile(file, recordId, currentUser.getId());
+        List<FileResponseDto> response = fileService.uploadFiles(files, recordId, currentUser.getId());
         return ResponseEntity.ok(response);
     }
 

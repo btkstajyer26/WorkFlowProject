@@ -36,6 +36,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      mailpit:
+        condition: service_started
     environment:
       DB_HOST: db
       DB_PORT: 5432
@@ -48,6 +50,10 @@ services:
       JWT_SECRET: ${JWT_SECRET:-yerel-gelistirme-icin-en-az-32-karakter-uzunlugunda-gecici-anahtar}
       BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
       BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+      # Mobil push bildirimleri icin FCM servis hesabi; bos birakilirsa push atlanir.
+      FCM_PROJECT_ID: ${FCM_PROJECT_ID:-}
+      FCM_CLIENT_EMAIL: ${FCM_CLIENT_EMAIL:-}
+      FCM_PRIVATE_KEY: ${FCM_PRIVATE_KEY:-}
     ports:
       - "8080:8080"
     volumes:
