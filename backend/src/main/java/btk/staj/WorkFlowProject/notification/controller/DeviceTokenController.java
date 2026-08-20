@@ -4,6 +4,7 @@ import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
 import btk.staj.WorkFlowProject.notification.dto.DeviceTokenDeleteRequest;
 import btk.staj.WorkFlowProject.notification.dto.DeviceTokenRequest;
 import btk.staj.WorkFlowProject.notification.service.DeviceTokenService;
+import btk.staj.WorkFlowProject.user.entity.User;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -48,17 +49,26 @@ public class DeviceTokenController {
     }
 
     /**
-     * Projede kimlik dogrulanmis principal her zaman {@link AuthenticatedUser}
-     * tipindedir; baska bir tip gelirse kullanici kimligi cozulemedigi icin
-     * token sahipsiz kaydedilmemeli, istek hata ile durmalidir.
+     * JWT filtresi principal olarak {@link AuthenticatedUser} koyar.
+     * {@link User} / {@link UUID} fallback'leri test veya alternatif baglamlar icindir.
      */
     private UUID extractUserId(Authentication authentication) {
         if (authentication == null || authentication.getPrincipal() == null) {
-            throw new IllegalStateException("Kimlik doğrulaması bulunamadı.");
+            throw new IllegalArgumentException("Kimlik doğrulaması bulunamadı.");
         }
-        if (authentication.getPrincipal() instanceof AuthenticatedUser authenticatedUser) {
+
+        Object principal = authentication.getPrincipal();
+
+        if (principal instanceof AuthenticatedUser authenticatedUser) {
             return authenticatedUser.getId();
         }
-        throw new IllegalStateException("Kimlik doğrulanmış kullanıcı çözümlenemedi.");
+        if (principal instanceof User user) {
+            return user.getId();
+        }
+        if (principal instanceof UUID uuid) {
+            return uuid;
+        }
+
+        throw new IllegalArgumentException("Geçersiz kullanıcı kimliği.");
     }
 }
