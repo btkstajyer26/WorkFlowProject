@@ -17,8 +17,9 @@ public interface DeviceTokenRepository extends JpaRepository<DeviceToken, UUID> 
 
     Optional<DeviceToken> findByToken(String token);
 
-    @Query("SELECT d.token FROM DeviceToken d WHERE d.user.id = :userId AND d.active = true")
-    List<String> findActiveTokensByUserId(@Param("userId") UUID userId);
+    // PushNotificationService'in aradığı metot:
+    @Query("SELECT d FROM DeviceToken d WHERE d.user.id = :userId AND d.active = true")
+    List<DeviceToken> findAllActiveByUserId(@Param("userId") UUID userId);
 
     @Transactional
     @Modifying
