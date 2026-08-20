@@ -4,7 +4,6 @@ import btk.staj.WorkFlowProject.notification.dto.DeviceTokenDeleteRequest;
 import btk.staj.WorkFlowProject.notification.dto.DeviceTokenRequest;
 import btk.staj.WorkFlowProject.notification.service.DeviceTokenService;
 import btk.staj.WorkFlowProject.user.entity.User;
-import btk.staj.WorkFlowProject.user.repository.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -22,7 +21,6 @@ import java.util.UUID;
 public class DeviceTokenController {
 
     private final DeviceTokenService deviceTokenService;
-    private final UserRepository userRepository;
 
     @PostMapping
     @Operation(summary = "Cihaz token kaydı / güncelleme (Upsert)")
@@ -46,16 +44,9 @@ public class DeviceTokenController {
         if (authentication == null || authentication.getPrincipal() == null) {
             throw new IllegalStateException("Kimlik doğrulaması bulunamadı.");
         }
-
-        Object principal = authentication.getPrincipal();
-
-        if (principal instanceof User user) {
+        if (authentication.getPrincipal() instanceof User user) {
             return user.getId();
         }
-
-        String email = authentication.getName();
-        return userRepository.findByEmail(email)
-                .map(User::getId)
-                .orElseThrow(() -> new IllegalArgumentException("Kullanıcı bulunamadı: " + email));
+        return null;
     }
 }
