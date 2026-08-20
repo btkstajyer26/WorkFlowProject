@@ -23,6 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -59,30 +60,56 @@ public class FileService {
     }
 
     @Transactional
-    public FileResponseDto uploadFile(MultipartFile file, UUID recordId, UUID uploadedBy) {
-        if (file.isEmpty()) {
-            throw new BusinessRuleException("Dosya boş olamaz");
+    public List<FileResponseDto> uploadFiles(MultipartFile[] files, UUID recordId, UUID uploadedBy) {
+        if (files == null || files.length == 0) {
+            throw new BusinessRuleException("En az bir dosya yüklenmelidir.");
         }
 
         recordLockValidator.assertModifyAllowed(recordId, uploadedBy);
 
-        String detectedType = fileContentValidator.detectAndValidate(file);
-        String originalFilename = file.getOriginalFilename();
-        String storedFilename = UUID.randomUUID() + fileContentValidator.extensionFor(detectedType);
+        // 1. ADIM: Once tum dosyalari dogrula, hicbirini diske yazmadan.
+        // Boylece bir dosya reddedilirse, ondan onceki dosyalar diske yazilmis
+        // ama veritabanina hic girmemis "yetim" dosya olarak kalmaz.
+        String[] detectedTypes = new String[files.length];
+        for (int i = 0; i < files.length; i++) {
+            MultipartFile file = files[i];
+            if (file.isEmpty()) {
+                throw new BusinessRuleException("Boş dosya yüklenemez: " + file.getOriginalFilename());
+            }
+            detectedTypes[i] = fileContentValidator.detectAndValidate(file);
+        }
 
-        fileStorageService.store(file, storedFilename);
+        // 2. ADIM: Tum dosyalar dogrulandi, simdi hepsini diske yaz ve kaydet.
+        List<FileEntity> savedEntities = new ArrayList<>();
+        for (int i = 0; i < files.length; i++) {
+            MultipartFile file = files[i];
+            String detectedType = detectedTypes[i];
 
-        FileEntity entity = new FileEntity();
-        entity.setRecordId(recordId);
-        entity.setOriginalName(originalFilename);
-        entity.setStoredName(storedFilename);
-        entity.setMimeType(detectedType);
-        entity.setFileSize((int) file.getSize());
-        entity.setUploadedBy(uploadedBy);
-        entity.setUploadedAt(LocalDateTime.now());
+            String originalFilename = file.getOriginalFilename();
+            String storedFilename = UUID.randomUUID() + fileContentValidator.extensionFor(detectedType);
 
-        FileEntity saved = fileRepository.save(entity);
-        return toDto(saved);
+            fileStorageService.store(file, storedFilename);
+
+            FileEntity entity = new FileEntity();
+            entity.setRecordId(recordId);
+            entity.setOriginalName(originalFilename);
+            entity.setStoredName(storedFilename);
+            entity.setMimeType(detectedType);
+            entity.setFileSize((int) file.getSize());
+            entity.setUploadedBy(uploadedBy);
+            entity.setUploadedAt(LocalDateTime.now());
+
+            savedEntities.add(fileRepository.save(entity));
+        }
+
+        return savedEntities.stream()
+                .map(this::toDto)
+                .toList();
+    }
+
+    @Transactional
+    public FileResponseDto uploadFile(MultipartFile file, UUID recordId, UUID uploadedBy) {
+        return uploadFiles(new MultipartFile[]{file}, recordId, uploadedBy).get(0);
     }
 
     @Transactional
@@ -113,10 +140,6 @@ public class FileService {
         RecordContentView.Content content =
                 recordContentView.visibleContent(record, role, currentUserId);
 
-        // Kaydi elinden cikarmis yardimci ekleri de devir anindaki haliyle
-        // gorur; yoksa Calisanin duzeltme sirasinda yukledigi dosya aninda
-        // gorunurdu. files tablosunda uploaded_at/deleted_at zaten oldugu icin
-        // ayrica kopya tutmak gerekmiyor.
         if (content.frozen()) {
             return fileRepository.findAllByRecordId(recordId)
                     .stream()
@@ -137,7 +160,6 @@ public class FileService {
 
         Record record = assertCanViewRecord(fileEntity.getRecordId(), role, currentUserId);
 
-        // Listede gizlenen dosya dogrudan kimlikle de indirilememeli.
         RecordContentView.Content content =
                 recordContentView.visibleContent(record, role, currentUserId);
         if (content.frozen() && !existedAt(fileEntity, content.asOf())) {
