@@ -365,6 +365,30 @@ Kırpma sunucuda yapılır; gizlenen satırlar cevaba hiç konmaz. **Mobil bunu 
 veri sanıp yeniden istemesin.** Başkan ekranında listenin `RECORD_CREATED` ile
 başlamaması normaldir.
 
+
+### Sayfalama kararı — gerekçeli
+
+Projede önceden tanımlanmış sayısal bir cevap boyutu sınırı bulunamadı
+(sözleşmedeki boyut sınırları yalnızca dosya yüklemeleri içindir).
+
+Tek satır ortalama ~535 byte. Gerçekçi bir kullanım senaryosunda (birkaç
+geri-gönderme döngüsü, ~20-50 satır) cevap ~10-26 KB — mobil için önemsiz.
+
+**Ancak durum makinesinde `BSK_YRD_INCELEMESINDE ↔ DUZENLEME_BEKLIYOR` ve
+`BASKAN_INCELEMESINDE ↔ DUZENLEME_BEKLIYOR` arasındaki geçiş sayısını
+sınırlayan hiçbir iş kuralı yok.** Teorik olarak 1000 satır ~522 KB'a,
+5000 satır ~2.5 MB'a ulaşabilir — bu, mobil için ciddi bir sorun olurdu.
+
+**Karar: Şimdilik sayfalama eklenmeyecek** (web istemcisi sayfalamasız
+kullanıyor, gerçek kullanımda yüzlerce geri-gönderme beklenmiyor), **ama bu
+bir risk alanı olarak işaretleniyor.** Öneri: ya bir evrağın geri-gönderme
+sayısına iş kuralı düzeyinde bir üst sınır getirilmeli, ya da bu uca
+ileride sayfalama eklenmeli. Karar `record`/`workflow` ekipleriyle
+görüşülmeli.
+
+*(Not: Bu ölçüm, çalışan bir ortamda gerçek verilerle değil, örnek bir
+JSON satırının hesaplanmasıyla yapıldı — TEST ortamı ayağa kalkınca
+gerçek verilerle doğrulanmalı, bkz. M0/M9.)*
 ---
 
 ## 6. Dosyalar
