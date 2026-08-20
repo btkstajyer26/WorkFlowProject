@@ -10,7 +10,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import javax.sql.DataSource;
@@ -28,10 +28,10 @@ public class DeviceTokenController {
     @PostMapping
     @Operation(summary = "Cihaz token kaydı / güncelleme (Upsert)")
     public ResponseEntity<Void> registerToken(
-            @AuthenticationPrincipal User user,
+            Authentication authentication,
             @Valid @RequestBody DeviceTokenRequest request) {
 
-        UUID userId = (user != null) ? user.getId() : null;
+        UUID userId = extractUserId(authentication);
         deviceTokenService.registerOrUpdateToken(userId, request);
         return ResponseEntity.ok().build();
     }
@@ -41,5 +41,21 @@ public class DeviceTokenController {
     public ResponseEntity<Void> removeToken(@Valid @RequestBody DeviceTokenDeleteRequest request) {
         deviceTokenService.deactivateToken(request.getToken());
         return ResponseEntity.noContent().build();
+    }
+
+    private UUID extractUserId(Authentication authentication) {
+        if (authentication == null || authentication.getPrincipal() == null) {
+            throw new IllegalArgumentException("Kimlik doğrulaması bulunamadı.");
+        }
+
+        Object principal = authentication.getPrincipal();
+
+        if (principal instanceof User user) {
+            return user.getId();
+        } else if (principal instanceof UUID uuid) {
+            return uuid;
+        }
+
+        throw new IllegalArgumentException("Geçersiz kullanıcı kimliği.");
     }
 }
