@@ -9,7 +9,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -25,10 +25,10 @@ public class DeviceTokenController {
     @PostMapping
     @Operation(summary = "Cihaz token kaydı / güncelleme (Upsert)")
     public ResponseEntity<Void> registerToken(
-            Authentication authentication,
+            @AuthenticationPrincipal User user,
             @Valid @RequestBody DeviceTokenRequest request) {
 
-        UUID userId = extractUserId(authentication);
+        UUID userId = (user != null) ? user.getId() : null;
         deviceTokenService.registerOrUpdateToken(userId, request);
         return ResponseEntity.ok().build();
     }
@@ -38,15 +38,5 @@ public class DeviceTokenController {
     public ResponseEntity<Void> removeToken(@Valid @RequestBody DeviceTokenDeleteRequest request) {
         deviceTokenService.deactivateToken(request.getToken());
         return ResponseEntity.noContent().build();
-    }
-
-    private UUID extractUserId(Authentication authentication) {
-        if (authentication == null || authentication.getPrincipal() == null) {
-            throw new IllegalStateException("Kimlik doğrulaması bulunamadı.");
-        }
-        if (authentication.getPrincipal() instanceof User user) {
-            return user.getId();
-        }
-        return null;
     }
 }
