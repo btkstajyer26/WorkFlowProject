@@ -35,7 +35,7 @@ Sözleşme: [FRONTEND_BACKEND_SOZLESMESI.md](FRONTEND_BACKEND_SOZLESMESI.md)
 | `device_tokens` + API | 🔴 Yok | |
 | FCM push gönderimi | 🔴 Yok | |
 | Logout'ta device token pasif | 🔴 Yok | |
-| `docs/MOBIL_API_ENVANTERI.md` | 🔴 Yok | |
+| `docs/MOBIL_API_ENVANTERI.md` | 🟡 Taslak | Yazıldı; TEST adresi ve `openapi.json` bekliyor |
 | Çoklu dosya upload | 🔴 Açık | Uç tek dosya alıyor (`@RequestPart("file")`); şartname BE-06 çoklu istiyor |
 | `LogoutRequest.deviceToken` | 🔴 Yok | DTO şu an yalnız `refreshToken` taşıyor (M4) |
 | Geçersiz FCM token temizliği | 🔴 Yok | M3 |
@@ -117,16 +117,30 @@ o satırı hiç görmez (kural 1). Web'de bu hata yaşandı ve düzeltildi.
 
 ## Backend — yalnız açık işler
 
-### 👤 Entegrasyon — M0 🔴 *Sprint 0*
+### 👤 Entegrasyon — M0 🟡 *Sprint 0 · taslak hazır, sahibi aranıyor*
 
-**Çıktı:** `docs/MOBIL_API_ENVANTERI.md`
+**Çıktı:** [MOBIL_API_ENVANTERI.md](MOBIL_API_ENVANTERI.md) — **yazıldı.**
 
-Mobilin kullanacağı uçlar (metot, path, rol, request/response, hata kodu).
-Kaynak: Swagger + sözleşme. Tahminle bağlama yok.
+Uç envanteri koda karşı çıkarıldı: auth, users/me, records, workflow/actions,
+audit-logs, files, notifications, categories. Her uç için metot, adres, yetki,
+request/response ve hata kodu var. Kapsanan konular:
 
-**Dahil et (zaten var):** auth, records, workflow/actions, categories, files
-(`GET/POST /api/records/{id}/files`, download/preview/delete), audit-logs,
-notifications, users/me. Alan: `createdByFullName`.
+- Genel `ApiError` kod tablosu **ve** workflow ucunun ayrı `WORKFLOW_*` ailesi
+- Sayfalama zarfı, `sort` tuzağı, tarih biçimi (workflow ucu UTC `Instant`
+  döner, diğerleri yerel `LocalDateTime` — karışması kolay)
+- Görünürlük kapsamı ve **role göre kırpılan işlem geçmişi**
+- `createdByFullName` kullanımı ve geçmişten ad türetme yasağı
+- Dosya izin listesi, boyut sınırı, devir anındaki dosya görünürlüğü
+
+**Kalan iş — bu ikisi sahipsiz olduğu için M0 kapanmadı:**
+
+1. **TEST ortamını kim ayağa kaldıracak?** Envanterdeki ortam tablosu boş.
+   Bu olmadan gerçek cihazdan istek atılamaz, **push testi (Sprint 4) yapılamaz.**
+2. **`openapi.json` sabitlemesi.** Komut envanterde yazılı, çalıştırılıp
+   çıktının repoya konması gerekiyor.
+
+**Bitti sayılır:** Kişi1/2/3 envantere bakarak bağlayabiliyor **ve** TEST
+adresine gerçek cihazdan istek atılabiliyor. Birincisi sağlandı, ikincisi bekliyor.
 
 ##### Ayrıca sağlanacak
 

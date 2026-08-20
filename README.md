@@ -474,6 +474,7 @@ Branch protection etkinleştirilene kadar doğrudan push yasağı teknik olarak 
 - [İş akışı ve durum geçişleri](docs/workflow.md)
 - [Frontend–backend çalışma sözleşmesi](docs/FRONTEND_BACKEND_SOZLESMESI.md)
 - [Mobil entegrasyon görev dağılımı](docs/MOBIL_ENTEGRASYON_GOREV_DAGILIMI.md)
+- [Mobil API envanteri](docs/MOBIL_API_ENVANTERI.md)
 - [Backend açık işler ve görev dağılımı (arşiv)](docs/archive/BACKEND_ACIK_ISLER_VE_GOREV_DAGILIMI.md)
 - [Sistem mimarisi](docs/architecture.md)
 - [Mimari karar kayıtları](docs/decisions/README.md)
