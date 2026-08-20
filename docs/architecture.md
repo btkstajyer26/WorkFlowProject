@@ -2,7 +2,7 @@
 
 Bu belge İş Akışı ve Onay Yönetim Sistemi'nin **çalışan mimarisini** tanımlar. Hedef durumu değil, koda bakılarak doğrulanmış mevcut yapıyı anlatır.
 
-> Son kod doğrulaması 19 Ağustos 2026 tarihinde `test` dalının `2b5016a` commit'i üzerinde yapılmıştır. Modül sınırları, katmanlama veya bağımlılık yönü değiştiğinde bu belge aynı değişiklik kapsamında güncellenmelidir.
+> Son kod doğrulaması 19 Ağustos 2026 tarihinde `test` dalının `9e44125` commit'i üzerinde yapılmıştır. Modül sınırları, katmanlama veya bağımlılık yönü değiştiğinde bu belge aynı değişiklik kapsamında güncellenmelidir.
 
 ## İçindekiler
 

@@ -56,15 +56,17 @@ class UserServiceTest {
     @Mock
     private CurrentActorProvider currentActorProvider;
     @Mock
-    private RecordRepository recordRepository;
+    private RecordRepository recordRepository; // Yeni eklendi
 
     private UserService userService;
 
     @BeforeEach
     void setUp() {
+        // Constructor'a recordRepository eklendi
         userService = new UserService(
                 userRepository, roleRepository, tokenRepository,
                 passwordEncoder, userAuditLogService, currentActorProvider, recordRepository);
+
 
         lenient().when(currentActorProvider.currentActor())
                 .thenReturn(new CurrentActor(ADMIN_ACTOR_ID, RoleName.ADMIN));
@@ -160,13 +162,21 @@ class UserServiceTest {
         when(roleRepository.findByName("BASKAN_YARDIMCISI")).thenReturn(Optional.of(bskYrd));
         when(userRepository.findByRole_NameAndActive("BASKAN", true)).thenReturn(List.of());
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+        
+        // Yeni eklenen metodun başarılı bir şekilde çalıştığını (örneğin 5 kayıt devrettiğini) mockluyoruz
         when(recordRepository.devretBekleyenIsleri(targetId, replacementId)).thenReturn(5);
+        // İş M5: last_deputy_id devri de aynı işlemde mocklanıyor (örn. 2 kayıt güncellendi)
+        when(recordRepository.updateLastDeputyId(targetId, replacementId)).thenReturn(2);
 
         User result = userService.changeRole(targetId, "BASKAN", replacementId);
 
         assertThat(result.getRole().getName()).isEqualTo("BASKAN");
         assertThat(replacement.getRole().getName()).isEqualTo("BASKAN_YARDIMCISI");
+        
+        // Devir işleminin gerçekten veritabanına yansıtıldığını doğruluyoruz
         verify(recordRepository).devretBekleyenIsleri(targetId, replacementId);
+        // İş M5: last_deputy_id alanı da eski kullanıcıdan yeni kullanıcıya güncellenmeli
+        verify(recordRepository).updateLastDeputyId(targetId, replacementId);
     }
 
     @Test
@@ -257,5 +267,54 @@ class UserServiceTest {
                 .isThrownBy(() -> userService.createUser("Ad", "Soyad", "mevcut@example.com", "sifre123"));
 
         verifyNoInteractions(userAuditLogService);
+    }
+
+    // ---------------- kullaniciIsleriniDevret (Is M5: last_deputy_id) ----------------
+
+    @Test
+    @DisplayName("kullaniciIsleriniDevret hem assigned_to hem last_deputy_id alanini devreder")
+    void kullaniciIsleriniDevret_assignedToVeLastDeputyIdBirlikteGuncellenir() {
+        UUID eskiKullaniciId = UUID.randomUUID();
+        UUID yeniKullaniciId = UUID.randomUUID();
+
+        when(recordRepository.devretBekleyenIsleri(eskiKullaniciId, yeniKullaniciId)).thenReturn(3);
+        when(recordRepository.updateLastDeputyId(eskiKullaniciId, yeniKullaniciId)).thenReturn(4);
+
+        userService.kullaniciIsleriniDevret(eskiKullaniciId, yeniKullaniciId);
+
+        verify(recordRepository).devretBekleyenIsleri(eskiKullaniciId, yeniKullaniciId);
+        verify(recordRepository).updateLastDeputyId(eskiKullaniciId, yeniKullaniciId);
+        verify(userAuditLogService).logIslem(
+                org.mockito.ArgumentMatchers.eq(yeniKullaniciId),
+                org.mockito.ArgumentMatchers.eq(ADMIN_ACTOR_ID),
+                org.mockito.ArgumentMatchers.eq("TASKS_REASSIGNED"),
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.contains("last_deputy_id"));
+    }
+
+    @Test
+    @DisplayName("last_deputy_id guncellenecek kayit yoksa devir yine de basarili tamamlanir")
+    void kullaniciIsleriniDevret_lastDeputyIdEtkilenenKayitYoksaHataVermez() {
+        UUID eskiKullaniciId = UUID.randomUUID();
+        UUID yeniKullaniciId = UUID.randomUUID();
+
+        when(recordRepository.devretBekleyenIsleri(eskiKullaniciId, yeniKullaniciId)).thenReturn(0);
+        when(recordRepository.updateLastDeputyId(eskiKullaniciId, yeniKullaniciId)).thenReturn(0);
+
+        userService.kullaniciIsleriniDevret(eskiKullaniciId, yeniKullaniciId);
+
+        verify(recordRepository).updateLastDeputyId(eskiKullaniciId, yeniKullaniciId);
+        verify(userAuditLogService).logIslem(
+                org.mockito.ArgumentMatchers.eq(yeniKullaniciId),
+                org.mockito.ArgumentMatchers.eq(ADMIN_ACTOR_ID),
+                org.mockito.ArgumentMatchers.eq("TASKS_REASSIGNED"),
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.anyString());
     }
 }

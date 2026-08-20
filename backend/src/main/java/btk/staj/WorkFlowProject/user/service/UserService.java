@@ -177,6 +177,8 @@ public class UserService {
         replacement.setRole(baskanYardimcisiRole);
         userRepository.save(replacement);
 
+        // --- YENİ EKLENEN KISIM: OTOMATİK GÖREV DEVRİ ---
+        // Başkan Yardımcısı değiştiğinde eski Bşk. Yrd. üzerindeki tüm kayıtları yenisine devrediyoruz.
         kullaniciIsleriniDevret(previousHolderId, replacementUserId);
 
         userAuditLogService.logIslem(
@@ -191,13 +193,20 @@ public class UserService {
     }
 
     /**
-     * Eski kullanicinin uzerindeki kayitlari yeni kullaniciya atar.
-     * Baskan Yardimcisi koltuk devrinde ayni transaction icinde cagrilir.
+     * Eski kullanıcının üzerindeki tüm evrakları yeni kullanıcıya devreder.
+     * Bu metot otomatik olarak çalışabileceği gibi, Admin API'si üzerinden Başkan değişimi
+     * gibi senaryolarda manuel (REST ucuyla) de tetiklenebilir.
+     *
+     * NOT (İş M5 fix): Sadece assigned_to devri yeterli değil. "last_deputy_id"
+     * alanı eski kullanıcıda kalırsa, kayıt üzerinde BASKAN_YARDIMCISINA_GERI_GONDER
+     * işlemi eski (artık Bşk. Yrd. olmayan) kullanıcıyı hedeflemeye çalışıp patlıyor.
+     * Bu yüzden last_deputy_id de aynı işlemde yeni kullanıcıya güncelleniyor.
      */
     @Transactional
     public void kullaniciIsleriniDevret(UUID eskiKullaniciId, UUID yeniKullaniciId) {
         int devredilenSayi = recordRepository.devretBekleyenIsleri(eskiKullaniciId, yeniKullaniciId);
-        
+        int lastDeputyGuncellenenSayi = recordRepository.updateLastDeputyId(eskiKullaniciId, yeniKullaniciId);
+
         userAuditLogService.logIslem(
                 yeniKullaniciId,
                 currentActorProvider.currentActor().id(),
@@ -206,7 +215,8 @@ public class UserService {
                 null,
                 null,
                 null,
-                devredilenSayi + " adet bekleyen evrak başarıyla yeni kullanıcıya devredildi.");
+                devredilenSayi + " adet bekleyen evrak başarıyla yeni kullanıcıya devredildi ("
+                        + lastDeputyGuncellenenSayi + " kayıtta last_deputy_id güncellendi).");
     }
 
     /**

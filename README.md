@@ -1,5 +1,7 @@
 # İş Akışı ve Onay Yönetim Sistemi
 
+[![CI](https://github.com/btkstajyer26/WorkFlowProject/actions/workflows/ci.yml/badge.svg?branch=test)](https://github.com/btkstajyer26/WorkFlowProject/actions/workflows/ci.yml)
+
 Kurum içindeki belge, kayıt ve onay süreçlerini dijitalleştirmek için geliştirilen web tabanlı bir Elektronik Belge Yönetim Sistemi (EBYS) modülüdür.
 
 Sistem; kayıt oluşturma, hiyerarşik onay akışı, rol bazlı erişim, dosya yönetimi, denetim izi, arama ve bildirim yeteneklerini tek uygulamada birleştirir.
@@ -28,7 +30,7 @@ Sistem; kayıt oluşturma, hiyerarşik onay akışı, rol bazlı erişim, dosya 
 | Bileşen | Durum | Açıklama |
 | --- | --- | --- |
 | Backend altyapısı | Uygulandı | Java 21, Spring Boot, PostgreSQL, Flyway, Docker ve OpenAPI yapılandırıldı. |
-| Kimlik doğrulama | Uygulandı | JWT ile giriş, token yenileme, çıkış ve parola değiştirme mevcuttur. Pasif kullanıcı girişi ve token yenilemesi engellenir; ilk girişte parola değişimi JWT filtresinde `403 PASSWORD_CHANGE_REQUIRED` ile zorlanır. |
+| Kimlik doğrulama | Uygulandı | JWT ile giriş, token yenileme, çıkış, parola değiştirme ve e-posta kodlu parola sıfırlama mevcuttur. Pasif kullanıcı girişi ve token yenilemesi engellenir; ilk girişte parola değişimi JWT filtresinde `403 PASSWORD_CHANGE_REQUIRED` ile zorlanır. |
 | RBAC | Uygulandı | Rol bazlı işlem yetkisi ve kayıt görünürlük politikası backend'de zorlanır; yetki matrisi uçtan uca testlerle kapsanır. |
 | Kullanıcı yönetimi | Kısmi | Admin kullanıcı oluşturma, rol değiştirme, aktiflik yönetimi ve ilk Admin bootstrap akışı mevcuttur. Backend üretimli geçici parola ve davet e-postası henüz yoktur. |
 | Kayıt yönetimi | Uygulandı | CRUD, kategori, filtreleme ve soft delete mevcuttur; görünürlük kuralı tekil görüntülemede ve listede tek kaynaktan uygulanır. |
@@ -36,7 +38,7 @@ Sistem; kayıt oluşturma, hiyerarşik onay akışı, rol bazlı erişim, dosya 
 | Dosya yönetimi | Uygulandı | Yükleme, indirme, önizleme, içerik doğrulama ve soft delete mevcuttur; okuma uçları kayıt görünürlüğüyle, yazma uçları sahiplik ve durum kilidiyle korunur. |
 | Audit | Kısmi | Kayıt ve kullanıcı işlemleri için audit altyapısı vardır; veritabanı seviyesindeki değiştirilemezlik güvencesi güçlendirilmelidir. |
 | Arama | Uygulandı | Kriter, filtre ve sayfalama tabanlı kayıt araması bulunur. |
-| Bildirim | Kısmi | Uygulama içi workflow bildirimleri ve commit sonrası durum e-postası mevcuttur. Her olayda tek alıcı seçilir; genişletilmiş alıcı kümesi tamamlanmalıdır. Gerçek Outlook yapılandırması ortama bağlıdır. |
+| Bildirim | Uygulandı | Uygulama içi workflow bildirimleri ve commit sonrası durum e-postası mevcuttur. Atama yapılan geçişte atanan kullanıcıya, nihai onay/ret geçişinde hem kaydı oluşturana hem kaydı Başkana ileten yardımcıya gider. Gerçek Outlook yapılandırması ortama bağlıdır. |
 | Frontend | Kısmi | React arayüzü ve frontend testleri mevcuttur; bazı ekranlar mock veri katmanından gerçek API istemcilerine geçirilmelidir. |
 | GitHub CI | Uygulandı | GitHub Actions akışı `test`, `main` ve `integration/**` dallarında backend `verify` ile frontend lint/test/build kontrollerini çalıştırır. Branch protection kuralları henüz etkin değildir. |
 
@@ -285,6 +287,9 @@ npm run dev
 | `UPLOAD_DIR` | `./uploads` | Dosya saklama dizini |
 | `BOOTSTRAP_ADMIN_EMAIL` | Boş | İlk Admin e-postası; aşağıdaki nota bakınız |
 | `BOOTSTRAP_ADMIN_PASSWORD` | Boş | İlk Admin parolası; aşağıdaki nota bakınız |
+| `PASSWORD_RESET_CODE_TTL_MINUTES` | `10` | E-postayla gönderilen 6 haneli kodun geçerlilik süresi |
+| `PASSWORD_RESET_TOKEN_TTL_MINUTES` | `15` | Kod doğrulandıktan sonra verilen sıfırlama anahtarının süresi |
+| `PASSWORD_RESET_RESEND_COOLDOWN_SECONDS` | `60` | Yeni kod istemek için beklenmesi gereken süre |
 
 > [!NOTE]
 > İlk Admin yalnızca **iki değişken de doludur** ve sistemde **aktif Admin yoktur** koşulunda oluşturulur. Hesap `mustChangePassword` işaretiyle açılır; ilk girişte parola değiştirilmeden diğer uçlara erişilemez.
@@ -311,6 +316,9 @@ Tüm uçlar `/api` altındadır; sürüm öneki kullanılmaz.
 | Auth | `POST /api/auth/refresh` | Access token yenileme |
 | Auth | `POST /api/auth/logout` | Refresh token iptali |
 | Auth | `POST /api/auth/change-password` | Oturum açmış kullanıcının parola değiştirmesi |
+| Auth | `POST /api/auth/forgot-password` | Parola sıfırlama kodu ister. Adres kayıtlı olsun olmasın `202` döner |
+| Auth | `POST /api/auth/verify-reset-code` | E-postayla gelen 6 haneli kodu doğrular, tek kullanımlık sıfırlama anahtarı verir |
+| Auth | `POST /api/auth/reset-password` | Doğrulanmış anahtarla yeni parolayı kaydeder; oturum gerektirmez |
 | Kullanıcı | `GET /api/users/me` | Oturum açmış kullanıcının kendi bilgileri |
 | Admin | `POST /api/admin/users` | Kullanıcı oluşturma |
 | Admin | `GET /api/admin/users` | Kullanıcı listesi; arama, rol ve aktiflik filtreli, sayfalı |
@@ -358,6 +366,9 @@ Flyway migrationları `backend/src/main/resources/db/migration` dizinindedir.
 | `V4__add_soft_delete_to_files.sql` | Dosyalara soft delete alanları ve indeks |
 | `V5__add_notification_type.sql` | Bildirim türü alanı ve indeksi |
 | `V6__drop_record_notes.sql` | Kullanılmayan `record_notes` tablosunun kaldırılması |
+| `V7__request_and_auth_audit_columns.sql` | Audit tablolarında evrak zorunluluğunun kaldırılması; HTTP istek kolonları |
+| `V8__password_reset_codes.sql` | Parola sıfırlama kodları tablosu (`password_reset_codes`) ve indeksleri |
+| `V9__record_handoff_snapshot.sql` | Kayıt Çalışana geri gönderildiğinde içeriğini donduran `snapshot_*` kolonları |
 
 `V1` hazırlanırken daha önce taslak olarak adlandırılan Admin ve workflow migrationları ortak veritabanına uygulanmadan birleştirilmiştir. Bu nedenle numaralandırmadaki boşluklar tarihsel tasarım kararının sonucudur.
 
@@ -455,13 +466,13 @@ Branch protection etkinleştirilene kadar doğrudan push yasağı teknik olarak 
 - Audit değiştirilemezliği yalnızca uygulama seviyesinde sağlanır; veritabanı tarafında trigger veya rol kısıtı ile zorlanmaz.
 - Başkan Yardımcısı koltuğu devredilirken `records.last_deputy_id` güncellenmez. Devirden sonra `BASKAN_YARDIMCISINA_GERI_GONDER` eski yardımcıyı hedefleyip `400` ile durur.
 - Tekil rol invariant'ı yalnızca okuma anında kontrol edilir; `PATCH /api/admin/users/{id}/active` ile hesap yeniden etkinleştirilirken aynı rolde başka aktif kullanıcı olup olmadığına bakılmaz.
-- Durum değişikliğinde uygulama içi bildirim ve e-posta tek alıcıya gider; şartnamenin onay durumundaki "tüm ilgililer" beklentisi henüz karşılanmamıştır.
 - `test` ve `main` dalları için branch protection kuralları etkin değildir.
-- `docs/database.md` boştur, `docs/architecture.md` güncel kodu yansıtmamaktadır ve `docs/decisions/` altında henüz mimari karar kaydı yoktur.
+- Frontend testlerinden biri (`AdminUsersPage`) paralel koşuda kararsızdır; tek başına ve `--no-file-parallelism` ile geçer, tam paralel koşuda zaman aşımına düşebilir.
+- `docs/decisions/` altında henüz mimari karar kaydı yoktur.
 
 ## Dokümantasyon
 
-- [İş akışı ve durum geçişleri](docs/workflow.md) — workflow davranışının kanonik referansı
+- [İş akışı ve durum geçişleri](docs/workflow.md)
 - [Frontend–backend çalışma sözleşmesi](docs/FRONTEND_BACKEND_SOZLESMESI.md)
 - [Backend açık işler ve görev dağılımı](docs/BACKEND_ACIK_ISLER_VE_GOREV_DAGILIMI.md)
 - [Sistem mimarisi](docs/architecture.md)
