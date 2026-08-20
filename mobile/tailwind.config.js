@@ -25,6 +25,8 @@ module.exports = {
           'surface-muted-dark': tokens.semantic.dark.surfaceMuted,
           'surface-strong': tokens.semantic.light.surfaceStrong,
           'surface-strong-dark': tokens.semantic.dark.surfaceStrong,
+          'surface-selected': tokens.semantic.light.surfaceSelected,
+          'surface-selected-dark': tokens.semantic.dark.surfaceSelected,
           border: tokens.semantic.light.border,
           'border-dark': tokens.semantic.dark.border,
           text: tokens.semantic.light.text,
