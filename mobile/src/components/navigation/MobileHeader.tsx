@@ -1,7 +1,6 @@
-import { useRouter } from 'expo-router';
+import { Image } from 'expo-image';
 import Moon from 'lucide-react-native/icons/moon';
 import Sun from 'lucide-react-native/icons/sun';
-import UserRound from 'lucide-react-native/icons/user-round';
 import { Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -10,8 +9,7 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { appTokens } from '@/theme/theme';
 
 export function MobileHeader() {
-  const router = useRouter();
-  const { colors, resolvedTheme, toggleTheme } = useAppTheme();
+  const { resolvedTheme, toggleTheme } = useAppTheme();
   const isDark = resolvedTheme === 'dark';
 
   return (
@@ -20,19 +18,19 @@ export function MobileHeader() {
       edges={['top']}
     >
       <View className="h-16 flex-row items-center justify-between px-5">
-        <Pressable
-          accessibilityLabel="Profil ekranını aç"
-          accessibilityRole="button"
-          className="size-10 items-center justify-center rounded-app-pill bg-app-surface-strong active:bg-app-surface-selected dark:bg-app-surface-strong-dark dark:active:bg-app-surface-selected-dark"
-          hitSlop={8}
-          onPress={() => router.navigate('/(app)/profil')}
+        <View
+          accessibilityLabel="EBYS"
+          accessibilityRole="header"
+          className="flex-row items-center gap-2.5"
         >
-          <UserRound color={colors.textMuted} size={21} strokeWidth={2} />
-        </Pressable>
-
-        <AppText accessibilityRole="header" variant="heading">
-          EBYS
-        </AppText>
+          <Image
+            accessibilityIgnoresInvertColors
+            contentFit="contain"
+            source={require('../../../assets/images/ebys-logo.png')}
+            style={{ height: 34, width: 34 }}
+          />
+          <AppText variant="heading">EBYS</AppText>
+        </View>
 
         <Pressable
           accessibilityLabel={isDark ? 'Açık temaya geç' : 'Koyu temaya geç'}
