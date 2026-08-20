@@ -1,21 +1,28 @@
 package btk.staj.WorkFlowProject.notification.controller;
 
+import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
 import btk.staj.WorkFlowProject.notification.dto.DeviceTokenDeleteRequest;
 import btk.staj.WorkFlowProject.notification.dto.DeviceTokenRequest;
 import btk.staj.WorkFlowProject.notification.service.DeviceTokenService;
-import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
+import javax.sql.DataSource;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/device-tokens")
+@ConditionalOnBean(DataSource.class)
 @RequiredArgsConstructor
 @Tag(name = "Device Tokens", description = "Mobil cihaz push bildirim token yönetim uçları")
 public class DeviceTokenController {

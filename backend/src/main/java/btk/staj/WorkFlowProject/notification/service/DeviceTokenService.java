@@ -7,14 +7,17 @@ import btk.staj.WorkFlowProject.user.entity.User;
 import btk.staj.WorkFlowProject.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.sql.DataSource;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Slf4j
 @Service
+@ConditionalOnBean(DataSource.class)
 @RequiredArgsConstructor
 public class DeviceTokenService {
 
@@ -23,12 +26,15 @@ public class DeviceTokenService {
 
     @Transactional
     public void registerOrUpdateToken(UUID userId, DeviceTokenRequest request) {
+        if (userId == null) {
+            throw new IllegalArgumentException("Kullanıcı kimliği doğrulanamadı.");
+        }
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Kullanıcı bulunamadı: " + userId));
 
         DeviceToken deviceToken = deviceTokenRepository.findByToken(request.getToken())
                 .map(existing -> {
-                    // Upsert Kuralı: user_id, platform, deviceName, is_active ve updated_at güncellenir
                     existing.setUser(user);
                     existing.setPlatform(request.getPlatform().toUpperCase());
                     existing.setDeviceName(request.getDeviceName());
@@ -45,12 +51,14 @@ public class DeviceTokenService {
                         .build());
 
         deviceTokenRepository.save(deviceToken);
-        log.info("Cihaz token'ı kaydedildi/güncellendi. Kullanıcı: {}, Platform: {}", user.getEmail(), request.getPlatform());
+        log.info("Cihaz token'ı kaydedildi/güncellendi. Kullanıcı: {}, Platform: {}", userId, request.getPlatform());
     }
 
     @Transactional
     public void deactivateToken(String token) {
-        deviceTokenRepository.deactivateByToken(token);
-        log.info("Cihaz token'ı pasifleştirildi. Token: {}", token);
+        if (token != null && !token.isBlank()) {
+            deviceTokenRepository.deactivateByToken(token);
+            log.info("Cihaz token'ı pasifleştirildi: {}", token);
+        }
     }
 }
