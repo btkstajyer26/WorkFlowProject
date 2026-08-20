@@ -48,7 +48,7 @@ export const FilePickerButton: React.FC<FilePickerButtonProps> = ({
       if (validFiles.length > 0) {
         onFilesSelected(validFiles);
       }
-    } catch (error) {
+    } catch {
       Alert.alert('Hata', 'Dosya seçilirken bir hata oluştu.');
     }
   };

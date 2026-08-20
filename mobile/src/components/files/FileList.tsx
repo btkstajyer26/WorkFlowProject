@@ -21,7 +21,7 @@ export const FileList: React.FC<FileListProps> = ({
 
   const handleDownload = async (file: RecordFile) => {
     try {
-      const localUri = await downloadFileToLocal(file.id, file.name);
+await downloadFileToLocal(file.id, file.name);
       Alert.alert('Başarılı', `Dosya indirildi: ${file.name}`);
     } catch (error: any) {
       Alert.alert('İndirme Hatası', error?.message || 'Dosya indirilemedi.');

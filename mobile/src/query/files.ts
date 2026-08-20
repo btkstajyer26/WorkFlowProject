@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getRecordFiles, deleteRecordFile, RecordFile } from '../api/files';
+import { getRecordFiles, deleteRecordFile } from '../api/files';
 import { processUploadQueue, SelectedFile, UploadProgressItem } from '../services/files/uploadQueue';
 
 // Query Key Sabitleri
