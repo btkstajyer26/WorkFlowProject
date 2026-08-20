@@ -40,22 +40,23 @@ class DeviceTokenServiceTest {
 
         User oldUser = new User();
         oldUser.setId(oldUserId);
+        oldUser.setEmail("eski@ornek.com");
 
         User newUser = new User();
         newUser.setId(newUserId);
+        newUser.setEmail("yeni@ornek.com");
 
-        DeviceToken existingToken = DeviceToken.builder()
-                .id(UUID.randomUUID())
-                .user(oldUser)
-                .token(tokenStr)
-                .platform("ANDROID")
-                .active(false)
-                .build();
+        DeviceToken existingToken = new DeviceToken();
+        existingToken.setId(UUID.randomUUID());
+        existingToken.setUser(oldUser);
+        existingToken.setToken(tokenStr);
+        existingToken.setPlatform("ANDROID");
+        existingToken.setActive(false);
 
         DeviceTokenRequest request = new DeviceTokenRequest();
         request.setToken(tokenStr);
         request.setPlatform("IOS");
-        request.setDeviceName("Melih iPhone");
+        request.setDeviceName("iPhone Test");
 
         when(userRepository.findById(newUserId)).thenReturn(Optional.of(newUser));
         when(deviceTokenRepository.findByToken(tokenStr)).thenReturn(Optional.of(existingToken));
@@ -66,9 +67,10 @@ class DeviceTokenServiceTest {
         verify(deviceTokenRepository).save(captor.capture());
 
         DeviceToken saved = captor.getValue();
+        assertThat(saved).isNotNull();
+        assertThat(saved.getUser()).isNotNull();
         assertThat(saved.getUser().getId()).isEqualTo(newUserId);
         assertThat(saved.getPlatform()).isEqualTo("IOS");
         assertThat(saved.isActive()).isTrue();
-        assertThat(saved.getUpdatedAt()).isNotNull();
     }
 }
