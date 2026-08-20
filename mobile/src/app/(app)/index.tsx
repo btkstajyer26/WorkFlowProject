@@ -1,43 +1,23 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View } from 'react-native';
+
+import { AppCard } from '@/components/ui/AppCard';
+import { AppText } from '@/components/ui/AppText';
+import { Screen } from '@/components/ui/Screen';
 
 export default function AppPlaceholderScreen() {
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.content}>
-        <Text accessibilityRole="header" style={styles.title}>
+    <Screen>
+      <View className="flex-1 justify-center px-6">
+        <AppCard className="gap-3">
+          <AppText accessibilityRole="header" variant="title">
           Uygulama alanı
-        </Text>
-        <Text style={styles.description}>
-          Yetkili ekranlar, oturum altyapısı tamamlandıktan sonra kendi özellik sahipleri tarafından eklenecek.
-        </Text>
+          </AppText>
+          <AppText tone="muted">
+            Yetkili ekranlar, oturum altyapısı tamamlandıktan sonra kendi özellik
+            sahipleri tarafından eklenecek.
+          </AppText>
+        </AppCard>
       </View>
-    </SafeAreaView>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f7f8fc',
-  },
-  content: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-  },
-  title: {
-    color: '#0f172a',
-    fontSize: 24,
-    fontWeight: '700',
-  },
-  description: {
-    marginTop: 12,
-    maxWidth: 340,
-    color: '#475569',
-    fontSize: 15,
-    lineHeight: 23,
-    textAlign: 'center',
-  },
-});
