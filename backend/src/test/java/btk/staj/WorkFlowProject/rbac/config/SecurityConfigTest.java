@@ -99,4 +99,18 @@ class SecurityConfigTest {
         mockMvc.perform(get("/swagger-ui/index.html"))
                 .andExpect(status().isOk());
     }
+
+    /**
+     * Reverse proxy ve container healthcheck'i bu ucu token'siz yoklar.
+     *
+     * <p>Test ayni zamanda {@code management.health.mail.enabled=false}
+     * ayarinin dogrulugunu kanitlar: mail saglik gostergesi acik kalsaydi
+     * SMTP'ye baglanmayi deneyip basarisiz olur ve uc 200 yerine 503 donerdi.
+     */
+    @Test
+    @DisplayName("actuator health giris istemeden 200 doner")
+    void healthUcuKimlikDogrulamaIstemez() throws Exception {
+        mockMvc.perform(get("/actuator/health"))
+                .andExpect(status().isOk());
+    }
 }

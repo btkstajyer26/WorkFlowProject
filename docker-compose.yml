@@ -7,7 +7,9 @@ services:
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
     ports:
-      - "${DB_PORT:-5432}:5432"
+      # Yalnız bu makineden erişilir. Sunucuya kurulduğunda 0.0.0.0'a bağlamak
+      # veritabanını internete açardı; psql/DBeaver localhost üzerinden çalışır.
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
     volumes:
       # PostgreSQL 17 ile oluşturulmuş olabilecek eski db-data volume'ünü
       # silmeden korumak için PostgreSQL 15 ayrı bir volume kullanır.
@@ -25,8 +27,10 @@ services:
     image: axllent/mailpit:latest
     container_name: workflow-mailpit
     ports:
-      - "8025:8025"
-      - "1025:1025"
+      # Yalnız bu makineden erişilir. Arayüz parola sıfırlama kodlarını ve tüm
+      # bildirim maillerini gösteriyor; 1025 de açık bir SMTP relay olurdu.
+      - "127.0.0.1:8025:8025"
+      - "127.0.0.1:1025:1025"
     restart: unless-stopped
 
   backend:
@@ -44,10 +48,26 @@ services:
       DB_NAME: ${DB_NAME:-workflowdb}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      MAIL_HOST: mailpit
-      MAIL_PORT: 1025
+      # Varsayılanlar yerel mailpit'i gösterir. TEST/PROD ortamında gerçek SMTP
+      # bilgileri .env üzerinden verilir; bu yüzden sabit değil değişken.
+      MAIL_HOST: ${MAIL_HOST:-mailpit}
+      MAIL_PORT: ${MAIL_PORT:-1025}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_AUTH: ${MAIL_AUTH:-false}
+      MAIL_STARTTLS: ${MAIL_STARTTLS:-false}
+      MAIL_FROM: ${MAIL_FROM:-ebys@ornek.local}
       UPLOAD_DIR: /app/uploads
       JWT_SECRET: ${JWT_SECRET:-yerel-gelistirme-icin-en-az-32-karakter-uzunlugunda-gecici-anahtar}
+      JWT_ACCESS_TOKEN_EXPIRATION: ${JWT_ACCESS_TOKEN_EXPIRATION:-3600000}
+      JWT_REFRESH_TOKEN_EXPIRATION: ${JWT_REFRESH_TOKEN_EXPIRATION:-604800000}
+      # E-postadaki derin bağlantının işaret ettiği arayüz adresi ve tarayıcıdan
+      # gelen isteklerin izinli origin listesi. TEST ortamında ikisi de değişir.
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
+      # Tarihler LocalDateTime olarak, yani sunucu yerel saatiyle saklanıyor.
+      # Sunucu UTC kalırsa bütün kayıt saatleri ekipçe geride görünür.
+      TZ: ${TZ:-Europe/Istanbul}
       BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
       BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
       # Mobil push bildirimleri icin FCM servis hesabi; bos birakilirsa push atlanir.
@@ -55,9 +75,20 @@ services:
       FCM_CLIENT_EMAIL: ${FCM_CLIENT_EMAIL:-}
       FCM_PRIVATE_KEY: ${FCM_PRIVATE_KEY:-}
     ports:
-      - "8080:8080"
+      # Yalnız bu makineden erişilir. Sunucuya kurulduğunda 0.0.0.0'a bağlamak
+      # backend'i TLS'siz olarak internete açardı; dışarıya çıkan tek servis
+      # Caddy'dir (bkz. docker-compose.test.yml).
+      - "127.0.0.1:8080:8080"
     volumes:
       - uploads:/app/uploads
+    healthcheck:
+      # İmaj alpine tabanlı: curl yok, busybox wget var.
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      # İlk açılışta Flyway migration'ları çalıştığı için cömert tutuldu.
+      start_period: 60s
     restart: unless-stopped
 
   # Frontend geliştirme servisini gerektiğinde profille başlatın:
