@@ -27,9 +27,7 @@ public class RecordAccessPolicy {
         return switch (role) {
             case CALISAN -> currentUserId.equals(recordCreatedBy);
 
-            
             // Bsk. Yrd. kendisine atanan kayitlari VE düzeltme bekleyen kayıtları gorur (Salt Okunur).
-            case BASKAN_YARDIMCISI -> currentUserId.equals(recordAssignedTo) 
             // Ucuncu kol Baskana ilettigi evraki kapsar: BASKANA_ILET ile
             // assignedTo Baskana gecer ama lastDeputyId ileten yardimcida
             // kalir. Bu olmadan panodaki "Baskan incelemesinde" ve
@@ -37,6 +35,7 @@ public class RecordAccessPolicy {
             case BASKAN_YARDIMCISI -> currentUserId.equals(recordAssignedTo)
                     || status == RecordStatus.DUZENLEME_BEKLIYOR
                     || currentUserId.equals(recordLastDeputyId);
+
             // Baskanin kapsami role bagli, kullaniciya degil: onayina gelen her
             // kaydi zaten atanmis olup olmadigina bakmadan gorur.
             //
@@ -47,8 +46,8 @@ public class RecordAccessPolicy {
             // Baskanin karariyla gelinebildigi icin kapsami genisletmez.
             case BASKAN -> status == RecordStatus.BASKAN_INCELEMESINDE
                     || status == RecordStatus.ONAYLANDI
-                    || status == RecordStatus.REDDEDILDI
-            
+                    || status == RecordStatus.REDDEDILDI;
+
             // ADMIN yalnizca kullanici ve rol yonetiminden sorumludur; evrak goremez.
             case ADMIN -> false;
         };

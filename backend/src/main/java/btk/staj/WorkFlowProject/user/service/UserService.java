@@ -46,11 +46,11 @@ public class UserService {
                        PasswordEncoder passwordEncoder,
                        UserAuditLogService userAuditLogService,
                        CurrentActorProvider currentActorProvider,
-
                        RecordRepository recordRepository) { // Constructor'a eklendi
-
-                       RecordRepository recordRepository) {
         this.userRepository = userRepository;
+        this.roleRepository = roleRepository;
+        this.tokenRepository = tokenRepository;
+        this.passwordEncoder = passwordEncoder;
         this.userAuditLogService = userAuditLogService;
         this.currentActorProvider = currentActorProvider;
         this.recordRepository = recordRepository; // Ataması yapıldı
