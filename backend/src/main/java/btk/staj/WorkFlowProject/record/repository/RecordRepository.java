@@ -36,4 +36,12 @@ public interface RecordRepository extends JpaRepository<Record, UUID>, JpaSpecif
     @Modifying
     @Query("UPDATE Record r SET r.assignedTo = :yeniKullaniciId WHERE r.assignedTo = :eskiKullaniciId")
     int devretBekleyenIsleri(@Param("eskiKullaniciId") UUID eskiKullaniciId, @Param("yeniKullaniciId") UUID yeniKullaniciId);
+
+    // 7. İş M5 fix: Bşk. Yrd. koltuğu el değiştirdiğinde, eski kullanıcıyı "son Bşk. Yrd."
+    // olarak referanslayan kayıtları da güncelle. Aksi halde BASKAN_YARDIMCISINA_GERI_GONDER
+    // işlemi artık Bşk. Yrd. olmayan eski kullanıcıyı hedeflemeye çalışıp hata veriyor.
+    @Modifying
+    @Query("UPDATE Record r SET r.lastDeputyId = :yeniKullaniciId WHERE r.lastDeputyId = :eskiKullaniciId")
+    int updateLastDeputyId(@Param("eskiKullaniciId") UUID eskiKullaniciId, @Param("yeniKullaniciId") UUID yeniKullaniciId);
+
 }
