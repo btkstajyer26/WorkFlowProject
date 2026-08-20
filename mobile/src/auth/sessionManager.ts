@@ -1,7 +1,9 @@
 import {
+  changePassword as requestChangePassword,
   login as requestLogin,
   logout as requestLogout,
   refreshSession as requestRefreshSession,
+  type ChangePasswordRequest,
   type LoginRequest,
   type LoginResponse,
 } from '@/api/auth';
@@ -16,6 +18,22 @@ import {
 
 let refreshRequest: Promise<LoginResponse> | null = null;
 
+export type AuthSession = {
+  mustChangePassword: boolean;
+};
+
+type SessionListener = (session: AuthSession | null) => void;
+
+const sessionListeners = new Set<SessionListener>();
+
+function publishSession(session: LoginResponse | null): void {
+  const publicSession = session
+    ? { mustChangePassword: session.mustChangePassword }
+    : null;
+
+  sessionListeners.forEach((listener) => listener(publicSession));
+}
+
 async function requestFreshSession(): Promise<LoginResponse> {
   const refreshToken = await getRefreshToken();
 
@@ -26,9 +44,11 @@ async function requestFreshSession(): Promise<LoginResponse> {
   try {
     const session = await requestRefreshSession({ refreshToken });
     await saveSessionTokens(session);
+    publishSession(session);
     return session;
   } catch (error) {
     await clearSessionTokens();
+    publishSession(null);
     throw error;
   }
 }
@@ -46,6 +66,7 @@ function refreshCurrentSession(): Promise<LoginResponse> {
 export async function startSession(credentials: LoginRequest): Promise<LoginResponse> {
   const session = await requestLogin(credentials);
   await saveSessionTokens(session);
+  publishSession(session);
   return session;
 }
 
@@ -69,7 +90,19 @@ export async function endSession(): Promise<void> {
     }
   } finally {
     await clearSessionTokens();
+    publishSession(null);
   }
+}
+
+export async function updatePassword(request: ChangePasswordRequest): Promise<void> {
+  await requestChangePassword(request);
+  await clearSessionTokens();
+  publishSession(null);
+}
+
+export function subscribeToSession(listener: SessionListener): () => void {
+  sessionListeners.add(listener);
+  return () => sessionListeners.delete(listener);
 }
 
 setApiAuthHandlers({
