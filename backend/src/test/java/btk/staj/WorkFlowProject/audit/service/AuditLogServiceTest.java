@@ -2,6 +2,7 @@ package btk.staj.WorkFlowProject.audit.service;
 
 import btk.staj.WorkFlowProject.audit.dto.AuditLogResponse;
 import btk.staj.WorkFlowProject.audit.entity.AuditLog;
+import btk.staj.WorkFlowProject.audit.model.RequestAccessEvent;
 import btk.staj.WorkFlowProject.audit.repository.AuditLogRepository;
 import btk.staj.WorkFlowProject.rbac.Role;
 import btk.staj.WorkFlowProject.user.repository.RoleRepository;
@@ -146,7 +147,7 @@ class AuditLogServiceTest {
         AuditLogResponse row = new AuditLogResponse(
                 UUID.randomUUID(), RECORD_ID, ACTOR_ID, "Ahmet Yılmaz", 1, "CALISAN",
                 "GONDER", "TASLAK", "BSK_YRD_INCELEMESINDE",
-                "Onayınıza sunulmuştur.", LocalDateTime.now());
+                "Onayınıza sunulmuştur.", null, null, null, null, LocalDateTime.now());
         when(auditLogRepository.findHistoryByRecordId(RECORD_ID)).thenReturn(List.of(row));
 
         assertThat(service.getGecmis(RECORD_ID))
@@ -155,6 +156,143 @@ class AuditLogServiceTest {
                     assertThat(result.userFullName()).isEqualTo("Ahmet Yılmaz");
                     assertThat(result.roleName()).isEqualTo("CALISAN");
                 });
+    }
+
+    // ---------------- devre kadar kirpilmis gecmis ----------------
+
+    @Test
+    @DisplayName("geri gonderme sonrasi yapilan duzenlemeleri gecmisten cikarir")
+    void hidesTheEditsMadeAfterTheRecordWasHandedBack() {
+        LocalDateTime start = LocalDateTime.of(2026, 8, 19, 9, 0);
+        when(auditLogRepository.findHistoryByRecordId(RECORD_ID)).thenReturn(List.of(
+                transitionRow("GONDER", "TASLAK", "BSK_YRD_INCELEMESINDE", start),
+                transitionRow("CALISANA_GERI_GONDER", "BSK_YRD_INCELEMESINDE",
+                        "DUZENLEME_BEKLIYOR", start.plusMinutes(10)),
+                lifecycleRow("RECORD_UPDATED", "DUZENLEME_BEKLIYOR", start.plusMinutes(20)),
+                lifecycleRow("RECORD_UPDATED", "DUZENLEME_BEKLIYOR", start.plusMinutes(30))));
+
+        assertThat(service.getGecmisDevreKadar(RECORD_ID))
+                .extracting(AuditLogResponse::action)
+                .containsExactly("GONDER", "CALISANA_GERI_GONDER");
+    }
+
+    @Test
+    @DisplayName("kirpma yalnizca son geri gondermeye gore yapilir")
+    void trimsAtTheMostRecentHandoff() {
+        LocalDateTime start = LocalDateTime.of(2026, 8, 19, 9, 0);
+        when(auditLogRepository.findHistoryByRecordId(RECORD_ID)).thenReturn(List.of(
+                transitionRow("CALISANA_GERI_GONDER", "BSK_YRD_INCELEMESINDE",
+                        "DUZENLEME_BEKLIYOR", start),
+                lifecycleRow("RECORD_UPDATED", "DUZENLEME_BEKLIYOR", start.plusMinutes(5)),
+                transitionRow("TEKRAR_GONDER", "DUZENLEME_BEKLIYOR",
+                        "BSK_YRD_INCELEMESINDE", start.plusMinutes(10)),
+                transitionRow("CALISANA_GERI_GONDER", "BSK_YRD_INCELEMESINDE",
+                        "DUZENLEME_BEKLIYOR", start.plusMinutes(20)),
+                lifecycleRow("RECORD_UPDATED", "DUZENLEME_BEKLIYOR", start.plusMinutes(25))));
+
+        // Ikinci turdaki duzenleme gizlenir; kapanmis onceki turun tamami acik kalir.
+        assertThat(service.getGecmisDevreKadar(RECORD_ID))
+                .extracting(AuditLogResponse::action)
+                .containsExactly("CALISANA_GERI_GONDER", "RECORD_UPDATED", "TEKRAR_GONDER",
+                        "CALISANA_GERI_GONDER");
+    }
+
+    @Test
+    @DisplayName("devir anini aciklayan gecis yoksa hicbir satir donmez")
+    void returnsNothingWhenTheHandoffCannotBeLocated() {
+        LocalDateTime start = LocalDateTime.of(2026, 8, 19, 9, 0);
+        when(auditLogRepository.findHistoryByRecordId(RECORD_ID)).thenReturn(List.of(
+                lifecycleRow("RECORD_CREATED", "TASLAK", start),
+                lifecycleRow("RECORD_UPDATED", "DUZENLEME_BEKLIYOR", start.plusMinutes(5))));
+
+        assertThat(service.getGecmisDevreKadar(RECORD_ID)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("kirpilmamis gecmis butun satirlari dondurmeye devam eder")
+    void theUntrimmedHistoryStillReturnsEverything() {
+        LocalDateTime start = LocalDateTime.of(2026, 8, 19, 9, 0);
+        when(auditLogRepository.findHistoryByRecordId(RECORD_ID)).thenReturn(List.of(
+                transitionRow("CALISANA_GERI_GONDER", "BSK_YRD_INCELEMESINDE",
+                        "DUZENLEME_BEKLIYOR", start),
+                lifecycleRow("RECORD_UPDATED", "DUZENLEME_BEKLIYOR", start.plusMinutes(5))));
+
+        assertThat(service.getGecmis(RECORD_ID)).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("Baskana iletilmeden onceki satirlari gecmisten cikarir")
+    void hidesEverythingBeforeTheRecordReachedThePresident() {
+        LocalDateTime start = LocalDateTime.of(2026, 8, 19, 9, 0);
+        when(auditLogRepository.findHistoryByRecordId(RECORD_ID)).thenReturn(List.of(
+                lifecycleRow("RECORD_CREATED", "TASLAK", start),
+                transitionRow("GONDER", "TASLAK", "BSK_YRD_INCELEMESINDE", start.plusMinutes(5)),
+                transitionRow("CALISANA_GERI_GONDER", "BSK_YRD_INCELEMESINDE",
+                        "DUZENLEME_BEKLIYOR", start.plusMinutes(10)),
+                lifecycleRow("RECORD_UPDATED", "DUZENLEME_BEKLIYOR", start.plusMinutes(15)),
+                transitionRow("TEKRAR_GONDER", "DUZENLEME_BEKLIYOR",
+                        "BSK_YRD_INCELEMESINDE", start.plusMinutes(20)),
+                transitionRow("BASKANA_ILET", "BSK_YRD_INCELEMESINDE",
+                        "BASKAN_INCELEMESINDE", start.plusMinutes(25)),
+                transitionRow("REDDET", "BASKAN_INCELEMESINDE", "REDDEDILDI", start.plusMinutes(30))));
+
+        assertThat(service.getGecmisIletimdenItibaren(RECORD_ID))
+                .extracting(AuditLogResponse::action)
+                .containsExactly("BASKANA_ILET", "REDDET");
+    }
+
+    /**
+     * Kesme noktasi ilk iletim: Baskan evraki yardimciya geri gonderip tekrar
+     * aldiginda son iletime gore kirpmak, kendi yazdigi geri gonderme
+     * gerekcesini de gizlerdi.
+     */
+    @Test
+    @DisplayName("kirpma ilk iletime gore yapilir, Baskanin kendi satirlari kalir")
+    void trimsAtTheFirstHandoverSoThePresidentKeepsTheirOwnRows() {
+        LocalDateTime start = LocalDateTime.of(2026, 8, 19, 9, 0);
+        when(auditLogRepository.findHistoryByRecordId(RECORD_ID)).thenReturn(List.of(
+                transitionRow("GONDER", "TASLAK", "BSK_YRD_INCELEMESINDE", start),
+                transitionRow("BASKANA_ILET", "BSK_YRD_INCELEMESINDE",
+                        "BASKAN_INCELEMESINDE", start.plusMinutes(10)),
+                transitionRow("BASKAN_YARDIMCISINA_GERI_GONDER", "BASKAN_INCELEMESINDE",
+                        "BSK_YRD_INCELEMESINDE", start.plusMinutes(20)),
+                transitionRow("BASKANA_ILET", "BSK_YRD_INCELEMESINDE",
+                        "BASKAN_INCELEMESINDE", start.plusMinutes(30)),
+                transitionRow("ONAYLA", "BASKAN_INCELEMESINDE", "ONAYLANDI", start.plusMinutes(40))));
+
+        assertThat(service.getGecmisIletimdenItibaren(RECORD_ID))
+                .extracting(AuditLogResponse::action)
+                .containsExactly("BASKANA_ILET", "BASKAN_YARDIMCISINA_GERI_GONDER",
+                        "BASKANA_ILET", "ONAYLA");
+    }
+
+    @Test
+    @DisplayName("iletim anini aciklayan gecis yoksa hicbir satir donmez")
+    void returnsNothingWhenTheHandoverCannotBeLocated() {
+        LocalDateTime start = LocalDateTime.of(2026, 8, 19, 9, 0);
+        when(auditLogRepository.findHistoryByRecordId(RECORD_ID)).thenReturn(List.of(
+                lifecycleRow("RECORD_CREATED", "TASLAK", start),
+                lifecycleRow("RECORD_UPDATED", "BASKAN_INCELEMESINDE", start.plusMinutes(5))));
+
+        assertThat(service.getGecmisIletimdenItibaren(RECORD_ID)).isEmpty();
+    }
+
+    private static AuditLogResponse transitionRow(String action, String previousStatus,
+                                                  String newStatus, LocalDateTime createdAt) {
+        return historyRow(action, previousStatus, newStatus, createdAt);
+    }
+
+    /** Olusturma/guncelleme satiri: gecis olmadigi icin previous_status tasimaz. */
+    private static AuditLogResponse lifecycleRow(String action, String currentStatus,
+                                                 LocalDateTime createdAt) {
+        return historyRow(action, null, currentStatus, createdAt);
+    }
+
+    private static AuditLogResponse historyRow(String action, String previousStatus,
+                                               String newStatus, LocalDateTime createdAt) {
+        return new AuditLogResponse(
+                UUID.randomUUID(), RECORD_ID, ACTOR_ID, "Ahmet Yılmaz", 1, "CALISAN",
+                action, previousStatus, newStatus, null, null, null, null, null, createdAt);
     }
 
     private void givenRole(String roleName, Integer roleId) {
@@ -218,5 +356,21 @@ class AuditLogServiceTest {
                 .withMessageContaining("CALISAN");
 
         verifyNoInteractions(auditLogRepository);
+    }
+
+    @Test
+    @DisplayName("admin HTTP erisimini record_id olmadan yazar")
+    void writesAdminAccessWithoutARecord() {
+        service.recordAccess(new RequestAccessEvent(
+                "LOGIN", ACTOR_ID, 4, "ADMIN",
+                "POST", "/api/auth/login", 200, "OK",
+                "POST /api/auth/login → 200"));
+
+        AuditLog saved = captureSaved();
+        assertThat(saved.getRecordId()).isNull();
+        assertThat(saved.getAction()).isEqualTo("LOGIN");
+        assertThat(saved.getHttpStatus()).isEqualTo(200);
+        assertThat(saved.getErrorCode()).isEqualTo("OK");
+        assertThat(saved.getRequestPath()).isEqualTo("/api/auth/login");
     }
 }

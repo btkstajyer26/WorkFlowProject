@@ -121,11 +121,22 @@ function initialNotifications(): StoredMockNotification[] {
   ]
 }
 
+export type StoredMockFile = {
+  id: string
+  recordId: string
+  originalName: string
+  mimeType: string
+  fileSize: number
+  uploadedBy: string
+  uploadedAt: string
+}
+
 type MockApiState = {
   records: StoredMockRecord[]
   auditLogs: AuditLogResponse[]
   notifications: StoredMockNotification[]
   createdUsers: MockApiUser[]
+  files: StoredMockFile[]
 }
 
 const state: MockApiState = {
@@ -133,6 +144,7 @@ const state: MockApiState = {
   auditLogs: [],
   notifications: [],
   createdUsers: [],
+  files: [],
 }
 
 export function resetMockApiDb() {
@@ -140,6 +152,7 @@ export function resetMockApiDb() {
   state.auditLogs = []
   state.notifications = initialNotifications()
   state.createdUsers = []
+  state.files = []
 }
 
 resetMockApiDb()
@@ -165,6 +178,12 @@ export const mockApiDb = {
   },
   get createdUsers() {
     return state.createdUsers
+  },
+  get files() {
+    return state.files
+  },
+  set files(files: StoredMockFile[]) {
+    state.files = files
   },
 }
 

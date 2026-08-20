@@ -33,6 +33,11 @@ export interface AuditLogResponse {
   userFullName?: string;
   /** @format uuid */
   userId?: string;
+  httpMethod?: string;
+  requestPath?: string;
+  /** @format int32 */
+  httpStatus?: number;
+  errorCode?: string;
 }
 
 export interface CategoryResponse {
@@ -447,6 +452,11 @@ export interface UserAuditLogResponse {
   targetUserFullName?: string;
   /** @format uuid */
   targetUserId?: string;
+  httpMethod?: string;
+  requestPath?: string;
+  /** @format int32 */
+  httpStatus?: number;
+  errorCode?: string;
 }
 
 export interface UserResponse {

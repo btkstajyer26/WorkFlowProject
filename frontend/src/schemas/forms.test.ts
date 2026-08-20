@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createUserSchema } from './admin'
-import { changePasswordSchema, loginSchema } from './auth'
+import { changePasswordSchema, forgotPasswordSchema, loginSchema, resetPasswordSchema } from './auth'
 import { recordFormSchema } from './record'
 import { getAttachmentValidationError, maxAttachmentSizeBytes } from '../config/records'
 
@@ -79,6 +79,29 @@ describe('şifre değiştirme şeması', () => {
         message: 'Yeni şifreniz mevcut şifrenizle aynı olamaz.',
       }))
     }
+  })
+})
+
+describe('şifre sıfırlama şemaları', () => {
+  it('geçersiz e-posta adresini reddeder', () => {
+    expect(forgotPasswordSchema.safeParse({ email: 'yanlis' }).success).toBe(false)
+  })
+
+  it('eşleşen güçlü şifreleri kabul eder', () => {
+    expect(resetPasswordSchema.safeParse({
+      newPassword: 'YeniParola123',
+      newPasswordConfirm: 'YeniParola123',
+    }).success).toBe(true)
+  })
+
+  it('eşleşmeyen yeni şifreleri reddeder', () => {
+    const result = resetPasswordSchema.safeParse({
+      newPassword: 'YeniParola123',
+      newPasswordConfirm: 'FarkliParola123',
+    })
+
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error.issues[0]?.path).toEqual(['newPasswordConfirm'])
   })
 })
 

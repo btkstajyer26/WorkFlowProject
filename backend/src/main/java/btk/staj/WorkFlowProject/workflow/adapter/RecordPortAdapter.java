@@ -13,6 +13,7 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Objects;
 import java.util.Optional;
@@ -59,6 +60,21 @@ public final class RecordPortAdapter implements WorkflowRecordPort {
         int currentVersion = record.getVersion() == null ? 0 : record.getVersion();
         if (currentVersion != requiredUpdate.expectedVersion()) {
             throw new WorkflowApplicationException(WorkflowErrorCode.WORKFLOW_VERSION_CONFLICT);
+        }
+
+        // Kayit duzeltmeye dusuyorsa icerik bu anda dondurulur: geri gonderen
+        // yetkili, Calisan yeniden gonderene kadar kendi biraktigi hali gorur.
+        // Aksiyon adina degil hedef duruma bakilir; ayni duruma goturen yeni bir
+        // aksiyon eklenirse kural kendiliginden gecerli kalir.
+        //
+        // Anlik goruntu durum degistirilmeden ONCE alinmali, cunku kopyalanan
+        // degerler kaydin gecis oncesi halidir.
+        if (requiredUpdate.newStatus() == RecordStatus.DUZENLEME_BEKLIYOR) {
+            record.setSnapshotTitle(record.getTitle());
+            record.setSnapshotDescription(record.getDescription());
+            record.setSnapshotCategoryId(record.getCategoryId());
+            record.setSnapshotAt(LocalDateTime.ofInstant(
+                    requiredUpdate.updatedAt(), ZoneId.systemDefault()));
         }
 
         record.setStatus(requiredUpdate.newStatus());

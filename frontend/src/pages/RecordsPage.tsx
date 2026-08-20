@@ -20,7 +20,8 @@ import { useDebouncedSearchParam } from '../hooks/useDebouncedSearchParam'
 import { apiMode } from '../api/config'
 import { searchRecords, type RecordSearchListItem } from '../api/recordSearch'
 import { queryKeys } from '../query/queryKeys'
-import type { UserRole } from '../types/auth'
+import { getDemoUserById } from '../mocks/users'
+import type { AuthUser, UserRole } from '../types/auth'
 import type { RecordStatus, WorkflowRecord } from '../types/record'
 import { ListLoadingSkeleton } from '../components/feedback/LoadingSkeleton'
 
@@ -72,7 +73,33 @@ function isValidDateParam(value: string | null) {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value
 }
 
-type RecordListViewItem = Pick<WorkflowRecord, 'id' | 'title' | 'description' | 'categoryId' | 'category' | 'status' | 'createdAt'>
+/**
+ * Ad backend'den `createdByFullName` ile gelir. Buradaki geri dusme yollari
+ * yalnizca mock modu ve alani tasimayan eski cevaplar icindir; islem gecmisini
+ * tarayarak ad cozmek artik yapilmiyor, cunku gecmisi kirpilan roller (Baskan)
+ * olusturma satirini hic gormedigi icin yanlis kisiyi gosterirdi.
+ */
+function formatCreatorName(
+  createdBy?: string,
+  createdByFullName?: string,
+  currentUser?: AuthUser,
+) {
+  if (createdByFullName?.trim()) return createdByFullName.trim()
+  if (!createdBy) return '—'
+  if (currentUser && currentUser.id === createdBy) {
+    return `${currentUser.firstName} ${currentUser.lastName}`
+  }
+  const demo = getDemoUserById(createdBy)
+  if (demo) return `${demo.firstName} ${demo.lastName}`
+  return createdBy
+}
+
+type RecordListViewItem = Pick<
+  WorkflowRecord,
+  'id' | 'title' | 'description' | 'categoryId' | 'category' | 'status' | 'createdAt' | 'createdBy'
+> & {
+  createdByFullName?: string
+}
 
 function canEditRecord(role: UserRole, record: RecordListViewItem) {
   return role === 'CALISAN' && (record.status === 'TASLAK' || record.status === 'DUZENLEME_BEKLIYOR')
@@ -86,12 +113,14 @@ function toRecordListViewItem(record: RecordSearchListItem): RecordListViewItem 
     categoryId: record.category.id,
     category: record.category.name,
     status: record.status,
+    createdBy: record.createdBy,
+    createdByFullName: record.createdByFullName,
     createdAt: record.createdAt,
   }
 }
 
 export function RecordsPage({ role }: { role: UserRole }) {
-  const { visibleRecords: records } = useWorkflow()
+  const { visibleRecords: records, user } = useWorkflow()
   const { categories, status: categoryStatus, reloadCategories } = useCategories()
   const [searchParams, setSearchParams] = useSearchParams()
   const rawView = searchParams.get('gorunum')
@@ -214,6 +243,7 @@ export function RecordsPage({ role }: { role: UserRole }) {
       ? serverRecords.slice(pageStart, pageStart + pageSize)
       : serverRecords
     : filteredRecords.slice(pageStart, pageStart + pageSize)
+
   const recordsPending = backendMode && categoryStatus !== 'error' && serverQueries.some((query) => query.isPending)
   const recordsError = backendMode && (categoryStatus === 'error' || serverQueries.some((query) => query.isError))
   const activeFilterCount = [categoryId !== 'ALL', status !== 'ALL', Boolean(dateFrom), Boolean(dateTo), Boolean(creator)].filter(Boolean).length
@@ -387,27 +417,29 @@ export function RecordsPage({ role }: { role: UserRole }) {
         ) : visibleRecords.length > 0 ? (
           <>
             <div className="hidden overflow-x-auto lg:block">
-              <table className="w-full min-w-[780px] border-collapse text-left">
+              <table className="w-full min-w-[840px] table-fixed border-collapse text-left">
                 <thead className="bg-app-surface-muted/80 text-xs font-bold text-app-text-subtle">
                   <tr>
-                    <th className="px-5 py-3.5">Kayıt</th>
-                    <th className="px-4 py-3.5">Kategori</th>
-                    <th className="px-4 py-3.5">Durum</th>
-                    <th className="px-4 py-3.5">Oluşturulma</th>
-                    <th className="px-5 py-3.5 text-right">İşlem</th>
+                    <th className="w-[26%] px-5 py-3.5">Kayıt</th>
+                    <th className="w-[15%] px-4 py-3.5">Kategori</th>
+                    <th className="w-[18%] px-4 py-3.5">Durum</th>
+                    <th className="w-[16%] px-4 py-3.5">Oluşturulma</th>
+                    <th className="w-[17%] px-4 py-3.5">Oluşturan</th>
+                    <th className="w-[8%] px-5 py-3.5 text-right">İşlem</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-app-border-subtle">
                   {visibleRecords.map((record) => (
                     <tr key={record.id} className="group transition-colors hover:bg-brand-50/35 dark:hover:bg-brand-900/20">
                       <td className="px-5 py-4">
-                        <Link to={`/kayitlar/${record.id}`} className="font-bold text-app-text-strong transition hover:text-brand-700 dark:hover:text-brand-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500">
+                        <Link to={`/kayitlar/${record.id}`} className="block truncate font-bold text-app-text-strong transition hover:text-brand-700 dark:hover:text-brand-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500">
                           {record.title}
                         </Link>
                       </td>
-                      <td className="px-4 py-4 text-sm font-medium text-app-text-muted">{record.category}</td>
+                      <td className="truncate px-4 py-4 text-sm font-medium text-app-text-muted">{record.category}</td>
                       <td className="px-4 py-4"><RecordStatusBadge status={record.status} /></td>
                       <td className="whitespace-nowrap px-4 py-4 text-xs font-medium text-app-text-subtle">{dateFormatter.format(new Date(record.createdAt))}</td>
+                      <td className="truncate whitespace-nowrap px-4 py-4 text-xs font-medium text-app-text-secondary">{formatCreatorName(record.createdBy, record.createdByFullName, user)}</td>
                       <td className="px-5 py-4 text-right">
                         <Link
                           to={canEditRecord(role, record) ? `/kayitlar/${record.id}/duzenle` : `/kayitlar/${record.id}`}
@@ -432,10 +464,14 @@ export function RecordsPage({ role }: { role: UserRole }) {
                     </div>
                     <RecordStatusBadge status={record.status} />
                   </div>
-                  <dl className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-app-surface-muted p-3 text-xs">
+                  <dl className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-app-surface-muted p-3 text-xs sm:grid-cols-3">
                     <div>
                       <dt className="font-semibold text-app-text-subtle">Kategori</dt>
                       <dd className="mt-1 font-bold text-app-text-emphasis">{record.category}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold text-app-text-subtle">Oluşturan</dt>
+                      <dd className="mt-1 font-bold text-app-text-emphasis">{formatCreatorName(record.createdBy, record.createdByFullName, user)}</dd>
                     </div>
                     <div>
                       <dt className="font-semibold text-app-text-subtle">Oluşturulma</dt>

@@ -7,6 +7,7 @@ import btk.staj.WorkFlowProject.attachment.storage.FileStorageService;
 import btk.staj.WorkFlowProject.common.exception.BusinessRuleException;
 import btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
+import btk.staj.WorkFlowProject.record.view.RecordContentView;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -58,7 +59,9 @@ class FileServiceTest {
                 fileContentValidator,
                 recordLockValidator,
                 recordRepository,
-                recordAccessPolicy
+                recordAccessPolicy,
+                // Icerik gorunurlugu kurali gercek policy uzerinden calissin.
+                new RecordContentView(new RecordAccessPolicy())
         );
     }
 

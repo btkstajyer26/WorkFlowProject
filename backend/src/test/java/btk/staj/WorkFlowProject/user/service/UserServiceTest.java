@@ -66,7 +66,8 @@ class UserServiceTest {
         userService = new UserService(
                 userRepository, roleRepository, tokenRepository,
                 passwordEncoder, userAuditLogService, currentActorProvider, recordRepository);
-        
+
+
         lenient().when(currentActorProvider.currentActor())
                 .thenReturn(new CurrentActor(ADMIN_ACTOR_ID, RoleName.ADMIN));
     }

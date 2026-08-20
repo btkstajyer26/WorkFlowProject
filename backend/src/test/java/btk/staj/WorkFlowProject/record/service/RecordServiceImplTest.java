@@ -12,6 +12,9 @@ import btk.staj.WorkFlowProject.record.dto.RecordResponse;
 import btk.staj.WorkFlowProject.record.dto.RecordUpdateRequest;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.mapper.RecordMapper;
+import btk.staj.WorkFlowProject.record.view.RecordContentView;
+import btk.staj.WorkFlowProject.user.entity.User;
+import btk.staj.WorkFlowProject.user.repository.UserRepository;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
@@ -48,13 +51,20 @@ class RecordServiceImplTest {
     @Mock
     private AuditLogService auditLogService; // AuditLogService mock'u eklendi
 
+    private final UserRepository userRepository = mock(UserRepository.class);
+
     private final UUID recordId = UUID.randomUUID();
     private final UUID ownerId = UUID.randomUUID();
     private final UUID otherUserId = UUID.randomUUID();
 
+    /**
+     * RecordContentView mock'lanmaz: icerik gorunurlugu kurali gercek
+     * RecordAccessPolicy uzerinden calissin, boylece testler kaydin dogru
+     * icerikle donduruldugunu de dogrular.
+     */
     private RecordServiceImpl service() {
-        // auditLogService constructor'a eklendi
-        return new RecordServiceImpl(recordRepository, recordMapper, recordAccessPolicy, permissionService, auditLogService);
+        return new RecordServiceImpl(recordRepository, recordMapper, recordAccessPolicy, permissionService,
+                auditLogService, new RecordContentView(new RecordAccessPolicy()), userRepository);
     }
 
     /** Verilen kullanici id/rolunu SecurityContextHolder'a giris yapmis kullanici olarak kaydeder. */
@@ -68,6 +78,13 @@ class RecordServiceImplTest {
 
         var authentication = new UsernamePasswordAuthenticationToken(authenticatedUser, null, java.util.List.of());
         SecurityContextHolder.getContext().setAuthentication(authentication);
+    }
+
+    private static User kullanici(String ad, String soyad) {
+        User user = new User();
+        user.setFirstName(ad);
+        user.setLastName(soyad);
+        return user;
     }
 
     private Record ornekKayit(RecordStatus status, UUID createdBy) {
@@ -143,7 +160,7 @@ class RecordServiceImplTest {
         when(recordRepository.findById(recordId)).thenReturn(Optional.of(kayit));
 
         doThrow(new ForbiddenException("Bu kaydı görüntüleme yetkiniz yok"))
-                .when(recordAccessPolicy).assertCanView(RoleName.CALISAN, otherUserId, ownerId, null, RecordStatus.TASLAK);
+                .when(recordAccessPolicy).assertCanView(RoleName.CALISAN, otherUserId, ownerId, null, null, RecordStatus.TASLAK);
 
         assertThrows(ForbiddenException.class, () -> service().getRecordById(recordId));
     }
@@ -153,10 +170,14 @@ class RecordServiceImplTest {
         girisYapmisKullaniciOlustur(ownerId, RoleName.CALISAN);
         Record kayit = ornekKayit(RecordStatus.TASLAK, ownerId);
         when(recordRepository.findById(recordId)).thenReturn(Optional.of(kayit));
-        when(recordMapper.toResponse(kayit)).thenReturn(new RecordResponse());
+        // Detay cevabi olusturanin adini da tasir; ad kaydin created_by'sindan
+        // cozulur, denetim izinden degil.
+        when(userRepository.findById(ownerId)).thenReturn(Optional.of(kullanici("Ahmet", "Yılmaz")));
+        when(recordMapper.toResponse(eq(kayit), any(RecordContentView.Content.class), eq("Ahmet Yılmaz")))
+                .thenReturn(new RecordResponse());
 
         assertNotNull(service().getRecordById(recordId));
-        verify(recordAccessPolicy).assertCanView(RoleName.CALISAN, ownerId, ownerId, null, RecordStatus.TASLAK);
+        verify(recordAccessPolicy).assertCanView(RoleName.CALISAN, ownerId, ownerId, null, null, RecordStatus.TASLAK);
     }
 
     // ---------------------------------------------------------------

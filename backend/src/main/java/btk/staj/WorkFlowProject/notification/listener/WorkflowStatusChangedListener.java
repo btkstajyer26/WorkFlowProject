@@ -15,8 +15,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -55,53 +58,84 @@ public class WorkflowStatusChangedListener {
 
     @EventListener
     public void createInAppNotification(WorkflowStatusChangedEvent event) {
-        UUID recipientId = recipientOf(event);
-        if (recipientId == null) {
+        Set<UUID> recipients = recipientsOf(event);
+        if (recipients.isEmpty()) {
             return;
         }
 
-        notificationService.create(
-                recipientId,
-                event.recordId(),
-                message(event),
-                NotificationType.of(event.action()));
+        String msg = message(event);
+        NotificationType type = NotificationType.of(event.action());
+
+        for (UUID recipientId : recipients) {
+            notificationService.create(
+                    recipientId,
+                    event.recordId(),
+                    msg,
+                    type);
+        }
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void sendMail(WorkflowStatusChangedEvent event) {
-        UUID recipientId = recipientOf(event);
-        if (recipientId == null) {
+        Set<UUID> recipients = recipientsOf(event);
+        if (recipients.isEmpty()) {
             return;
         }
 
-        Optional<User> recipient = userRepository.findById(recipientId);
-        if (recipient.isEmpty()) {
-            log.warn("Bildirim e-postası gönderilemedi, kullanıcı bulunamadı: {}", recipientId);
-            return;
-        }
+        String title = recordTitle(event.recordId());
+        String statusName = event.newStatus().name();
 
-        User user = recipient.get();
-        mailService.sendStatusChangeMail(
-                user.getEmail(),
-                fullName(user),
-                event.recordId(),
-                recordTitle(event.recordId()),
-                event.newStatus().name(),
-                event.comment());
+        for (UUID recipientId : recipients) {
+            Optional<User> recipient = userRepository.findById(recipientId);
+            if (recipient.isEmpty()) {
+                log.warn("Bildirim e-postası gönderilemedi, kullanıcı bulunamadı: {}", recipientId);
+                continue;
+            }
+
+            User user = recipient.get();
+            mailService.sendStatusChangeMail(
+                    user.getEmail(),
+                    fullName(user),
+                    event.recordId(),
+                    title,
+                    statusName,
+                    event.comment());
+        }
     }
 
     /**
-     * Bildirimi kim almali: gecis sonrasi sirasi gelen kisi. Onay ve reddin
-     * ardindan kayit kimseye atanmaz; o zaman haberi olmasi gereken kisi
-     * evragi olusturandir.
+     * Bildirimi kim(ler) almali:
+     * <ul>
+     *   <li>{@code event.assignedTo() != null} -> yalniz atanan kisi.</li>
+     *   <li>{@code assignedTo == null} (nihai onay/ret) -> kaydi olusturan ve
+     *       kaydi Baskana ileten yardimci ({@code Record.lastDeputyId}).</li>
+     * </ul>
+     * LinkedHashSet sira garantisi verir ve ayni kisi iki role denk geldiginde mukerrerligi onler.
      */
-    private UUID recipientOf(WorkflowStatusChangedEvent event) {
+    public Set<UUID> recipientsOf(WorkflowStatusChangedEvent event) {
+        Set<UUID> recipients = new LinkedHashSet<>();
+
         if (event.assignedTo() != null) {
-            return event.assignedTo();
+            recipients.add(event.assignedTo());
+            return recipients;
         }
-        return recordRepository.findById(event.recordId())
-                .map(Record::getCreatedBy)
-                .orElse(null);
+
+        Optional<Record> recordOpt = recordRepository.findById(event.recordId());
+        if (recordOpt.isEmpty()) {
+            return Collections.emptySet();
+        }
+
+        Record record = recordOpt.get();
+
+        if (record.getCreatedBy() != null) {
+            recipients.add(record.getCreatedBy());
+        }
+
+        if (record.getLastDeputyId() != null) {
+            recipients.add(record.getLastDeputyId());
+        }
+
+        return recipients;
     }
 
     private String recordTitle(UUID recordId) {

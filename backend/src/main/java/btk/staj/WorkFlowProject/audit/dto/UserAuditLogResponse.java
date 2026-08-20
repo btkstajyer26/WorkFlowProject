@@ -20,6 +20,10 @@ public record UserAuditLogResponse(
         Boolean previousActive,
         Boolean newActive,
         String comment,
+        String httpMethod,
+        String requestPath,
+        Integer httpStatus,
+        String errorCode,
         LocalDateTime createdAt) {
 
     public static UserAuditLogResponse from(UserAuditLog log) {
@@ -37,6 +41,10 @@ public record UserAuditLogResponse(
                 log.getPreviousActive(),
                 log.getNewActive(),
                 log.getComment(),
+                log.getHttpMethod(),
+                log.getRequestPath(),
+                log.getHttpStatus(),
+                log.getErrorCode(),
                 log.getCreatedAt());
     }
 }

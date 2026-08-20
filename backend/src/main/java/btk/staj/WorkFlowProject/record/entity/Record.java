@@ -52,6 +52,23 @@ public class Record {
     @Column(name = "last_deputy_id")
     private UUID lastDeputyId;
 
+    // Kayit Calisana geri gonderildigi anda icerigin dondurulmus kopyasi.
+    // Baskan Yardimcisi, evrak duzeltmedeyken canli icerigi degil bunu gorur
+    // (bkz. V9 migration ve RecordAccessPolicy.seesRecordAsOfHandoff).
+    // Hic geri gonderilmemis kayitlarda bos kalir.
+    @Column(name = "snapshot_title", length = 255)
+    private String snapshotTitle;
+
+    @Column(name = "snapshot_description", columnDefinition = "TEXT")
+    private String snapshotDescription;
+
+    @Column(name = "snapshot_category_id")
+    private Integer snapshotCategoryId;
+
+    /** Devir ani. Ek dosyalar bu zamana gore suzulur; ayrica kopyalanmazlar. */
+    @Column(name = "snapshot_at")
+    private LocalDateTime snapshotAt;
+
     // version: Optimistic Locking için, default 0
     @Version
     @Column(name = "version", nullable = false)

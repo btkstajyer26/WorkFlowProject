@@ -10,6 +10,7 @@ import btk.staj.WorkFlowProject.common.exception.ResourceNotFoundException;
 import btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
+import btk.staj.WorkFlowProject.record.view.RecordContentView;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ContentDisposition;
@@ -35,12 +36,26 @@ public class FileService {
     private final RecordLockValidator recordLockValidator;
     private final RecordRepository recordRepository;
     private final RecordAccessPolicy recordAccessPolicy;
+    private final RecordContentView recordContentView;
 
-    private void assertCanViewRecord(UUID recordId, RoleName role, UUID currentUserId) {
+    private Record assertCanViewRecord(UUID recordId, RoleName role, UUID currentUserId) {
         Record record = recordRepository.findById(recordId)
                 .orElseThrow(() -> new ResourceNotFoundException("Kayıt bulunamadı: " + recordId));
         recordAccessPolicy.assertCanView(
-                role, currentUserId, record.getCreatedBy(), record.getAssignedTo(), record.getStatus());
+                role, currentUserId, record.getCreatedBy(), record.getAssignedTo(),
+                record.getLastDeputyId(), record.getStatus());
+        return record;
+    }
+
+    /**
+     * Dosyanin devir aninda kayda bagli olup olmadigi. Dondurulmus goruntude
+     * yalnizca o an duran ekler gorunur: sonradan yuklenenler listeye girmez,
+     * sonradan silinenler ise listede kalir.
+     */
+    private static boolean existedAt(FileEntity file, LocalDateTime asOf) {
+        boolean uploadedBefore = !file.getUploadedAt().isAfter(asOf);
+        boolean stillPresent = file.getDeletedAt() == null || file.getDeletedAt().isAfter(asOf);
+        return uploadedBefore && stillPresent;
     }
 
     @Transactional
@@ -94,7 +109,22 @@ public class FileService {
 
     @Transactional(readOnly = true)
     public List<FileResponseDto> listByRecord(UUID recordId, RoleName role, UUID currentUserId) {
-        assertCanViewRecord(recordId, role, currentUserId);
+        Record record = assertCanViewRecord(recordId, role, currentUserId);
+        RecordContentView.Content content =
+                recordContentView.visibleContent(record, role, currentUserId);
+
+        // Kaydi elinden cikarmis yardimci ekleri de devir anindaki haliyle
+        // gorur; yoksa Calisanin duzeltme sirasinda yukledigi dosya aninda
+        // gorunurdu. files tablosunda uploaded_at/deleted_at zaten oldugu icin
+        // ayrica kopya tutmak gerekmiyor.
+        if (content.frozen()) {
+            return fileRepository.findAllByRecordId(recordId)
+                    .stream()
+                    .filter(file -> existedAt(file, content.asOf()))
+                    .map(this::toDto)
+                    .toList();
+        }
+
         return fileRepository.findAllByRecordIdAndDeletedAtIsNull(recordId)
                 .stream()
                 .map(this::toDto)
@@ -105,7 +135,14 @@ public class FileService {
         FileEntity fileEntity = fileRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Dosya bulunamadı: " + id));
 
-        assertCanViewRecord(fileEntity.getRecordId(), role, currentUserId);
+        Record record = assertCanViewRecord(fileEntity.getRecordId(), role, currentUserId);
+
+        // Listede gizlenen dosya dogrudan kimlikle de indirilememeli.
+        RecordContentView.Content content =
+                recordContentView.visibleContent(record, role, currentUserId);
+        if (content.frozen() && !existedAt(fileEntity, content.asOf())) {
+            throw new ResourceNotFoundException("Dosya bulunamadı: " + id);
+        }
 
         Resource resource = fileStorageService.loadAsResource(fileEntity.getStoredName());
 

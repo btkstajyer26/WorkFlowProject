@@ -32,13 +32,13 @@ public class AuditLog {
     @Column(updatable = false)
     private UUID id;
 
-    @Column(name = "record_id", nullable = false, updatable = false)
+    @Column(name = "record_id", updatable = false)
     private UUID recordId;
 
-    @Column(name = "user_id", nullable = false, updatable = false)
+    @Column(name = "user_id", updatable = false)
     private UUID userId;
 
-    @Column(name = "role_id", nullable = false, updatable = false)
+    @Column(name = "role_id", updatable = false)
     private Integer roleId;
 
     @Column(nullable = false, length = 50, updatable = false)
@@ -47,11 +47,23 @@ public class AuditLog {
     @Column(name = "previous_status", length = 50, updatable = false)
     private String previousStatus;
 
-    @Column(name = "new_status", nullable = false, length = 50, updatable = false)
+    @Column(name = "new_status", length = 50, updatable = false)
     private String newStatus;
 
     @Column(columnDefinition = "TEXT", updatable = false)
     private String comment;
+
+    @Column(name = "http_method", length = 10, updatable = false)
+    private String httpMethod;
+
+    @Column(name = "request_path", length = 512, updatable = false)
+    private String requestPath;
+
+    @Column(name = "http_status", updatable = false)
+    private Integer httpStatus;
+
+    @Column(name = "error_code", length = 80, updatable = false)
+    private String errorCode;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

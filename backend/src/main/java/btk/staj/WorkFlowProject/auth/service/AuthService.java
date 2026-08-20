@@ -2,6 +2,8 @@ package btk.staj.WorkFlowProject.auth.service;
 
 import btk.staj.WorkFlowProject.auth.dto.LoginRequest;
 import btk.staj.WorkFlowProject.auth.dto.LoginResponse;
+import btk.staj.WorkFlowProject.audit.RequestAuditContext;
+import btk.staj.WorkFlowProject.auth.exception.PasswordReuseException;
 import btk.staj.WorkFlowProject.common.exception.InvalidCredentialsException;
 import btk.staj.WorkFlowProject.rbac.config.JwtUtil;
 import btk.staj.WorkFlowProject.user.entity.Token;
@@ -21,25 +23,33 @@ public class AuthService {
     private final TokenRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final RequestAuditContext requestAuditContext;
 
     public AuthService(UserRepository userRepository, TokenRepository tokenRepository,
-                       PasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
+                       PasswordEncoder passwordEncoder, JwtUtil jwtUtil,
+                       RequestAuditContext requestAuditContext) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
+        this.requestAuditContext = requestAuditContext;
     }
 
     @Transactional
     public LoginResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new InvalidCredentialsException("Email veya şifre hatalı"));
+        User user = userRepository.findByEmail(request.getEmail()).orElse(null);
+        if (user == null) {
+            requestAuditContext.mark("LOGIN_FAILED", null, null, null);
+            throw new InvalidCredentialsException("Email veya şifre hatalı");
+        }
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+            requestAuditContext.mark("LOGIN_FAILED", user);
             throw new InvalidCredentialsException("Email veya şifre hatalı");
         }
 
         if (!user.isActive()) {
+            requestAuditContext.mark("LOGIN_FAILED", user);
             throw new InvalidCredentialsException("Hesap pasif durumda");
         }
 
@@ -54,21 +64,27 @@ public class AuthService {
         tokenEntity.setExpiresAt(LocalDateTime.now().plusDays(7));
         tokenRepository.save(tokenEntity);
 
+        requestAuditContext.mark("LOGIN", user);
         return new LoginResponse(accessToken, refreshToken, user.isMustChangePassword());
     }
 
     @Transactional
     public LoginResponse refresh(String refreshToken) {
         Token storedToken = tokenRepository.findByToken(refreshToken)
-                .orElseThrow(() -> new InvalidCredentialsException("Geçersiz refresh token"));
+                .orElseThrow(() -> {
+                    requestAuditContext.mark("TOKEN_REFRESH_FAILED", null, null, null);
+                    return new InvalidCredentialsException("Geçersiz refresh token");
+                });
 
         if (storedToken.isRevoked() || storedToken.getExpiresAt().isBefore(LocalDateTime.now())) {
+            requestAuditContext.mark("TOKEN_REFRESH_FAILED", storedToken.getUser());
             throw new InvalidCredentialsException("Refresh token süresi dolmuş veya geçersiz");
         }
 
         User user = storedToken.getUser();
 
         if (!user.isActive()) {
+            requestAuditContext.mark("TOKEN_REFRESH_FAILED", user);
             throw new InvalidCredentialsException("Hesap pasif durumda");
         }
 
@@ -86,6 +102,7 @@ public class AuthService {
         newTokenEntity.setExpiresAt(LocalDateTime.now().plusDays(7));
         tokenRepository.save(newTokenEntity);
 
+        requestAuditContext.mark("TOKEN_REFRESH", user);
         return new LoginResponse(newAccessToken, newRefreshToken, user.isMustChangePassword());
     }
 
@@ -94,6 +111,7 @@ public class AuthService {
         tokenRepository.findByToken(refreshToken).ifPresent(token -> {
             token.setRevoked(true);
             tokenRepository.save(token);
+            requestAuditContext.mark("LOGOUT", token.getUser());
         });
     }
 
@@ -106,6 +124,13 @@ public class AuthService {
             throw new InvalidCredentialsException("Mevcut şifre yanlış");
         }
 
+        // Arayüz de aynı kuralı uyguluyor, ancak zorunlu şifre değişimi buradan
+        // geçtiği için kural sunucuda da tutulmalı: aksi halde geçici şifre
+        // kendisiyle "değiştirilip" mustChangePassword kapatılabilirdi.
+        if (passwordEncoder.matches(newPassword, user.getPasswordHash())) {
+            throw new PasswordReuseException("Yeni şifreniz mevcut şifrenizle aynı olamaz");
+        }
+
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         user.setMustChangePassword(false);
         user.setUpdatedAt(LocalDateTime.now());
@@ -113,5 +138,7 @@ public class AuthService {
 
         tokenRepository.findAllByUser_IdAndRevokedFalse(userId)
                 .forEach(token -> token.setRevoked(true));
+
+        requestAuditContext.mark("PASSWORD_CHANGED", user);
     }
 }

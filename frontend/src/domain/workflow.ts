@@ -1,3 +1,4 @@
+import { getDemoUserByRole } from '../mocks/users'
 import { roleLabels, type AuthUser } from '../types/auth'
 import type { NotificationItem } from '../types/notification'
 import type { WorkflowRecord } from '../types/record'
@@ -44,8 +45,9 @@ function requireComment(comment: string | undefined) {
 }
 
 function requireTarget(targetUser: AuthUser | undefined, role: AuthUser['role']) {
-  if (!targetUser || targetUser.role !== role) throw new Error('İşlem için geçerli bir hedef kullanıcı seçilmelidir.')
-  return targetUser
+  const resolved = targetUser ?? getDemoUserByRole(role)
+  if (!resolved || resolved.role !== role) throw new Error('İşlem için geçerli bir hedef kullanıcı bulunamadı.')
+  return resolved
 }
 
 function assertTransition(record: WorkflowRecord, input: WorkflowActionInput) {
@@ -108,33 +110,44 @@ export function transitionRecord(record: WorkflowRecord, input: WorkflowActionIn
     id: record.createdById ?? 'user-demo-001',
     name: record.createdBy,
   }
+  const deputy = getDemoUserByRole('BASKAN_YARDIMCISI')
+  const chair = getDemoUserByRole('BASKAN')
   const next = { ...record }
   let notificationTarget = input.targetUser
 
   switch (input.action) {
     case 'GONDER':
-    case 'TEKRAR_GONDER':
+    case 'TEKRAR_GONDER': {
+      const target = input.targetUser ?? deputy
       next.status = 'BSK_YRD_INCELEMESINDE'
-      next.assignedTo = fullName(input.targetUser!)
-      next.assignedToId = input.targetUser!.id
-      next.lastDeputyId = input.targetUser!.id
+      next.assignedTo = fullName(target)
+      next.assignedToId = target.id
+      next.lastDeputyId = target.id
+      notificationTarget = target
       break
-    case 'BASKANA_ILET':
+    }
+    case 'BASKANA_ILET': {
+      const target = input.targetUser ?? chair
       next.status = 'BASKAN_INCELEMESINDE'
-      next.assignedTo = fullName(input.targetUser!)
-      next.assignedToId = input.targetUser!.id
+      next.assignedTo = fullName(target)
+      next.assignedToId = target.id
+      notificationTarget = target
       break
+    }
     case 'CALISANA_GERI_GONDER':
       next.status = 'DUZENLEME_BEKLIYOR'
       next.assignedTo = employeeTarget.name
       next.assignedToId = employeeTarget.id
       notificationTarget = { ...input.actor, id: employeeTarget.id }
       break
-    case 'BASKAN_YARDIMCISINA_GERI_GONDER':
+    case 'BASKAN_YARDIMCISINA_GERI_GONDER': {
+      const target = input.targetUser ?? deputy
       next.status = 'BSK_YRD_INCELEMESINDE'
-      next.assignedTo = fullName(input.targetUser!)
-      next.assignedToId = input.targetUser!.id
+      next.assignedTo = fullName(target)
+      next.assignedToId = target.id
+      notificationTarget = target
       break
+    }
     case 'ONAYLA':
     case 'REDDET':
       next.status = input.action === 'ONAYLA' ? 'ONAYLANDI' : 'REDDEDILDI'

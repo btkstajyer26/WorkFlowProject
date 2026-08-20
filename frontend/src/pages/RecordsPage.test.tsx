@@ -79,6 +79,7 @@ describe('RecordsPage filters', () => {
     expect(screen.getByPlaceholderText('Başlık veya içerikte ara...')).toBeInTheDocument()
     expect(screen.queryByRole('columnheader', { name: 'Son işlem' })).not.toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: 'Oluşturulma' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Oluşturan' })).toBeInTheDocument()
     expect(screen.queryByText('EBYS-2026-000023')).not.toBeInTheDocument()
   })
 

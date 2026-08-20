@@ -102,7 +102,7 @@ export function RecordFilesPanel({ recordId, editable = false }: { recordId: str
 
       {files.isPending ? (
         <p className="mt-4 rounded-xl border border-dashed border-app-border px-4 py-5 text-center text-sm text-app-text-subtle" role="status">Dosyalar yükleniyor…</p>
-      ) : files.files.length > 0 ? (
+      ) : files.error ? null : files.files.length > 0 ? (
         <ul className="mt-4 space-y-2" aria-label="Kayıt ekleri">
           {files.files.map((file) => {
             const busy = busyFileId === file.id || files.deletingId === file.id

@@ -52,7 +52,7 @@ public class RecordController {
     }
 
     /**
-     * Kayıt listeleme — şartname §5: GET /api/records?page&size&status&categoryId&q&from&to&sort
+     * Kayıt listeleme — şartname §5: GET /api/records?page&size&status&categoryId&q&from&to&creator&sort
      *
      * <p>Uç burada ({@code RecordController}) kalır, ancak filtreleme ve görünürlük
      * kapsamı mantığı {@code RecordSearchService}'ten gelir. Aynı erişim kuralının
