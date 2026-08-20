@@ -56,17 +56,15 @@ class UserServiceTest {
     @Mock
     private CurrentActorProvider currentActorProvider;
     @Mock
-    private RecordRepository recordRepository; // Yeni eklendi
+    private RecordRepository recordRepository;
 
     private UserService userService;
 
     @BeforeEach
     void setUp() {
-        // Constructor'a recordRepository eklendi
         userService = new UserService(
                 userRepository, roleRepository, tokenRepository,
                 passwordEncoder, userAuditLogService, currentActorProvider, recordRepository);
-
 
         lenient().when(currentActorProvider.currentActor())
                 .thenReturn(new CurrentActor(ADMIN_ACTOR_ID, RoleName.ADMIN));
@@ -162,20 +160,16 @@ class UserServiceTest {
         when(roleRepository.findByName("BASKAN_YARDIMCISI")).thenReturn(Optional.of(bskYrd));
         when(userRepository.findByRole_NameAndActive("BASKAN", true)).thenReturn(List.of());
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
-        
-        // Yeni eklenen metodun başarılı bir şekilde çalıştığını (örneğin 5 kayıt devrettiğini) mockluyoruz
+
         when(recordRepository.devretBekleyenIsleri(targetId, replacementId)).thenReturn(5);
-        // İş M5: last_deputy_id devri de aynı işlemde mocklanıyor (örn. 2 kayıt güncellendi)
         when(recordRepository.updateLastDeputyId(targetId, replacementId)).thenReturn(2);
 
         User result = userService.changeRole(targetId, "BASKAN", replacementId);
 
         assertThat(result.getRole().getName()).isEqualTo("BASKAN");
         assertThat(replacement.getRole().getName()).isEqualTo("BASKAN_YARDIMCISI");
-        
-        // Devir işleminin gerçekten veritabanına yansıtıldığını doğruluyoruz
+
         verify(recordRepository).devretBekleyenIsleri(targetId, replacementId);
-        // İş M5: last_deputy_id alanı da eski kullanıcıdan yeni kullanıcıya güncellenmeli
         verify(recordRepository).updateLastDeputyId(targetId, replacementId);
     }
 
@@ -191,7 +185,6 @@ class UserServiceTest {
         when(roleRepository.findByName("BASKAN")).thenReturn(Optional.of(baskan));
         when(userRepository.findByRole_NameAndActive("BASKAN", true)).thenReturn(List.of());
         when(userRepository.save(target)).thenReturn(target);
-        when(userRepository.findById(targetId)).thenReturn(Optional.of(target));
 
         assertThatExceptionOfType(BusinessRuleException.class)
                 .isThrownBy(() -> userService.changeRole(targetId, "BASKAN", targetId));
@@ -216,6 +209,50 @@ class UserServiceTest {
         assertThatExceptionOfType(BusinessRuleException.class)
                 .isThrownBy(() -> userService.changeRole(targetId, "BASKAN", replacementId))
                 .withMessageContaining("Pasif");
+    }
+
+    // ---------------- Is A3: devralan aday yalnizca CALISAN olabilir ----------------
+
+    @Test
+    @DisplayName("Admin rolundeki aday Baskan Yardimcisi yapilamaz")
+    void changeRole_adminReplacementOlamaz() {
+        UUID targetId = UUID.randomUUID();
+        UUID replacementId = UUID.randomUUID();
+        Role bskYrd = role(2, "BASKAN_YARDIMCISI");
+        Role baskan = role(3, "BASKAN");
+        User target = user(targetId, bskYrd, true);
+        User adminReplacement = user(replacementId, role(4, "ADMIN"), true);
+
+        when(userRepository.findById(targetId)).thenReturn(Optional.of(target));
+        when(userRepository.findById(replacementId)).thenReturn(Optional.of(adminReplacement));
+        when(roleRepository.findByName("BASKAN")).thenReturn(Optional.of(baskan));
+        when(userRepository.findByRole_NameAndActive("BASKAN", true)).thenReturn(List.of());
+        when(userRepository.save(target)).thenReturn(target);
+
+        assertThatExceptionOfType(BusinessRuleException.class)
+                .isThrownBy(() -> userService.changeRole(targetId, "BASKAN", replacementId))
+                .withMessageContaining("Çalışan rolündeki");
+    }
+
+    @Test
+    @DisplayName("Baskan rolundeki aday Baskan Yardimcisi yapilamaz")
+    void changeRole_baskanReplacementOlamaz() {
+        UUID targetId = UUID.randomUUID();
+        UUID replacementId = UUID.randomUUID();
+        Role bskYrd = role(2, "BASKAN_YARDIMCISI");
+        Role baskan = role(3, "BASKAN");
+        User target = user(targetId, bskYrd, true);
+        User baskanReplacement = user(replacementId, baskan, true);
+
+        when(userRepository.findById(targetId)).thenReturn(Optional.of(target));
+        when(userRepository.findById(replacementId)).thenReturn(Optional.of(baskanReplacement));
+        when(roleRepository.findByName("BASKAN")).thenReturn(Optional.of(baskan));
+        when(userRepository.findByRole_NameAndActive("BASKAN", true)).thenReturn(List.of());
+        when(userRepository.save(target)).thenReturn(target);
+
+        assertThatExceptionOfType(BusinessRuleException.class)
+                .isThrownBy(() -> userService.changeRole(targetId, "BASKAN", replacementId))
+                .withMessageContaining("Çalışan rolündeki");
     }
 
     // ---------------- setActive ----------------
