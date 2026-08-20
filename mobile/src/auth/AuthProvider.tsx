@@ -7,6 +7,7 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
 import type { ChangePasswordRequest, LoginRequest } from '@/api/auth';
 
@@ -31,13 +32,17 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: PropsWithChildren) {
+  const queryClient = useQueryClient();
   const [session, setSession] = useState<AuthSession | null>(null);
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
     const unsubscribe = subscribeToSession((nextSession) => {
-      if (isMounted) setSession(nextSession);
+      if (!isMounted) return;
+
+      if (!nextSession) queryClient.clear();
+      setSession(nextSession);
     });
 
     void restoreSession()
@@ -50,11 +55,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
       isMounted = false;
       unsubscribe();
     };
-  }, []);
+  }, [queryClient]);
 
   const signIn = useCallback(async (credentials: LoginRequest) => {
+    queryClient.clear();
     await startSession(credentials);
-  }, []);
+  }, [queryClient]);
 
   const signOut = useCallback(async () => {
     await endSession();

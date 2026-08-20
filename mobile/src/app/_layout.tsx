@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 
 import '../../global.css';
 import { AuthProvider, useAuth } from '@/auth/AuthProvider';
+import { QueryProvider } from '@/query/QueryProvider';
 import { ThemeProvider, useAppTheme } from '@/theme/ThemeProvider';
 
 void SplashScreen.preventAutoHideAsync();
@@ -22,9 +23,11 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <RootNavigator />
-      </AuthProvider>
+      <QueryProvider>
+        <AuthProvider>
+          <RootNavigator />
+        </AuthProvider>
+      </QueryProvider>
     </ThemeProvider>
   );
 }
