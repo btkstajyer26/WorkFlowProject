@@ -3,8 +3,7 @@ package btk.staj.WorkFlowProject.notification.controller;
 import btk.staj.WorkFlowProject.notification.dto.DeviceTokenDeleteRequest;
 import btk.staj.WorkFlowProject.notification.dto.DeviceTokenRequest;
 import btk.staj.WorkFlowProject.notification.service.DeviceTokenService;
-import btk.staj.WorkFlowProject.user.entity.User;
-import btk.staj.WorkFlowProject.user.repository.UserRepository;
+import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -22,7 +21,6 @@ import java.util.UUID;
 public class DeviceTokenController {
 
     private final DeviceTokenService deviceTokenService;
-    private final UserRepository userRepository;
 
     @PostMapping
     @Operation(summary = "Cihaz token kaydı / güncelleme (Upsert)")
@@ -42,20 +40,18 @@ public class DeviceTokenController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * Projede kimlik dogrulanmis principal her zaman {@link AuthenticatedUser}
+     * tipindedir; baska bir tip gelirse kullanici kimligi cozulemedigi icin
+     * token sahipsiz kaydedilmemeli, istek hata ile durmalidir.
+     */
     private UUID extractUserId(Authentication authentication) {
         if (authentication == null || authentication.getPrincipal() == null) {
             throw new IllegalStateException("Kimlik doğrulaması bulunamadı.");
         }
-
-        Object principal = authentication.getPrincipal();
-
-        if (principal instanceof User user) {
-            return user.getId();
+        if (authentication.getPrincipal() instanceof AuthenticatedUser authenticatedUser) {
+            return authenticatedUser.getId();
         }
-
-        String email = authentication.getName();
-        return userRepository.findByEmail(email)
-                .map(User::getId)
-                .orElseThrow(() -> new IllegalArgumentException("Kullanıcı bulunamadı: " + email));
+        throw new IllegalStateException("Kimlik doğrulanmış kullanıcı çözümlenemedi.");
     }
 }
