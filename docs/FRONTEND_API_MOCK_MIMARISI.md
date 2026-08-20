@@ -60,13 +60,18 @@ Login cevabında kullanıcı adı ve rolü bulunmadığından kullanıcı görü
 
 ## Bilinçli olarak UI'a bağlanmayan alanlar
 
-Mevcut ekranların domain modeli, backend `RecordResponse` modelinden daha zengindir. Backend şu anda kayıt için yalnızca `id`, `title`, `description`, `categoryId`, `status` ve `createdAt` döndürür. UI ise ayrıca kayıt numarası, oluşturan, atanan, dosyalar ve geçmiş bilgilerini kullanır.
+Mevcut ekranların domain modeli, backend `RecordResponse` modelinden daha zengindir. Backend kayıt için `id`, `title`, `description`, `categoryId`, `status`, `createdAt`, `createdBy` ve `createdByFullName` döndürür. UI ise ayrıca kayıt numarası, atanan ve geçmiş bilgilerini kullanır.
 
 Bu nedenle kayıt ekranlarının mevcut `WorkflowContext` state'i hemen kaldırılmamıştır. Eksik alanları local fixture ile API cevabına eklemek iki doğruluk kaynağı oluşturacağı için yasaktır. Aşağıdaki sözleşmeler tamamlandıkça ilgili domain state'i MSW/API katmanına taşınacaktır:
 
-- kullanıcı profili (`GET /api/users/me` backend'de hazır, henüz MSW/API katmanına bağlanmadı) veya login sırasında kullanıcı özeti;
-- zengin kayıt detay cevabı ya da gerekli ayrı endpointler;
-- kayda ait dosyaları listeleme;
+- kullanıcı profili: `GET /api/users/me` backend'de hazır, üretilmiş istemcisi ve
+  MSW handler'ı da var; **ekranlar hâlâ demo profiliyle eşleştiriyor** — bağlanması kaldı;
+- zengin kayıt detay cevabı ya da gerekli ayrı endpointler (kayıt numarası ve
+  `assignedTo` detay cevabında hâlâ yok);
+- ~~kayda ait dosyaları listeleme~~ **tamamlandı** — `GET /api/records/{id}/files`
+  `api/files.ts` üzerinden `RecordFilesPanel`'e bağlı (detay ve düzenleme ekranı);
+- ~~oluşturan kişinin adı~~ **tamamlandı** — `createdByFullName` hem liste hem
+  detay cevabında geliyor; işlem geçmişinden türetme kaldırıldı;
 - okunmuş bildirim geçmişini de sağlayan `GET /api/notifications` listeleme endpointi **backend'de tamamlandı**, frontend'in `listNotifications` facade'ı ve sayfalı MSW handler'ı da hazır; geriye yalnız “Tümü” görünümünün bu facade'a bağlanması kaldı.
 
 Bildirimleri topluca okundu yapma işlemi kapsam dışıdır. Frontend “Tümü” ve “Okunmamış” görünümlerini korur. Okuma işlemi yalnızca `PUT /api/notifications/{id}/read` ile tekil olarak yapılır.

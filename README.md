@@ -464,19 +464,19 @@ Branch protection etkinleştirilene kadar doğrudan push yasağı teknik olarak 
 - Admin kullanıcı oluştururken parolayı istemciden almaktadır; backend üretimli geçici parola ve davet e-postası henüz uygulanmamıştır.
 - Frontend'in bazı bölümleri mock veri kullanmaktadır. Aynı iş kuralı iki yerde tutulmaktadır: `WorkflowContext` mock geçiş mantığını, `RecordActionPanel` gerçek API istemcisini kullanır.
 - Audit değiştirilemezliği yalnızca uygulama seviyesinde sağlanır; veritabanı tarafında trigger veya rol kısıtı ile zorlanmaz.
-- Başkan Yardımcısı koltuğu devredilirken `records.last_deputy_id` güncellenmez. Devirden sonra `BASKAN_YARDIMCISINA_GERI_GONDER` eski yardımcıyı hedefleyip `400` ile durur.
 - Tekil rol invariant'ı yalnızca okuma anında kontrol edilir; `PATCH /api/admin/users/{id}/active` ile hesap yeniden etkinleştirilirken aynı rolde başka aktif kullanıcı olup olmadığına bakılmaz.
 - `test` ve `main` dalları için branch protection kuralları etkin değildir.
-- Frontend testlerinden biri (`AdminUsersPage`) paralel koşuda kararsızdır; tek başına ve `--no-file-parallelism` ile geçer, tam paralel koşuda zaman aşımına düşebilir.
-- `docs/decisions/` altında henüz mimari karar kaydı yoktur.
+- Frontend test paketinde 20 test kırıktır (`App`, `RecordDetailPage`, `RecordsPage`, `NotificationsPage`, `RecordFormsEdgeCases`, `AdminUsersPage`). Beklenen metin/rol seçicileri güncel arayüzle uyuşmuyor; backend uçlarıyla ilgisi yoktur.
+- `docs/decisions/` altında iki mimari karar kaydı vardır (modül bazlı paketleme, mobil istemci teknolojisi). Mimarinin geri kalanı `architecture.md`, `workflow.md` ve `database.md` içinde gerekçesiyle anlatılır.
 
 ## Dokümantasyon
 
 - [İş akışı ve durum geçişleri](docs/workflow.md)
 - [Frontend–backend çalışma sözleşmesi](docs/FRONTEND_BACKEND_SOZLESMESI.md)
-- [Backend açık işler ve görev dağılımı](docs/BACKEND_ACIK_ISLER_VE_GOREV_DAGILIMI.md)
+- [Mobil entegrasyon görev dağılımı](docs/MOBIL_ENTEGRASYON_GOREV_DAGILIMI.md)
+- [Backend açık işler ve görev dağılımı (arşiv)](docs/archive/BACKEND_ACIK_ISLER_VE_GOREV_DAGILIMI.md)
 - [Sistem mimarisi](docs/architecture.md)
 - [Mimari karar kayıtları](docs/decisions/README.md)
-- [Eksik sınıflar ve öncelikler](docs/EKSIK_SINIFLAR_VE_ONCELIK.md)
+- [Eksik sınıflar ve öncelikler](docs/archive/EKSIK_SINIFLAR_VE_ONCELIK.md)
 
 
