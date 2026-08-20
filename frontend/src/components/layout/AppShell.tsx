@@ -1,32 +1,22 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { LogOut, X } from 'lucide-react'
 import { NewRecordComposer } from '../records/NewRecordComposer'
-import type { AuthUser, UserRole } from '../../types/auth'
+import type { AuthUser } from '../../types/auth'
 import { MobileHeader } from './MobileHeader'
 import { Sidebar } from './Sidebar'
 import { useModalDialog } from '../../hooks/useModalDialog'
-import { isApiMockEnabled } from '../../api/config'
 
 type AppShellProps = {
   children: ReactNode
   user: AuthUser
   unreadNotificationCount: number
-  onRoleChange: (role: UserRole) => void | Promise<void>
   onLogout: () => void
 }
-
-const previewRoles: { label: string; value: UserRole }[] = [
-  { label: 'Çalışan', value: 'CALISAN' },
-  { label: 'Bşk. Yrd.', value: 'BASKAN_YARDIMCISI' },
-  { label: 'Başkan', value: 'BASKAN' },
-  { label: 'Admin', value: 'ADMIN' },
-]
 
 export function AppShell({
   children,
   user,
   unreadNotificationCount,
-  onRoleChange,
   onLogout,
 }: AppShellProps) {
   const role = user.role
@@ -102,7 +92,6 @@ export function AppShell({
 
           <main className="min-h-screen lg:pl-72">
             <div className="mx-auto w-full max-w-[1536px] px-4 py-5 sm:px-6 sm:py-7 lg:px-8 lg:py-8">
-              {isApiMockEnabled ? <RolePreview role={role} onRoleChange={onRoleChange} /> : null}
               {children}
             </div>
           </main>
@@ -156,44 +145,6 @@ export function AppShell({
           </section>
         </div>
       ) : null}
-    </div>
-  )
-}
-
-function RolePreview({
-  role,
-  onRoleChange,
-}: {
-  role: UserRole
-  onRoleChange: (role: UserRole) => void | Promise<void>
-}) {
-  return (
-    <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-100 dark:border-brand-800/60 bg-brand-50/70 dark:bg-brand-900/30 p-2.5 pl-4">
-      <div>
-        <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-700 dark:text-brand-300">Arayüz önizleme</p>
-        <p className="mt-0.5 text-xs text-app-text-muted">Gerçek uygulamada rol, oturum bilgisinden gelecek.</p>
-      </div>
-      <div
-        className="flex rounded-xl bg-app-surface p-1 shadow-sm ring-1 ring-app-border"
-        role="group"
-        aria-label="Önizlenecek rol"
-      >
-        {previewRoles.map((item) => (
-          <button
-            key={item.value}
-            type="button"
-            onClick={() => void onRoleChange(item.value)}
-            aria-pressed={role === item.value}
-            className={`rounded-lg px-3 py-2 text-xs font-bold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ${
-              role === item.value
-                ? 'bg-brand-600 text-white shadow-sm'
-                : 'text-app-text-subtle hover:bg-app-surface-muted hover:text-app-text-strong'
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
     </div>
   )
 }

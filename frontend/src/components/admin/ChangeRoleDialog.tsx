@@ -20,8 +20,8 @@ export function ChangeRoleDialog({
   open: boolean
   onClose: () => void
 }) {
-  const { users, changeUserRole } = useAdmin()
-  const userOptions = useAdminUserOptions(users, open)
+  const { changeUserRole } = useAdmin()
+  const userOptions = useAdminUserOptions(open)
   const { showToast } = useToast()
   const { busy: mutationBusy, run: runMutation } = useSingleFlight()
   const [replacementDeputyId, setReplacementDeputyId] = useState('')

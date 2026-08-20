@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router'
 import { describe, expect, it } from 'vitest'
 import App from '../App'
 import { seedAuthenticatedUser } from '../test/auth'
+import { mockApiDb } from '../mocks/api/db'
 
 async function renderRecordDetail(role: 'CALISAN' | 'BASKAN_YARDIMCISI' | 'BASKAN', recordId: string) {
   await seedAuthenticatedUser(role)
@@ -16,9 +17,9 @@ async function renderRecordDetail(role: 'CALISAN' | 'BASKAN_YARDIMCISI' | 'BASKA
 
 describe('RecordDetailPage', () => {
   it('durum rozetini rol değişse de kayıt başlığının bulunduğu header içinde gösterir', async () => {
-    await renderRecordDetail('BASKAN', 'rec-003')
+    await renderRecordDetail('BASKAN', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa3')
 
-    const title = await screen.findByRole('heading', { name: 'Toplantı Salonu Tadilat Talebi' })
+    const title = await screen.findByRole('heading', { name: 'Bakım sözleşmesi yenileme' })
     const header = title.closest('header')
 
     expect(header).not.toBeNull()
@@ -27,7 +28,17 @@ describe('RecordDetailPage', () => {
 
   it('Başkana iletilen son işlem notunu koşullu panelde gösterir', async () => {
     const user = userEvent.setup()
-    await renderRecordDetail('BASKAN', 'rec-003')
+    mockApiDb.auditLogs = [{
+      id: 'audit-chair-note',
+      recordId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa3',
+      action: 'BASKANA_ILET',
+      userId: 'user-demo-002',
+      userFullName: 'Ayşe Kaya',
+      roleName: 'BASKAN_YARDIMCISI',
+      comment: 'Teknik plan ve bütçe kalemleri kontrol edildi.',
+      createdAt: '2026-08-05T09:45:00Z',
+    }]
+    await renderRecordDetail('BASKAN', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa3')
 
     const noteTitle = await screen.findByRole('heading', { name: 'Son İşlem Notu' })
     const noteDetails = noteTitle.closest('details')
@@ -39,15 +50,35 @@ describe('RecordDetailPage', () => {
   })
 
   it('Çalışandan not gelmediği için Başkan Yardımcısı görünümünde not paneli oluşturmaz', async () => {
-    await renderRecordDetail('BASKAN_YARDIMCISI', 'rec-001')
+    await renderRecordDetail('BASKAN_YARDIMCISI', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2')
 
-    expect(await screen.findByRole('heading', { name: 'Sunucu Donanım Alım Talebi' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Birim içi eğitim planı' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Son İşlem Notu' })).not.toBeInTheDocument()
   })
 
   it('işlem geçmişini başlangıçta kapalı tutar ve istek üzerine açar', async () => {
     const user = userEvent.setup()
-    await renderRecordDetail('CALISAN', 'rec-001')
+    mockApiDb.auditLogs = [
+      {
+        id: 'audit-created',
+        recordId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+        action: 'RECORD_CREATED',
+        userId: 'user-demo-001',
+        userFullName: 'John Doe',
+        roleName: 'CALISAN',
+        createdAt: '2026-08-01T09:15:00Z',
+      },
+      {
+        id: 'audit-submitted',
+        recordId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+        action: 'GONDER',
+        userId: 'user-demo-001',
+        userFullName: 'John Doe',
+        roleName: 'CALISAN',
+        createdAt: '2026-08-01T10:15:00Z',
+      },
+    ]
+    await renderRecordDetail('CALISAN', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1')
 
     const historyTitle = await screen.findByRole('heading', { name: 'İşlem Geçmişi' })
     const historyDetails = historyTitle.closest('details')
@@ -63,14 +94,14 @@ describe('RecordDetailPage', () => {
   })
 
   it('Başkan ve Başkan Yardımcısı için yalnızca durumlarına uygun kararları gösterir', async () => {
-    const deputyView = await renderRecordDetail('BASKAN_YARDIMCISI', 'rec-001')
+    const deputyView = await renderRecordDetail('BASKAN_YARDIMCISI', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2')
     const deputyActions = await screen.findByRole('region', { name: 'Karar' })
     expect(within(deputyActions).getByRole('button', { name: 'Geri Gönder' })).toBeInTheDocument()
     expect(within(deputyActions).getByRole('button', { name: 'Başkana İlet' })).toBeInTheDocument()
     expect(within(deputyActions).queryByRole('button', { name: 'Onayla' })).not.toBeInTheDocument()
     deputyView.unmount()
 
-    await renderRecordDetail('BASKAN', 'rec-003')
+    await renderRecordDetail('BASKAN', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa3')
     const chairActions = await screen.findByRole('region', { name: 'Karar' })
     expect(within(chairActions).getByRole('button', { name: 'Geri Gönder' })).toBeInTheDocument()
     expect(within(chairActions).getByRole('button', { name: 'Reddet' })).toBeInTheDocument()

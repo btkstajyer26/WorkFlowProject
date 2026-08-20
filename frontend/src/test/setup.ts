@@ -5,6 +5,7 @@ import { clearAuthSession } from '../auth/authSession'
 import { resetMockAuthState } from '../mocks/api/auth'
 import { resetMockApiDb } from '../mocks/api/db'
 import { apiMockServer } from '../mocks/api/server'
+import { resetMockManagedUsers } from '../mocks/admin'
 
 beforeAll(() => {
   apiMockServer.listen({ onUnhandledRequest: 'error' })
@@ -15,6 +16,7 @@ afterEach(() => {
   apiMockServer.resetHandlers()
   resetMockAuthState()
   resetMockApiDb()
+  resetMockManagedUsers()
   clearAuthSession()
   window.sessionStorage.clear()
   window.localStorage.clear()

@@ -1,10 +1,12 @@
 import { http, HttpResponse } from 'msw'
 import type {
   CreateUserRequest,
+  ChangeRoleRequest,
   PagedResponseUserAuditLogResponse,
   PagedResponseUserResponse,
   UserAuditLogResponse,
   UserResponse,
+  SetActiveRequest,
 } from '../../../api/generated/data-contracts'
 import { apiBaseUrl } from '../../../api/config'
 import { mockAdminAuditLogs, mockManagedUsers } from '../../admin'
@@ -150,5 +152,58 @@ export const adminHandlers = [
       mustChangePassword: true,
     })
     return HttpResponse.json(response)
+  }),
+
+  http.patch(`${apiBaseUrl}/api/admin/users/:id/role`, async ({ params, request }) => {
+    const actor = getAuthenticatedMockUser(request)
+    if (!actor) return unauthorizedResponse()
+    if (actor.role !== 'ADMIN') return forbiddenResponse()
+
+    const body = await request.json() as ChangeRoleRequest
+    const user = mockManagedUsers.find((item) => item.id === params.id)
+    if (!user) return apiErrorResponse(404, 'NOT_FOUND', 'Kullanıcı bulunamadı')
+
+    if (body.replacementBaskanYardimcisiId) {
+      const replacement = mockManagedUsers.find((item) => item.id === body.replacementBaskanYardimcisiId)
+      if (!replacement || !replacement.isActive || replacement.role !== 'CALISAN') {
+        return apiErrorResponse(400, 'INVALID_REPLACEMENT', 'Yerine atanacak aktif Çalışan bulunamadı')
+      }
+      replacement.role = 'BASKAN_YARDIMCISI'
+    }
+    user.role = body.roleName as typeof user.role
+
+    return HttpResponse.json({
+      id: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      roleName: user.role,
+      active: user.isActive,
+      createdAt: user.createdAt,
+    } satisfies UserResponse)
+  }),
+
+  http.patch(`${apiBaseUrl}/api/admin/users/:id/active`, async ({ params, request }) => {
+    const actor = getAuthenticatedMockUser(request)
+    if (!actor) return unauthorizedResponse()
+    if (actor.role !== 'ADMIN') return forbiddenResponse()
+
+    const body = await request.json() as SetActiveRequest
+    const user = mockManagedUsers.find((item) => item.id === params.id)
+    if (!user) return apiErrorResponse(404, 'NOT_FOUND', 'Kullanıcı bulunamadı')
+    if (!body.active && user.role === 'BASKAN_YARDIMCISI') {
+      return apiErrorResponse(400, 'ACTIVE_DEPUTY_REQUIRED', 'Önce Başkan Yardımcısı rolünü başka bir aktif Çalışana devredin.')
+    }
+    user.isActive = body.active
+
+    return HttpResponse.json({
+      id: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      roleName: user.role,
+      active: user.isActive,
+      createdAt: user.createdAt,
+    } satisfies UserResponse)
   }),
 ]
