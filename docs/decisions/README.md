@@ -2,6 +2,20 @@
 
 Bu dizin, projeyi uzun vadede etkileyen kararları Architecture Decision Record (ADR) biçiminde saklar. ADR'ler kararın bağlamını ve sonuçlarını kodla aynı sürüm geçmişinde görünür tutar.
 
+## Kayıtlar
+
+| ADR | Konu | Durum |
+| --- | --- | --- |
+| [0001](0001-modul-bazli-paketleme.md) | Backend'i modül (feature) bazlı paketleme | Kabul Edildi |
+| [0002](0002-mobil-istemci-teknolojisi.md) | Mobil istemci teknolojisi — React Native + Expo | Önerildi |
+
+Bu dizinde her mimari karar için ADR yoktur ve olması da beklenmez. Mevcut
+mimarinin çoğu [architecture.md](../architecture.md),
+[workflow.md](../workflow.md) ve [database.md](../database.md) içinde gerekçesiyle
+anlatılıyor; onları ADR'ye kopyalamak iki doğruluk kaynağı yaratırdı. Buraya
+yalnız **gerekçesi başka yerde yazılı olmayan** ve seçenekleri tartışılmış
+kararlar girer.
+
 ## Ne Zaman ADR Yazılır?
 
 Aşağıdaki konular için ADR oluşturulmalıdır:
