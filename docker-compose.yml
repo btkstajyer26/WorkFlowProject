@@ -6,16 +6,9 @@ services:
       POSTGRES_DB: ${DB_NAME:-workflowdb}
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
-<<<<<<< Updated upstream
-=======
-      MAIL_USERNAME: smtp@mailtrap.io
-      MAIL_PASSWORD: 0fb8043f39ef19e03dd4b87252a52d0f
->>>>>>> Stashed changes
     ports:
       - "${DB_PORT:-5432}:5432"
     volumes:
-      # PostgreSQL 17 ile oluşturulmuş olabilecek eski db-data volume'ünü
-      # silmeden korumak için PostgreSQL 15 ayrı bir volume kullanır.
       - db-data-pg15:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-workflowdb}"]
@@ -24,8 +17,6 @@ services:
       retries: 10
     restart: unless-stopped
 
-  # Gerçek Outlook SMTP hesabı olmadan e-posta akışını test etmek için sahte SMTP.
-  # Giden tüm mailler http://localhost:8025 arayüzünde görüntülenir.
   mailpit:
     image: axllent/mailpit:latest
     container_name: workflow-mailpit
@@ -41,14 +32,19 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      mailpit:
+        condition: service_started
     environment:
       DB_HOST: db
       DB_PORT: 5432
       DB_NAME: ${DB_NAME:-workflowdb}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      MAIL_HOST: mailpit
-      MAIL_PORT: 1025
+      SPRING_MAIL_HOST: mailpit
+      SPRING_MAIL_PORT: 1025
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: "false"
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: "false"
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_REQUIRED: "false"
       UPLOAD_DIR: /app/uploads
       JWT_SECRET: ${JWT_SECRET:-yerel-gelistirme-icin-en-az-32-karakter-uzunlugunda-gecici-anahtar}
       BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
@@ -59,8 +55,6 @@ services:
       - uploads:/app/uploads
     restart: unless-stopped
 
-  # Frontend geliştirme servisini gerektiğinde profille başlatın:
-  # docker compose --profile frontend up
   frontend:
     profiles: ["frontend"]
     build:
@@ -73,8 +67,6 @@ services:
     environment:
       VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080}
       VITE_API_MODE: ${VITE_API_MODE:-mock}
-      # Windows/OneDrive bind mount'larında dosya değişiklik olayları kaçabildiği
-      # için Vite'ın kaynakları düzenli aralıklarla kontrol etmesini sağlar.
       CHOKIDAR_USEPOLLING: "true"
       CHOKIDAR_INTERVAL: "300"
     volumes:
