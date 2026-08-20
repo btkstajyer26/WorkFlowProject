@@ -9,7 +9,7 @@
 - React Router
 - React Hook Form ve Zod
 - Axios tabanlı, OpenAPI'den üretilen API istemcisi
-- MSW ile geliştirme ve test API simülasyonu
+- MSW ile izole API entegrasyon testleri
 - Vitest ve React Testing Library
 - Lucide React ve Oxlint
 
@@ -22,21 +22,13 @@ npm ci
 npm run dev
 ```
 
-Varsayılan geliştirme modu MSW kullanır. Yerel `.env` dosyası şu şekilde oluşturulabilir:
+Yerel `.env` dosyası şu şekilde oluşturulabilir:
 
 ```env
 VITE_API_BASE_URL=http://localhost:8080
-VITE_API_MODE=mock
 ```
 
-Gerçek Spring Boot backend'ine bağlanmak için:
-
-```env
-VITE_API_BASE_URL=http://localhost:8080
-VITE_API_MODE=backend
-```
-
-`VITE_API_BASE_URL` yalnızca sunucu kökünü taşır. Endpoint yolları zaten `/api/...` ile başladığı için değerin sonuna `/api` eklenmez.
+Uygulama geliştirme ve production sırasında her zaman gerçek Spring Boot backend'ine bağlanır. `VITE_API_BASE_URL` yalnızca sunucu kökünü taşır. Endpoint yolları zaten `/api/...` ile başladığı için değerin sonuna `/api` eklenmez. MSW yalnızca Vitest test ortamında başlatılır.
 
 ## OpenAPI istemcisini güncelleme
 
@@ -63,13 +55,12 @@ src/
 ├── api/            # OpenAPI istemcisi, token ve hata sınırı
 ├── components/     # Ortak layout ve kayıt bileşenleri
 ├── config/         # Rol bazlı navigasyon ayarları
-├── context/        # Henüz API sözleşmesi tamamlanmayan UI state'i
-├── domain/         # Saf iş akışı ve görünürlük kuralları
-├── mocks/          # UI fixture'ları ve MSW sahte API sunucusu
+├── context/        # Uygulama çapındaki UI ve önbellek koordinasyonu
+├── mocks/          # Yalnızca Vitest için fixture ve MSW test sunucusu
 ├── pages/          # Route seviyesindeki ekranlar
 ├── schemas/        # Form doğrulama şemaları
 ├── test/           # Ortak Vitest/MSW kurulumu
 └── types/          # Uygulama domain tipleri
 ```
 
-API ve MSW sınırları [frontend API mock mimarisi](../docs/FRONTEND_API_MOCK_MIMARISI.md) belgesinde, beklenen backend kararları ise [frontend-backend sözleşmesinde](../docs/FRONTEND_BACKEND_SOZLESMESI.md) tutulur.
+Test API sınırları [frontend API ve MSW mimarisi](../docs/FRONTEND_API_MOCK_MIMARISI.md) belgesinde, beklenen backend kararları ise [frontend-backend sözleşmesinde](../docs/FRONTEND_BACKEND_SOZLESMESI.md) tutulur.

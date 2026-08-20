@@ -157,7 +157,7 @@ Docker Compose varsayılan olarak üç servis başlatır:
 | `mailpit` | Yerel SMTP yakalayıcı | `1025`, Web UI `8025` |
 | `backend` | Sağlıklı `db`, `uploads` volume | `8080` |
 
-Frontend servisi `frontend` profili arkasındadır ve `docker compose --profile frontend up` ile başlatılır. Varsayılan olarak mock modda açılır; gerçek backend ile çalıştırmak için `VITE_API_MODE=backend` gerekir.
+Frontend servisi `frontend` profili arkasındadır ve `docker compose --profile frontend up` ile başlatılır. Uygulama `VITE_API_BASE_URL` üzerinden gerçek backend'e bağlanır; MSW yalnızca Vitest testlerinde kullanılır.
 
 ## Güvenlik sınırları
 

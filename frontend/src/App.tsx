@@ -2,8 +2,6 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router'
 import { AppShell } from './components/layout/AppShell'
 import { AppErrorBoundary } from './components/errors/AppErrorBoundary'
-import { WorkflowProvider } from './context/WorkflowContext'
-import { useWorkflow } from './context/workflowState'
 import { AdminProvider } from './context/AdminContext'
 import { ThemeProvider } from './context/ThemeContext'
 import { ToastProvider } from './context/ToastContext'
@@ -11,13 +9,10 @@ import {
   clearAuthSession,
   endAuthSession,
   restoreAuthSession,
-  startAuthSession,
   subscribeAuthSessionExpired,
 } from './auth/authSession'
-import { apiMode, isApiMockEnabled } from './api/config'
 import { CategoryProvider } from './context/CategoryContext'
-import { demoAccounts } from './mocks/users'
-import type { AuthUser, UserRole } from './types/auth'
+import type { AuthUser } from './types/auth'
 import { AppQueryProvider } from './query/queryClient'
 import { useUnreadNotificationCount } from './hooks/useNotificationCenter'
 import { RoutePageSkeleton } from './components/feedback/LoadingSkeleton'
@@ -35,12 +30,6 @@ const RecordsPage = lazy(() => import('./pages/RecordsPage').then((module) => ({
 const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage').then((module) => ({ default: module.AdminDashboardPage })))
 const AdminLogsPage = lazy(() => import('./pages/admin/AdminLogsPage').then((module) => ({ default: module.AdminLogsPage })))
 const AdminUsersPage = lazy(() => import('./pages/admin/AdminUsersPage').then((module) => ({ default: module.AdminUsersPage })))
-
-async function startDemoAuthSession(role: UserRole) {
-  const account = demoAccounts.find((candidate) => candidate.role === role)
-  if (!account) throw new Error(`${role} rolü için demo hesabı bulunamadı.`)
-  return startAuthSession(account.email, account.password)
-}
 
 function App() {
   const navigate = useNavigate()
@@ -133,9 +122,6 @@ function App() {
                 : (
                   <ProtectedApplication
                     user={user}
-                    onUserChange={(nextUser) => {
-                      setUser(nextUser)
-                    }}
                     onLogout={handleLogout}
                   />
                 )}
@@ -150,31 +136,16 @@ function App() {
 
 function ProtectedApplication({
   user,
-  onUserChange,
   onLogout,
 }: {
   user: AuthUser | null
-  onUserChange: (user: AuthUser | null) => void
   onLogout: () => void
 }) {
   const location = useLocation()
-  const navigate = useNavigate()
 
   if (!user) {
     const returnTo = `${location.pathname}${location.search}${location.hash}`
     return <Navigate to={`/giris?returnTo=${encodeURIComponent(returnTo)}`} replace />
-  }
-
-  const handleRoleChange = async (nextRole: UserRole) => {
-    if (!isApiMockEnabled || nextRole === user.role) return
-
-    try {
-      const session = await startDemoAuthSession(nextRole)
-      onUserChange(session.user)
-      navigate(session.user.role === 'ADMIN' ? '/admin' : '/dashboard')
-    } catch {
-      return
-    }
   }
 
   if (user.role === 'ADMIN') {
@@ -182,7 +153,6 @@ function ProtectedApplication({
       <AdminProvider actor={user}>
         <AdminApplication
           user={user}
-          onRoleChange={handleRoleChange}
           onLogout={onLogout}
         />
       </AdminProvider>
@@ -191,13 +161,7 @@ function ProtectedApplication({
 
   return (
     <CategoryProvider>
-      <WorkflowProvider user={user}>
-        <WorkflowApplication
-          user={user}
-          onRoleChange={handleRoleChange}
-          onLogout={onLogout}
-        />
-      </WorkflowProvider>
+      <WorkflowApplication user={user} onLogout={onLogout} />
     </CategoryProvider>
   )
 }
@@ -217,40 +181,25 @@ function RecordDeepLinkRedirect() {
 
 function WorkflowApplication({
   user,
-  onRoleChange,
   onLogout,
 }: {
   user: AuthUser
-  onRoleChange: (role: UserRole) => void | Promise<void>
   onLogout: () => void
 }) {
-  const {
-    notifications,
-    unreadNotificationCount: mockUnreadNotificationCount,
-    markNotificationRead,
-  } = useWorkflow()
-  const backendMode = apiMode === 'backend'
-  const unreadNotificationCountQuery = useUnreadNotificationCount(backendMode)
-  const unreadNotificationCount = backendMode
-    ? unreadNotificationCountQuery.data ?? 0
-    : mockUnreadNotificationCount
+  const unreadNotificationCountQuery = useUnreadNotificationCount(true)
+  const unreadNotificationCount = unreadNotificationCountQuery.data ?? 0
 
   return (
-    <AppShell user={user} unreadNotificationCount={unreadNotificationCount} onRoleChange={onRoleChange} onLogout={onLogout}>
+    <AppShell user={user} unreadNotificationCount={unreadNotificationCount} onLogout={onLogout}>
       <Suspense fallback={<RoutePageSkeleton />}><Routes>
         <Route path="/dashboard" element={<DashboardPage user={user} />} />
         <Route path="/kayitlar" element={<RecordsPage role={user.role} />} />
         <Route path="/kayitlar/:recordId/duzenle" element={<RecordEditPage role={user.role} />} />
-        <Route path="/kayitlar/:recordId" element={<RecordDetailPage role={user.role} />} />
+        <Route path="/kayitlar/:recordId" element={<RecordDetailPage user={user} />} />
         <Route path="/records/:recordId" element={<RecordDeepLinkRedirect />} />
         <Route
           path="/bildirimler"
-          element={
-            <NotificationsPage
-              notifications={notifications}
-              onMarkRead={markNotificationRead}
-            />
-          }
+          element={<NotificationsPage />}
         />
         <Route path="/profil" element={<ProfilePage user={user} />} />
         <Route path="/403" element={<ErrorStatePage type="403" />} />
@@ -265,18 +214,15 @@ function WorkflowApplication({
 
 function AdminApplication({
   user,
-  onRoleChange,
   onLogout,
 }: {
   user: AuthUser
-  onRoleChange: (role: UserRole) => void | Promise<void>
   onLogout: () => void
 }) {
   return (
     <AppShell
       user={user}
       unreadNotificationCount={0}
-      onRoleChange={onRoleChange}
       onLogout={onLogout}
     >
       <Suspense fallback={<RoutePageSkeleton />}><Routes>

@@ -39,6 +39,12 @@ export const mockManagedUsers: ManagedUser[] = [
   },
 ]
 
+const initialManagedUsers = mockManagedUsers.map((user) => ({ ...user }))
+
+export function resetMockManagedUsers() {
+  mockManagedUsers.splice(0, mockManagedUsers.length, ...initialManagedUsers.map((user) => ({ ...user })))
+}
+
 const recordLogs: AdminAuditLog[] = mockRecords.flatMap((record) =>
   record.history.map((history) => ({
     id: `record-${history.id}`,
