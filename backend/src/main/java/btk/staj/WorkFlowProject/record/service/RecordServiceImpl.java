@@ -96,6 +96,9 @@ public class RecordServiceImpl implements RecordService {
 
         Record record = recordMapper.toEntity(request, getCurrentUserId());
         record.setCreatedAt(LocalDateTime.now());
+        // Sartnameye gore yeni kayit TASLAK baslar. Mapper zaten boyle kuruyor;
+        // bu satir niyeti cagri yerinde de gorunur kiliyor.
+        record.setStatus(RecordStatus.TASLAK);
 
         Record savedRecord = recordRepository.save(record);
 

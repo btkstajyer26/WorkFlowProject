@@ -2,8 +2,6 @@ import { FileClock, ShieldCheck, UserCheck, UsersRound } from 'lucide-react'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { listAdminAuditLogs, listAdminUsers, type AdminUserListQuery } from '../../api/admin'
-import { apiMode } from '../../api/config'
-import { useAdmin } from '../../context/adminState'
 import { queryKeys } from '../../query/queryKeys'
 import { roleLabels } from '../../types/auth'
 
@@ -17,34 +15,26 @@ const userStats: Array<{ key: string; filters: Pick<AdminUserListQuery, 'active'
 ]
 
 export function AdminDashboardPage() {
-  const { users, logs } = useAdmin()
-  const backendMode = apiMode === 'backend'
   const statQueries = useQueries({
     queries: userStats.map(({ key, filters }) => ({
       queryKey: queryKeys.admin.users.list({ scope: 'dashboard', key, ...filters }),
       queryFn: () => listAdminUsers({ ...filters, page: 0, size: 1 }),
-      enabled: backendMode,
     })),
   })
   const recentLogsQuery = useQuery({
     queryKey: queryKeys.admin.auditLogs.list({ scope: 'dashboard', page: 0, size: 6 }),
     queryFn: () => listAdminAuditLogs({ page: 0, size: 6 }),
-    enabled: backendMode,
   })
   const serverCounts = new Map(
     userStats.map((stat, index) => [stat.key, statQueries[index]?.data?.totalElements ?? 0]),
   )
-  const activeUsers = users.filter((user) => user.isActive)
-  const privilegedUsers = activeUsers.filter((user) => user.role !== 'CALISAN')
-  const totalUsers = backendMode ? serverCounts.get('total') ?? 0 : users.length
-  const activeUserCount = backendMode ? serverCounts.get('active') ?? 0 : activeUsers.length
-  const privilegedUserCount = backendMode
-    ? ['BASKAN_YARDIMCISI', 'BASKAN', 'ADMIN'].reduce((total, role) => total + (serverCounts.get(role) ?? 0), 0)
-    : privilegedUsers.length
-  const totalLogCount = backendMode ? recentLogsQuery.data?.totalElements ?? 0 : logs.length
-  const recentLogs = backendMode ? recentLogsQuery.data?.content ?? [] : logs.slice(0, 6)
-  const dashboardPending = backendMode && (statQueries.some((query) => query.isPending) || recentLogsQuery.isPending)
-  const dashboardError = backendMode && (statQueries.some((query) => query.isError) || recentLogsQuery.isError)
+  const totalUsers = serverCounts.get('total') ?? 0
+  const activeUserCount = serverCounts.get('active') ?? 0
+  const privilegedUserCount = ['BASKAN_YARDIMCISI', 'BASKAN', 'ADMIN'].reduce((total, role) => total + (serverCounts.get(role) ?? 0), 0)
+  const totalLogCount = recentLogsQuery.data?.totalElements ?? 0
+  const recentLogs = recentLogsQuery.data?.content ?? []
+  const dashboardPending = statQueries.some((query) => query.isPending) || recentLogsQuery.isPending
+  const dashboardError = statQueries.some((query) => query.isError) || recentLogsQuery.isError
   const cards = [
     { label: 'Toplam kullanıcı', value: totalUsers, icon: UsersRound, tone: 'bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300' },
     { label: 'Aktif hesap', value: activeUserCount, icon: UserCheck, tone: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300' },
@@ -120,11 +110,7 @@ export function AdminDashboardPage() {
                 <div key={role} className="flex items-center justify-between gap-3 text-sm">
                   <span className="text-app-text-muted">{roleLabels[role]}</span>
                   <strong className="text-app-text">
-                    {dashboardPending
-                      ? '—'
-                      : backendMode
-                        ? serverCounts.get(role) ?? 0
-                        : users.filter((user) => user.isActive && user.role === role).length}
+                    {dashboardPending ? '—' : serverCounts.get(role) ?? 0}
                   </strong>
                 </div>
               ))}

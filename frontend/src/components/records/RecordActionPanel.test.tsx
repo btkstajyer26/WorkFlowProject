@@ -8,35 +8,35 @@ import { api, setApiAccessToken } from '../../api/client'
 import { apiBaseUrl } from '../../api/config'
 import type { WorkflowActionRequest } from '../../api/generated/data-contracts'
 import { ToastProvider } from '../../context/ToastContext'
-import { WorkflowProvider } from '../../context/WorkflowContext'
-import { useWorkflow } from '../../context/workflowState'
 import { getDemoUserByRole } from '../../mocks/users'
 import { RecordActionPanel } from './RecordActionPanel'
 import type { WorkflowRecord } from '../../types/record'
 import { apiMockServer } from '../../mocks/api/server'
 
-function ActionPanelHarness({ recordId = 'rec-003' }: { recordId?: string }) {
-  const { user, visibleRecords } = useWorkflow()
-  const record = visibleRecords.find((item) => item.id === recordId)
-  if (!record) return null
-  return (
-    <>
-      <RecordActionPanel record={record} role={user.role} />
-      <span data-testid="latest-history-note">{record.history.at(-1)?.note ?? ''}</span>
-    </>
-  )
-}
-
 function renderActionPanel(role: 'CALISAN' | 'BASKAN', recordId?: string) {
   const user = getDemoUserByRole(role)
+  const record: WorkflowRecord = {
+    id: recordId ?? 'record-ui-test',
+    recordNumber: '',
+    title: 'İşlem paneli testi',
+    description: 'Test kaydı',
+    categoryId: 1,
+    category: 'İdari',
+    status: role === 'BASKAN' ? 'BASKAN_INCELEMESINDE' : 'TASLAK',
+    createdBy: `${user.firstName} ${user.lastName}`,
+    assignedTo: null,
+    lastAction: '',
+    createdAt: '2026-08-17T10:00:00Z',
+    updatedAt: '2026-08-17T10:00:00Z',
+    attachments: [],
+    history: [],
+  }
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   return render(
     <MemoryRouter>
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
-          <WorkflowProvider user={user}>
-            <ActionPanelHarness recordId={recordId} />
-          </WorkflowProvider>
+          <RecordActionPanel record={record} user={user} />
         </ToastProvider>
       </QueryClientProvider>
     </MemoryRouter>,
@@ -68,9 +68,7 @@ async function renderBackendChairPanel() {
     <MemoryRouter initialEntries={[`/kayitlar/${record.id}`]}>
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
-          <WorkflowProvider user={getDemoUserByRole('BASKAN')}>
-            <RecordActionPanel record={record} role="BASKAN" source="backend" />
-          </WorkflowProvider>
+          <RecordActionPanel record={record} user={getDemoUserByRole('BASKAN')} />
         </ToastProvider>
       </QueryClientProvider>
     </MemoryRouter>,
@@ -102,9 +100,7 @@ async function renderBackendEmployeePanel() {
     <MemoryRouter initialEntries={[`/kayitlar/${record.id}`]}>
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
-          <WorkflowProvider user={getDemoUserByRole('CALISAN')}>
-            <RecordActionPanel record={record} role="CALISAN" source="backend" />
-          </WorkflowProvider>
+          <RecordActionPanel record={record} user={getDemoUserByRole('CALISAN')} />
         </ToastProvider>
       </QueryClientProvider>
     </MemoryRouter>,
@@ -125,20 +121,6 @@ describe('RecordActionPanel', () => {
 
     await user.type(explanation, 'Bütçe kalemi uygun değil.')
     expect(confirmButton).toBeEnabled()
-  })
-
-  it('onay açıklamasını doğrudan işlem geçmişine taşır', async () => {
-    const user = userEvent.setup()
-    renderActionPanel('BASKAN')
-
-    await user.click(screen.getByRole('button', { name: 'Onayla' }))
-    const explanation = screen.getByRole('textbox', { name: 'Onay açıklaması (isteğe bağlı)' })
-    expect(explanation).toHaveValue('')
-    await user.type(explanation, 'Nihai onay açıklaması.')
-    await user.click(screen.getAllByRole('button', { name: 'Onayla' }).at(-1)!)
-
-    await waitFor(() => expect(screen.getByTestId('latest-history-note')).toHaveTextContent('Nihai onay açıklaması.'))
-    expect(screen.getByText('Kayıt onaylandı')).toBeInTheDocument()
   })
 
   it('Çalışanın incelemeye gönderme penceresinde not alanı göstermez', async () => {

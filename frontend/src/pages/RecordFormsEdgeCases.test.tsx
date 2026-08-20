@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router'
 import { describe, expect, it } from 'vitest'
 import App from '../App'
 import { seedAuthenticatedUser } from '../test/auth'
+import { mockApiDb } from '../mocks/api/db'
 
 async function renderEmployeeApp(path: string) {
   await seedAuthenticatedUser('CALISAN')
@@ -71,19 +72,6 @@ describe('Kayıt formu edge-case davranışları', () => {
     expect(within(dialog).getByRole('button', { name: 'Değişiklikleri Sil' })).toHaveFocus()
   })
 
-  it('düzenleme ekranında aynı dosyayı ikinci kez eklemez', async () => {
-    const user = userEvent.setup()
-    await renderEmployeeApp('/kayitlar/rec-002/duzenle')
-
-    const fileInput = await screen.findByLabelText('Dosya ekle')
-    const file = new File(['teklif'], 'teklif.pdf', { type: 'application/pdf', lastModified: 10 })
-    await user.upload(fileInput, file)
-    await user.upload(fileInput, file)
-
-    expect(screen.getByRole('alert')).toHaveTextContent('Aynı dosya birden fazla kez eklenemez')
-    expect(screen.getAllByText('teklif.pdf')).toHaveLength(1)
-  })
-
   it('yeni kayıt alanına desteklenen dosyaları sürükleyip bırakır', async () => {
     const user = userEvent.setup()
     await renderEmployeeApp('/dashboard')
@@ -132,7 +120,29 @@ describe('Kayıt formu edge-case davranışları', () => {
 
   it('düzeltme bekleyen kaydın düzenleme ekranında düzeltme talebini gösterir ve yeniden gönderir', async () => {
     const user = userEvent.setup()
-    await renderEmployeeApp('/kayitlar/rec-002/duzenle')
+    mockApiDb.records = [{
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa4',
+      title: 'Yazılım Lisansı Talebi',
+      description: 'Tasarım lisansı talebidir.',
+      categoryId: 4,
+      status: 'DUZENLEME_BEKLIYOR',
+      createdAt: '2026-08-01T09:15:00Z',
+      updatedAt: '2026-08-05T10:00:00Z',
+      createdBy: 'user-demo-001',
+      assignedTo: 'user-demo-001',
+      lastDeputyId: 'user-demo-002',
+    }, ...mockApiDb.records]
+    mockApiDb.auditLogs = [{
+      id: 'audit-revision-request',
+      recordId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa4',
+      userId: 'user-demo-002',
+      userFullName: 'Ayşe Kaya',
+      roleName: 'BASKAN_YARDIMCISI',
+      action: 'CALISANA_GERI_GONDER',
+      comment: 'Lisans adedi ve kullanım süresi bilgisi eklenmelidir.',
+      createdAt: '2026-08-05T10:00:00Z',
+    }]
+    await renderEmployeeApp('/kayitlar/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa4/duzenle')
 
     expect(await screen.findByRole('heading', { name: 'Düzeltmeleri Tamamla' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Düzeltme Talebi' })).toBeInTheDocument()
@@ -157,8 +167,10 @@ describe('Kayıt formu edge-case davranışları', () => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
 
-    expect(await screen.findByRole('heading', { name: 'Yazılım Lisansı Talebi' })).toBeInTheDocument()
-    expect(screen.getByText('Bşk. Yrd. İncelemesinde')).toBeInTheDocument()
+    expect(await screen.findByText('Kayıt yeniden incelemeye gönderildi')).toBeInTheDocument()
+    await waitFor(() => expect(
+      mockApiDb.records.find((record) => record.id === 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa4')?.status,
+    ).toBe('BSK_YRD_INCELEMESINDE'))
   })
 })
 

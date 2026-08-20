@@ -13,6 +13,10 @@ frontend/test-results/
 # Ortam ve loglar
 .env
 *.log
+# LOG_PATH goreli oldugu icin uygulamanin nerden baslatildigina gore hem
+# backend/logs/ hem kok logs/ olusuyor; ikisi de yoksayilir. Icerigi logback
+# 30 gunluk rotasyonla kendi yonetir, elle tutulmasi gerekmez.
+logs/
 
 # Yüklenen dosyalar (local çalıştırmada)
 # UPLOAD_DIR göreli olduğu için uygulamanın nereden başlatıldığına göre

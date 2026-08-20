@@ -15,10 +15,12 @@
 > **C2a** (`RecordServiceImpl`'de üç `recordLifecycleEvent` çağrısı),
 > **C2b** (`recordLifecycleEvent`) ve C3 dışındaki her şey.
 >
-> **Açık kalan tek iş: C3 — e-posta ve bildirim alıcı matrisi (Melih).**
-> Kodu `origin/feature/notification-service` dalında hazır ancak `test`'e
-> entegre edilmedi; `WorkflowStatusChangedListener` hâlâ olay başına tek alıcı
-> seçiyor. Şartname §4.5 onay durumunda "tüm ilgililer" diyor.
+> **C3 — e-posta ve bildirim alıcı matrisi (Melih): 20 Ağustos 2026'da kapandı.**
+> `feature/notification-service` `test`'e entegre edildi;
+> `WorkflowStatusChangedListener.recipientsOf` artık atama yapılan geçişte
+> atanan kullanıcıya, nihai onay/ret geçişinde hem kaydı oluşturana hem kaydı
+> Başkana ileten yardımcıya (`last_deputy_id`) bildirim üretiyor.
+> **§3 tablosundaki 12 işin 12'si tamamlandı; bu belgede açık iş kalmadı.**
 >
 > **Test durumu:** 352 test / 3 hata → **383 test / 0 hata** (temiz PostgreSQL 15).
 

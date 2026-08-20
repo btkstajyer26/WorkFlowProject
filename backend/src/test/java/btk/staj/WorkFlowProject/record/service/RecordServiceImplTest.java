@@ -49,7 +49,7 @@ class RecordServiceImplTest {
     private PermissionService permissionService;
 
     @Mock
-    private AuditLogService auditLogService;
+    private AuditLogService auditLogService; // AuditLogService mock'u eklendi
 
     private final UserRepository userRepository = mock(UserRepository.class);
 
@@ -122,21 +122,23 @@ class RecordServiceImplTest {
         when(permissionService.canCreateRecord(RoleName.CALISAN)).thenReturn(true);
 
         RecordCreateRequest request = new RecordCreateRequest();
-        Record yeniKayit = ornekKayit(RecordStatus.TASLAK, ownerId);
+        Record yeniKayit = ornekKayit(RecordStatus.TASLAK, ownerId); // Test tutarlılığı için id ve statü içeren kayıt
         when(recordMapper.toEntity(request, ownerId)).thenReturn(yeniKayit);
         when(recordRepository.save(yeniKayit)).thenReturn(yeniKayit);
         when(recordMapper.toResponse(yeniKayit)).thenReturn(new RecordResponse());
 
         assertNotNull(service().createRecord(request));
-
+        
         verify(recordRepository).save(yeniKayit);
+        // Audit log çağrısının doğrulanması
         verify(auditLogService).recordLifecycleEvent(
                 yeniKayit.getId(),
                 ownerId,
                 RoleName.CALISAN,
                 "RECORD_CREATED",
                 RecordStatus.TASLAK,
-                "Kayıt oluşturuldu.");
+                "Kayıt oluşturuldu."
+        );
     }
 
     // ---------------------------------------------------------------
@@ -191,7 +193,7 @@ class RecordServiceImplTest {
 
         assertThrows(BusinessRuleException.class,
                 () -> service().updateRecord(recordId, new RecordUpdateRequest()));
-
+        
         verify(recordRepository, never()).save(any());
         verify(recordRepository, never()).saveAndFlush(any());
         verify(auditLogService, never()).recordLifecycleEvent(any(), any(), any(), any(), any(), any());
@@ -206,7 +208,7 @@ class RecordServiceImplTest {
 
         assertThrows(ForbiddenException.class,
                 () -> service().updateRecord(recordId, new RecordUpdateRequest()));
-
+        
         verify(recordRepository, never()).save(any());
         verify(recordRepository, never()).saveAndFlush(any());
         verify(auditLogService, never()).recordLifecycleEvent(any(), any(), any(), any(), any(), any());
@@ -218,20 +220,23 @@ class RecordServiceImplTest {
         Record kayit = ornekKayit(RecordStatus.TASLAK, ownerId);
         when(recordRepository.findById(recordId)).thenReturn(Optional.of(kayit));
         when(permissionService.canEditOrDeleteDraft(RoleName.CALISAN, RecordStatus.TASLAK)).thenReturn(true);
+        // Güncelleme işleminde saveAndFlush kullanıldığı için mock buna göre güncellendi
         when(recordRepository.saveAndFlush(kayit)).thenReturn(kayit);
         when(recordMapper.toResponse(kayit)).thenReturn(new RecordResponse());
 
         RecordUpdateRequest request = new RecordUpdateRequest();
         assertNotNull(service().updateRecord(recordId, request));
-
+        
         verify(recordRepository).saveAndFlush(kayit);
+        // Audit log çağrısının doğrulanması
         verify(auditLogService).recordLifecycleEvent(
                 recordId,
                 ownerId,
                 RoleName.CALISAN,
                 "RECORD_UPDATED",
                 RecordStatus.TASLAK,
-                "Başlık ve kategori güncellendi.");
+                "Başlık ve kategori güncellendi."
+        );
     }
 
     // ---------------------------------------------------------------
@@ -274,12 +279,15 @@ class RecordServiceImplTest {
 
         assertNotNull(kayit.getDeletedAt());
         verify(recordRepository).save(kayit);
+        
+        // Audit log çağrısının doğrulanması
         verify(auditLogService).recordLifecycleEvent(
                 recordId,
                 ownerId,
                 RoleName.CALISAN,
                 "RECORD_DELETED",
                 RecordStatus.TASLAK,
-                "Kayıt soft delete işlemiyle silindi.");
+                "Kayıt soft delete işlemiyle silindi."
+        );
     }
 }

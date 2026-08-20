@@ -1,15 +1,8 @@
 import { Bell, BellRing, Check, ChevronRight, Inbox } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import { apiMode } from '../api/config'
 import { useNotificationCenter, type NotificationViewItem } from '../hooks/useNotificationCenter'
-import type { NotificationItem } from '../types/notification'
 import { ListLoadingSkeleton } from '../components/feedback/LoadingSkeleton'
-
-type NotificationsPageProps = {
-  notifications: NotificationItem[]
-  onMarkRead: (notificationId: string) => void
-}
 
 const dateFormatter = new Intl.DateTimeFormat('tr-TR', {
   day: '2-digit',
@@ -19,27 +12,14 @@ const dateFormatter = new Intl.DateTimeFormat('tr-TR', {
   minute: '2-digit',
 })
 
-export function NotificationsPage({
-  notifications,
-  onMarkRead,
-}: NotificationsPageProps) {
+export function NotificationsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const unreadOnly = searchParams.get('gorunum') === 'okunmamis'
-  const backendMode = apiMode === 'backend'
-  const notificationCenter = useNotificationCenter({ enabled: backendMode, unreadOnly })
-  const mockUnreadCount = notifications.reduce(
-    (count, notification) => count + Number(!notification.isRead),
-    0,
-  )
-  const mockVisibleNotifications = unreadOnly
-    ? notifications.filter((notification) => !notification.isRead)
-    : notifications
-  const visibleNotifications: NotificationViewItem[] = backendMode
-    ? notificationCenter.notifications
-    : mockVisibleNotifications
-  const unreadCount = backendMode ? notificationCenter.unreadCount : mockUnreadCount
-  const totalCount = backendMode ? notificationCenter.totalCount : notifications.length
-  const markRead = backendMode ? notificationCenter.markRead : onMarkRead
+  const notificationCenter = useNotificationCenter({ enabled: true, unreadOnly })
+  const visibleNotifications: NotificationViewItem[] = notificationCenter.notifications
+  const unreadCount = notificationCenter.unreadCount
+  const totalCount = notificationCenter.totalCount
+  const markRead = notificationCenter.markRead
 
   const setView = (nextUnreadOnly: boolean) => {
     if (nextUnreadOnly) setSearchParams({ gorunum: 'okunmamis' })
@@ -79,9 +59,9 @@ export function NotificationsPage({
           </div>
         </div>
 
-        {backendMode && notificationCenter.isPending ? (
+        {notificationCenter.isPending ? (
           <ListLoadingSkeleton label="Bildirimler yükleniyor" rows={5} />
-        ) : backendMode && notificationCenter.isError ? (
+        ) : notificationCenter.isError ? (
           <div className="flex min-h-80 flex-col items-center justify-center p-6 text-center" role="alert">
             <h2 className="font-bold text-app-text">Bildirimler yüklenemedi</h2>
             <p className="mt-1 max-w-sm text-sm leading-6 text-app-text-subtle">
@@ -103,11 +83,11 @@ export function NotificationsPage({
                   key={notification.id}
                   notification={notification}
                   onMarkRead={markRead}
-                  marking={backendMode && notificationCenter.markingId === notification.id}
+                  marking={notificationCenter.markingId === notification.id}
                 />
               ))}
             </ul>
-            {backendMode && notificationCenter.hasNextPage ? (
+            {notificationCenter.hasNextPage ? (
               <div className="border-t border-app-border-subtle p-4 text-center">
                 <button
                   type="button"
@@ -140,7 +120,7 @@ export function NotificationsPage({
             ) : null}
           </div>
         )}
-        {backendMode && notificationCenter.markReadError ? (
+        {notificationCenter.markReadError ? (
           <p className="border-t border-rose-200 bg-rose-50 px-5 py-3 text-xs font-semibold text-rose-800 dark:border-rose-900/70 dark:bg-rose-950/40 dark:text-rose-200" role="alert">
             Bildirim okundu olarak işaretlenemedi. Lütfen tekrar deneyin.
           </p>

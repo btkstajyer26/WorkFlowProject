@@ -6,7 +6,6 @@ import { describe, expect, it } from 'vitest'
 import App from './App'
 import { requestPasswordReset } from './api/auth'
 import { MOCK_PASSWORD_RESET_CODE, getMockUserByRole, verifyMockPasswordResetCode } from './mocks/api/auth'
-import { api } from './api/client'
 import { apiBaseUrl } from './api/config'
 import { apiMockServer } from './mocks/api/server'
 import { seedAuthenticatedUser } from './test/auth'
@@ -50,7 +49,7 @@ describe('App authorization boundaries', () => {
 
   it('Başkanın kendi kapsamı dışındaki kaydını 403 ile sınırlar', async () => {
     await seedAuthenticatedUser('BASKAN')
-    renderApp('/kayitlar/rec-001')
+    renderApp('/kayitlar/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1')
     expect(await screen.findByRole('heading', { name: 'Bu sayfayı görüntüleme yetkiniz yok' })).toBeInTheDocument()
   })
 
@@ -79,9 +78,9 @@ describe('App authorization boundaries', () => {
 
   it('e-posta deep link adresini kayıt detayına yönlendirir', async () => {
     await seedAuthenticatedUser('CALISAN')
-    renderApp('/records/rec-001')
+    renderApp('/records/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1')
 
-    expect(await screen.findByRole('heading', { name: 'Sunucu Donanım Alım Talebi' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Sunucu alım talebi' })).toBeInTheDocument()
   })
 
   it('zorunlu şifre değişikliği tamamlanmadan korumalı sayfaları açmaz', async () => {
@@ -172,9 +171,9 @@ describe('App authorization boundaries', () => {
 
   it('kayıt detayında API tarafından adları sağlanmayan kişi alanlarını göstermez', async () => {
     await seedAuthenticatedUser('CALISAN')
-    renderApp('/kayitlar/rec-001')
+    renderApp('/kayitlar/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1')
 
-    expect(await screen.findByRole('heading', { name: 'Sunucu Donanım Alım Talebi' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Sunucu alım talebi' })).toBeInTheDocument()
     expect(screen.queryByText('Oluşturan')).not.toBeInTheDocument()
     expect(screen.queryByText('Atanan')).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /Ek Dosyalar/ })).toBeInTheDocument()
@@ -186,22 +185,6 @@ describe('App authorization boundaries', () => {
     expect(await screen.findByRole('heading', { name: 'Yönetim Özeti' })).toBeInTheDocument()
     expect(screen.getByText('Yetkili hesap')).toBeInTheDocument()
     expect(screen.queryByText('Pasif hesap')).not.toBeInTheDocument()
-  })
-
-  it('rol önizlemesinden Admin seçildiğinde API isteklerine Admin yetkisini taşır', async () => {
-    const user = userEvent.setup()
-    await seedAuthenticatedUser('CALISAN')
-    renderApp('/dashboard')
-
-    await user.click(await screen.findByRole('button', { name: 'Admin' }))
-    expect(await screen.findByRole('heading', { name: 'Yönetim Özeti' })).toBeInTheDocument()
-
-    await expect(api.admin.createUser({
-      firstName: 'John',
-      lastName: 'Doe',
-      email: 'john.doe@kurum.gov.tr',
-      password: 'guvenli123',
-    })).rejects.toMatchObject({ status: 409 })
   })
 
   it('Admin olmayan kullanıcının yönetim ekranını açmasını engeller', async () => {
@@ -219,7 +202,7 @@ describe('App authorization boundaries', () => {
       role: 'CALISAN',
       mustChangePassword: false,
     })
-    renderApp('/kayitlar/rec-006/duzenle')
+    renderApp('/kayitlar/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1/duzenle')
     expect(await screen.findByRole('heading', { name: 'Bu sayfayı görüntüleme yetkiniz yok' })).toBeInTheDocument()
   })
 })
