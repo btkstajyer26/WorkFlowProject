@@ -1,15 +1,13 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import KeyRound from 'lucide-react-native/icons/key-round';
-import LogIn from 'lucide-react-native/icons/log-in';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { z } from 'zod';
 
+import { resetPassword } from '@/api/auth';
 import { ApiClientError } from '@/api/errors';
-import { useAuth } from '@/auth/AuthProvider';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppCard } from '@/components/ui/AppCard';
 import { AppText } from '@/components/ui/AppText';
@@ -17,38 +15,51 @@ import { AppTextInput } from '@/components/ui/AppTextInput';
 import { Screen } from '@/components/ui/Screen';
 import { appTokens } from '@/theme/theme';
 
-const loginSchema = z.object({
-  email: z.string().trim().min(1, 'E-posta adresinizi yazın.').email('Geçerli bir e-posta yazın.'),
-  password: z.string().min(1, 'Şifrenizi yazın.'),
-});
+const newPasswordSchema = z
+  .object({
+    confirmPassword: z.string().min(1, 'Yeni şifrenizi tekrar yazın.'),
+    newPassword: z
+      .string()
+      .min(8, 'Yeni şifre en az 8 karakter olmalıdır.')
+      .regex(/[A-Za-zÇĞİÖŞÜçğıöşü]/, 'Yeni şifre en az bir harf içermelidir.')
+      .regex(/\d/, 'Yeni şifre en az bir rakam içermelidir.'),
+  })
+  .refine((values) => values.newPassword === values.confirmPassword, {
+    message: 'Yeni şifreler eşleşmiyor.',
+    path: ['confirmPassword'],
+  });
 
-type LoginFormValues = z.infer<typeof loginSchema>;
+type NewPasswordFormValues = z.infer<typeof newPasswordSchema>;
 
-export default function LoginScreen() {
+export default function NewPasswordScreen() {
   const router = useRouter();
-  const { reason } = useLocalSearchParams<{ reason?: string }>();
-  const { signIn } = useAuth();
+  const { token } = useLocalSearchParams<{ token?: string }>();
   const [submitError, setSubmitError] = useState<string | null>(null);
   const {
     control,
     formState: { isSubmitting },
     handleSubmit,
-    setFocus,
-  } = useForm<LoginFormValues>({
-    defaultValues: { email: '', password: '' },
-    resolver: zodResolver(loginSchema),
+  } = useForm<NewPasswordFormValues>({
+    defaultValues: { confirmPassword: '', newPassword: '' },
+    resolver: zodResolver(newPasswordSchema),
   });
 
-  const submitLogin = handleSubmit(async (values) => {
+  const submitPassword = handleSubmit(async ({ newPassword }) => {
     setSubmitError(null);
 
+    if (!token) {
+      setSubmitError('Şifre sıfırlama bağlantısı geçersiz. Yeniden kod isteyin.');
+      return;
+    }
+
     try {
-      await signIn(values);
+      await resetPassword({ newPassword, token });
+      router.replace({ pathname: '/(auth)/giris', params: { reason: 'password-reset' } });
     } catch (error) {
       setSubmitError(
         error instanceof ApiClientError
           ? error.message
-          : 'Giriş yapılamadı. Lütfen tekrar deneyin.',
+          : 'Şifre yenilenemedi. Lütfen tekrar deneyin.',
       );
     }
   });
@@ -66,39 +77,33 @@ export default function LoginScreen() {
           <View className="px-6 py-8">
             <AppCard className="gap-5 p-6">
               <View className="items-center gap-3">
-                <Image
-                  accessibilityIgnoresInvertColors
-                  accessibilityLabel="EBYS logosu"
-                  contentFit="contain"
-                  source={require('../../../assets/images/ebys-logo.png')}
-                  style={{ height: 68, width: 68 }}
-                />
+                <View className="size-14 items-center justify-center rounded-app-lg bg-brand-100 dark:bg-brand-900/40">
+                  <KeyRound color={appTokens.brand[500]} size={28} />
+                </View>
                 <View className="items-center gap-1">
-                  <AppText accessibilityRole="header" variant="display">
-                    Hoş geldiniz
+                  <AppText accessibilityRole="header" variant="title">
+                    Yeni şifrenizi belirleyin
                   </AppText>
                   <AppText className="text-center" tone="muted">
-                    Hesabınıza giriş yaparak kayıt süreçlerinizi yönetin.
+                    En az 8 karakter, bir harf ve bir rakam içeren yeni bir şifre yazın.
                   </AppText>
                 </View>
               </View>
 
               <Controller
                 control={control}
-                name="email"
+                name="newPassword"
                 render={({ field: { onBlur, onChange, value }, fieldState: { error } }) => (
                   <AppTextInput
                     autoCapitalize="none"
-                    autoComplete="email"
+                    autoComplete="new-password"
                     error={error?.message}
-                    inputMode="email"
-                    label="E-posta adresi"
+                    label="Yeni şifre"
                     onBlur={onBlur}
                     onChangeText={onChange}
-                    onSubmitEditing={() => setFocus('password')}
-                    placeholder="ornek@kurum.gov.tr"
-                    returnKeyType="next"
-                    textContentType="username"
+                    placeholder="Yeni şifrenizi yazın"
+                    secureTextEntry
+                    textContentType="newPassword"
                     value={value}
                   />
                 )}
@@ -106,20 +111,20 @@ export default function LoginScreen() {
 
               <Controller
                 control={control}
-                name="password"
+                name="confirmPassword"
                 render={({ field: { onBlur, onChange, value }, fieldState: { error } }) => (
                   <AppTextInput
                     autoCapitalize="none"
-                    autoComplete="current-password"
+                    autoComplete="new-password"
                     error={error?.message}
-                    label="Şifre"
+                    label="Yeni şifre tekrar"
                     onBlur={onBlur}
                     onChangeText={onChange}
-                    onSubmitEditing={() => void submitLogin()}
-                    placeholder="Şifrenizi yazın"
+                    onSubmitEditing={() => void submitPassword()}
+                    placeholder="Yeni şifrenizi tekrar yazın"
                     returnKeyType="done"
                     secureTextEntry
-                    textContentType="password"
+                    textContentType="newPassword"
                     value={value}
                   />
                 )}
@@ -131,24 +136,11 @@ export default function LoginScreen() {
                 </AppText>
               ) : null}
 
-              {reason === 'password-reset' ? (
-                <AppText accessibilityLiveRegion="polite" tone="brand" variant="caption">
-                  Şifreniz yenilendi. Yeni şifrenizle giriş yapabilirsiniz.
-                </AppText>
-              ) : null}
-
               <AppButton
-                icon={<KeyRound color={appTokens.brand[600]} size={18} />}
-                label="Şifremi unuttum"
-                onPress={() => router.push('/(auth)/sifre-sifirla')}
-                variant="ghost"
-              />
-
-              <AppButton
-                icon={<LogIn color={appTokens.content.onBrand} size={18} />}
+                icon={<KeyRound color={appTokens.content.onBrand} size={18} />}
                 isLoading={isSubmitting}
-                label="Giriş yap"
-                onPress={() => void submitLogin()}
+                label="Şifreyi yenile"
+                onPress={() => void submitPassword()}
               />
             </AppCard>
           </View>
