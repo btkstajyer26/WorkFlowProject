@@ -11,8 +11,7 @@ export const recordStatusSchema = z.enum([
   'REDDEDILDI',
 ]);
 
-const recordListItemSchema = z.object({
-  assignedTo: z.string().uuid().nullish(),
+const recordDetailSchema = z.object({
   categoryId: z.number().int(),
   createdAt: z.string(),
   createdBy: z.string().uuid(),
@@ -21,6 +20,10 @@ const recordListItemSchema = z.object({
   id: z.string().uuid(),
   status: recordStatusSchema,
   title: z.string(),
+});
+
+const recordListItemSchema = recordDetailSchema.extend({
+  assignedTo: z.string().uuid().nullish(),
   updatedAt: z.string().nullish(),
 });
 
@@ -33,8 +36,15 @@ const recordPageSchema = z.object({
 });
 
 export type RecordStatus = z.infer<typeof recordStatusSchema>;
+export type RecordDetail = z.infer<typeof recordDetailSchema>;
 export type RecordListItem = z.infer<typeof recordListItemSchema>;
 export type RecordPage = z.infer<typeof recordPageSchema>;
+
+export type RecordMutationRequest = {
+  categoryId: number;
+  description: string;
+  title: string;
+};
 
 export type RecordFilters = {
   categoryId?: number;
@@ -77,4 +87,34 @@ export async function getRecords(filters: RecordFilters): Promise<RecordPage> {
 
   const response = await apiRequest<unknown>(`/api/records?${params.toString()}`);
   return recordPageSchema.parse(response);
+}
+
+export async function getRecord(recordId: string): Promise<RecordDetail> {
+  const response = await apiRequest<unknown>(`/api/records/${recordId}`);
+  return recordDetailSchema.parse(response);
+}
+
+export async function createRecord(
+  request: RecordMutationRequest,
+): Promise<RecordDetail> {
+  const response = await apiRequest<unknown>('/api/records', {
+    json: request,
+    method: 'POST',
+  });
+  return recordDetailSchema.parse(response);
+}
+
+export async function updateRecord(
+  recordId: string,
+  request: RecordMutationRequest,
+): Promise<RecordDetail> {
+  const response = await apiRequest<unknown>(`/api/records/${recordId}`, {
+    json: request,
+    method: 'PUT',
+  });
+  return recordDetailSchema.parse(response);
+}
+
+export function deleteRecord(recordId: string): Promise<void> {
+  return apiRequest<void>(`/api/records/${recordId}`, { method: 'DELETE' });
 }
