@@ -22,11 +22,11 @@ public class DeviceToken {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(nullable = false, unique = true, columnDefinition = "TEXT")
+    @Column(nullable = false, unique = true)
     private String token;
 
     @Column(nullable = false, length = 20)
@@ -36,6 +36,7 @@ public class DeviceToken {
     private String deviceName;
 
     @Column(name = "is_active", nullable = false)
+    @Builder.Default
     private boolean active = true;
 
     @CreationTimestamp
