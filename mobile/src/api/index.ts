@@ -27,3 +27,5 @@ export {
 export type { ApiAuthHandlers, ApiRequestOptions } from './client';
 export { ApiClientError } from './errors';
 export type { ApiErrorBody, ApiFieldError } from './errors';
+export { getCurrentUser, userRoleSchema } from './users';
+export type { CurrentUser, UserRole } from './users';

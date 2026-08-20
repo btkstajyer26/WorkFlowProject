@@ -88,6 +88,8 @@ export async function endSession(): Promise<void> {
     if (refreshToken) {
       await requestLogout({ refreshToken });
     }
+  } catch {
+    // Sunucuya ulaşılamasa da cihazdaki oturum güvenli biçimde kapatılır.
   } finally {
     await clearSessionTokens();
     publishSession(null);

@@ -1,4 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useRouter } from 'expo-router';
+import ArrowLeft from 'lucide-react-native/icons/arrow-left';
 import KeyRound from 'lucide-react-native/icons/key-round';
 import LogOut from 'lucide-react-native/icons/log-out';
 import { useState } from 'react';
@@ -33,7 +35,8 @@ const passwordSchema = z
 type PasswordFormValues = z.infer<typeof passwordSchema>;
 
 export default function PasswordChangeScreen() {
-  const { changePassword, signOut } = useAuth();
+  const router = useRouter();
+  const { changePassword, mustChangePassword, signOut } = useAuth();
   const [submitError, setSubmitError] = useState<string | null>(null);
   const {
     control,
@@ -98,7 +101,9 @@ export default function PasswordChangeScreen() {
                     Şifrenizi değiştirin
                   </AppText>
                   <AppText className="text-center" tone="muted">
-                    Hesabınıza devam etmek için geçici şifrenizi kişisel bir şifreyle yenileyin.
+                    {mustChangePassword
+                      ? 'Hesabınıza devam etmek için geçici şifrenizi kişisel bir şifreyle yenileyin.'
+                      : 'Mevcut şifrenizi doğrulayarak hesabınız için yeni bir şifre belirleyin.'}
                   </AppText>
                 </View>
               </View>
@@ -182,9 +187,22 @@ export default function PasswordChangeScreen() {
               />
               <AppButton
                 disabled={isSubmitting}
-                icon={<LogOut color={appTokens.brand[600]} size={18} />}
-                label="Farklı hesapla giriş yap"
-                onPress={() => void signOut()}
+                icon={
+                  mustChangePassword ? (
+                    <LogOut color={appTokens.brand[600]} size={18} />
+                  ) : (
+                    <ArrowLeft color={appTokens.brand[600]} size={18} />
+                  )
+                }
+                label={mustChangePassword ? 'Farklı hesapla giriş yap' : 'Profile dön'}
+                onPress={() => {
+                  if (mustChangePassword) {
+                    void signOut();
+                    return;
+                  }
+
+                  router.replace('/(app)/profil');
+                }}
                 variant="ghost"
               />
             </AppCard>

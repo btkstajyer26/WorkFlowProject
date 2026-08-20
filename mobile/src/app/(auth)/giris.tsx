@@ -29,6 +29,7 @@ export default function LoginScreen() {
     control,
     formState: { isSubmitting },
     handleSubmit,
+    setFocus,
   } = useForm<LoginFormValues>({
     defaultValues: { email: '', password: '' },
     resolver: zodResolver(loginSchema),
@@ -90,6 +91,7 @@ export default function LoginScreen() {
                     label="E-posta adresi"
                     onBlur={onBlur}
                     onChangeText={onChange}
+                    onSubmitEditing={() => setFocus('password')}
                     placeholder="ornek@kurum.gov.tr"
                     returnKeyType="next"
                     textContentType="username"

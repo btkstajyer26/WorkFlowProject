@@ -55,11 +55,11 @@ function RootNavigator() {
         <Stack.Protected guard={!isAuthenticated}>
           <Stack.Screen name="(auth)" />
         </Stack.Protected>
-        <Stack.Protected guard={isAuthenticated && mustChangePassword}>
-          <Stack.Screen name="(password)" />
-        </Stack.Protected>
         <Stack.Protected guard={isAuthenticated && !mustChangePassword}>
           <Stack.Screen name="(app)" />
+        </Stack.Protected>
+        <Stack.Protected guard={isAuthenticated}>
+          <Stack.Screen name="(password)" />
         </Stack.Protected>
       </Stack>
     </>
