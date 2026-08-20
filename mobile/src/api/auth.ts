@@ -45,6 +45,7 @@ export type ResetPasswordRequest = {
 
 export function login(request: LoginRequest): Promise<LoginResponse> {
   return apiRequest(`${AUTH_BASE_PATH}/login`, {
+    auth: false,
     json: request,
     method: 'POST',
   });
@@ -52,6 +53,7 @@ export function login(request: LoginRequest): Promise<LoginResponse> {
 
 export function refreshSession(request: RefreshTokenRequest): Promise<LoginResponse> {
   return apiRequest(`${AUTH_BASE_PATH}/refresh`, {
+    auth: false,
     json: request,
     method: 'POST',
   });
@@ -59,6 +61,7 @@ export function refreshSession(request: RefreshTokenRequest): Promise<LoginRespo
 
 export function logout(request: LogoutRequest): Promise<string> {
   return apiRequest(`${AUTH_BASE_PATH}/logout`, {
+    auth: false,
     json: request,
     method: 'POST',
   });
@@ -66,10 +69,8 @@ export function logout(request: LogoutRequest): Promise<string> {
 
 export function changePassword(
   request: ChangePasswordRequest,
-  accessToken: string,
 ): Promise<string> {
   return apiRequest(`${AUTH_BASE_PATH}/change-password`, {
-    accessToken,
     json: request,
     method: 'POST',
   });
@@ -77,6 +78,7 @@ export function changePassword(
 
 export function forgotPassword(request: ForgotPasswordRequest): Promise<void> {
   return apiRequest(`${AUTH_BASE_PATH}/forgot-password`, {
+    auth: false,
     json: request,
     method: 'POST',
   });
@@ -86,6 +88,7 @@ export function verifyResetCode(
   request: VerifyResetCodeRequest,
 ): Promise<VerifyResetCodeResponse> {
   return apiRequest(`${AUTH_BASE_PATH}/verify-reset-code`, {
+    auth: false,
     json: request,
     method: 'POST',
   });
@@ -93,6 +96,7 @@ export function verifyResetCode(
 
 export function resetPassword(request: ResetPasswordRequest): Promise<void> {
   return apiRequest(`${AUTH_BASE_PATH}/reset-password`, {
+    auth: false,
     json: request,
     method: 'POST',
   });

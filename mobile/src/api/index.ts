@@ -18,7 +18,12 @@ export type {
   VerifyResetCodeRequest,
   VerifyResetCodeResponse,
 } from './auth';
-export { API_BASE_URL, apiRequest } from './client';
-export type { ApiRequestOptions } from './client';
+export {
+  API_BASE_URL,
+  apiRequest,
+  clearApiAuthHandlers,
+  setApiAuthHandlers,
+} from './client';
+export type { ApiAuthHandlers, ApiRequestOptions } from './client';
 export { ApiClientError } from './errors';
 export type { ApiErrorBody, ApiFieldError } from './errors';

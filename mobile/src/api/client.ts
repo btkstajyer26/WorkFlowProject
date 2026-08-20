@@ -11,9 +11,22 @@ const API_BASE_URL = rawApiBaseUrl.replace(/\/+$/, '');
 
 type ApiRequestOptions = RequestInit & {
   accessToken?: string;
+  auth?: boolean;
   json?: unknown;
   timeoutMs?: number;
 };
+
+type ApiAuthHandlers = {
+  getAccessToken: () => string | null;
+  refreshAccessToken: () => Promise<string>;
+};
+
+type ApiFetchResult = {
+  response: Response;
+  responseBody: unknown;
+};
+
+let apiAuthHandlers: ApiAuthHandlers | null = null;
 
 function createRequestUrl(path: string): string {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
@@ -53,12 +66,14 @@ async function readResponseBody(response: Response): Promise<unknown> {
   }
 }
 
-async function apiRequest<T>(
+async function executeFetch(
   path: string,
-  options: ApiRequestOptions = {},
-): Promise<T> {
+  options: ApiRequestOptions,
+  accessToken: string | undefined,
+): Promise<ApiFetchResult> {
   const {
-    accessToken,
+    accessToken: _accessToken,
+    auth: _auth,
     body,
     headers,
     json,
@@ -91,12 +106,7 @@ async function apiRequest<T>(
       signal: abortController.signal,
     });
     const responseBody = await readResponseBody(response);
-
-    if (!response.ok) {
-      throw createHttpError(response.status, responseBody);
-    }
-
-    return responseBody as T;
+    return { response, responseBody };
   } catch (error) {
     if (error instanceof ApiClientError) {
       throw error;
@@ -113,5 +123,48 @@ async function apiRequest<T>(
   }
 }
 
-export { API_BASE_URL, apiRequest };
-export type { ApiRequestOptions };
+async function executeApiRequest<T>(
+  path: string,
+  options: ApiRequestOptions,
+  canRefresh: boolean,
+): Promise<T> {
+  const { accessToken: accessTokenOverride, auth = true } = options;
+  const accessToken =
+    accessTokenOverride ?? (auth ? (apiAuthHandlers?.getAccessToken() ?? undefined) : undefined);
+  const { response, responseBody } = await executeFetch(path, options, accessToken);
+
+  if (response.status === 401 && auth && canRefresh && apiAuthHandlers) {
+    try {
+      const refreshedAccessToken = await apiAuthHandlers.refreshAccessToken();
+      return executeApiRequest<T>(
+        path,
+        { ...options, accessToken: refreshedAccessToken },
+        false,
+      );
+    } catch {
+      // Oturum yöneticisi başarısız refresh sonrasında yerel tokenları temizler.
+      // Çağıran katmana asıl isteğin 401 cevabını iletiyoruz.
+    }
+  }
+
+  if (!response.ok) {
+    throw createHttpError(response.status, responseBody);
+  }
+
+  return responseBody as T;
+}
+
+function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
+  return executeApiRequest<T>(path, options, true);
+}
+
+function setApiAuthHandlers(handlers: ApiAuthHandlers): void {
+  apiAuthHandlers = handlers;
+}
+
+function clearApiAuthHandlers(): void {
+  apiAuthHandlers = null;
+}
+
+export { API_BASE_URL, apiRequest, clearApiAuthHandlers, setApiAuthHandlers };
+export type { ApiAuthHandlers, ApiRequestOptions };
