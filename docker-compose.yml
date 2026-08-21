@@ -70,6 +70,8 @@ services:
       TZ: ${TZ:-Europe/Istanbul}
       BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
       BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+      # Yerel Vite frontend ve Expo web geliştirme sunucularına izin verir.
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:8081}
       # Mobil push bildirimleri icin FCM servis hesabi; bos birakilirsa push atlanir.
       FCM_PROJECT_ID: ${FCM_PROJECT_ID:-}
       FCM_CLIENT_EMAIL: ${FCM_CLIENT_EMAIL:-}
