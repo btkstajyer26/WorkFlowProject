@@ -1,0 +1,29 @@
+# TEST ortami reverse proxy'si. docker-compose.test.yml tarafindan baglanir.
+#
+# Caddy sertifikayi Let's Encrypt'ten kendisi alir ve yeniler; HTTP'den
+# HTTPS'e yonlendirme de otomatiktir. Sart: TEST_DOMAIN gercek bir alan adi
+# olmali (IP calismaz) ve 80/443 disaridan erisilebilmeli.
+#
+# Sertifikayi deneme yanilmayla ugrasirken kota tuketmemek icin asagidaki
+# satiri gecici olarak dosyanin en basina alabilirsiniz; akis oturunca silin:
+#
+#   { acme_ca https://acme-staging-v02.api.letsencrypt.org/directory }
+
+{$TEST_DOMAIN} {
+	encode zstd gzip
+
+	# Mailpit arayuzu parola sifirlama kodlarini ve butun bildirim maillerini
+	# gosteriyor; korumasiz birakilamaz. Prefix striplenmiyor cunku Mailpit
+	# MP_WEBROOT=/mail ile zaten bu yolun altinda servis ediyor.
+	handle /mail* {
+		basic_auth {
+			{$MAILPIT_USER} {$MAILPIT_PASSWORD_HASH}
+		}
+		reverse_proxy mailpit:8025
+	}
+
+	# Geri kalan her sey backend'e: /api/**, /swagger-ui.html, /actuator/health.
+	handle {
+		reverse_proxy backend:8080
+	}
+}
