@@ -1,0 +1,17 @@
+# Linux konteynerine giren dosyalar LF ile checkout edilmeli. Windows'ta
+# core.autocrlf ile CRLF'e cevrilirlerse:
+#   - *.sh : "bad interpreter: /usr/bin/env bash^M" ile hic calismaz.
+#   - Caddyfile : satir sonundaki \r basic_auth hash token'inin sonuna
+#     sizar ve Mailpit korumasi sessizce dogrulanamaz hale gelir.
+#
+# Repo genelinde `* text=auto` bilerek KULLANILMIYOR: butun dosyalari
+# yeniden normalize eder ve gercek degisiklikleri gizleyen devasa bir diff
+# uretir. Yalnizca konteynere giren dosyalar hedefleniyor.
+*.sh             text eol=lf
+deploy/Caddyfile text eol=lf
+
+# Maven wrapper: mvnw Linux'ta (CI ve konteyner icinde) calisan bir kabuk
+# betigi, mvnw.cmd ise Windows cmd betigi. Uzantisi olmadigi icin yukaridaki
+# *.sh kurali mvnw'yi kapsamiyor; ayrica belirtiliyor.
+mvnw     text eol=lf
+mvnw.cmd text eol=crlf

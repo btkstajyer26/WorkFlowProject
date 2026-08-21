@@ -510,6 +510,7 @@ Son durum: tüm `feature/*` dalları `integration/tum-feature-branchleri` içine
 - [Frontend–backend çalışma sözleşmesi](docs/FRONTEND_BACKEND_SOZLESMESI.md)
 - [Mobil entegrasyon görev dağılımı](docs/MOBIL_ENTEGRASYON_GOREV_DAGILIMI.md)
 - [Mobil API envanteri](docs/MOBIL_API_ENVANTERI.md)
+- [TEST ortamı dağıtım notu](docs/TEST_ORTAMI_NOTU.md)
 - [Backend açık işler ve görev dağılımı (arşiv)](docs/archive/BACKEND_ACIK_ISLER_VE_GOREV_DAGILIMI.md)
 - [Sistem mimarisi](docs/architecture.md)
 - [Mimari karar kayıtları](docs/decisions/README.md)
