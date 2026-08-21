@@ -45,7 +45,11 @@ public class SecurityConfig {
             "/v3/api-docs.yaml",
             // Servlet konteyneri hatayi /error'a yonlendirir; burasi kapali
             // kalirsa istemci gercek hata yerine 401 gorur.
-            "/error"
+            "/error",
+            // Reverse proxy ve container healthcheck'i bu ucu token'siz
+            // yoklar; kapali kalirsa 401 gorup servisi "sagliksiz" sayarlar.
+            // show-details=never oldugu icin yalnizca UP/DOWN disari cikar.
+            "/actuator/health"
     };
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
