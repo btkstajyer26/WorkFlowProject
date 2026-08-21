@@ -143,7 +143,7 @@ class AuthControllerTest {
         RefreshTokenRequest request = new RefreshTokenRequest();
         request.setRefreshToken("valid-refresh-token");
 
-        LoginResponse expectedResponse = new LoginResponse("new-access-token", "valid-refresh-token",false);
+        LoginResponse expectedResponse = new LoginResponse("new-access-token", "valid-refresh-token", false);
         when(authService.refresh(anyString())).thenReturn(expectedResponse);
 
         mockMvc.perform(post("/api/auth/refresh")
@@ -201,7 +201,7 @@ class AuthControllerTest {
         LogoutRequest request = new LogoutRequest();
         request.setRefreshToken("token-to-revoke");
 
-        doNothing().when(authService).logout("token-to-revoke");
+        doNothing().when(authService).logout("token-to-revoke", null);
 
         mockMvc.perform(post("/api/auth/logout")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -209,7 +209,29 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Çıkış yapıldı"));
 
-        verify(authService, times(1)).logout("token-to-revoke");
+        verify(authService, times(1)).logout("token-to-revoke", null);
+    }
+
+    /**
+     * Is M4: mobil istemci cihaz token'ini govdede gonderir; controller bunu
+     * oldugu gibi servise iletmeli.
+     */
+    @Test
+    @DisplayName("Gövdedeki deviceToken servise iletilmeli")
+    void logout_deviceTokenGonderilirse_serviseIletilmeli() throws Exception {
+        LogoutRequest request = new LogoutRequest();
+        request.setRefreshToken("token-to-revoke");
+        request.setDeviceToken("cihaz-token");
+
+        doNothing().when(authService).logout("token-to-revoke", "cihaz-token");
+
+        mockMvc.perform(post("/api/auth/logout")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Çıkış yapıldı"));
+
+        verify(authService, times(1)).logout("token-to-revoke", "cihaz-token");
     }
 
     @Test
@@ -219,7 +241,7 @@ class AuthControllerTest {
         request.setRefreshToken("olmayan-token");
 
         // AuthService.logout, token bulunamazsa sessizce hiçbir şey yapmıyor (exception fırlatmıyor)
-        doNothing().when(authService).logout("olmayan-token");
+        doNothing().when(authService).logout("olmayan-token", null);
 
         mockMvc.perform(post("/api/auth/logout")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -227,7 +249,7 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Çıkış yapıldı"));
 
-        verify(authService, times(1)).logout("olmayan-token");
+        verify(authService, times(1)).logout("olmayan-token", null);
     }
 
     @Test
@@ -239,7 +261,7 @@ class AuthControllerTest {
         // AuthService.logout kimlik dogrulamaz, yalnizca token'i iptal eder.
         // Buradan gelen bir hata kimlik hatasi degil sunucu hatasidir.
         doThrow(new RuntimeException("Token işlenemedi"))
-                .when(authService).logout("bad-token");
+                .when(authService).logout("bad-token", null);
 
         mockMvc.perform(post("/api/auth/logout")
                         .contentType(MediaType.APPLICATION_JSON)

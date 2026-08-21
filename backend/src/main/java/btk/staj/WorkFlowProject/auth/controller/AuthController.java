@@ -45,7 +45,7 @@ public class AuthController {
      */
     @PostMapping(value = "/logout", produces = MediaType.TEXT_PLAIN_VALUE + ";charset=UTF-8")
     public String logout(@Valid @RequestBody LogoutRequest request) {
-        authService.logout(request.getRefreshToken());
+        authService.logout(request.getRefreshToken(), request.getDeviceToken());
         return "Çıkış yapıldı";
     }
     @PostMapping("/change-password")
