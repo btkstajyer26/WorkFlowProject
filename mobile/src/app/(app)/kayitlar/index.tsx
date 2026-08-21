@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Files, SlidersHorizontal } from 'lucide-react-native';
+import Files from 'lucide-react-native/icons/files';
+import SlidersHorizontal from 'lucide-react-native/icons/sliders-horizontal';
 import {
   ActivityIndicator,
   FlatList,

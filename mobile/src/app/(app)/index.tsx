@@ -1,12 +1,10 @@
 import { useMemo } from 'react';
 import { useRouter } from 'expo-router';
-import {
-  CheckCircle2,
-  Clock3,
-  FilePenLine,
-  Files,
-  type LucideIcon,
-} from 'lucide-react-native';
+import CheckCircle2 from 'lucide-react-native/icons/circle-check-big';
+import Clock3 from 'lucide-react-native/icons/clock-3';
+import FilePenLine from 'lucide-react-native/icons/file-pen-line';
+import Files from 'lucide-react-native/icons/files';
+import type { LucideIcon } from 'lucide-react-native';
 import {
   ActivityIndicator,
   Pressable,

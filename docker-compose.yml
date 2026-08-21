@@ -61,10 +61,16 @@ services:
       JWT_SECRET: ${JWT_SECRET:-yerel-gelistirme-icin-en-az-32-karakter-uzunlugunda-gecici-anahtar}
       JWT_ACCESS_TOKEN_EXPIRATION: ${JWT_ACCESS_TOKEN_EXPIRATION:-3600000}
       JWT_REFRESH_TOKEN_EXPIRATION: ${JWT_REFRESH_TOKEN_EXPIRATION:-604800000}
-      # E-postadaki derin bağlantının işaret ettiği arayüz adresi ve tarayıcıdan
-      # gelen isteklerin izinli origin listesi. TEST ortamında ikisi de değişir.
+      # E-postadaki derin bağlantının işaret ettiği arayüz adresi. Gerçek bir web
+      # arayüzünün adresidir; API adresi buraya yazılmaz (bkz.
+      # docs/TEST_ORTAMI_NOTU.md — API-only TEST topolojisinde mail derin
+      # bağlantıları desteklenmez).
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
+      # Tarayıcıdan gelen isteklerin izinli origin listesi. Varsayılan yerel Vite
+      # frontend'i ve Expo web geliştirme sunucusunu kapsar; TEST ortamında
+      # public adrese daraltılır. TEK tanım olmalı: Compose aynı anahtarı iki kez
+      # gören dosyayı hiç parse etmez ve tüm dağıtım bloke olur.
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:8081}
       # Tarihler LocalDateTime olarak, yani sunucu yerel saatiyle saklanıyor.
       # Sunucu UTC kalırsa bütün kayıt saatleri ekipçe geride görünür.
       TZ: ${TZ:-Europe/Istanbul}

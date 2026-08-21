@@ -1,28 +1,28 @@
-import { Tabs } from 'expo-router';
-import Bell from 'lucide-react-native/icons/bell';
-import CirclePlus from 'lucide-react-native/icons/circle-plus';
-import Files from 'lucide-react-native/icons/files';
-import LayoutDashboard from 'lucide-react-native/icons/layout-dashboard';
-import UserRound from 'lucide-react-native/icons/user-round';
-import { StyleSheet } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Tabs } from "expo-router";
+import Bell from "lucide-react-native/icons/bell";
+import CirclePlus from "lucide-react-native/icons/circle-plus";
+import Files from "lucide-react-native/icons/files";
+import LayoutDashboard from "lucide-react-native/icons/layout-dashboard";
+import UserRound from "lucide-react-native/icons/user-round";
+import { StyleSheet } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { MobileHeader } from '@/components/navigation/MobileHeader';
-import { TabBarIcon } from '@/components/navigation/TabBarIcon';
-import { useAppTheme } from '@/theme/ThemeProvider';
-import { appTokens } from '@/theme/theme';
+import { MobileHeader } from "@/components/navigation/MobileHeader";
+import { TabBarIcon } from "@/components/navigation/TabBarIcon";
+import { useAppTheme } from "@/theme/ThemeProvider";
+import { appTokens } from "@/theme/theme";
 
 export default function AppLayout() {
   const insets = useSafeAreaInsets();
   const { colors, resolvedTheme } = useAppTheme();
   const activeTintColor =
-    resolvedTheme === 'dark' ? appTokens.brand[300] : appTokens.brand[600];
+    resolvedTheme === "dark" ? appTokens.brand[300] : appTokens.brand[600];
 
   return (
     <Tabs
       backBehavior="history"
       screenOptions={{
-        animation: 'fade',
+        animation: "fade",
         header: () => <MobileHeader />,
         headerShown: true,
         sceneStyle: { backgroundColor: colors.canvas },
@@ -43,51 +43,64 @@ export default function AppLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          tabBarAccessibilityLabel: 'Panel sekmesi',
+          tabBarAccessibilityLabel: "Panel sekmesi",
           tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon color={color} focused={focused} icon={LayoutDashboard} />
+            <TabBarIcon
+              color={color}
+              focused={focused}
+              icon={LayoutDashboard}
+            />
           ),
-          title: 'Panel',
+          title: "Dashboard",
         }}
       />
       <Tabs.Screen
         name="kayitlar"
         options={{
-          tabBarAccessibilityLabel: 'Kayıtlar sekmesi',
+          tabBarAccessibilityLabel: "Kayıtlar sekmesi",
           tabBarIcon: ({ color, focused }) => (
             <TabBarIcon color={color} focused={focused} icon={Files} />
           ),
-          title: 'Kayıtlar',
+          title: "Kayıtlar",
         }}
       />
       <Tabs.Screen
         name="olustur"
         options={{
-          tabBarAccessibilityLabel: 'Yeni kayıt oluştur sekmesi',
+          tabBarAccessibilityLabel: "Yeni kayıt oluştur sekmesi",
           tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon color={color} focused={focused} icon={CirclePlus} />
+            <TabBarIcon
+              color={color}
+              focused={focused}
+              icon={CirclePlus}
+              prominent
+            />
           ),
-          title: 'Oluştur',
+          tabBarIconStyle: {
+            marginBottom: 4,
+          },
+          tabBarLabelPosition: "below-icon",
+          title: "Oluştur",
         }}
       />
       <Tabs.Screen
         name="bildirimler"
         options={{
-          tabBarAccessibilityLabel: 'Bildirimler sekmesi',
+          tabBarAccessibilityLabel: "Bildirimler sekmesi",
           tabBarIcon: ({ color, focused }) => (
             <TabBarIcon color={color} focused={focused} icon={Bell} />
           ),
-          title: 'Bildirimler',
+          title: "Bildirimler",
         }}
       />
       <Tabs.Screen
         name="profil"
         options={{
-          tabBarAccessibilityLabel: 'Profil sekmesi',
+          tabBarAccessibilityLabel: "Profil sekmesi",
           tabBarIcon: ({ color, focused }) => (
             <TabBarIcon color={color} focused={focused} icon={UserRound} />
           ),
-          title: 'Profil',
+          title: "Profil",
         }}
       />
     </Tabs>
@@ -96,7 +109,7 @@ export default function AppLayout() {
 
 const styles = StyleSheet.create({
   tabBarLabel: {
-    fontFamily: 'Inter_600SemiBold',
+    fontFamily: "Inter_600SemiBold",
     fontSize: 11,
     lineHeight: 14,
   },
