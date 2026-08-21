@@ -1,8 +1,17 @@
 # TEST Ortamı — Dağıtım Notu
 
 **Kapsam:** M9 TEST ortamının topolojisi, bilinen sınırlamaları ve dağıtım
-öncesi/sonrası çalıştırılacak betikler. Ortam kurulduktan sonra adres, hesap ve
-veri bilgisi [MOBIL_API_ENVANTERI.md](MOBIL_API_ENVANTERI.md) tablosuna yazılır.
+öncesi/sonrası çalıştırılacak betikler.
+
+**Ortam ayakta:** `https://workflowproject-test.duckdns.org` — 21 Ağustos 2026,
+deploy SHA `4726d69`. Adres, hesaplar, veri özeti ve kabul kanıtı
+[MOBIL_API_ENVANTERI.md](MOBIL_API_ENVANTERI.md#test-ortamı) içinde. Bu belge
+ortamın **nasıl** kurulduğunu ve nelere dikkat edilmesi gerektiğini anlatır;
+ortamın **ne olduğu** envanterdedir.
+
+Tek EC2 üzerinde Docker Compose ile backend + PostgreSQL + Mailpit + Caddy
+çalışıyor. Sunucuya özgü ayrıntılar (Elastic IP, SSH anahtarı, bölge) bilerek
+bu belgeye yazılmadı; ortam sahibinde durur.
 
 ---
 
@@ -132,17 +141,29 @@ kayıt sayısı yazılır. Kanıt paketine olduğu gibi konabilir.
 
 ---
 
-## Kurulum sonrası envantere yazılacaklar
+## Kurulum sonrası envantere yazılanlar ✅
 
-[MOBIL_API_ENVANTERI.md](MOBIL_API_ENVANTERI.md) ortam tablosuna:
+Hepsi [MOBIL_API_ENVANTERI.md](MOBIL_API_ENVANTERI.md#test-ortamı) içinde:
+TEST HTTPS base URL, hesapların e-posta + rol bilgisi (parolasız), veri özeti
+ve rol başına görünür kayıt sayısı, deploy edilen `test` merge SHA'sı, kabul
+cihazı / işletim sistemi / build kimliği / doğrulama tarihi.
 
-- [ ] TEST HTTPS base URL
-- [ ] Hesapların e-posta + rol bilgisi (**parola yazılmaz**)
-- [ ] Örnek veri özeti (rol başına görünür kayıt sayısı)
-- [ ] Deploy edilen `test` merge SHA'sı
-- [ ] Kabul cihazı, işletim sistemi, build kimliği ve doğrulama tarihi
+## Mobil taraf
 
-Mobil tarafta `EXPO_PUBLIC_API_BASE_URL` EAS build environment'ına tam adıyla
-verilir; `eas.json` bu değeri bugün kendiliğinden sağlamıyor.
-`mobile/.env.example` içindeki yerel IP placeholder'ı gerçek TEST URL'si
-belirlendiğinde güncellenir.
+`EXPO_PUBLIC_API_BASE_URL` EAS build environment'ına tam adıyla verilir;
+`eas.json` bu değeri kendiliğinden sağlamıyor. Kabul build'i bu değişken
+`https://workflowproject-test.duckdns.org` olarak verilerek üretildi.
+
+`mobile/.env.example` hâlâ yerel IP placeholder'ı içeriyor — yerel geliştirme
+için doğru varsayılan bu. TEST adresine bağlanmak isteyen geliştirici kendi
+`mobile/.env` dosyasına yukarıdaki URL'yi yazar; `.env` commit edilmez.
+
+## M9 sonrası açık operasyonel riskler
+
+Ortam kabul edildi ama uzun ömürlü işletim için şunlar **henüz yok** ve ayrı
+issue olarak izlenmeli: yedek/geri yükleme, reboot dayanıklılığı doğrulaması,
+izleme ve alarmlar, log saklama, image sürüm sabitleme, secret rotasyonu, AWS
+kaynak kapatma prosedürü. Swagger arayüzü de bilerek korumasız bırakıldı;
+ortam kalıcılaşırsa Mailpit'le aynı basic auth'un arkasına alınmalı.
+
+Bunlar M9'u yeniden açmaz — kendi tanımlarıyla ayrı ele alınır.

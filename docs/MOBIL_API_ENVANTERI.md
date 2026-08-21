@@ -1,7 +1,8 @@
 # Mobil API Envanteri
 
-**Durum:** Uç envanteri tamam; TEST ortamı bekleniyor (M0 · M9)
+**Durum:** Uç envanteri tamam; TEST ortamı kuruldu ve gerçek cihazdan doğrulandı (M0 · M9 ✅)
 **Son kod doğrulaması:** 20 Ağustos 2026, `test` dalı `0e4043a`
+**TEST ortamı doğrulaması:** 21 Ağustos 2026, `test` dalı `4726d69` — [TEST ortamı](#test-ortamı)
 
 Mobil istemcinin kullanacağı uçların tam listesi. Her satır koda bakılarak
 doğrulandı; **tahminle bağlama yok.** Uç değişirse bu belge aynı PR'da güncellenir.
@@ -12,18 +13,21 @@ Swagger `/swagger-ui.html`, ham şema `/v3/api-docs`.
 
 ---
 
-## ⚠️ Sprint 0'da kapatılması gereken boşluk
+## ✅ Sprint 0 boşlukları — kapandı
 
-**1. TEST ortamı yok — sorumlu: Burak Kaya (M9).** Bugün yalnız
-`localhost:8080` var. Gerçek cihaz `localhost`'a bağlanamaz, dolayısıyla **push
-bildirimi hiç test edilemez** (Sprint 4 buna bağlı). Aşağıdaki tabloyu ortam
-ayağa kalkınca Burak doldurur:
+**1. ~~TEST ortamı yok.~~ ✅ Kuruldu — Burak Kaya (M9).** Ekipçe erişilebilen
+HTTPS TEST ortamı 21 Ağustos 2026'da ayağa kaldırıldı ve gerçek fiziksel
+Android cihazdan doğrulandı. Mobil istemci artık `localhost` yerine bu adrese
+bağlanabilir; push bildiriminin (Sprint 4) önündeki ortam engeli kalktı.
 
 | | Adres | Örnek hesaplar | Veri |
 |---|---|---|---|
 | `DEV` | `http://localhost:8080` | Yerel bootstrap admin | Boş şema + Flyway |
-| `TEST` | _(belirlenmedi)_ | _(belirlenmedi)_ | _(belirlenmedi)_ |
+| `TEST` | `https://workflowproject-test.duckdns.org` | Çalışan ×2, Bşk. Yrd., Başkan, Admin — [aşağıda](#test-ortamı) | 7 kayıt, altı workflow durumu |
 | `PROD` | _(kapsam dışı)_ | — | — |
+
+Ayrıntı, hesaplar ve kabul kanıtı: [TEST ortamı](#test-ortamı).
+Kurulum, topoloji ve bilinen sınırlamalar: [TEST_ORTAMI_NOTU.md](TEST_ORTAMI_NOTU.md).
 
 **2. ~~Sürüm sabitlenmiş `openapi.json` yok.~~ ✅ Sabitlendi:
 [docs/openapi.json](openapi.json)** — 20 Ağustos 2026, `0e4043a`.
@@ -40,6 +44,74 @@ her değişiklik tek satırlık okunamaz bir diff'e dönüşüyor.
 
 > Dosyadaki `servers[0].url` `http://localhost:8080` — üretildiği ortamın
 > adresidir. Mobil base URL'i kendi yapılandırmasından alır, bu alanı kullanmaz.
+
+---
+
+## TEST ortamı
+
+**Base URL:** `https://workflowproject-test.duckdns.org`
+**Deploy SHA:** `4726d6974ae30f54120a7423d288acf18465da8c` (`4726d69`, `test` dalı)
+**Doğrulama tarihi:** 21 Ağustos 2026
+
+Mobil istemci base URL'i `EXPO_PUBLIC_API_BASE_URL` üzerinden alır; değişken
+zorunludur ve tanımsızsa uygulama açılışta durur
+([mobile/src/api/client.ts](../mobile/src/api/client.ts)). EAS build
+environment'ına tam adıyla verilmelidir — `eas.json` bu değeri kendiliğinden
+sağlamıyor.
+
+### Hesaplar
+
+Parolalar **bu belgeye yazılmaz**; güvenli ekip kanalından paylaşılır. Admin
+parolası ekip geneline paylaşılmaz.
+
+| E-posta | Rol | Görünür kayıt |
+|---|---|---:|
+| `calisan1@ebys-test.local` | `CALISAN` | 6 |
+| `calisan2@ebys-test.local` | `CALISAN` | 1 |
+| `bskyrd@ebys-test.local` | `BASKAN_YARDIMCISI` | 5 |
+| `baskan@ebys-test.local` | `BASKAN` | 3 |
+| `m9-admin@workflow.test` | `ADMIN` | — (mobil kapsam dışı) |
+
+Görünür kayıt sütunu görünürlük kapsamının kanıtıdır: `calisan1` yalnızca kendi
+altı kaydını görüyor, `calisan2`'nin taslağını görmüyor.
+
+### Veri
+
+Toplam 7 kayıt. `calisan1` altı workflow durumunun her birinden bir kayda
+sahip — `TASLAK`, `BSK_YRD_INCELEMESINDE`, `BASKAN_INCELEMESINDE`,
+`DUZENLEME_BEKLIYOR`, `ONAYLANDI`, `REDDEDILDI`. Yedinci kayıt `calisan2`'nin
+taslağıdır ve görünürlük kapsamının negatif tarafını test eder.
+
+Kayıtlar doğrudan SQL ile değil API üzerinden üretildi
+([deploy/seed-test-data.sh](../deploy/seed-test-data.sh)); böylece bcrypt
+parolalar, denetim satırları ve durum geçişleri tutarlı oluştu.
+
+### Kabul kanıtı
+
+| | |
+|---|---|
+| Cihaz | Samsung Galaxy A34 |
+| İşletim sistemi | Android 16 |
+| Ağ | Mobil veri |
+| Tarih | 21 Ağustos 2026, ~23:00 TRT |
+| Hesap | `calisan1@ebys-test.local` |
+| Mobil build | EAS Android preview, build `cdeede67-8124-4cd9-81ac-11296e380c7c` |
+| Backend SHA | `4726d69` |
+| Sonuç | Giriş başarılı; kayıt listesinde 6/6 kayıt görüldü |
+
+Cihazda görülen sayı, seed'in API üzerinden hesapladığı `calisan1` görünür
+kayıt sayısıyla birebir eşleşti.
+
+### Ortam yüzeyi
+
+Dışarıya açık tek servis Caddy'dir (`80`/`443`). `5432` (PostgreSQL), `8080`
+(backend), `8025`/`1025` (Mailpit) ve `5173` dış ağdan kapalıdır. `/mail`
+arayüzü basic auth ile korunur. TLS sertifikası Let's Encrypt'ten otomatik
+alınır ve yenilenir.
+
+TEST'te **ürün web frontend'i yayınlanmaz.** Bu nedenle e-posta derin
+bağlantıları bu aşamada çalışmaz; ayrıntı ve gerekçe için
+[TEST_ORTAMI_NOTU.md](TEST_ORTAMI_NOTU.md).
 
 ---
 
@@ -387,8 +459,9 @@ ileride sayfalama eklenmeli. Karar `record`/`workflow` ekipleriyle
 görüşülmeli.
 
 *(Not: Bu ölçüm, çalışan bir ortamda gerçek verilerle değil, örnek bir
-JSON satırının hesaplanmasıyla yapıldı — TEST ortamı ayağa kalkınca
-gerçek verilerle doğrulanmalı, bkz. M0/M9.)*
+JSON satırının hesaplanmasıyla yapıldı. TEST ortamı artık ayakta — ölçüm
+gerçek verilerle tekrarlanabilir, ama henüz tekrarlanmadı. Bu iş M9
+kapsamında değildir; `record`/`workflow` ekipleriyle ayrı ele alınmalı.)*
 ---
 
 ## 6. Dosyalar

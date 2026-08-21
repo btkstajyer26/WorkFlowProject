@@ -117,7 +117,7 @@ o satırı hiç görmez (kural 1). Web'de bu hata yaşandı ve düzeltildi.
 
 ## Backend — yalnız açık işler
 
-### 👤 Entegrasyon — M0 🟡 *Sprint 0 · envanter hazır, M9 bekliyor*
+### 👤 Entegrasyon — M0 ✅ *Sprint 0 · envanter hazır, TEST ortamı ayakta*
 
 **Çıktı:** [MOBIL_API_ENVANTERI.md](MOBIL_API_ENVANTERI.md) — **yazıldı.**
 
@@ -135,10 +135,12 @@ request/response ve hata kodu var. Kapsanan konular:
 **`openapi.json` sabitlendi:** [docs/openapi.json](openapi.json) — 27 uç,
 31 şema. Mobil istemci kodu bundan üretilir; yeniden üretme komutu envanterde.
 
-**Kalan iş:** TEST ortamı — **M9, Burak Kaya** (aşağıda).
+**Kalan iş:** yok. TEST ortamı (M9, Burak Kaya) 21 Ağustos 2026'da kapandı.
 
 **Bitti sayılır:** Kişi1/2/3 envantere bakarak bağlayabiliyor **ve** TEST
-adresine gerçek cihazdan istek atılabiliyor. Birincisi sağlandı; ikincisi M9'a bağlı.
+adresine gerçek cihazdan istek atılabiliyor. **İkisi de sağlandı** — TEST adresi
+ve kabul kanıtı için
+[MOBIL_API_ENVANTERI.md](MOBIL_API_ENVANTERI.md#test-ortamı).
 
 ##### Ayrıca sağlanacak
 
@@ -392,27 +394,28 @@ Liste ucu için yeni endpoint yazılmaz (`GET /api/records/{id}/files` zaten var
 
 ### 👤 Burak Kaya — ortam
 
-#### M9 — TEST ortamı 🔴 *Sprint 0 · engelleyici*
+#### M9 — TEST ortamı ✅ *21 Ağustos 2026'da kapandı*
 
-**Neden engelleyici:** Bugün yalnız `localhost:8080` var. Gerçek cihaz
-`localhost`'a bağlanamaz; bu ortam olmadan **push bildirimi hiç test edilemez**
-ve Sprint 4 doğrulanamaz. MOB-16 release hazırlığı da buna bakar.
+Ekipçe erişilebilen HTTPS TEST ortamı ayakta:
+`https://workflowproject-test.duckdns.org`. Tek EC2 üzerinde mevcut Docker
+Compose ile backend + PostgreSQL + Mailpit + Caddy çalışıyor; Caddy Let's
+Encrypt sertifikasını kendi alıyor ve dışarıya yalnız `80`/`443` bakıyor.
+`CORS_ALLOWED_ORIGINS`, `JWT_SECRET`, `BOOTSTRAP_ADMIN_*` ve mail değerleri
+ortamdan veriliyor; hiçbiri repoda değil.
 
-Gerekenler:
+Rol bazlı hesaplar ve altı workflow durumunu kapsayan 7 örnek kayıt
+[deploy/seed-test-data.sh](../deploy/seed-test-data.sh) ile API üzerinden
+üretildi. Adres, hesaplar, veri özeti ve kabul kanıtı
+[MOBIL_API_ENVANTERI.md](MOBIL_API_ENVANTERI.md#test-ortamı) içinde; kurulum,
+topoloji ve bilinen sınırlamalar [TEST_ORTAMI_NOTU.md](TEST_ORTAMI_NOTU.md)
+içinde.
 
-1. Ekipçe erişilebilen bir adres (backend + PostgreSQL). `docker-compose.yml`
-   zaten var; ek servis yazmaya gerek yok.
-2. **HTTPS.** Android 9+ ve iOS varsayılan olarak düz HTTP'yi engeller; sertifika
-   olmadan mobil istekleri sessizce düşer.
-3. `CORS_ALLOWED_ORIGINS`, `JWT_SECRET`, `BOOTSTRAP_ADMIN_*` ve `MAIL_*`
-   değişkenleri ortama verilir — **repoya yazılmaz**.
-4. Her rol için birer örnek hesap (`CALISAN`, `BASKAN_YARDIMCISI`, `BASKAN`) ve
-   akışı uçtan uca yürütmeye yetecek örnek kayıt.
-5. Adres, hesaplar ve verinin ne olduğu
-   [MOBIL_API_ENVANTERI.md](MOBIL_API_ENVANTERI.md) ortam tablosuna yazılır.
+**Kabul:** 21 Ağustos 2026'da Samsung Galaxy A34 / Android 16 cihazda, mobil
+veri üzerinden EAS preview APK ile `calisan1@ebys-test.local` hesabıyla giriş
+yapıldı ve kayıt listesinde 6/6 kayıt görüldü. Backend deploy SHA `4726d69`.
 
-**Bitti sayılır:** Gerçek bir telefondan TEST adresine giriş yapılıp kayıt
-listesi görülebiliyor.
+Bu ortamla gerçek cihaz testi ve push bildiriminin (Sprint 4) önündeki engel
+kalktı. Push'un uçtan uca çalışması ayrı iştir (M3) ve M9 kapsamında değildir.
 
 ---
 
@@ -610,7 +613,7 @@ Gerçek cihaz (Android + iOS), ekran boyutları, imza / provisioning.
 | **Alperen · Fevzi** | `record` | — (M5 kapandı) |
 | **Ecesu** | `attachment` | M6, M7 |
 | **Hacer** | `rbac`, `common` | M8 |
-| **Esra · Burak** | `workflow` / ortam | M9 (Burak) — `workflow` tarafında açık iş yok |
+| **Esra · Burak** | `workflow` / ortam | — (M9 kapandı; `workflow` tarafında açık iş yok) |
 | **Irmak** | `search` | — (hazır) |
 | **Kişi1** | mobil | MOB-1 … MOB-5 |
 | **Kişi2** | mobil | MOB-6 … MOB-10 |
@@ -630,8 +633,9 @@ dosya listesi ucu, `notifications` ve `tokens` tabloları, Flutter.
 
 1. Stack onayı → MOB-1 (backend M0–M8 beklemez)
 2. M0 → mobil API bağlama
-3. **M9 (TEST ortamı) → gerçek cihaz testi → push testi.** Zincirin en kırılgan
-   halkası; ortam yoksa Sprint 4 hiç doğrulanamaz.
+3. ~~**M9 (TEST ortamı) → gerçek cihaz testi → push testi.**~~ ✅ Zincirin en
+   kırılgan halkasıydı; TEST ortamı 21 Ağustos 2026'da ayağa kalktı ve gerçek
+   cihaz testi yapıldı. Sprint 4 push doğrulaması artık M3'e bağlı.
 4. Deep-link sözleşmesi (Sprint 0) → M3 payload'u **ve** MOB-12 yönlendirmesi
 5. MOB-3 → Kişi2/3 korumalı ekranlar
 6. M2 → M3, M4, M8, MOB-12
