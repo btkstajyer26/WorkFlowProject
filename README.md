@@ -6,7 +6,7 @@ Kurum içindeki belge, kayıt ve onay süreçlerini dijitalleştirmek için geli
 
 Sistem; kayıt oluşturma, hiyerarşik onay akışı, rol bazlı erişim, dosya yönetimi, denetim izi, arama ve bildirim yeteneklerini tek uygulamada birleştirir.
 
-> Proje aktif geliştirme aşamasındadır ve henüz üretim ortamına hazır değildir. Güncel geliştirme kodu `test` dalındadır. Frontend ekranlarının bir bölümü hâlâ mock veri kullanmaktadır. İlk Admin kurulumu ve ilk girişte parola değiştirme akışı tamamlanmıştır; backend üretimli geçici parola ve davet e-postası henüz yoktur.
+> Proje aktif geliştirme aşamasındadır ve henüz üretim ortamına hazır değildir. Güncel geliştirme kodu `test` ve `integration/tum-feature-branchleri` dallarındadır; bu iki dal şu anda aynı commit'tedir. Frontend'in çalışma zamanı mock katmanı kaldırılmıştır, mock'lar yalnızca testlerde (MSW) kullanılır. İlk Admin kurulumu ve ilk girişte parola değiştirme akışı tamamlanmıştır; backend üretimli geçici parola ve davet e-postası henüz yoktur.
 
 ## İçindekiler
 
@@ -39,8 +39,9 @@ Sistem; kayıt oluşturma, hiyerarşik onay akışı, rol bazlı erişim, dosya 
 | Audit | Kısmi | Kayıt ve kullanıcı işlemleri için audit altyapısı vardır; veritabanı seviyesindeki değiştirilemezlik güvencesi güçlendirilmelidir. |
 | Arama | Uygulandı | Kriter, filtre ve sayfalama tabanlı kayıt araması bulunur. |
 | Bildirim | Uygulandı | Uygulama içi workflow bildirimleri ve commit sonrası durum e-postası mevcuttur. Atama yapılan geçişte atanan kullanıcıya, nihai onay/ret geçişinde hem kaydı oluşturana hem kaydı Başkana ileten yardımcıya gider. Gerçek Outlook yapılandırması ortama bağlıdır. |
-| Frontend | Kısmi | React arayüzü ve frontend testleri mevcuttur; bazı ekranlar mock veri katmanından gerçek API istemcilerine geçirilmelidir. |
-| GitHub CI | Uygulandı | GitHub Actions akışı `test`, `main` ve `integration/**` dallarında backend `verify` ile frontend lint/test/build kontrollerini çalıştırır. Branch protection kuralları henüz etkin değildir. |
+| Frontend | Uygulandı | React arayüzü tüm ekranlarda gerçek API istemcilerini kullanır; çalışma zamanı mock modu kaldırılmıştır. `src/mocks/` yalnızca Vitest/MSW testlerini besler. 102 frontend testi yeşildir. |
+| Mobil | Kısmi | Expo/React Native istemcisinde kimlik doğrulama, kayıt listesi/detayı, workflow aksiyonları ve dosya yükleme kuyruğu mevcuttur. `lint` ve `typecheck` temizdir; otomatik test paketi ve CI adımı henüz yoktur. |
+| GitHub CI | Uygulandı | GitHub Actions akışı `test`, `main` ve `integration/**` dallarında backend `verify` ile frontend lint/test/build kontrollerini çalıştırır. `mobile/` paketi CI kapsamı dışındadır. Branch protection kuralları henüz etkin değildir. |
 
 ## Roller ve iş akışı
 
@@ -150,9 +151,22 @@ WorkFlowProject/
 │   ├── src/
 │   ├── package.json
 │   └── package-lock.json
+├── mobile/
+│   ├── src/
+│   │   ├── api/
+│   │   ├── app/
+│   │   ├── auth/
+│   │   ├── components/
+│   │   ├── query/
+│   │   ├── services/
+│   │   └── utils/
+│   ├── app.json
+│   └── package.json
+├── deploy/
 ├── docs/
 ├── .env.example
 ├── docker-compose.yml
+├── docker-compose.test.yml
 └── README.md
 ```
 
@@ -461,12 +475,33 @@ Branch protection etkinleştirilene kadar doğrudan push yasağı teknik olarak 
 
 ## Bilinen eksikler
 
+Son durum: tüm `feature/*` dalları `integration/tum-feature-branchleri` içine alınmıştır ve `test` dalı bu dalla aynı commit'tedir. Aşağıdaki maddeler, o birleşik hâlde kalan açıklardır.
+
+### Ürün ve backend
+
 - Admin kullanıcı oluştururken parolayı istemciden almaktadır; backend üretimli geçici parola ve davet e-postası henüz uygulanmamıştır.
-- Frontend'in bazı bölümleri mock veri kullanmaktadır. Aynı iş kuralı iki yerde tutulmaktadır: `WorkflowContext` mock geçiş mantığını, `RecordActionPanel` gerçek API istemcisini kullanır.
 - Audit değiştirilemezliği yalnızca uygulama seviyesinde sağlanır; veritabanı tarafında trigger veya rol kısıtı ile zorlanmaz.
 - Tekil rol invariant'ı yalnızca okuma anında kontrol edilir; `PATCH /api/admin/users/{id}/active` ile hesap yeniden etkinleştirilirken aynı rolde başka aktif kullanıcı olup olmadığına bakılmaz.
+
+### Mobil
+
+- `mobile/` paketinin otomatik test paketi yoktur; yalnızca `npm run lint` ve `npm run typecheck` ile doğrulanır (ikisi de temizdir).
+- CI akışında `mobile/` için iş (job) tanımlı değildir; mobil regresyonları hiçbir otomatik kontrol yakalamaz.
+
+### Test ve CI
+
+- Backend'de üç test gerçek bir PostgreSQL bağlantısı ister ve veritabanı olmadan `ApplicationContext` hatasıyla düşer: `WorkFlowProjectApplicationTests`, `AuditLogRepositoryIntegrationTest`, `RecordRepositorySortingTest`. CI bunları `postgres:15-alpine` servisiyle çalıştırır; yerelde `docker compose up -d db` gerekir. Kalan 390 backend testi veritabanısız geçer.
+- Frontend testleri tek tek çalıştırıldığında 102/102 geçer, ancak `npm run test` ile hepsi paralel koştuğunda yavaş makinelerde `App`, `RecordDetailPage`, `RecordFormsEdgeCases` ve `AdminUsersPage` dosyalarında `findBy*` beklemeleri zaman aşımına uğrayabilir. Vitest için açık bir `testTimeout`/havuz sınırı ayarlanmamıştır.
 - `test` ve `main` dalları için branch protection kuralları etkin değildir.
-- Frontend test paketinde 20 test kırıktır (`App`, `RecordDetailPage`, `RecordsPage`, `NotificationsPage`, `RecordFormsEdgeCases`, `AdminUsersPage`). Beklenen metin/rol seçicileri güncel arayüzle uyuşmuyor; backend uçlarıyla ilgisi yoktur.
+
+### Dal hijyeni
+
+- `main`, `test`/`integration` dalının 348 commit gerisindedir; sürüm alınacaksa `test` -> `main` birleştirmesi yapılmalıdır.
+- `origin/feature/notification-service` dalındaki iki commit, `integration` üzerinde daha ileri bir sürümle (`AuthenticatedUser` desteği eklenmiş `DeviceTokenController`) zaten karşılanmıştır. Bu dalın geri birleştirilmesi düzeltmeyi geriye alır; dal silinmelidir.
+- `feature/workflow-gonder-hedef-cozumleme` dalındaki C1a commit'inin davranışı (`GONDER`/`TEKRAR_GONDER` için `targetUserIdRequiredInRequest=false`) `integration` üzerinde zaten mevcuttur; dal güncelliğini yitirmiştir.
+
+### Dokümantasyon
+
 - `docs/decisions/` altında iki mimari karar kaydı vardır (modül bazlı paketleme, mobil istemci teknolojisi). Mimarinin geri kalanı `architecture.md`, `workflow.md` ve `database.md` içinde gerekçesiyle anlatılır.
 
 ## Dokümantasyon
