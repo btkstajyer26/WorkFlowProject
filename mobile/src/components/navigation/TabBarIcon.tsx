@@ -21,7 +21,7 @@ export function TabBarIcon({
       ? "bg-brand-700"
       : "bg-brand-600"
     : focused
-      ? "bg-brand-100 dark:bg-brand-900/40"
+      ? "bg-[#ffffff] dark:bg-[#9966cc]"
       : "bg-transparent";
 
   return (
