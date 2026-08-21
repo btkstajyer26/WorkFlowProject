@@ -5,6 +5,8 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
 import '../../global.css';
+import { AuthProvider, useAuth } from '@/auth/AuthProvider';
+import { QueryProvider } from '@/query/QueryProvider';
 import { ThemeProvider, useAppTheme } from '@/theme/ThemeProvider';
 
 void SplashScreen.preventAutoHideAsync();
@@ -21,19 +23,24 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-      <RootNavigator />
+      <QueryProvider>
+        <AuthProvider>
+          <RootNavigator />
+        </AuthProvider>
+      </QueryProvider>
     </ThemeProvider>
   );
 }
 
 function RootNavigator() {
+  const { isAuthenticated, isReady: isAuthReady, mustChangePassword } = useAuth();
   const { colors, isReady, resolvedTheme } = useAppTheme();
 
   useEffect(() => {
-    if (isReady) void SplashScreen.hideAsync();
-  }, [isReady]);
+    if (isReady && isAuthReady) void SplashScreen.hideAsync();
+  }, [isAuthReady, isReady]);
 
-  if (!isReady) return null;
+  if (!isReady || !isAuthReady) return null;
 
   return (
     <>
@@ -44,7 +51,17 @@ function RootNavigator() {
           contentStyle: { backgroundColor: colors.canvas },
           headerShown: false,
         }}
-      />
+      >
+        <Stack.Protected guard={!isAuthenticated}>
+          <Stack.Screen name="(auth)" />
+        </Stack.Protected>
+        <Stack.Protected guard={isAuthenticated && !mustChangePassword}>
+          <Stack.Screen name="(app)" />
+        </Stack.Protected>
+        <Stack.Protected guard={isAuthenticated}>
+          <Stack.Screen name="(password)" />
+        </Stack.Protected>
+      </Stack>
     </>
   );
 }

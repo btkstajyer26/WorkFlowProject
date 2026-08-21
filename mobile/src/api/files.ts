@@ -1,5 +1,6 @@
-import { apiClient } from './client';
 import * as FileSystem from 'expo-file-system/legacy';
+
+import { API_BASE_URL, apiRequest } from './client';
 
 export interface RecordFile {
   id: string;
@@ -11,7 +12,7 @@ export interface RecordFile {
 }
 
 export const getRecordFiles = async (recordId: string): Promise<RecordFile[]> => {
-  return apiClient.get<RecordFile[]>(`/api/records/${recordId}/files`);
+  return apiRequest<RecordFile[]>(`/api/records/${recordId}/files`);
 };
 
 export const uploadRecordFile = async (
@@ -24,13 +25,16 @@ export const uploadRecordFile = async (
     uri: file.uri,
     name: file.name,
     type: file.mimeType || 'application/octet-stream',
-  } as any);
+  } as never);
 
-  return apiClient.post<RecordFile>(`/api/records/${recordId}/files`, formData);
+  return apiRequest<RecordFile>(`/api/records/${recordId}/files`, {
+    method: 'POST',
+    body: formData,
+  });
 };
 
 export const deleteRecordFile = async (fileId: string): Promise<void> => {
-  return apiClient.delete<void>(`/api/files/${fileId}`);
+  await apiRequest<void>(`/api/files/${fileId}`, { method: 'DELETE' });
 };
 
 export const downloadFileToLocal = async (
@@ -40,10 +44,9 @@ export const downloadFileToLocal = async (
 ): Promise<string> => {
   const targetDir = FileSystem.documentDirectory || FileSystem.cacheDirectory || '';
   const fileUri = `${targetDir}${fileName}`;
-  const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.workflowproject.com';
 
   const downloadRes = await FileSystem.downloadAsync(
-    `${apiUrl}/api/files/${fileId}/download`,
+    `${API_BASE_URL}/api/files/${fileId}/download`,
     fileUri,
     {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
