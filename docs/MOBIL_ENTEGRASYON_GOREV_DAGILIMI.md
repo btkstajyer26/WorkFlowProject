@@ -32,13 +32,14 @@ Sözleşme: [FRONTEND_BACKEND_SOZLESMESI.md](FRONTEND_BACKEND_SOZLESMESI.md)
 | `GET /api/records/{id}/files` | ✅ Bitti | Mobil doğrudan kullanır |
 | Auth / workflow / audit / notifications API | ✅ Bitti | Yeni yazılmaz |
 | `last_deputy_id` koltuk devri | ✅ Bitti | Alperen — `feature/record` entegre edildi (M5 kapandı) |
-| `device_tokens` + API | 🔴 Yok | |
-| FCM push gönderimi | 🔴 Yok | |
-| Logout'ta device token pasif | 🔴 Yok | |
+| `device_tokens` + API | ✅ Bitti | `V10`, controller, servis, repo ve `DeviceTokenServiceTest` var — ama `DELETE` ucunda sahiplik kontrolü yok, aşağıya bak |
+| FCM push gönderimi | 🟡 Yarım | `PushNotificationService` yazıldı ama **hiçbir yerden çağrılmıyor**; push gitmiyor |
+| Logout'ta device token pasif | ✅ Bitti | `LogoutRequest.deviceToken` opsiyonel alan olarak eklendi |
 | `docs/MOBIL_API_ENVANTERI.md` | 🟡 Taslak | Yazıldı; TEST adresi ve `openapi.json` bekliyor |
 | Çoklu dosya upload | 🔴 Açık | Uç tek dosya alıyor (`@RequestPart("file")`); şartname BE-06 çoklu istiyor |
-| `LogoutRequest.deviceToken` | 🔴 Yok | DTO şu an yalnız `refreshToken` taşıyor (M4) |
-| Geçersiz FCM token temizliği | 🔴 Yok | M3 |
+| `LogoutRequest.deviceToken` | ✅ Bitti | Opsiyonel alan; web gövdesi değişmedi (M4) |
+| Geçersiz FCM token temizliği | ✅ Bitti | `handleFcmError` → `UNREGISTERED` / `INVALID_ARGUMENT` pasifleştiriyor (M3) |
+| `docs/openapi.json` | 🔴 Bayat | 27 uç; `/api/device-tokens` **yok**. Yeniden üretilmeli |
 | Deep-link route sözleşmesi | 🟡 Karar | Sprint 0'da sabitlenir, aşağıda |
 | TEST API ortamı | 🟡 Sahipsiz | Push testi buna bağlı (M0) |
 | Başkan işlem geçmişi kırpması | ✅ Bitti | Bugün indi — mobil detay ekranını etkiler, aşağıya bak |
@@ -55,7 +56,7 @@ ile MOB-12 yönlendirmesi bu sözleşmeye göre yazılır.
 | | |
 |---|---|
 | Şema | `ebys://kayitlar/{recordId}` |
-| Expo Router dosyası | `mobile/app/(app)/kayitlar/[id].tsx` |
+| Expo Router dosyası | `mobile/src/app/(app)/kayitlar/[id].tsx` |
 | Kaynak alan | Push `data.recordId` |
 
 Web'deki kanonik route `/kayitlar/:recordId` ile bilerek aynı; iki istemcide
@@ -132,32 +133,21 @@ request/response ve hata kodu var. Kapsanan konular:
 - `createdByFullName` kullanımı ve geçmişten ad türetme yasağı
 - Dosya izin listesi, boyut sınırı, devir anındaki dosya görünürlüğü
 
-**`openapi.json` sabitlendi:** [docs/openapi.json](openapi.json) — 27 uç,
-31 şema. Mobil istemci kodu bundan üretilir; yeniden üretme komutu envanterde.
-
-**Kalan iş:** yok. TEST ortamı (M9, Burak Kaya) 21 Ağustos 2026'da kapandı.
+**TEST ortamı:** M9 (Burak Kaya) 21 Ağustos 2026'da kapandı. Adres, hesaplar ve
+kabul kanıtı [MOBIL_API_ENVANTERI.md](MOBIL_API_ENVANTERI.md#test-ortamı)
+içinde.
 
 **Bitti sayılır:** Kişi1/2/3 envantere bakarak bağlayabiliyor **ve** TEST
-adresine gerçek cihazdan istek atılabiliyor. **İkisi de sağlandı** — TEST adresi
-ve kabul kanıtı için
-[MOBIL_API_ENVANTERI.md](MOBIL_API_ENVANTERI.md#test-ortamı).
+adresine gerçek cihazdan istek atılabiliyor. **İkisi de sağlandı.**
 
-##### Ayrıca sağlanacak
+##### Kalan tek iş: `openapi.json` yeniden üretilmeli 🔴
 
-1. **Güncel OpenAPI çıktısı.** springdoc zaten ayakta
-   (`/v3/api-docs`, `/swagger-ui.html`). Sürüm sabitlenmiş bir `openapi.json`
-   repoya veya paylaşılan bir yere konur; mobil istemci kodu bundan üretilir.
-2. **Ekipçe erişilebilen TEST API adresi.** MOB-1 `DEV`/`TEST`/`PROD` base URL
-   ayrımı yapıyor ama ayakta bir TEST ortamı olmadan mobil yalnız `localhost`'a
-   bağlanabilir — gerçek cihazdan bu çalışmaz ve **push testi imkânsızdır**
-   (Sprint 4 buna bağlı). Adres, örnek hesaplar ve hangi veriyle yüklü olduğu
-   envantere yazılır.
+[docs/openapi.json](openapi.json) 20 Ağustos'ta sabitlendi — **27 uç, 31 şema**.
+O tarihten sonra eklenen `/api/device-tokens` uçları (M2) dosyada **yok**.
+Mobil istemci kodu bu dosyadan üretildiği için Kişi3 cihaz token kaydını
+üretilmiş istemciyle yapamaz.
 
-> Sahibi netleşmeli: TEST ortamını kim ayağa kaldırıyor? Kimseye atanmadıysa
-> Sprint 0'ın çıkmayan işi budur.
-
-**Bitti sayılır:** Kişi1/2/3 envantere bakarak bağlayabiliyor; TEST adresine
-gerçek cihazdan istek atılabiliyor.
+Backend ayaktayken `/v3/api-docs` çıktısı yeniden alınmalı; komut envanterde.
 
 ---
 
@@ -185,7 +175,22 @@ kararı (gerekli / gereksiz) gerekçesiyle kayıtlı.
 
 ### 👤 Melih Kocaman — `notification`
 
-#### M2 — Cihaz token API 🔴
+#### M2 — Cihaz token API ✅ *kodda var — bir açık madde kaldı*
+
+> **Durum:** `V10__device_tokens.sql`, `DeviceTokenController`, `DeviceTokenService`,
+> `DeviceTokenRepository`, `DeviceToken` entity ve `DeviceTokenServiceTest` depoda.
+> Aşağıdaki tasarım olduğu gibi uygulanmıştır; bölüm sözleşme olarak duruyor.
+>
+> **Kalan iş — `DELETE /api/device-tokens` sahiplik doğrulaması yapmıyor.**
+> `removeToken` `Authentication` parametresi almıyor ve `deactivateByToken`
+> yalnız token değerine göre güncelliyor. Kimliği doğrulanmış herhangi bir
+> kullanıcı, başkasının token değerini gönderirse o kişinin push bildirimlerini
+> kapatabilir. Uç `(token, user_id)` çifti üzerinden çalışmalı, kullanıcıya ait
+> olmayan token M4'teki gibi **sessizce yok sayılmalı**.
+>
+> **İkinci madde:** `DeviceTokenService.deactivateToken` token değerini
+> `log.info` ile tam olarak yazıyor. Token bir kimlik bilgisidir ve log'lar 30
+> gün saklanıyor; maskelenmeli.
 
 **Migration:** `V10__device_tokens.sql` (V9 sondaki sürüm)
 
@@ -250,7 +255,20 @@ gönderildiğinde satır yeni kullanıcıya geçiyor.
 
 ---
 
-#### M3 — FCM push 🔴
+#### M3 — FCM push 🟡 *servis yazıldı, bağlanmadı*
+
+> **Durum:** `PushNotificationService` depoda — FCM başlatma, `data.recordId` /
+> `data.type` payload'u ve geçersiz token temizliği (`handleFcmError`) dahil
+> aşağıdaki sözleşmenin tamamı yazılmış durumda.
+>
+> **Kalan iş — servis hiçbir yerden çağrılmıyor.** Tüm repoda, sınıfın kendi
+> dosyası dışında `PushNotificationService` veya `sendPushNotification` geçen
+> tek satır yok. `WorkflowStatusChangedListener` yalnız uygulama içi bildirim ve
+> e-posta üretiyor. Servis listener'a bağlanana kadar push **hiç gitmez** ve bu
+> eksiklik sessizdir: hata üretmez, log'a düşmez.
+>
+> Bağlarken alıcılar mevcut `recipientsOf` matrisinden alınmalı; yeni alıcı
+> mantığı yazılmamalı. Gönderim `@Async`'tir, onay akışını bloklamaz.
 
 **Bağımlılık:** M2 (alıcı matrisi zaten ✅)
 
@@ -304,7 +322,12 @@ ve hata yalnız loglanır.
 
 ### 👤 Nisan Tat · Sümeyye Baykan — `auth`
 
-#### M4 — Logout'ta device token pasif 🔴
+#### M4 — Logout'ta device token pasif ✅ *DTO alanı eklendi*
+
+> **Durum:** `LogoutRequest.deviceToken` opsiyonel alan olarak eklendi;
+> `@NotBlank` yalnız `refreshToken` üzerinde, web gövdesi değişmedi.
+> Aşağıdaki sözleşme sabittir. `AuthService.logout` tarafındaki testlerin
+> (a/b/c senaryoları) koşulduğu teyit edilmeli.
 
 **Bağımlılık:** M2
 
@@ -606,10 +629,10 @@ Gerçek cihaz (Android + iOS), ekran boyutları, imza / provisioning.
 
 | Kişi | Modül | Açık görevler |
 |---|---|---|
-| **Entegrasyon** | — | M0 |
+| **Entegrasyon** | — | — (M0 kapandı); `openapi.json` yeniden üretilmeli |
 | **Ebrar** | `audit` | M1 |
-| **Melih** | `notification` | M2, M3 |
-| **Nisan · Sümeyye** | `auth`, `user` | M4 |
+| **Melih** | `notification` | **M3'ü listener'a bağla** · M2'de `DELETE` sahiplik kontrolü + token log maskeleme |
+| **Nisan · Sümeyye** | `auth`, `user` | — (M4 kapandı) |
 | **Alperen · Fevzi** | `record` | — (M5 kapandı) |
 | **Ecesu** | `attachment` | M6, M7 |
 | **Hacer** | `rbac`, `common` | M8 |
@@ -618,6 +641,10 @@ Gerçek cihaz (Android + iOS), ekran boyutları, imza / provisioning.
 | **Kişi1** | mobil | MOB-1 … MOB-5 |
 | **Kişi2** | mobil | MOB-6 … MOB-10 |
 | **Kişi3** | mobil | MOB-11 … MOB-16 |
+
+> **En kritik açık madde M3'tür.** M2 ve M4 bittiği için mobil taraf token
+> kaydedip çıkışta pasifleştirebilir, ama `PushNotificationService` çağrılmadığı
+> için hiçbir push gönderilmez. MOB-12 bu bağlantı yapılmadan doğrulanamaz.
 
 > **Kişi1/2/3 henüz atanmadı.** Frontend ekibi (Zeynep Sena Şaltu, Yiğithan Ayhan,
 > Tamer Erhan, Bartın Emre Sayar) React/TS bildiği için doğal aday; kabul

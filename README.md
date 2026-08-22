@@ -38,7 +38,7 @@ Sistem; kayıt oluşturma, hiyerarşik onay akışı, rol bazlı erişim, dosya 
 | Dosya yönetimi | Uygulandı | Yükleme, indirme, önizleme, içerik doğrulama ve soft delete mevcuttur; okuma uçları kayıt görünürlüğüyle, yazma uçları sahiplik ve durum kilidiyle korunur. |
 | Audit | Kısmi | Kayıt ve kullanıcı işlemleri için audit altyapısı vardır; veritabanı seviyesindeki değiştirilemezlik güvencesi güçlendirilmelidir. |
 | Arama | Uygulandı | Kriter, filtre ve sayfalama tabanlı kayıt araması bulunur. |
-| Bildirim | Uygulandı | Uygulama içi workflow bildirimleri ve commit sonrası durum e-postası mevcuttur. Atama yapılan geçişte atanan kullanıcıya, nihai onay/ret geçişinde hem kaydı oluşturana hem kaydı Başkana ileten yardımcıya gider. Gerçek Outlook yapılandırması ortama bağlıdır. |
+| Bildirim | Kısmi | Uygulama içi workflow bildirimleri ve commit sonrası durum e-postası mevcuttur. Atama yapılan geçişte atanan kullanıcıya, nihai onay/ret geçişinde hem kaydı oluşturana hem kaydı Başkana ileten yardımcıya gider. Gerçek Outlook yapılandırması ortama bağlıdır. Mobil push tarafında `device_tokens` tablosu, uçları ve `PushNotificationService` yazılmıştır; ancak servis henüz workflow listener'ına **bağlanmamıştır** ve push gönderilmez. |
 | Frontend | Uygulandı | React arayüzü tüm ekranlarda gerçek API istemcilerini kullanır; çalışma zamanı mock modu kaldırılmıştır. `src/mocks/` yalnızca Vitest/MSW testlerini besler. 102 frontend testi yeşildir. |
 | Mobil | Kısmi | Expo/React Native istemcisinde kimlik doğrulama, kayıt listesi/detayı, workflow aksiyonları ve dosya yükleme kuyruğu mevcuttur. `lint` ve `typecheck` temizdir; otomatik test paketi ve CI adımı henüz yoktur. |
 | GitHub CI | Uygulandı | GitHub Actions akışı `test`, `main` ve `integration/**` dallarında backend `verify` ile frontend lint/test/build kontrollerini çalıştırır. `mobile/` paketi CI kapsamı dışındadır. Branch protection kuralları henüz etkin değildir. |
@@ -313,10 +313,9 @@ npm run dev
 | Değişken | Varsayılan | Açıklama |
 | --- | --- | --- |
 | `VITE_API_BASE_URL` | `http://localhost:8080` | Backend taban adresi. Yol öneki içermez; uçlar `/api/...` ile başlar. |
-| `VITE_API_MODE` | Geliştirmede `mock`, üretim build'inde `backend` | `mock`: istekleri MSW karşılar. `backend`: istekler gerçek API'ye gider. |
 
-> [!WARNING]
-> `docker compose --profile frontend up` varsayılan olarak **mock modda** açılır ve backend'e hiç istek göndermez. Arayüzü gerçek backend ile denemek için `.env` dosyasında `VITE_API_MODE=backend` verin.
+> [!NOTE]
+> Çalışma zamanında mock modu **yoktur**. Arayüz geliştirmede de üretim build'inde de her zaman gerçek backend'e bağlanır; MSW yalnız Vitest test ortamında devreye girer.
 
 Gerçek parola, JWT anahtarı veya SMTP kimlik bilgilerini repository'ye eklemeyin. `.env` dosyası Git tarafından izlenmemelidir.
 
@@ -358,12 +357,17 @@ Tüm uçlar `/api` altındadır; sürüm öneki kullanılmaz.
 | Bildirim | `GET /api/notifications/unread` | Okunmamış bildirimler |
 | Bildirim | `GET /api/notifications/unread/count` | Okunmamış bildirim sayısı |
 | Bildirim | `PUT /api/notifications/{id}/read` | Bildirimi okundu işaretleme |
+| Cihaz token | `POST /api/device-tokens` | Mobil FCM token kaydı/güncellemesi (upsert); kullanıcı JWT'den okunur |
+| Cihaz token | `DELETE /api/device-tokens` | Cihaz tokenını pasifleştirme; aşağıdaki nota bakınız |
 
 Arama için ayrı bir uç yoktur; filtreleme kayıt listesi ucu üzerinden yapılır:
 
 ```text
 GET /api/records?page&size&status&categoryId&q&from&to&creator&sort
 ```
+
+> [!WARNING]
+> `DELETE /api/device-tokens` şu an gönderilen tokenın **oturumdaki kullanıcıya ait olup olmadığını kontrol etmez**; token yalnız değerine göre pasifleştirilir. Kimliği doğrulanmış herhangi bir kullanıcı, başkasının token değerini ele geçirirse o kişinin push bildirimlerini kapatabilir. Ayrıntı ve düzeltme önerisi "Bilinen eksikler" bölümündedir.
 
 Admin uçlarının tamamı `@PreAuthorize` ile yalnızca `ADMIN` rolüne açıktır; kayıt oluşturma, düzenleme, silme ve dosya ekleme aynı biçimde yalnızca `CALISAN` rolüne açıktır. Workflow ucunda rol kontrolü bilinçli olarak controller'da değil durum makinesinde yapılır; yetkisiz rol denemesi `403 WORKFLOW_ROLE_NOT_ALLOWED` ile döner.
 
@@ -383,6 +387,7 @@ Flyway migrationları `backend/src/main/resources/db/migration` dizinindedir.
 | `V7__request_and_auth_audit_columns.sql` | Audit tablolarında evrak zorunluluğunun kaldırılması; HTTP istek kolonları |
 | `V8__password_reset_codes.sql` | Parola sıfırlama kodları tablosu (`password_reset_codes`) ve indeksleri |
 | `V9__record_handoff_snapshot.sql` | Kayıt Çalışana geri gönderildiğinde içeriğini donduran `snapshot_*` kolonları |
+| `V10__device_tokens.sql` | Mobil push için `device_tokens` tablosu ve `(user_id, is_active)` indeksi |
 
 `V1` hazırlanırken daha önce taslak olarak adlandırılan Admin ve workflow migrationları ortak veritabanına uygulanmadan birleştirilmiştir. Bu nedenle numaralandırmadaki boşluklar tarihsel tasarım kararının sonucudur.
 
@@ -422,12 +427,13 @@ npm run build
 
 ### Sürekli entegrasyon
 
-`.github/workflows/ci.yml`, `test`, `main` ve `integration/**` dallarına açılan pull requestlerde ve bu dallara yapılan push'larda iki job çalıştırır:
+`.github/workflows/ci.yml`, `test`, `main` ve `integration/**` dallarına açılan pull requestlerde ve bu dallara yapılan push'larda üç job çalıştırır:
 
 | Job | İçerik |
 | --- | --- |
 | `Backend / verify` | PostgreSQL 15 servis konteyneriyle `./mvnw verify`; Surefire raporlarını artefakt olarak yükler |
 | `Frontend / quality` | `npm ci`, `npm run lint`, `npm run test`, `npm run build` |
+| `Deploy / compose + shell` | Birleşik `docker-compose.yml` + `docker-compose.test.yml` parse edilir; host portu yayınlayan tek servisin `caddy` olduğu, `frontend` servisinin TEST birleşiminde pasif kaldığı doğrulanır; `deploy/*.sh` betikleri exec biti, LF satır sonu, `bash -n` ve ShellCheck ile denetlenir |
 
 Aynı kontroller yerel olarak da çalıştırılabilir. Branch protection henüz etkin olmadığı için bu job'lar şu an merge için teknik olarak zorunlu değildir; ekip politikası olarak yeşil olmadan merge edilmemelidir.
 
@@ -482,6 +488,10 @@ Son durum: tüm `feature/*` dalları `integration/tum-feature-branchleri` içine
 - Admin kullanıcı oluştururken parolayı istemciden almaktadır; backend üretimli geçici parola ve davet e-postası henüz uygulanmamıştır.
 - Audit değiştirilemezliği yalnızca uygulama seviyesinde sağlanır; veritabanı tarafında trigger veya rol kısıtı ile zorlanmaz.
 - Tekil rol invariant'ı yalnızca okuma anında kontrol edilir; `PATCH /api/admin/users/{id}/active` ile hesap yeniden etkinleştirilirken aynı rolde başka aktif kullanıcı olup olmadığına bakılmaz.
+- **Push bildirimi hiç gönderilmiyor.** `PushNotificationService` yazılmıştır (FCM başlatma, `data.recordId`/`data.type` payload'u, `UNREGISTERED`/`INVALID_ARGUMENT` token temizliği) ancak sınıf **hiçbir yerden çağrılmaz**; `WorkflowStatusChangedListener` yalnız uygulama içi bildirim ve e-posta üretir. Servisin listener'a bağlanması gerekir. Bağlanana kadar eksiklik sessizdir: hata üretmez, yalnız bildirim gitmez.
+- **`DELETE /api/device-tokens` sahiplik doğrulaması yapmaz.** `DeviceTokenController.removeToken` `Authentication` parametresi almaz ve `DeviceTokenRepository.deactivateByToken` yalnız token değerine göre günceller. Uç, `POST /api/auth/logout` gibi `(token, user_id)` çifti üzerinden çalışmalı, kullanıcıya ait olmayan token sessizce yok sayılmalıdır.
+- **Cihaz tokenları log'a açık yazılıyor.** `DeviceTokenService.deactivateToken` ve `PushNotificationService` token değerini `log.info`/`log.warn` ile tam olarak yazar. Token bir kimlik bilgisidir ve log'lar 30 gün saklanır; maskelenmelidir.
+- `/api/device-tokens` uçları `AuthorizationMatrixTest` kapsamında değildir (mobil görev dağılımındaki M8 açık).
 
 ### Mobil
 
@@ -490,13 +500,13 @@ Son durum: tüm `feature/*` dalları `integration/tum-feature-branchleri` içine
 
 ### Test ve CI
 
-- Backend'de üç test gerçek bir PostgreSQL bağlantısı ister ve veritabanı olmadan `ApplicationContext` hatasıyla düşer: `WorkFlowProjectApplicationTests`, `AuditLogRepositoryIntegrationTest`, `RecordRepositorySortingTest`. CI bunları `postgres:15-alpine` servisiyle çalıştırır; yerelde `docker compose up -d db` gerekir. Kalan 390 backend testi veritabanısız geçer.
+- Backend'de dört test sınıfı (toplam 14 test) gerçek bir PostgreSQL bağlantısı ister ve veritabanı olmadan `ApplicationContext` hatasıyla düşer: `WorkflowTransitionPersistenceIntegrationTest` (11 test), `WorkFlowProjectApplicationTests`, `AuditLogRepositoryIntegrationTest`, `RecordRepositorySortingTest`. CI bunları `postgres:15-alpine` servisiyle çalıştırır; yerelde `docker compose up -d db` gerekir. Toplam 448 backend testinin kalan 434'ü veritabanısız geçer.
 - Frontend testleri tek tek çalıştırıldığında 102/102 geçer, ancak `npm run test` ile hepsi paralel koştuğunda yavaş makinelerde `App`, `RecordDetailPage`, `RecordFormsEdgeCases` ve `AdminUsersPage` dosyalarında `findBy*` beklemeleri zaman aşımına uğrayabilir. Vitest için açık bir `testTimeout`/havuz sınırı ayarlanmamıştır.
 - `test` ve `main` dalları için branch protection kuralları etkin değildir.
 
 ### Dal hijyeni
 
-- `main`, `test`/`integration` dalının 348 commit gerisindedir; sürüm alınacaksa `test` -> `main` birleştirmesi yapılmalıdır.
+- `main`, `test`/`integration` dalının 356 commit gerisindedir; sürüm alınacaksa `test` -> `main` birleştirmesi yapılmalıdır.
 - `origin/feature/notification-service` dalındaki iki commit, `integration` üzerinde daha ileri bir sürümle (`AuthenticatedUser` desteği eklenmiş `DeviceTokenController`) zaten karşılanmıştır. Bu dalın geri birleştirilmesi düzeltmeyi geriye alır; dal silinmelidir.
 - `feature/workflow-gonder-hedef-cozumleme` dalındaki C1a commit'inin davranışı (`GONDER`/`TEKRAR_GONDER` için `targetUserIdRequiredInRequest=false`) `integration` üzerinde zaten mevcuttur; dal güncelliğini yitirmiştir.
 
@@ -506,14 +516,48 @@ Son durum: tüm `feature/*` dalları `integration/tum-feature-branchleri` içine
 
 ## Dokümantasyon
 
-- [İş akışı ve durum geçişleri](docs/workflow.md)
-- [Frontend–backend çalışma sözleşmesi](docs/FRONTEND_BACKEND_SOZLESMESI.md)
-- [Mobil entegrasyon görev dağılımı](docs/MOBIL_ENTEGRASYON_GOREV_DAGILIMI.md)
-- [Mobil API envanteri](docs/MOBIL_API_ENVANTERI.md)
-- [TEST ortamı dağıtım notu](docs/TEST_ORTAMI_NOTU.md)
-- [Backend açık işler ve görev dağılımı (arşiv)](docs/archive/BACKEND_ACIK_ISLER_VE_GOREV_DAGILIMI.md)
-- [Sistem mimarisi](docs/architecture.md)
-- [Mimari karar kayıtları](docs/decisions/README.md)
+**Nereye bakmalı:** davranış sorusu için `workflow.md`, şema sorusu için `database.md`,
+"hangi uç ne döndürür" için `MOBIL_API_ENVANTERI.md`, modül sınırı sorusu için
+`architecture.md`.
+
+### Tasarım ve davranış
+
+| Belge | İçerik |
+| --- | --- |
+| [Sistem mimarisi](docs/architecture.md) | Modül sınırları, katmanlama, port/adapter, güvenlik sınırları |
+| [İş akışı ve durum geçişleri](docs/workflow.md) | Durum makinesi, geçiş matrisi, doğrulama sırası, hata sözleşmesi |
+| [Veritabanı tasarımı](docs/database.md) | Tablo sözlüğü, kısıtlar, indeksler, migration kuralları |
+| [Mimari karar kayıtları](docs/decisions/README.md) | ADR dizini |
+
+### İstemci sözleşmeleri
+
+| Belge | İçerik |
+| --- | --- |
+| [Mobil API envanteri](docs/MOBIL_API_ENVANTERI.md) | Uç uç istek/yanıt, hata kodları, TEST ortamı hesapları |
+| [Frontend–backend çalışma sözleşmesi](docs/FRONTEND_BACKEND_SOZLESMESI.md) | Web istemcisinin dayandığı backend kararları |
+| [Frontend API ve MSW test mimarisi](docs/FRONTEND_API_MOCK_MIMARISI.md) | Test sınırları ve mock kuralları |
+| [`docs/openapi.json`](docs/openapi.json) | Sabitlenmiş OpenAPI anlık görüntüsü; istemci kodu bundan üretilir |
+
+### Ortam ve planlama
+
+| Belge | İçerik |
+| --- | --- |
+| [TEST ortamı dağıtım notu](docs/TEST_ORTAMI_NOTU.md) | Topoloji, preflight, seed betiği, bilinen sınırlamalar |
+| [Mobil entegrasyon görev dağılımı](docs/MOBIL_ENTEGRASYON_GOREV_DAGILIMI.md) | Mobil sprint planı ve açık backend işleri |
+
+### Alt paket README'leri
+
+- [frontend/README.md](frontend/README.md)
+- [mobile/README.md](mobile/README.md)
+
+### Arşiv
+
+Aşağıdaki belgeler 19 Ağustos 2026'da kapatılmıştır; **tarihsel kayıttır, güncel
+durumu yansıtmaz.** Güncel durum bu README'nin "Mevcut durum" ve "Bilinen
+eksikler" bölümlerindedir.
+
+- [Backend açık işler ve görev dağılımı](docs/archive/BACKEND_ACIK_ISLER_VE_GOREV_DAGILIMI.md)
+- [Eksik controller'lar ve kararlar](docs/archive/EKSIK_CONTROLLERLAR_VE_KARARLAR.md)
 - [Eksik sınıflar ve öncelikler](docs/archive/EKSIK_SINIFLAR_VE_ONCELIK.md)
 
 
