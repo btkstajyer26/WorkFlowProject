@@ -3,8 +3,8 @@
 > [!NOTE]
 > **Bu belge 19 Ağustos 2026'da kapatılmıştır ve tarihsel kayıttır.**
 > Aşağıdaki durum tabloları 17 Ağustos'taki entegrasyon durumunu yansıtır.
-> Güncel durum için [README](../README.md) "Mevcut durum" ve "Bilinen eksikler"
-> bölümlerine, workflow davranışı için [workflow.md](workflow.md)'ye bakınız.
+> Güncel durum için [README](../../README.md) "Mevcut durum" ve "Bilinen eksikler"
+> bölümlerine, workflow davranışı için [workflow.md](../workflow.md)'ye bakınız.
 >
 > **Kapanış durumu:** §3 tablosundaki 12 işin **11'i tamamlandı** —
 > **A1** (`JwtAuthenticationFilter` parola değişimini zorluyor),

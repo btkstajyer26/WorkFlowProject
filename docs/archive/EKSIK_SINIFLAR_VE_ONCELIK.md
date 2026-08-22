@@ -3,8 +3,8 @@
 > [!NOTE]
 > **Bu belge 19 Ağustos 2026'da kapatılmıştır ve tarihsel kayıttır.**
 > Aşağıdaki tablolar kapatıldığı tarihteki durumu yansıtır. Güncel durum için
-> [README](../README.md) "Mevcut durum" ve "Bilinen eksikler" bölümlerine,
-> workflow davranışı için [workflow.md](workflow.md)'ye bakınız.
+> [README](../../README.md) "Mevcut durum" ve "Bilinen eksikler" bölümlerine,
+> workflow davranışı için [workflow.md](../workflow.md)'ye bakınız.
 >
 > **Kapanış durumu:** Yazılacak yeni sınıf sayısı **sıfır**. Aşağıdaki "Faz 1 —
 > Teslim öncesi kalite" tablosunda Melih'in `templates/mail` işi ✅ işaretliyken

@@ -33,6 +33,11 @@ Kurulum, topoloji ve bilinen sınırlamalar: [TEST_ORTAMI_NOTU.md](TEST_ORTAMI_N
 [docs/openapi.json](openapi.json)** — 20 Ağustos 2026, `0e4043a`.
 27 uç, 31 şema. Mobil istemci kodu bundan üretilir.
 
+> [!WARNING]
+> **Dosya bayat.** Sabitlendiği tarihten sonra eklenen `/api/device-tokens`
+> uçları (M2) dosyada yok. Cihaz token kaydı üretilmiş istemciyle yapılamaz;
+> aşağıdaki komutla yeniden üretilmesi gerekiyor.
+
 Yeniden üretmek için (backend ayaktayken):
 
 ```bash
@@ -538,9 +543,39 @@ bu uçtan gelir.
 
 ---
 
+## 9. Cihaz tokenları — `/api/device-tokens`
+
+Mobil push bildirimi için FCM token kaydı. Oturum ister; kullanıcı **JWT'den**
+okunur, gövdede `userId` kabul edilmez.
+
+| Metot | Adres | Gövde | Yanıt |
+|---|---|---|---|
+| `POST` | `/api/device-tokens` | `{ "token", "platform": "ANDROID"\|"IOS", "deviceName"? }` | `200`, gövdesiz |
+| `DELETE` | `/api/device-tokens` | `{ "token" }` | `204`, gövdesiz |
+
+**Upsert:** `token` kolonu UNIQUE'tir. Aynı token yeniden gönderilirse satır
+güncellenir — `user_id`, `platform`, `device_name`, `is_active` ve `updated_at`
+birlikte. FCM token'ı cihaz + uygulama başına tekildir, kullanıcı başına değil.
+
+**`DELETE` normal çıkış akışı değildir.** Yalnız token yenilenmesi ve cihazı
+elle kaldırma içindir. Normal çıkışta token `POST /api/auth/logout` gövdesindeki
+opsiyonel `deviceToken` alanı ile pasifleşir. Mobil, çıkışta ayrıca
+`DELETE /api/device-tokens` çağırmaz.
+
+> [!WARNING]
+> İki bilinen açık: (1) `DELETE` ucu tokenın oturumdaki kullanıcıya ait olup
+> olmadığını **doğrulamıyor**; (2) `openapi.json` bu uçları içermediği için
+> üretilmiş istemcide karşılıkları yok. Ayrıntı:
+> [MOBIL_ENTEGRASYON_GOREV_DAGILIMI.md](MOBIL_ENTEGRASYON_GOREV_DAGILIMI.md) M2.
+
+> [!NOTE]
+> Token kaydedilse bile **push şu an gönderilmiyor**: `PushNotificationService`
+> yazılmış ama workflow listener'ına bağlanmamış (M3). MOB-12 bu bağlantı
+> yapılmadan doğrulanamaz.
+
+---
+
 ## Mobil kapsam dışı uçlar
 
 `/api/admin/**` (kullanıcı ve rol yönetimi) ve `/api/user-audit-logs/**` yalnız
 `ADMIN` içindir; mobil v1'de `ADMIN` rolü yok, bu uçlar bağlanmaz.
-
-`/api/device-tokens` **henüz yok** — M2 ile gelecek, geldiğinde bu belgeye eklenir.
