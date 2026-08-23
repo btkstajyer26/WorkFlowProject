@@ -22,3 +22,6 @@ logs/
 # UPLOAD_DIR göreli olduğu için uygulamanın nereden başlatıldığına göre
 # hem backend/uploads/ hem de kök uploads/ oluşabiliyor; ikisi de yoksayılır.
 uploads/
+
+# MSW postinstall ciktisi; npm ci her kurulumda yeniden uretir
+frontend/public/mockServiceWorker.js
