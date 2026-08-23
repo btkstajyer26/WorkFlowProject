@@ -47,7 +47,7 @@ export const fileHandlers = [
     }
 
     mockApiDb.files = [...mockApiDb.files, newFile]
-    return HttpResponse.json(newFile)
+    return HttpResponse.json([newFile])
   }),
 
   http.delete(`${apiBaseUrl}/api/files/:id`, ({ params, request }) => {

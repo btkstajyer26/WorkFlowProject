@@ -1,13 +1,18 @@
 import * as FileSystem from 'expo-file-system/legacy';
 
-import { API_BASE_URL, apiRequest } from './client';
+import {
+  API_BASE_URL,
+  apiAuthenticatedOperation,
+  apiRequest,
+} from './client';
 
 export interface RecordFile {
   id: string;
-  name: string;
-  size: number;
+  originalName: string;
+  fileSize: number;
   mimeType: string;
-  createdAt: string;
+  uploadedAt: string;
+  uploadedBy: string;
   recordId: string;
 }
 
@@ -40,17 +45,21 @@ export const deleteRecordFile = async (fileId: string): Promise<void> => {
 export const downloadFileToLocal = async (
   fileId: string,
   fileName: string,
-  token?: string
 ): Promise<string> => {
   const targetDir = FileSystem.documentDirectory || FileSystem.cacheDirectory || '';
-  const fileUri = `${targetDir}${fileName}`;
+  const safeFileName = fileName.replace(/[\\/:*?"<>|]/g, '_');
+  const fileUri = `${targetDir}${safeFileName}`;
 
-  const downloadRes = await FileSystem.downloadAsync(
-    `${API_BASE_URL}/api/files/${fileId}/download`,
-    fileUri,
-    {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    }
+  const downloadRes = await apiAuthenticatedOperation((accessToken) =>
+    FileSystem.downloadAsync(
+      `${API_BASE_URL}/api/files/${fileId}/download`,
+      fileUri,
+      {
+        headers: accessToken
+          ? { Authorization: `Bearer ${accessToken}` }
+          : {},
+      },
+    ),
   );
 
   if (downloadRes.status !== 200) {

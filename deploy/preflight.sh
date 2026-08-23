@@ -61,7 +61,7 @@ printf '\n== Zorunlu anahtarlar ==\n'
 REQUIRED_KEYS=(
 	DB_NAME DB_USER DB_PASSWORD
 	JWT_SECRET
-	BOOTSTRAP_ADMIN_EMAIL BOOTSTRAP_ADMIN_PASSWORD
+	BOOTSTRAP_ADMIN_EMAIL
 	CORS_ALLOWED_ORIGINS
 	TEST_DOMAIN MAILPIT_USER MAILPIT_PASSWORD_HASH
 )
@@ -73,6 +73,20 @@ for key in "${REQUIRED_KEYS[@]}"; do
 		ok "$(printf '%-24s %s' "$key" "$(mask "$value")")"
 	fi
 done
+
+# BOOTSTRAP_ADMIN_PASSWORD yalnizca ILK kurulumda gerekli. BootstrapAdminRunner
+# aktif bir Admin varken hicbir sey yapmiyor, dolayisiyla seed'den sonra bu
+# deger olu bir secret olarak .env'de kalir. Zorunlu tutmak, silinmesini
+# cezalandirip gereksiz secret saklamayi tesvik ederdi; bu yuzden UYARI.
+BOOTSTRAP_PW=$(env_value "$ENV_FILE" BOOTSTRAP_ADMIN_PASSWORD)
+if [ -z "$BOOTSTRAP_PW" ]; then
+	warn 'BOOTSTRAP_ADMIN_PASSWORD bos. Ilk kurulumda gereklidir; aktif Admin
+          zaten varsa bu beklenen ve tercih edilen durumdur.'
+else
+	ok "$(printf '%-24s %s' BOOTSTRAP_ADMIN_PASSWORD "$(mask "$BOOTSTRAP_PW")")"
+	warn 'BOOTSTRAP_ADMIN_PASSWORD hala dolu. Admin hesabi olusturulup parolasi
+          degistirildiyse bu satir artik kullanilmiyor; .env dosyasindan silin.'
+fi
 
 printf '\n== Ornek (.env.example) degerleri ==\n'
 # Yasak listesini elle tutmak yerine .env.example ile karsilastiriyoruz: ornek

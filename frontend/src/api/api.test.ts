@@ -10,7 +10,7 @@ import {
 import { searchRecords } from './recordSearch'
 import { listRecords } from './records'
 import { listCategories } from './categories'
-import { getRecordDetail } from './recordDetails'
+import { getRecordDetail, listRecordAuditLogs } from './recordDetails'
 import { listAdminAuditLogs, listAdminUsers } from './admin'
 import { deleteRecordFile, listRecordFiles, uploadRecordFile } from './files'
 import { apiMockServer } from '../mocks/api/server'
@@ -47,7 +47,7 @@ describe('OpenAPI istemcisi ve MSW sözleşmesi', () => {
       }])),
       http.post(`${apiBaseUrl}/api/records/:recordId/files`, ({ params, request }) => {
         expect(request.headers.get('content-type')).toContain('multipart/form-data')
-        return HttpResponse.json({
+        return HttpResponse.json([{
           id: fileId,
           recordId: params.recordId,
           originalName: 'yeni.pdf',
@@ -55,7 +55,7 @@ describe('OpenAPI istemcisi ve MSW sözleşmesi', () => {
           fileSize: 3,
           uploadedBy: '33333333-3333-4333-8333-333333333333',
           uploadedAt: '2026-08-17T09:00:00Z',
-        })
+        }])
       }),
       http.delete(`${apiBaseUrl}/api/files/:fileId`, ({ params }) => {
         deletedFileId = String(params.fileId)
@@ -195,7 +195,7 @@ describe('OpenAPI istemcisi ve MSW sözleşmesi', () => {
     expect(approved.newStatus).toBe('ONAYLANDI')
 
     await loginAs(employeeCredentials.email)
-    const history = await api.auditLogs.getGecmis({ recordId })
+    const history = await listRecordAuditLogs(recordId)
     expect(history.map((item) => item.action)).toEqual([
       'GONDER',
       'BASKANA_ILET',

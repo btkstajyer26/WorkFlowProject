@@ -32,13 +32,14 @@ Sözleşme: [FRONTEND_BACKEND_SOZLESMESI.md](FRONTEND_BACKEND_SOZLESMESI.md)
 | `GET /api/records/{id}/files` | ✅ Bitti | Mobil doğrudan kullanır |
 | Auth / workflow / audit / notifications API | ✅ Bitti | Yeni yazılmaz |
 | `last_deputy_id` koltuk devri | ✅ Bitti | Alperen — `feature/record` entegre edildi (M5 kapandı) |
-| `device_tokens` + API | 🔴 Yok | |
-| FCM push gönderimi | 🔴 Yok | |
-| Logout'ta device token pasif | 🔴 Yok | |
+| `device_tokens` + API | ✅ Bitti | `V10`, controller, servis, repo ve `DeviceTokenServiceTest` var — ama `DELETE` ucunda sahiplik kontrolü yok, aşağıya bak |
+| FCM push gönderimi | 🟡 Yarım | `PushNotificationService` yazıldı ama **hiçbir yerden çağrılmıyor**; push gitmiyor |
+| Logout'ta device token pasif | ✅ Bitti | `LogoutRequest.deviceToken` opsiyonel alan olarak eklendi |
 | `docs/MOBIL_API_ENVANTERI.md` | 🟡 Taslak | Yazıldı; TEST adresi ve `openapi.json` bekliyor |
 | Çoklu dosya upload | 🔴 Açık | Uç tek dosya alıyor (`@RequestPart("file")`); şartname BE-06 çoklu istiyor |
-| `LogoutRequest.deviceToken` | 🔴 Yok | DTO şu an yalnız `refreshToken` taşıyor (M4) |
-| Geçersiz FCM token temizliği | 🔴 Yok | M3 |
+| `LogoutRequest.deviceToken` | ✅ Bitti | Opsiyonel alan; web gövdesi değişmedi (M4) |
+| Geçersiz FCM token temizliği | ✅ Bitti | `handleFcmError` → `UNREGISTERED` / `INVALID_ARGUMENT` pasifleştiriyor (M3) |
+| `docs/openapi.json` | 🔴 Bayat | 27 uç; `/api/device-tokens` **yok**. Yeniden üretilmeli |
 | Deep-link route sözleşmesi | 🟡 Karar | Sprint 0'da sabitlenir, aşağıda |
 | TEST API ortamı | 🟡 Sahipsiz | Push testi buna bağlı (M0) |
 | Başkan işlem geçmişi kırpması | ✅ Bitti | Bugün indi — mobil detay ekranını etkiler, aşağıya bak |
@@ -55,7 +56,7 @@ ile MOB-12 yönlendirmesi bu sözleşmeye göre yazılır.
 | | |
 |---|---|
 | Şema | `ebys://kayitlar/{recordId}` |
-| Expo Router dosyası | `mobile/app/(app)/kayitlar/[id].tsx` |
+| Expo Router dosyası | `mobile/src/app/(app)/kayitlar/[id].tsx` |
 | Kaynak alan | Push `data.recordId` |
 
 Web'deki kanonik route `/kayitlar/:recordId` ile bilerek aynı; iki istemcide
@@ -117,7 +118,7 @@ o satırı hiç görmez (kural 1). Web'de bu hata yaşandı ve düzeltildi.
 
 ## Backend — yalnız açık işler
 
-### 👤 Entegrasyon — M0 🟡 *Sprint 0 · envanter hazır, M9 bekliyor*
+### 👤 Entegrasyon — M0 ✅ *Sprint 0 · envanter hazır, TEST ortamı ayakta*
 
 **Çıktı:** [MOBIL_API_ENVANTERI.md](MOBIL_API_ENVANTERI.md) — **yazıldı.**
 
@@ -132,30 +133,21 @@ request/response ve hata kodu var. Kapsanan konular:
 - `createdByFullName` kullanımı ve geçmişten ad türetme yasağı
 - Dosya izin listesi, boyut sınırı, devir anındaki dosya görünürlüğü
 
-**`openapi.json` sabitlendi:** [docs/openapi.json](openapi.json) — 27 uç,
-31 şema. Mobil istemci kodu bundan üretilir; yeniden üretme komutu envanterde.
-
-**Kalan iş:** TEST ortamı — **M9, Burak Kaya** (aşağıda).
+**TEST ortamı:** M9 (Burak Kaya) 21 Ağustos 2026'da kapandı. Adres, hesaplar ve
+kabul kanıtı [MOBIL_API_ENVANTERI.md](MOBIL_API_ENVANTERI.md#test-ortamı)
+içinde.
 
 **Bitti sayılır:** Kişi1/2/3 envantere bakarak bağlayabiliyor **ve** TEST
-adresine gerçek cihazdan istek atılabiliyor. Birincisi sağlandı; ikincisi M9'a bağlı.
+adresine gerçek cihazdan istek atılabiliyor. **İkisi de sağlandı.**
 
-##### Ayrıca sağlanacak
+##### Kalan tek iş: `openapi.json` yeniden üretilmeli 🔴
 
-1. **Güncel OpenAPI çıktısı.** springdoc zaten ayakta
-   (`/v3/api-docs`, `/swagger-ui.html`). Sürüm sabitlenmiş bir `openapi.json`
-   repoya veya paylaşılan bir yere konur; mobil istemci kodu bundan üretilir.
-2. **Ekipçe erişilebilen TEST API adresi.** MOB-1 `DEV`/`TEST`/`PROD` base URL
-   ayrımı yapıyor ama ayakta bir TEST ortamı olmadan mobil yalnız `localhost`'a
-   bağlanabilir — gerçek cihazdan bu çalışmaz ve **push testi imkânsızdır**
-   (Sprint 4 buna bağlı). Adres, örnek hesaplar ve hangi veriyle yüklü olduğu
-   envantere yazılır.
+[docs/openapi.json](openapi.json) 20 Ağustos'ta sabitlendi — **27 uç, 31 şema**.
+O tarihten sonra eklenen `/api/device-tokens` uçları (M2) dosyada **yok**.
+Mobil istemci kodu bu dosyadan üretildiği için Kişi3 cihaz token kaydını
+üretilmiş istemciyle yapamaz.
 
-> Sahibi netleşmeli: TEST ortamını kim ayağa kaldırıyor? Kimseye atanmadıysa
-> Sprint 0'ın çıkmayan işi budur.
-
-**Bitti sayılır:** Kişi1/2/3 envantere bakarak bağlayabiliyor; TEST adresine
-gerçek cihazdan istek atılabiliyor.
+Backend ayaktayken `/v3/api-docs` çıktısı yeniden alınmalı; komut envanterde.
 
 ---
 
@@ -183,7 +175,22 @@ kararı (gerekli / gereksiz) gerekçesiyle kayıtlı.
 
 ### 👤 Melih Kocaman — `notification`
 
-#### M2 — Cihaz token API 🔴
+#### M2 — Cihaz token API ✅ *kodda var — bir açık madde kaldı*
+
+> **Durum:** `V10__device_tokens.sql`, `DeviceTokenController`, `DeviceTokenService`,
+> `DeviceTokenRepository`, `DeviceToken` entity ve `DeviceTokenServiceTest` depoda.
+> Aşağıdaki tasarım olduğu gibi uygulanmıştır; bölüm sözleşme olarak duruyor.
+>
+> **Kalan iş — `DELETE /api/device-tokens` sahiplik doğrulaması yapmıyor.**
+> `removeToken` `Authentication` parametresi almıyor ve `deactivateByToken`
+> yalnız token değerine göre güncelliyor. Kimliği doğrulanmış herhangi bir
+> kullanıcı, başkasının token değerini gönderirse o kişinin push bildirimlerini
+> kapatabilir. Uç `(token, user_id)` çifti üzerinden çalışmalı, kullanıcıya ait
+> olmayan token M4'teki gibi **sessizce yok sayılmalı**.
+>
+> **İkinci madde:** `DeviceTokenService.deactivateToken` token değerini
+> `log.info` ile tam olarak yazıyor. Token bir kimlik bilgisidir ve log'lar 30
+> gün saklanıyor; maskelenmeli.
 
 **Migration:** `V10__device_tokens.sql` (V9 sondaki sürüm)
 
@@ -248,7 +255,20 @@ gönderildiğinde satır yeni kullanıcıya geçiyor.
 
 ---
 
-#### M3 — FCM push 🔴
+#### M3 — FCM push 🟡 *servis yazıldı, bağlanmadı*
+
+> **Durum:** `PushNotificationService` depoda — FCM başlatma, `data.recordId` /
+> `data.type` payload'u ve geçersiz token temizliği (`handleFcmError`) dahil
+> aşağıdaki sözleşmenin tamamı yazılmış durumda.
+>
+> **Kalan iş — servis hiçbir yerden çağrılmıyor.** Tüm repoda, sınıfın kendi
+> dosyası dışında `PushNotificationService` veya `sendPushNotification` geçen
+> tek satır yok. `WorkflowStatusChangedListener` yalnız uygulama içi bildirim ve
+> e-posta üretiyor. Servis listener'a bağlanana kadar push **hiç gitmez** ve bu
+> eksiklik sessizdir: hata üretmez, log'a düşmez.
+>
+> Bağlarken alıcılar mevcut `recipientsOf` matrisinden alınmalı; yeni alıcı
+> mantığı yazılmamalı. Gönderim `@Async`'tir, onay akışını bloklamaz.
 
 **Bağımlılık:** M2 (alıcı matrisi zaten ✅)
 
@@ -302,7 +322,12 @@ ve hata yalnız loglanır.
 
 ### 👤 Nisan Tat · Sümeyye Baykan — `auth`
 
-#### M4 — Logout'ta device token pasif 🔴
+#### M4 — Logout'ta device token pasif ✅ *DTO alanı eklendi*
+
+> **Durum:** `LogoutRequest.deviceToken` opsiyonel alan olarak eklendi;
+> `@NotBlank` yalnız `refreshToken` üzerinde, web gövdesi değişmedi.
+> Aşağıdaki sözleşme sabittir. `AuthService.logout` tarafındaki testlerin
+> (a/b/c senaryoları) koşulduğu teyit edilmeli.
 
 **Bağımlılık:** M2
 
@@ -392,27 +417,28 @@ Liste ucu için yeni endpoint yazılmaz (`GET /api/records/{id}/files` zaten var
 
 ### 👤 Burak Kaya — ortam
 
-#### M9 — TEST ortamı 🔴 *Sprint 0 · engelleyici*
+#### M9 — TEST ortamı ✅ *21 Ağustos 2026'da kapandı*
 
-**Neden engelleyici:** Bugün yalnız `localhost:8080` var. Gerçek cihaz
-`localhost`'a bağlanamaz; bu ortam olmadan **push bildirimi hiç test edilemez**
-ve Sprint 4 doğrulanamaz. MOB-16 release hazırlığı da buna bakar.
+Ekipçe erişilebilen HTTPS TEST ortamı ayakta:
+`https://workflowproject-test.duckdns.org`. Tek EC2 üzerinde mevcut Docker
+Compose ile backend + PostgreSQL + Mailpit + Caddy çalışıyor; Caddy Let's
+Encrypt sertifikasını kendi alıyor ve dışarıya yalnız `80`/`443` bakıyor.
+`CORS_ALLOWED_ORIGINS`, `JWT_SECRET`, `BOOTSTRAP_ADMIN_*` ve mail değerleri
+ortamdan veriliyor; hiçbiri repoda değil.
 
-Gerekenler:
+Rol bazlı hesaplar ve altı workflow durumunu kapsayan 7 örnek kayıt
+[deploy/seed-test-data.sh](../deploy/seed-test-data.sh) ile API üzerinden
+üretildi. Adres, hesaplar, veri özeti ve kabul kanıtı
+[MOBIL_API_ENVANTERI.md](MOBIL_API_ENVANTERI.md#test-ortamı) içinde; kurulum,
+topoloji ve bilinen sınırlamalar [TEST_ORTAMI_NOTU.md](TEST_ORTAMI_NOTU.md)
+içinde.
 
-1. Ekipçe erişilebilen bir adres (backend + PostgreSQL). `docker-compose.yml`
-   zaten var; ek servis yazmaya gerek yok.
-2. **HTTPS.** Android 9+ ve iOS varsayılan olarak düz HTTP'yi engeller; sertifika
-   olmadan mobil istekleri sessizce düşer.
-3. `CORS_ALLOWED_ORIGINS`, `JWT_SECRET`, `BOOTSTRAP_ADMIN_*` ve `MAIL_*`
-   değişkenleri ortama verilir — **repoya yazılmaz**.
-4. Her rol için birer örnek hesap (`CALISAN`, `BASKAN_YARDIMCISI`, `BASKAN`) ve
-   akışı uçtan uca yürütmeye yetecek örnek kayıt.
-5. Adres, hesaplar ve verinin ne olduğu
-   [MOBIL_API_ENVANTERI.md](MOBIL_API_ENVANTERI.md) ortam tablosuna yazılır.
+**Kabul:** 21 Ağustos 2026'da Samsung Galaxy A34 / Android 16 cihazda, mobil
+veri üzerinden EAS preview APK ile `calisan1@ebys-test.local` hesabıyla giriş
+yapıldı ve kayıt listesinde 6/6 kayıt görüldü. Backend deploy SHA `4726d69`.
 
-**Bitti sayılır:** Gerçek bir telefondan TEST adresine giriş yapılıp kayıt
-listesi görülebiliyor.
+Bu ortamla gerçek cihaz testi ve push bildiriminin (Sprint 4) önündeki engel
+kalktı. Push'un uçtan uca çalışması ayrı iştir (M3) ve M9 kapsamında değildir.
 
 ---
 
@@ -603,18 +629,22 @@ Gerçek cihaz (Android + iOS), ekran boyutları, imza / provisioning.
 
 | Kişi | Modül | Açık görevler |
 |---|---|---|
-| **Entegrasyon** | — | M0 |
+| **Entegrasyon** | — | — (M0 kapandı); `openapi.json` yeniden üretilmeli |
 | **Ebrar** | `audit` | M1 |
-| **Melih** | `notification` | M2, M3 |
-| **Nisan · Sümeyye** | `auth`, `user` | M4 |
+| **Melih** | `notification` | **M3'ü listener'a bağla** · M2'de `DELETE` sahiplik kontrolü + token log maskeleme |
+| **Nisan · Sümeyye** | `auth`, `user` | — (M4 kapandı) |
 | **Alperen · Fevzi** | `record` | — (M5 kapandı) |
 | **Ecesu** | `attachment` | M6, M7 |
 | **Hacer** | `rbac`, `common` | M8 |
-| **Esra · Burak** | `workflow` / ortam | M9 (Burak) — `workflow` tarafında açık iş yok |
+| **Esra · Burak** | `workflow` / ortam | — (M9 kapandı; `workflow` tarafında açık iş yok) |
 | **Irmak** | `search` | — (hazır) |
 | **Kişi1** | mobil | MOB-1 … MOB-5 |
 | **Kişi2** | mobil | MOB-6 … MOB-10 |
 | **Kişi3** | mobil | MOB-11 … MOB-16 |
+
+> **En kritik açık madde M3'tür.** M2 ve M4 bittiği için mobil taraf token
+> kaydedip çıkışta pasifleştirebilir, ama `PushNotificationService` çağrılmadığı
+> için hiçbir push gönderilmez. MOB-12 bu bağlantı yapılmadan doğrulanamaz.
 
 > **Kişi1/2/3 henüz atanmadı.** Frontend ekibi (Zeynep Sena Şaltu, Yiğithan Ayhan,
 > Tamer Erhan, Bartın Emre Sayar) React/TS bildiği için doğal aday; kabul
@@ -630,8 +660,9 @@ dosya listesi ucu, `notifications` ve `tokens` tabloları, Flutter.
 
 1. Stack onayı → MOB-1 (backend M0–M8 beklemez)
 2. M0 → mobil API bağlama
-3. **M9 (TEST ortamı) → gerçek cihaz testi → push testi.** Zincirin en kırılgan
-   halkası; ortam yoksa Sprint 4 hiç doğrulanamaz.
+3. ~~**M9 (TEST ortamı) → gerçek cihaz testi → push testi.**~~ ✅ Zincirin en
+   kırılgan halkasıydı; TEST ortamı 21 Ağustos 2026'da ayağa kalktı ve gerçek
+   cihaz testi yapıldı. Sprint 4 push doğrulaması artık M3'e bağlı.
 4. Deep-link sözleşmesi (Sprint 0) → M3 payload'u **ve** MOB-12 yönlendirmesi
 5. MOB-3 → Kişi2/3 korumalı ekranlar
 6. M2 → M3, M4, M8, MOB-12

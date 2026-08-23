@@ -21,10 +21,13 @@ export const FileList: React.FC<FileListProps> = ({
 
   const handleDownload = async (file: RecordFile) => {
     try {
-await downloadFileToLocal(file.id, file.name);
-      Alert.alert('Başarılı', `Dosya indirildi: ${file.name}`);
-    } catch (error: any) {
-      Alert.alert('İndirme Hatası', error?.message || 'Dosya indirilemedi.');
+      await downloadFileToLocal(file.id, file.originalName);
+      Alert.alert('Başarılı', `Dosya indirildi: ${file.originalName}`);
+    } catch (error: unknown) {
+      Alert.alert(
+        'İndirme Hatası',
+        error instanceof Error ? error.message : 'Dosya indirilemedi.',
+      );
     }
   };
 
@@ -40,10 +43,10 @@ await downloadFileToLocal(file.id, file.name);
               numberOfLines={1}
               className="text-sm font-medium text-gray-800 dark:text-gray-100"
             >
-              {file.name}
+              {file.originalName}
             </Text>
             <Text className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              {formatFileSize(file.size)}
+              {formatFileSize(file.fileSize)}
             </Text>
           </View>
 
@@ -52,7 +55,7 @@ await downloadFileToLocal(file.id, file.name);
               onPress={() => handleDownload(file)}
               className="bg-gray-100 dark:bg-slate-800 px-3 py-1.5 rounded-md"
               accessibilityRole="button"
-              accessibilityLabel={`${file.name} dosyasını indir`}
+              accessibilityLabel={`${file.originalName} dosyasını indir`}
             >
               <Text className="text-xs font-semibold text-gray-700 dark:text-gray-300">İndir</Text>
             </TouchableOpacity>
@@ -62,7 +65,7 @@ await downloadFileToLocal(file.id, file.name);
                 onPress={() => onDeleteFile(file.id)}
                 className="bg-red-50 dark:bg-red-950/40 px-3 py-1.5 rounded-md"
                 accessibilityRole="button"
-                accessibilityLabel={`${file.name} dosyasını sil`}
+                accessibilityLabel={`${file.originalName} dosyasını sil`}
               >
                 <Text className="text-xs font-semibold text-red-600 dark:text-red-400">Sil</Text>
               </TouchableOpacity>

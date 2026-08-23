@@ -17,6 +17,7 @@ import {
   startSession,
   subscribeToSession,
   type AuthSession,
+  type EndSessionOptions,
   updatePassword,
 } from './sessionManager';
 
@@ -26,7 +27,7 @@ type AuthContextValue = {
   isReady: boolean;
   mustChangePassword: boolean;
   signIn: (credentials: LoginRequest) => Promise<void>;
-  signOut: () => Promise<void>;
+  signOut: (options?: EndSessionOptions) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -62,8 +63,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
     await startSession(credentials);
   }, [queryClient]);
 
-  const signOut = useCallback(async () => {
-    await endSession();
+  const signOut = useCallback(async (options?: EndSessionOptions) => {
+    await endSession(options);
   }, []);
 
   const changePassword = useCallback(async (request: ChangePasswordRequest) => {

@@ -35,8 +35,8 @@ export function changePassword(input: ChangePasswordInput) {
   })
 }
 
-// Bu üç uç backend OpenAPI şemasına eklendiğinde generated controller üzerinden
-// çağrılabilir. O zamana kadar sözleşme sınırı bu adapterda tutulur.
+// Şifre sıfırlama uçları generated controller'da da mevcut. Bu adapter,
+// sayfaların backend yanıt ayrıntılarına bağlanmaması için UI sınırını korur.
 
 /** Hesap varsa e-postaya 6 haneli doğrulama kodu gönderir. */
 export function requestPasswordReset(input: ForgotPasswordInput) {
