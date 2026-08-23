@@ -26,6 +26,10 @@ type ApiFetchResult = {
   responseBody: unknown;
 };
 
+type ApiAuthenticatedOperationResult = {
+  status: number;
+};
+
 let apiAuthHandlers: ApiAuthHandlers | null = null;
 
 function createRequestUrl(path: string): string {
@@ -158,6 +162,26 @@ function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T
   return executeApiRequest<T>(path, options, true);
 }
 
+async function apiAuthenticatedOperation<T extends ApiAuthenticatedOperationResult>(
+  operation: (accessToken: string | undefined) => Promise<T>,
+): Promise<T> {
+  const accessToken = apiAuthHandlers?.getAccessToken() ?? undefined;
+  const result = await operation(accessToken);
+
+  if (result.status !== 401 || !apiAuthHandlers) {
+    return result;
+  }
+
+  try {
+    const refreshedAccessToken = await apiAuthHandlers.refreshAccessToken();
+    return await operation(refreshedAccessToken);
+  } catch {
+    // Oturum yöneticisi başarısız refresh sonrasında yerel tokenları temizler.
+    // Çağıran katman ilk 401 sonucunu kendi işlem türüne göre ele alır.
+    return result;
+  }
+}
+
 function setApiAuthHandlers(handlers: ApiAuthHandlers): void {
   apiAuthHandlers = handlers;
 }
@@ -166,5 +190,15 @@ function clearApiAuthHandlers(): void {
   apiAuthHandlers = null;
 }
 
-export { API_BASE_URL, apiRequest, clearApiAuthHandlers, setApiAuthHandlers };
-export type { ApiAuthHandlers, ApiRequestOptions };
+export {
+  API_BASE_URL,
+  apiAuthenticatedOperation,
+  apiRequest,
+  clearApiAuthHandlers,
+  setApiAuthHandlers,
+};
+export type {
+  ApiAuthenticatedOperationResult,
+  ApiAuthHandlers,
+  ApiRequestOptions,
+};
