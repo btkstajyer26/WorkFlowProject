@@ -99,11 +99,70 @@ jobs:
       - name: Lint frontend
         run: npm run lint
 
+      - name: Typecheck browser tests
+        run: npm run typecheck:e2e
+
       - name: Test frontend
         run: npm run test
 
       - name: Build frontend
         run: npm run build
+
+  frontend-e2e:
+    name: Frontend / E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      E2E_PROVISION_USER: 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          check-latest: true
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Typecheck browser tests
+        working-directory: frontend
+        run: npm run typecheck:e2e
+
+      - name: Start isolated E2E backend
+        run: docker compose -p workflow-e2e -f docker-compose.e2e.yml up -d --build --wait
+
+      - name: Run browser E2E tests
+        working-directory: frontend
+        run: npm run test:e2e
+
+      - name: Capture E2E service logs
+        if: always()
+        run: docker compose -p workflow-e2e -f docker-compose.e2e.yml logs --no-color > e2e-services.log
+
+      - name: Upload E2E evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-e2e-evidence
+          path: |
+            frontend/playwright-report/**
+            frontend/test-results/**
+            e2e-services.log
+          if-no-files-found: warn
+
+      - name: Stop isolated E2E backend
+        if: always()
+        run: docker compose -p workflow-e2e -f docker-compose.e2e.yml down -v
 
   # TEST dagitimi tek bir birlesik Compose dosyasindan cikiyor ama bugune kadar
   # CI'da hic parse edilmedi. Bu job olmasaydi docker-compose.yml icindeki
