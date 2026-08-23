@@ -6,7 +6,7 @@ Kurum içindeki belge, kayıt ve onay süreçlerini dijitalleştirmek için geli
 
 Sistem; kayıt oluşturma, hiyerarşik onay akışı, rol bazlı erişim, dosya yönetimi, denetim izi, arama ve bildirim yeteneklerini tek uygulamada birleştirir.
 
-> Proje aktif geliştirme aşamasındadır ve henüz üretim ortamına hazır değildir. Güncel geliştirme kodu `test` ve `integration/tum-feature-branchleri` dallarındadır; bu iki dal şu anda aynı commit'tedir. Frontend'in çalışma zamanı mock katmanı kaldırılmıştır, mock'lar yalnızca testlerde (MSW) kullanılır. İlk Admin kurulumu ve ilk girişte parola değiştirme akışı tamamlanmıştır; backend üretimli geçici parola ve davet e-postası henüz yoktur.
+> Proje aktif geliştirme aşamasındadır ve henüz üretim ortamına hazır değildir. Güncel geliştirme kodu `integration/tum-feature-branchleri` dalındadır; bu dal `test` dalının tamamını içerir ve ek olarak `feature/mobile-zeynep` (sekme rengi) ile `feature/nisan-sumeyye` (M4 çıkış / refresh token) çalışmalarını taşır. Sıradaki adım bu dalın `test` dalına geri alınmasıdır. Frontend'in çalışma zamanı mock katmanı kaldırılmıştır, mock'lar yalnızca testlerde (MSW) kullanılır. İlk Admin kurulumu ve ilk girişte parola değiştirme akışı tamamlanmıştır; backend üretimli geçici parola ve davet e-postası henüz yoktur.
 
 ## İçindekiler
 
@@ -39,9 +39,9 @@ Sistem; kayıt oluşturma, hiyerarşik onay akışı, rol bazlı erişim, dosya 
 | Audit | Kısmi | Kayıt ve kullanıcı işlemleri için audit altyapısı vardır; veritabanı seviyesindeki değiştirilemezlik güvencesi güçlendirilmelidir. |
 | Arama | Uygulandı | Kriter, filtre ve sayfalama tabanlı kayıt araması bulunur. |
 | Bildirim | Kısmi | Uygulama içi workflow bildirimleri ve commit sonrası durum e-postası mevcuttur. Atama yapılan geçişte atanan kullanıcıya, nihai onay/ret geçişinde hem kaydı oluşturana hem kaydı Başkana ileten yardımcıya gider. Gerçek Outlook yapılandırması ortama bağlıdır. Mobil push tarafında `device_tokens` tablosu, uçları ve `PushNotificationService` yazılmıştır; ancak servis henüz workflow listener'ına **bağlanmamıştır** ve push gönderilmez. |
-| Frontend | Uygulandı | React arayüzü tüm ekranlarda gerçek API istemcilerini kullanır; çalışma zamanı mock modu kaldırılmıştır. `src/mocks/` yalnızca Vitest/MSW testlerini besler. 102 frontend testi yeşildir. |
+| Frontend | Uygulandı | React arayüzü tüm ekranlarda gerçek API istemcilerini kullanır; çalışma zamanı mock modu kaldırılmıştır. `src/mocks/` yalnızca Vitest/MSW testlerini besler. 20 dosyada 103 Vitest testi yeşildir; ayrıca gerçek backend'e bağlanan 13 dosyalık Playwright E2E paketi vardır. |
 | Mobil | Kısmi | Expo/React Native istemcisinde kimlik doğrulama, kayıt listesi/detayı, workflow aksiyonları ve dosya yükleme kuyruğu mevcuttur. Auth/API katmanında 10 Jest testi vardır; dosya ekranı, bildirim merkezi ve push entegrasyonu tamamlanmamıştır. |
-| GitHub CI | Uygulandı | GitHub Actions akışı `test`, `main` ve `integration/**` dallarında backend `verify`, frontend lint/test/build ve mobil lint/typecheck/test kontrollerini çalıştırır. Branch protection kuralları henüz etkin değildir. |
+| GitHub CI | Uygulandı | GitHub Actions akışı `test`, `main` ve `integration/**` dallarında beş iş çalıştırır: backend `verify`, frontend lint/test/build, mobil lint/typecheck/test, izole Docker ortamında Playwright E2E ve TEST dağıtım yapılandırması denetimi. Branch protection kuralları henüz etkin değildir. |
 
 ## Roller ve iş akışı
 
@@ -147,6 +147,7 @@ WorkFlowProject/
 │   ├── src/test/
 │   └── pom.xml
 ├── frontend/
+│   ├── e2e/
 │   ├── public/
 │   ├── src/
 │   ├── package.json
@@ -167,6 +168,7 @@ WorkFlowProject/
 ├── .env.example
 ├── docker-compose.yml
 ├── docker-compose.test.yml
+├── docker-compose.e2e.yml
 └── README.md
 ```
 
@@ -421,18 +423,51 @@ mvn --batch-mode --no-transfer-progress verify
 cd frontend
 npm ci
 npm run lint
+npm run typecheck:e2e
 npm run test
 npm run build
 ```
 
+`npm run test` Vitest birim/entegrasyon paketini çalıştırır (20 dosya, 103 test).
+Bu paket ağı MSW ile karşılar; backend gerektirmez.
+
+### Uçtan uca (E2E)
+
+Playwright paketi runtime mock kullanmaz: tarayıcı gerçek Spring Boot API'sine,
+backend de yalnız E2E için ayağa kalkan izole bir PostgreSQL'e bağlanır. Ortak
+geliştirme veritabanına karşı çalıştırılmamalıdır.
+
+```powershell
+docker compose -p workflow-e2e -f docker-compose.e2e.yml up -d --build --wait
+cd frontend
+$env:E2E_PROVISION_USER = "true"
+npm run test:e2e
+docker compose -p workflow-e2e -f docker-compose.e2e.yml down -v
+```
+
+Kapsanan akışlar, hesap hazırlama davranışı ve adres değişkenleri için
+[frontend/e2e/README.md](frontend/e2e/README.md) dosyasına bakınız.
+
+### Mobil
+
+```bash
+cd mobile
+npm ci
+npm run lint
+npm run typecheck
+npm test
+```
+
 ### Sürekli entegrasyon
 
-`.github/workflows/ci.yml`, `test`, `main` ve `integration/**` dallarına açılan pull requestlerde ve bu dallara yapılan push'larda üç job çalıştırır:
+`.github/workflows/ci.yml`, `test`, `main` ve `integration/**` dallarına açılan pull requestlerde ve bu dallara yapılan push'larda beş job çalıştırır:
 
 | Job | İçerik |
 | --- | --- |
 | `Backend / verify` | PostgreSQL 15 servis konteyneriyle `./mvnw verify`; Surefire raporlarını artefakt olarak yükler |
-| `Frontend / quality` | `npm ci`, `npm run lint`, `npm run test`, `npm run build` |
+| `Frontend / quality` | `npm ci`, `npm run lint`, `npm run typecheck:e2e`, `npm run test`, `npm run build` |
+| `Mobile / quality` | `npm ci`, `npm run lint`, `npm run typecheck`, `npm test -- --runInBand` |
+| `Frontend / E2E` | `docker-compose.e2e.yml` ile izole backend + PostgreSQL + Mailpit ayağa kaldırılır, Chromium kurulur, `npm run test:e2e` koşar; Playwright raporu ve servis logları artefakt olarak yüklenir |
 | `Deploy / compose + shell` | Birleşik `docker-compose.yml` + `docker-compose.test.yml` parse edilir; host portu yayınlayan tek servisin `caddy` olduğu, `frontend` servisinin TEST birleşiminde pasif kaldığı doğrulanır; `deploy/*.sh` betikleri exec biti, LF satır sonu, `bash -n` ve ShellCheck ile denetlenir |
 
 Aynı kontroller yerel olarak da çalıştırılabilir. Branch protection henüz etkin olmadığı için bu job'lar şu an merge için teknik olarak zorunlu değildir; ekip politikası olarak yeşil olmadan merge edilmemelidir.
@@ -481,7 +516,16 @@ Branch protection etkinleştirilene kadar doğrudan push yasağı teknik olarak 
 
 ## Bilinen eksikler
 
-Son durum: tüm `feature/*` dalları `integration/tum-feature-branchleri` içine alınmıştır ve `test` dalı bu dalla aynı commit'tedir. Aşağıdaki maddeler, o birleşik hâlde kalan açıklardır.
+Son durum: tüm `feature/*` dalları `integration/tum-feature-branchleri` içine
+alınmıştır. Bu dal `test` dalının tamamını, ek olarak `feature/mobile-zeynep`
+sekme rengi düzeltmesini ve `feature/nisan-sumeyye` M4 çıkış/refresh token
+çalışmasını içerir. Aşağıdaki maddeler, o birleşik hâlde kalan açıklardır.
+
+Doğrulama (23 Ağustos 2026, yerel, Docker kapalı): backend 448 testin 434'ü
+yeşil, kalan 14'ü PostgreSQL istediği için düşer; frontend `lint` +
+`typecheck:e2e` temiz, 103/103 Vitest yeşil, `build` başarılı; mobil `lint` ve
+`typecheck` temiz, 10/10 Jest yeşil. Playwright E2E paketi Docker gerektirdiği
+için bu turda çalıştırılamamıştır.
 
 ### Ürün ve backend
 
@@ -490,27 +534,30 @@ Son durum: tüm `feature/*` dalları `integration/tum-feature-branchleri` içine
 - Tekil rol invariant'ı yalnızca okuma anında kontrol edilir; `PATCH /api/admin/users/{id}/active` ile hesap yeniden etkinleştirilirken aynı rolde başka aktif kullanıcı olup olmadığına bakılmaz.
 - **Push bildirimi hiç gönderilmiyor.** `PushNotificationService` yazılmıştır (FCM başlatma, `data.recordId`/`data.type` payload'u, `UNREGISTERED`/`INVALID_ARGUMENT` token temizliği) ancak sınıf **hiçbir yerden çağrılmaz**; `WorkflowStatusChangedListener` yalnız uygulama içi bildirim ve e-posta üretir. Servisin listener'a bağlanması gerekir. Bağlanana kadar eksiklik sessizdir: hata üretmez, yalnız bildirim gitmez.
 - **`DELETE /api/device-tokens` sahiplik doğrulaması yapmaz.** `DeviceTokenController.removeToken` `Authentication` parametresi almaz ve `DeviceTokenRepository.deactivateByToken` yalnız token değerine göre günceller. Uç, `POST /api/auth/logout` gibi `(token, user_id)` çifti üzerinden çalışmalı, kullanıcıya ait olmayan token sessizce yok sayılmalıdır.
-- **Cihaz tokenları log'a açık yazılıyor.** `DeviceTokenService.deactivateToken` ve `PushNotificationService` token değerini `log.info`/`log.warn` ile tam olarak yazar. Token bir kimlik bilgisidir ve log'lar 30 gün saklanır; maskelenmelidir.
+- **Cihaz tokenları log'a açık yazılıyor.** `DeviceTokenService.deactivateToken` (`log.info`) ile `PushNotificationService` (`log.warn`/`log.info`) token değerini tam olarak yazar. Token bir kimlik bilgisidir ve log'lar 30 gün saklanır; maskelenmelidir.
 - `/api/device-tokens` uçları `AuthorizationMatrixTest` kapsamında değildir (mobil görev dağılımındaki M8 açık).
 
 ### Mobil
 
-- `mobile/` paketinde auth ve ortak API davranışlarını doğrulayan 10 Jest testi
-  bulunur; ekran ve cihaz entegrasyon testleri henüz yoktur.
-- CI akışındaki `Mobile / quality` işi mobil lint, typecheck ve Jest testlerini
-  her PR/push kontrolünde çalıştırır.
+- `mobile/` paketinde auth ve ortak API davranışlarını doğrulayan 10 Jest testi bulunur; ekran ve cihaz entegrasyon testleri henüz yoktur.
+- Dosya ekranı, bildirim merkezi ve push entegrasyonu tamamlanmamıştır.
 
 ### Test ve CI
 
 - Backend'de dört test sınıfı (toplam 14 test) gerçek bir PostgreSQL bağlantısı ister ve veritabanı olmadan `ApplicationContext` hatasıyla düşer: `WorkflowTransitionPersistenceIntegrationTest` (11 test), `WorkFlowProjectApplicationTests`, `AuditLogRepositoryIntegrationTest`, `RecordRepositorySortingTest`. CI bunları `postgres:15-alpine` servisiyle çalıştırır; yerelde `docker compose up -d db` gerekir. Toplam 448 backend testinin kalan 434'ü veritabanısız geçer.
-- Frontend testleri tek tek çalıştırıldığında 102/102 geçer, ancak `npm run test` ile hepsi paralel koştuğunda yavaş makinelerde `App`, `RecordDetailPage`, `RecordFormsEdgeCases` ve `AdminUsersPage` dosyalarında `findBy*` beklemeleri zaman aşımına uğrayabilir. Vitest için açık bir `testTimeout`/havuz sınırı ayarlanmamıştır.
-- `test` ve `main` dalları için branch protection kuralları etkin değildir.
+- Playwright E2E paketi yalnız `docker-compose.e2e.yml` ile ayağa kalkan izole backend'e karşı çalışır; Docker'sız bir geliştirici makinesinde hiç koşturulamaz. `Frontend / E2E` işi CI'da bu boşluğu kapatır, ancak yerel doğrulama zinciri Docker'a bağımlıdır.
+- E2E `global-setup.ts` yalnız `E2E_PROVISION_USER=true` ile hesap açar ve bu mod ortak/production veritabanına karşı çalıştırılırsa gerçek veri üretir; koruma yalnız belgelenmiş bir uyarıdır, kodda ortam kontrolü yoktur.
+- Vitest için açık bir `testTimeout`/havuz sınırı ayarlanmamıştır. 23 Ağustos turunda `npm run test` 14 saniyede 103/103 yeşil bitmiştir; yine de yavaş makinelerde `findBy*` beklemelerinin zaman aşımına uğrama riski sürüyor.
+- `test` ve `main` dalları için branch protection kuralları etkin değildir (GitHub API `404` döner). Beş CI işi de merge için teknik olarak zorunlu değildir.
 
 ### Dal hijyeni
 
-- `main`, `test`/`integration` dalının 356 commit gerisindedir; sürüm alınacaksa `test` -> `main` birleştirmesi yapılmalıdır.
-- `origin/feature/notification-service` dalındaki iki commit, `integration` üzerinde daha ileri bir sürümle (`AuthenticatedUser` desteği eklenmiş `DeviceTokenController`) zaten karşılanmıştır. Bu dalın geri birleştirilmesi düzeltmeyi geriye alır; dal silinmelidir.
-- `feature/workflow-gonder-hedef-cozumleme` dalındaki C1a commit'inin davranışı (`GONDER`/`TEKRAR_GONDER` için `targetUserIdRequiredInRequest=false`) `integration` üzerinde zaten mevcuttur; dal güncelliğini yitirmiştir.
+- `integration/tum-feature-branchleri`, `origin/test` dalının 4 commit önündedir; birleşik hâl doğrulandığına göre `test` dalına PR ile geri alınmalıdır.
+- `main`, birleşik dalın 373 commit gerisindedir; sürüm alınacaksa `test` -> `main` birleştirmesi yapılmalıdır.
+- `origin/feature/notification-service` dalındaki iki commit, birleşik dalda daha ileri bir sürümle (`AuthenticatedUser` desteği eklenmiş `DeviceTokenController`) zaten karşılanmıştır. Bu dalın geri birleştirilmesi düzeltmeyi geriye alır; dal silinmelidir.
+- `feature/workflow-gonder-hedef-cozumleme` dalındaki C1a commit'inin davranışı (`GONDER`/`TEKRAR_GONDER` için `targetUserIdRequiredInRequest=false`) birleşik dalda zaten mevcuttur; dal güncelliğini yitirmiştir.
+- `origin/feature/m9-envanter` (`fc0d244`) ve `origin/feature/nisan-sumeyye` (`85e96d4`) dallarındaki son commitler, birleşik dalda bulunan `d365cd9` ve `4e3297d` ile **birebir aynı yamadır** (`git patch-id` eşleşir). Bu dallar tüketilmiştir; silinmelidir.
+- Yalnız yerelde duran `backup/proje-altyapisi-20260806`, `feature/proje-altyapisi` ve `feature/workflow-gonder-hedef-cozumleme` dalları temizlenmelidir.
 
 ### Dokümantasyon
 
@@ -550,6 +597,7 @@ Son durum: tüm `feature/*` dalları `integration/tum-feature-branchleri` içine
 ### Alt paket README'leri
 
 - [frontend/README.md](frontend/README.md)
+- [frontend/e2e/README.md](frontend/e2e/README.md) — gerçek backend E2E testlerinin çalıştırılması
 - [mobile/README.md](mobile/README.md)
 
 ### Arşiv
