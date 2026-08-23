@@ -138,8 +138,10 @@ function CodeStep({ email, onChangeEmail }: { email: string; onChangeEmail: () =
   const submit = handleSubmit(async ({ code }) => {
     try {
       const { resetToken } = await verifyPasswordResetCode({ email, code: code.trim() })
-      // Anahtar adres çubuğunda kalmasın diye geçmişte iz bırakılmaz.
-      navigate(`/sifre-degistir?token=${encodeURIComponent(resetToken)}`, { replace: true })
+      // Tek kullanımlık anahtarı URL'ye yazmadan yalnız istemci yönlendirme
+      // state'iyle taşı. Böylece tarayıcı geçmişi, ekran görüntüsü ve kopyalanan
+      // adres sıfırlama anahtarını içermez.
+      navigate('/sifre-degistir', { replace: true, state: { resetToken } })
     } catch (error) {
       if (error instanceof ApiClientError && error.code === 'INVALID_OR_EXPIRED_RESET_CODE') {
         setError('code', {

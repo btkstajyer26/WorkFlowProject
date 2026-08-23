@@ -9,7 +9,15 @@ import { ForgotPasswordPage } from './ForgotPasswordPage'
 
 function LocationProbe() {
   const location = useLocation()
-  return <span aria-label="Geçerli adres">{`${location.pathname}${location.search}`}</span>
+  const state = location.state as { resetToken?: unknown } | null
+  return (
+    <>
+      <span aria-label="Geçerli adres">{`${location.pathname}${location.search}`}</span>
+      <span aria-label="Sıfırlama anahtarı durumu">
+        {typeof state?.resetToken === 'string' ? 'mevcut' : 'yok'}
+      </span>
+    </>
+  )
 }
 
 function renderPage() {
@@ -94,9 +102,9 @@ describe('ForgotPasswordPage', () => {
     await user.type(screen.getByLabelText('Doğrulama kodu'), '135790')
     await user.click(screen.getByRole('button', { name: 'Kodu doğrula' }))
 
-    expect(await screen.findByLabelText('Geçerli adres')).toHaveTextContent(
-      '/sifre-degistir?token=tek-kullanimlik%20anahtar',
-    )
+    expect(await screen.findByLabelText('Geçerli adres')).toHaveTextContent('/sifre-degistir')
+    expect(screen.getByLabelText('Geçerli adres')).not.toHaveTextContent('token=')
+    expect(screen.getByLabelText('Sıfırlama anahtarı durumu')).toHaveTextContent('mevcut')
     expect(verifiedBody).toEqual({ email: 'john.doe@kurum.gov.tr', code: '135790' })
   })
 
