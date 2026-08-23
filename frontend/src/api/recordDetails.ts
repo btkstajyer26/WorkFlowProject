@@ -5,6 +5,7 @@ import type {
   RecordUpdateRequest,
 } from './generated/data-contracts'
 import { api } from './client'
+import { apiHttpClient } from './client'
 import type { RecordCategoryOption } from './categories'
 import { ApiClientError } from './errors'
 import type { RecordHistoryItem, RecordStatus, WorkflowRecord } from '../types/record'
@@ -62,7 +63,7 @@ function normalizeHistoryItem(item: AuditLogResponse): RecordHistoryItem {
 export async function getRecordDetail(recordId: string, categories: RecordCategoryOption[]): Promise<WorkflowRecord> {
   const [record, auditLogs] = await Promise.all([
     api.records.getRecordById({ id: recordId }),
-    api.auditLogs.getGecmis({ recordId }),
+    listRecordAuditLogs(recordId),
   ])
   const categoryName = record.categoryId
     ? categories.find((category) => category.id === record.categoryId)?.name
@@ -110,6 +111,15 @@ export async function getRecordDetail(recordId: string, categories: RecordCatego
     attachments: [],
     history,
   }
+}
+
+/** OperationId çakışmalarından etkilenmemek için kayıt geçmişi yolu adapterda sabitlenir. */
+export function listRecordAuditLogs(recordId: string) {
+  return apiHttpClient.request<AuditLogResponse[]>({
+    path: `/api/audit-logs/record/${recordId}`,
+    method: 'GET',
+    secure: true,
+  })
 }
 
 function requireRecordId(record: RecordResponse) {

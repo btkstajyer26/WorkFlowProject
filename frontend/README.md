@@ -46,6 +46,14 @@ Bu komut `src/api/generated/` altındaki dosyaları `/v3/api-docs` sözleşmesin
 npm run lint
 npm test
 npm run build
+npm run typecheck:e2e
+```
+
+Playwright testleri gerçek backend ve izole test veritabanıyla çalışır. Yerel
+kurulum ve E2E hesap hazırlığı için [E2E rehberine](./e2e/README.md) bakın:
+
+```bash
+npm run test:e2e
 ```
 
 ## Klasör yapısı

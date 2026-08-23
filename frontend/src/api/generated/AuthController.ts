@@ -13,12 +13,18 @@
 import type {
   ChangePasswordData,
   ChangePasswordRequest,
+  ForgotPasswordData,
+  ForgotPasswordRequest,
   LoginData,
   LoginRequest,
   LogoutData,
   LogoutRequest,
   RefreshData,
   RefreshTokenRequest,
+  ResetPasswordData,
+  ResetPasswordRequest,
+  VerifyResetCodeData,
+  VerifyResetCodeRequest,
 } from "./data-contracts";
 import { HttpClient } from "./http-client";
 import type { RequestParams } from "./http-client";
@@ -41,6 +47,23 @@ export class AuthController<SecurityDataType = unknown> {
   changePassword = (data: ChangePasswordRequest, params: RequestParams = {}) =>
     this.http.request<ChangePasswordData, any>({
       path: `/api/auth/change-password`,
+      method: "POST",
+      body: data,
+      secure: true,
+      type: "application/json",
+      ...params,
+    });
+  /**
+   * No description
+   *
+   * @tags auth-controller
+   * @name ForgotPassword
+   * @request POST:/api/auth/forgot-password
+   * @secure
+   */
+  forgotPassword = (data: ForgotPasswordRequest, params: RequestParams = {}) =>
+    this.http.request<ForgotPasswordData, any>({
+      path: `/api/auth/forgot-password`,
       method: "POST",
       body: data,
       secure: true,
@@ -92,6 +115,43 @@ export class AuthController<SecurityDataType = unknown> {
   refresh = (data: RefreshTokenRequest, params: RequestParams = {}) =>
     this.http.request<RefreshData, any>({
       path: `/api/auth/refresh`,
+      method: "POST",
+      body: data,
+      secure: true,
+      type: "application/json",
+      ...params,
+    });
+  /**
+   * No description
+   *
+   * @tags auth-controller
+   * @name ResetPassword
+   * @request POST:/api/auth/reset-password
+   * @secure
+   */
+  resetPassword = (data: ResetPasswordRequest, params: RequestParams = {}) =>
+    this.http.request<ResetPasswordData, any>({
+      path: `/api/auth/reset-password`,
+      method: "POST",
+      body: data,
+      secure: true,
+      type: "application/json",
+      ...params,
+    });
+  /**
+   * No description
+   *
+   * @tags auth-controller
+   * @name VerifyResetCode
+   * @request POST:/api/auth/verify-reset-code
+   * @secure
+   */
+  verifyResetCode = (
+    data: VerifyResetCodeRequest,
+    params: RequestParams = {},
+  ) =>
+    this.http.request<VerifyResetCodeData, any>({
+      path: `/api/auth/verify-reset-code`,
       method: "POST",
       body: data,
       secure: true,

@@ -51,8 +51,10 @@ export async function listRecordFiles(recordId: string) {
 }
 
 export async function uploadRecordFile(recordId: string, file: File) {
-  const response = await api.files.uploadFile({ id: recordId }, { file })
-  return normalizeRecordFile(response)
+  const response = await api.files.uploadFiles({ id: recordId }, { file: [file] })
+  const uploadedFile = response[0]
+  if (!uploadedFile) return invalidFileResponse('Sunucu yüklenen dosya bilgisini döndürmedi.')
+  return normalizeRecordFile(uploadedFile)
 }
 
 export function deleteRecordFile(fileId: string) {
