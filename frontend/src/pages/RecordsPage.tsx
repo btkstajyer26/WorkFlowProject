@@ -224,6 +224,8 @@ export function RecordsPage({ role }: { role: UserRole }) {
   }, [page, recordsPending, searchParams, setSearchParams, totalPages])
 
   const resetFilters = () => {
+    setSearchInput('')
+    setCreatorInput('')
     updateQuery({ q: null, kategori: null, durum: null, baslangic: null, bitis: null, olusturan: null })
   }
 

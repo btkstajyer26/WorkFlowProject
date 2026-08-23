@@ -70,6 +70,22 @@ describe('RecordsPage filters', () => {
     await waitFor(() => expect(screen.getByTestId('location-search')).toHaveTextContent('olusturan=John+Doe'), { timeout: 1000 })
   })
 
+  it('filtreleri temizlerken debounce alanlarını da anında sıfırlar', async () => {
+    const user = userEvent.setup()
+    await renderEmployeeRecords('/kayitlar?q=sunucu&olusturan=John+Doe')
+
+    const searchInput = screen.getByRole('searchbox', { name: 'Başlık veya içerikle ara' })
+    const creatorInput = screen.getByRole('searchbox', { name: 'Oluşturan kişi' })
+    expect(searchInput).toHaveValue('sunucu')
+    expect(creatorInput).toHaveValue('John Doe')
+
+    await user.click(screen.getByRole('button', { name: 'Temizle' }))
+
+    expect(searchInput).toHaveValue('')
+    expect(creatorInput).toHaveValue('')
+    await waitFor(() => expect(screen.getByTestId('location-search')).toHaveTextContent(/^$/))
+  })
+
   it('yalnız backend arama sözleşmesinde bulunan liste alanlarını gösterir', async () => {
     await renderEmployeeRecords('/kayitlar')
 
