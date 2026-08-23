@@ -573,7 +573,7 @@ Branch protection etkinleştirilene kadar doğrudan push yasağı teknik olarak 
 | Belge | İçerik |
 | --- | --- |
 | [TEST ortamı dağıtım notu](docs/TEST_ORTAMI_NOTU.md) | Topoloji, preflight, seed betiği, bilinen sınırlamalar |
-| [Mobil entegrasyon görev dağılımı](docs/MOBIL_ENTEGRASYON_GOREV_DAGILIMI.md) | Mobil sprint planı ve açık backend işleri |
+| [Mobil entegrasyon görev dağılımı](docs/MOBIL_ENTEGRASYON_GOREV_DAGILIMI.md) | Açık backend ve mobil işleri, sahipleriyle; kapanan işlerin kaydı |
 
 ### Alt paket README'leri
 
