@@ -21,23 +21,23 @@ export interface AuditLogResponse {
   comment?: string;
   /** @format date-time */
   createdAt?: string;
+  errorCode?: string;
+  httpMethod?: string;
+  /** @format int32 */
+  httpStatus?: number;
   /** @format uuid */
   id?: string;
   newStatus?: string;
   previousStatus?: string;
   /** @format uuid */
   recordId?: string;
+  requestPath?: string;
   /** @format int32 */
   roleId?: number;
   roleName?: string;
   userFullName?: string;
   /** @format uuid */
   userId?: string;
-  httpMethod?: string;
-  requestPath?: string;
-  /** @format int32 */
-  httpStatus?: number;
-  errorCode?: string;
 }
 
 export interface CategoryResponse {
@@ -133,6 +133,16 @@ export interface FileResponseDto {
   uploadedBy?: string;
 }
 
+export type ForgotPasswordData = any;
+
+export interface ForgotPasswordRequest {
+  /**
+   * @format email
+   * @minLength 1
+   */
+  email: string;
+}
+
 export type GetAllCategoriesData = CategoryResponse[];
 
 export type GetAllData = PagedResponseNotificationResponse;
@@ -146,6 +156,7 @@ export type GetAllRecordsData = PagedResponseRecordSearchResponse;
 export interface GetAllRecordsParams {
   /** @format int32 */
   categoryId?: number;
+  creator?: string;
   /** @format date-time */
   from?: string;
   pageable: Pageable;
@@ -161,11 +172,18 @@ export interface GetAllRecordsParams {
   to?: string;
 }
 
-export type GetGecmisData = AuditLogResponse[];
+export type GetGecmis1Data = AuditLogResponse[];
+
+export interface GetGecmis1Params {
+  /** @format uuid */
+  recordId: string;
+}
+
+export type GetGecmisData = UserAuditLogResponse[];
 
 export interface GetGecmisParams {
   /** @format uuid */
-  recordId: string;
+  targetUserId: string;
 }
 
 export type GetRecordByIdData = RecordResponse;
@@ -177,10 +195,12 @@ export interface GetRecordByIdParams {
 
 export type GetUnreadData = NotificationResponse[];
 
-export type ListAuditLogsData = PagedResponseUserAuditLogResponse;
+export type ListAuditLogsData = PagedResponseObject;
 
 export interface ListAuditLogsParams {
   pageable: Pageable;
+  /** @default "USER" */
+  type?: string;
 }
 
 export type ListFilesData = FileResponseDto[];
@@ -220,6 +240,7 @@ export interface LoginResponse {
 export type LogoutData = string;
 
 export interface LogoutRequest {
+  deviceToken?: string;
   /** @minLength 1 */
   refreshToken: string;
 }
@@ -276,8 +297,8 @@ export interface PagedResponseNotificationResponse {
   totalPages?: number;
 }
 
-export interface PagedResponseRecordSearchResponse {
-  content?: RecordSearchResponse[];
+export interface PagedResponseObject {
+  content?: any[];
   /** @format int32 */
   page?: number;
   /** @format int32 */
@@ -288,8 +309,8 @@ export interface PagedResponseRecordSearchResponse {
   totalPages?: number;
 }
 
-export interface PagedResponseUserAuditLogResponse {
-  content?: UserAuditLogResponse[];
+export interface PagedResponseRecordSearchResponse {
+  content?: RecordSearchResponse[];
   /** @format int32 */
   page?: number;
   /** @format int32 */
@@ -341,6 +362,9 @@ export interface RecordResponse {
   categoryId?: number;
   /** @format date-time */
   createdAt?: string;
+  /** @format uuid */
+  createdBy?: string;
+  createdByFullName?: string;
   description?: string;
   /** @format uuid */
   id?: string;
@@ -363,6 +387,7 @@ export interface RecordSearchResponse {
   createdAt?: string;
   /** @format uuid */
   createdBy?: string;
+  createdByFullName?: string;
   description?: string;
   /** @format uuid */
   id?: string;
@@ -394,6 +419,18 @@ export interface RefreshTokenRequest {
   refreshToken: string;
 }
 
+export type ResetPasswordData = any;
+
+export interface ResetPasswordRequest {
+  /**
+   * @minLength 1
+   * @pattern ^(?=.*[A-Za-z])(?=.*\d).{8,}$
+   */
+  newPassword: string;
+  /** @minLength 1 */
+  token: string;
+}
+
 export interface RoleResponse {
   description?: string;
   /** @format int32 */
@@ -419,16 +456,15 @@ export interface UpdateRecordParams {
   id: string;
 }
 
-export type UploadFileData = FileResponseDto;
+export type UploadFilesData = FileResponseDto[];
 
-export interface UploadFileParams {
+export interface UploadFilesParams {
   /** @format uuid */
   id: string;
 }
 
-export interface UploadFilePayload {
-  /** @format binary */
-  file: File;
+export interface UploadFilesPayload {
+  file: File[];
 }
 
 export interface UserAuditLogResponse {
@@ -436,6 +472,10 @@ export interface UserAuditLogResponse {
   comment?: string;
   /** @format date-time */
   createdAt?: string;
+  errorCode?: string;
+  httpMethod?: string;
+  /** @format int32 */
+  httpStatus?: number;
   /** @format uuid */
   id?: string;
   newActive?: boolean;
@@ -449,14 +489,10 @@ export interface UserAuditLogResponse {
   /** @format int32 */
   previousRoleId?: number;
   previousRoleName?: string;
+  requestPath?: string;
   targetUserFullName?: string;
   /** @format uuid */
   targetUserId?: string;
-  httpMethod?: string;
-  requestPath?: string;
-  /** @format int32 */
-  httpStatus?: number;
-  errorCode?: string;
 }
 
 export interface UserResponse {
@@ -469,6 +505,27 @@ export interface UserResponse {
   id?: string;
   lastName?: string;
   roleName?: string;
+}
+
+export type VerifyResetCodeData = VerifyResetCodeResponse;
+
+export interface VerifyResetCodeRequest {
+  /**
+   * @minLength 1
+   * @pattern ^\d{6}$
+   */
+  code: string;
+  /**
+   * @format email
+   * @minLength 1
+   */
+  email: string;
+}
+
+export interface VerifyResetCodeResponse {
+  /** @format int64 */
+  expiresInSeconds?: number;
+  resetToken?: string;
 }
 
 export interface WorkflowActionRequest {

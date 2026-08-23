@@ -19,9 +19,9 @@ import type {
   ListFilesParams,
   PreviewFileData,
   PreviewFileParams,
-  UploadFileData,
-  UploadFileParams,
-  UploadFilePayload,
+  UploadFilesData,
+  UploadFilesParams,
+  UploadFilesPayload,
 } from "./data-contracts";
 import { HttpClient } from "./http-client";
 import type { RequestParams } from "./http-client";
@@ -97,16 +97,16 @@ export class FileController<SecurityDataType = unknown> {
    * No description
    *
    * @tags file-controller
-   * @name UploadFile
+   * @name UploadFiles
    * @request POST:/api/records/{id}/files
    * @secure
    */
-  uploadFile = (
-    { id }: UploadFileParams,
-    data: UploadFilePayload,
+  uploadFiles = (
+    { id }: UploadFilesParams,
+    data: UploadFilesPayload,
     params: RequestParams = {},
   ) =>
-    this.http.request<UploadFileData, any>({
+    this.http.request<UploadFilesData, any>({
       path: `/api/records/${id}/files`,
       method: "POST",
       body: data,

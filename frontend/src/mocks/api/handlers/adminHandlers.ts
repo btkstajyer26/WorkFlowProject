@@ -2,7 +2,6 @@ import { http, HttpResponse } from 'msw'
 import type {
   CreateUserRequest,
   ChangeRoleRequest,
-  PagedResponseUserAuditLogResponse,
   PagedResponseUserResponse,
   UserAuditLogResponse,
   UserResponse,
@@ -13,6 +12,14 @@ import { mockAdminAuditLogs, mockManagedUsers } from '../../admin'
 import { getAuthenticatedMockUser, mockApiUsers } from '../auth'
 import { mockApiDb } from '../db'
 import { apiErrorResponse, forbiddenResponse, unauthorizedResponse } from '../responses'
+
+type PagedUserAuditLogResponse = {
+  content: UserAuditLogResponse[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+}
 
 export const adminHandlers = [
   http.get(`${apiBaseUrl}/api/admin/users`, ({ request }) => {
@@ -81,7 +88,7 @@ export const adminHandlers = [
         targetUserFullName: log.target,
         createdAt: log.createdAt,
       }))
-    const response: PagedResponseUserAuditLogResponse = {
+    const response: PagedUserAuditLogResponse = {
       content,
       page,
       size,
