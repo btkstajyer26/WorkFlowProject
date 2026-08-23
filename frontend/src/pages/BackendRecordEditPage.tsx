@@ -135,17 +135,26 @@ function BackendEditableRecordForm({ record }: { record: WorkflowRecord }) {
       const action = record.status === 'TASLAK' ? 'GONDER' : 'TEKRAR_GONDER'
       return performWorkflowAction(record.id, { action })
     },
-    onSuccess: async () => {
+    onSuccess: () => {
       showToast({
         title: record.status === 'TASLAK' ? 'Kayıt incelemeye gönderildi' : 'Kayıt yeniden incelemeye gönderildi',
         tone: 'success',
       })
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.records.detail(record.id) }),
+
+      // Detay sorgusunu mevcut düzenleme ekranında hemen yeniden çekmek,
+      // durum değiştiği anda sayfanın yetki korumasını çalıştırıp kullanıcıyı
+      // hedef detay sayfası yerine /403'e gönderiyordu. Sorguyu stale olarak
+      // işaretle; yeni detay ekranı açıldığında güncel kaydı kendisi çeksin.
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.records.detail(record.id),
+        refetchType: 'none',
+      })
+      navigate(`/kayitlar/${record.id}`, { replace: true })
+
+      void Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.records.lists() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all }),
       ])
-      navigate(`/kayitlar/${record.id}`, { replace: true })
     },
     onError: (error) => {
       showToast({
