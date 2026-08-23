@@ -17,7 +17,9 @@ export type RefreshTokenRequest = {
   refreshToken: string;
 };
 
-export type LogoutRequest = RefreshTokenRequest;
+export type LogoutRequest = RefreshTokenRequest & {
+  deviceToken?: string;
+};
 
 export type ChangePasswordRequest = {
   currentPassword: string;

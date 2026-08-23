@@ -178,4 +178,4 @@ Aşağıdakiler uygulanmış davranışlardır:
 - **Tekil rol invariant'ı yazma tarafında zorlanmıyor.** `setActive(..., true)` aynı rolde başka aktif kullanıcı olup olmadığına bakmıyor; iki aktif Başkan Yardımcısı oluşursa workflow hedefi tekilleştiremeyip `409` veriyor.
 - **Audit append-only kuralı veritabanında zorlanmıyor.** Uygulama güncelleme veya silme ucu sunmuyor, fakat DB trigger'ı ya da rol kısıtı yok.
 - **E-posta teslim garantisi yok.** Gönderim asenkron ve best-effort; retry, outbox veya DLQ bulunmuyor.
-- **Mimari karar kayıtları yazılmadı.** `decisions/` altındaki süreç tanımlı, ancak bu belgede anlatılan kararların (port/adapter sınırı, tekil rol modeli, enum tabanlı durum kolonu) hiçbiri ADR olarak kaydedilmedi.
+- **Bu belgedeki kararların çoğu ADR olarak kaydedilmedi.** `decisions/` altında iki ADR var (modül bazlı paketleme, mobil istemci teknolojisi); ancak port/adapter sınırı, tekil rol modeli ve enum tabanlı durum kolonu kararları yalnız bu belgede anlatılıyor, ayrı birer ADR'leri yok.

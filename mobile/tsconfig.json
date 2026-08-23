@@ -3,6 +3,9 @@
   "compilerOptions": {
     "resolveJsonModule": true,
     "strict": true,
+    "types": [
+      "jest"
+    ],
     "paths": {
       "@/*": [
         "./src/*"
