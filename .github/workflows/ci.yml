@@ -105,6 +105,37 @@ jobs:
       - name: Build frontend
         run: npm run build
 
+  mobile:
+    name: Mobile / quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          check-latest: true
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install mobile dependencies
+        run: npm ci
+
+      - name: Lint mobile
+        run: npm run lint
+
+      - name: Typecheck mobile
+        run: npm run typecheck
+
+      - name: Test mobile
+        run: npm test -- --runInBand
+
   # TEST dagitimi tek bir birlesik Compose dosyasindan cikiyor ama bugune kadar
   # CI'da hic parse edilmedi. Bu job olmasaydi docker-compose.yml icindeki
   # tekrarlanan CORS_ALLOWED_ORIGINS anahtari (dosyayi tamamen parse edilemez

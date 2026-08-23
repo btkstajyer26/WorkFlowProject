@@ -40,8 +40,8 @@ Sistem; kayıt oluşturma, hiyerarşik onay akışı, rol bazlı erişim, dosya 
 | Arama | Uygulandı | Kriter, filtre ve sayfalama tabanlı kayıt araması bulunur. |
 | Bildirim | Kısmi | Uygulama içi workflow bildirimleri ve commit sonrası durum e-postası mevcuttur. Atama yapılan geçişte atanan kullanıcıya, nihai onay/ret geçişinde hem kaydı oluşturana hem kaydı Başkana ileten yardımcıya gider. Gerçek Outlook yapılandırması ortama bağlıdır. Mobil push tarafında `device_tokens` tablosu, uçları ve `PushNotificationService` yazılmıştır; ancak servis henüz workflow listener'ına **bağlanmamıştır** ve push gönderilmez. |
 | Frontend | Uygulandı | React arayüzü tüm ekranlarda gerçek API istemcilerini kullanır; çalışma zamanı mock modu kaldırılmıştır. `src/mocks/` yalnızca Vitest/MSW testlerini besler. 102 frontend testi yeşildir. |
-| Mobil | Kısmi | Expo/React Native istemcisinde kimlik doğrulama, kayıt listesi/detayı, workflow aksiyonları ve dosya yükleme kuyruğu mevcuttur. `lint` ve `typecheck` temizdir; otomatik test paketi ve CI adımı henüz yoktur. |
-| GitHub CI | Uygulandı | GitHub Actions akışı `test`, `main` ve `integration/**` dallarında backend `verify` ile frontend lint/test/build kontrollerini çalıştırır. `mobile/` paketi CI kapsamı dışındadır. Branch protection kuralları henüz etkin değildir. |
+| Mobil | Kısmi | Expo/React Native istemcisinde kimlik doğrulama, kayıt listesi/detayı, workflow aksiyonları ve dosya yükleme kuyruğu mevcuttur. Auth/API katmanında 10 Jest testi vardır; dosya ekranı, bildirim merkezi ve push entegrasyonu tamamlanmamıştır. |
+| GitHub CI | Uygulandı | GitHub Actions akışı `test`, `main` ve `integration/**` dallarında backend `verify`, frontend lint/test/build ve mobil lint/typecheck/test kontrollerini çalıştırır. Branch protection kuralları henüz etkin değildir. |
 
 ## Roller ve iş akışı
 
@@ -495,8 +495,10 @@ Son durum: tüm `feature/*` dalları `integration/tum-feature-branchleri` içine
 
 ### Mobil
 
-- `mobile/` paketinin otomatik test paketi yoktur; yalnızca `npm run lint` ve `npm run typecheck` ile doğrulanır (ikisi de temizdir).
-- CI akışında `mobile/` için iş (job) tanımlı değildir; mobil regresyonları hiçbir otomatik kontrol yakalamaz.
+- `mobile/` paketinde auth ve ortak API davranışlarını doğrulayan 10 Jest testi
+  bulunur; ekran ve cihaz entegrasyon testleri henüz yoktur.
+- CI akışındaki `Mobile / quality` işi mobil lint, typecheck ve Jest testlerini
+  her PR/push kontrolünde çalıştırır.
 
 ### Test ve CI
 

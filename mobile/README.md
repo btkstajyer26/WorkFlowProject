@@ -55,11 +55,12 @@ EAS build'lerinde aynı değişken build environment'ına **tam adıyla** verilm
 | Zorunlu parola değişimi ve şifre sıfırlama akışı | ✅ |
 | Kayıt listesi, detay ve işlem geçmişi | ✅ |
 | Kayıt oluşturma ve workflow aksiyonları (gönder / onayla / reddet / geri gönder) | ✅ |
-| Dosya seçme, sıralı yükleme kuyruğu ve doğrulama | ✅ |
-| Bildirim merkezi ve profil | ✅ |
-| Offline / hata / boş durum bileşenleri | ✅ |
+| Dosya seçme, sıralı yükleme kuyruğu ve doğrulama | 🟡 Altyapı hazır; kayıt detayına bağlanacak |
+| Profil | ✅ |
+| Bildirim merkezi | ❌ Ekran placeholder; MOB-13 kapsamında bağlanacak |
+| Offline / hata / boş durum bileşenleri | 🟡 Ortak bileşenler hazır; ekran entegrasyonları sürecek |
 | Push bildirimi (FCM) | ❌ Backend tarafı bağlanmadı; bkz. görev dağılımında M3 / MOB-12 |
-| Otomatik test paketi | ❌ Yok; yalnız `lint` ve `typecheck` |
+| Otomatik test paketi | 🟡 Auth ve API katmanında 10 Jest testi var; ekran testleri eklenecek |
 
 Route yapısı `src/app/` altındadır:
 
@@ -88,12 +89,14 @@ Web'deki `/kayitlar/:recordId` ile bilerek aynıdır.
 ```powershell
 npm run typecheck
 npm run lint
+npm test -- --runInBand
 npx expo-doctor
 ```
 
 > [!NOTE]
-> `mobile/` paketi CI kapsamı **dışındadır**; mobil regresyonları hiçbir otomatik
-> kontrol yakalamaz. Değişiklikten önce iki komutu da yerelde çalıştırın.
+> GitHub CI, mobil paket için bağımlılık kurulumu, lint, typecheck ve Jest
+> testlerini çalıştırır. Cihaza özgü akışlar ayrıca fiziksel Android/iOS
+> cihazlarda doğrulanmalıdır.
 
 ## Yayın öncesi bilinen açıklar
 
