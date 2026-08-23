@@ -83,9 +83,14 @@ test('şifremi unuttum akışı gerçek e-posta koduyla parolayı tek kullanıml
   await expect(page.getByText('Kod geçersiz veya süresi dolmuş. Yeni bir kod isteyebilirsiniz.')).toBeVisible()
 
   await page.getByLabel('Doğrulama kodu').fill(code)
+  const verifyResponsePromise = page.waitForResponse((response) => (
+    response.url().endsWith('/api/auth/verify-reset-code') && response.ok()
+  ))
   await page.getByRole('button', { name: 'Kodu doğrula' }).click()
-  await expect(page).toHaveURL(/\/sifre-degistir\?token=/)
-  const resetToken = new URL(page.url()).searchParams.get('token')
+  const verifyResponse = await verifyResponsePromise
+  const { resetToken } = (await verifyResponse.json()) as { resetToken: string }
+  await expect(page).toHaveURL(/\/sifre-degistir$/)
+  expect(page.url()).not.toContain('token=')
   expect(resetToken).toBeTruthy()
 
   await page.getByLabel('Yeni şifre', { exact: true }).fill(newPassword)

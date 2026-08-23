@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowRight, Check, KeyRound, ShieldCheck } from 'lucide-react'
 import { useForm } from 'react-hook-form'
-import { Link, Navigate, useSearchParams } from 'react-router'
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router'
 import { changePassword } from '../api/auth'
 import { ApiClientError } from '../api/errors'
 import { PasswordField } from '../components/auth/PasswordField'
@@ -18,8 +18,13 @@ type PasswordChangePageProps = {
 }
 
 export function PasswordChangePage({ user, onPasswordChanged, onPasswordReset, onUseAnotherAccount }: PasswordChangePageProps) {
+  const location = useLocation()
   const [searchParams] = useSearchParams()
-  const resetToken = searchParams.get('token')?.trim()
+  const navigationState = location.state as { resetToken?: unknown } | null
+  const stateResetToken = typeof navigationState?.resetToken === 'string' ? navigationState.resetToken.trim() : ''
+  // Eski veya dışarıdan açılan ?token= bağlantıları geriye dönük uyumluluk
+  // için çalışmaya devam eder; yeni uygulama akışı anahtarı URL'ye yazmaz.
+  const resetToken = stateResetToken || searchParams.get('token')?.trim()
   const {
     register,
     handleSubmit,
