@@ -3,6 +3,7 @@ package btk.staj.WorkFlowProject.auth.service;
 import btk.staj.WorkFlowProject.auth.dto.LoginRequest;
 import btk.staj.WorkFlowProject.auth.dto.LoginResponse;
 import btk.staj.WorkFlowProject.audit.RequestAuditContext;
+import btk.staj.WorkFlowProject.auth.exception.PasswordReuseException;
 import btk.staj.WorkFlowProject.common.exception.InvalidCredentialsException;
 import btk.staj.WorkFlowProject.rbac.config.JwtUtil;
 import btk.staj.WorkFlowProject.user.entity.Token;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.UUID;
 import java.time.LocalDateTime;
+import btk.staj.WorkFlowProject.notification.repository.DeviceTokenRepository;
 
 @Service
 public class AuthService {
@@ -23,15 +25,18 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final RequestAuditContext requestAuditContext;
+    private final DeviceTokenRepository deviceTokenRepository;
 
     public AuthService(UserRepository userRepository, TokenRepository tokenRepository,
                        PasswordEncoder passwordEncoder, JwtUtil jwtUtil,
-                       RequestAuditContext requestAuditContext) {
+                       RequestAuditContext requestAuditContext,
+                       DeviceTokenRepository deviceTokenRepository) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
         this.requestAuditContext = requestAuditContext;
+        this.deviceTokenRepository = deviceTokenRepository;
     }
 
     @Transactional
@@ -106,12 +111,29 @@ public class AuthService {
     }
 
     @Transactional
-    public void logout(String refreshToken) {
+    public void logout(String refreshToken, String deviceToken) {
         tokenRepository.findByToken(refreshToken).ifPresent(token -> {
             token.setRevoked(true);
             tokenRepository.save(token);
             requestAuditContext.mark("LOGOUT", token.getUser());
+
+            deactivateDeviceTokenIfOwned(deviceToken, token.getUser().getId());
         });
+    }
+
+    /**
+     * Cikis yapan cihazin push token'ini pasiflestirir. Token oturumdaki
+     * kullaniciya ait degilse sessizce yok sayilir: hata donmek, baskasina ait
+     * bir token'in varligini dogrulamis olurdu.
+     */
+    private void deactivateDeviceTokenIfOwned(String deviceToken, UUID userId) {
+        if (deviceToken == null || deviceToken.isBlank()) {
+            return;
+        }
+
+        deviceTokenRepository.findByToken(deviceToken)
+                .filter(device -> device.getUser().getId().equals(userId))
+                .ifPresent(device -> deviceTokenRepository.deactivateByToken(deviceToken));
     }
 
     @Transactional
@@ -121,6 +143,13 @@ public class AuthService {
 
         if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
             throw new InvalidCredentialsException("Mevcut şifre yanlış");
+        }
+
+        // Arayüz de aynı kuralı uyguluyor, ancak zorunlu şifre değişimi buradan
+        // geçtiği için kural sunucuda da tutulmalı: aksi halde geçici şifre
+        // kendisiyle "değiştirilip" mustChangePassword kapatılabilirdi.
+        if (passwordEncoder.matches(newPassword, user.getPasswordHash())) {
+            throw new PasswordReuseException("Yeni şifreniz mevcut şifrenizle aynı olamaz");
         }
 
         user.setPasswordHash(passwordEncoder.encode(newPassword));

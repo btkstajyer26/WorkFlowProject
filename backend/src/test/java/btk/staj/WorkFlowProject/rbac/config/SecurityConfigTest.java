@@ -1,7 +1,9 @@
 package btk.staj.WorkFlowProject.rbac.config;
 
 import btk.staj.WorkFlowProject.attachment.repository.FileRepository;
+import btk.staj.WorkFlowProject.auth.repository.PasswordResetCodeRepository;
 import btk.staj.WorkFlowProject.audit.repository.AuditLogRepository;
+import btk.staj.WorkFlowProject.notification.repository.DeviceTokenRepository;
 import btk.staj.WorkFlowProject.notification.repository.NotificationRepository;
 import btk.staj.WorkFlowProject.audit.repository.UserAuditLogRepository;
 import btk.staj.WorkFlowProject.record.repository.CategoryRepository;
@@ -54,6 +56,9 @@ class SecurityConfigTest {
     private TokenRepository tokenRepository;
 
     @MockitoBean
+    private PasswordResetCodeRepository passwordResetCodeRepository;
+
+    @MockitoBean
     private RecordRepository recordRepository;
 
     @MockitoBean
@@ -67,6 +72,9 @@ class SecurityConfigTest {
 
     @MockitoBean
     private NotificationRepository notificationRepository;
+
+    @MockitoBean
+    private DeviceTokenRepository deviceTokenRepository;
 
     @Test
     @DisplayName("swagger-ui.html giris istemeden yonlendirme doner")
@@ -89,6 +97,20 @@ class SecurityConfigTest {
     @DisplayName("swagger-ui statik dosyalari giris istemeden acilir")
     void swaggerStatikDosyalariAcilir() throws Exception {
         mockMvc.perform(get("/swagger-ui/index.html"))
+                .andExpect(status().isOk());
+    }
+
+    /**
+     * Reverse proxy ve container healthcheck'i bu ucu token'siz yoklar.
+     *
+     * <p>Test ayni zamanda {@code management.health.mail.enabled=false}
+     * ayarinin dogrulugunu kanitlar: mail saglik gostergesi acik kalsaydi
+     * SMTP'ye baglanmayi deneyip basarisiz olur ve uc 200 yerine 503 donerdi.
+     */
+    @Test
+    @DisplayName("actuator health giris istemeden 200 doner")
+    void healthUcuKimlikDogrulamaIstemez() throws Exception {
+        mockMvc.perform(get("/actuator/health"))
                 .andExpect(status().isOk());
     }
 }

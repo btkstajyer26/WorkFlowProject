@@ -4,7 +4,6 @@ import { http, HttpResponse } from 'msw'
 import { MemoryRouter, useLocation } from 'react-router'
 import { describe, expect, it } from 'vitest'
 import { CategoryProvider } from '../context/CategoryContext'
-import { WorkflowProvider } from '../context/WorkflowContext'
 import { getDemoUserByRole } from '../mocks/users'
 import { seedAuthenticatedUser } from '../test/auth'
 import { apiBaseUrl } from '../api/config'
@@ -24,10 +23,8 @@ async function renderEmployeeRecords(initialEntry: string) {
     <MemoryRouter initialEntries={[initialEntry]}>
       <AppQueryProvider>
         <CategoryProvider>
-          <WorkflowProvider user={employee}>
-            <RecordsPage role={employee.role} />
-            <LocationProbe />
-          </WorkflowProvider>
+          <RecordsPage role={employee.role} />
+          <LocationProbe />
         </CategoryProvider>
       </AppQueryProvider>
     </MemoryRouter>,
@@ -73,19 +70,36 @@ describe('RecordsPage filters', () => {
     await waitFor(() => expect(screen.getByTestId('location-search')).toHaveTextContent('olusturan=John+Doe'), { timeout: 1000 })
   })
 
+  it('filtreleri temizlerken debounce alanlarını da anında sıfırlar', async () => {
+    const user = userEvent.setup()
+    await renderEmployeeRecords('/kayitlar?q=sunucu&olusturan=John+Doe')
+
+    const searchInput = screen.getByRole('searchbox', { name: 'Başlık veya içerikle ara' })
+    const creatorInput = screen.getByRole('searchbox', { name: 'Oluşturan kişi' })
+    expect(searchInput).toHaveValue('sunucu')
+    expect(creatorInput).toHaveValue('John Doe')
+
+    await user.click(screen.getByRole('button', { name: 'Temizle' }))
+
+    expect(searchInput).toHaveValue('')
+    expect(creatorInput).toHaveValue('')
+    await waitFor(() => expect(screen.getByTestId('location-search')).toHaveTextContent(/^$/))
+  })
+
   it('yalnız backend arama sözleşmesinde bulunan liste alanlarını gösterir', async () => {
     await renderEmployeeRecords('/kayitlar')
 
     expect(screen.getByPlaceholderText('Başlık veya içerikte ara...')).toBeInTheDocument()
     expect(screen.queryByRole('columnheader', { name: 'Son işlem' })).not.toBeInTheDocument()
-    expect(screen.getByRole('columnheader', { name: 'Oluşturulma' })).toBeInTheDocument()
+    expect(await screen.findByRole('columnheader', { name: 'Oluşturulma' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Oluşturan' })).toBeInTheDocument()
     expect(screen.queryByText('EBYS-2026-000023')).not.toBeInTheDocument()
   })
 
   it('geçersiz filtreleri temizler ve taşan sayfayı son geçerli sayfaya çeker', async () => {
     await renderEmployeeRecords('/kayitlar?gorunum=bilinmeyen&kategori=Yok&durum=BOZUK&baslangic=2026-99-99&bitis=x&sayfa=999&boyut=7')
 
-    await waitFor(() => expect(screen.getByTestId('location-search')).toHaveTextContent('?sayfa=2'))
+    await waitFor(() => expect(screen.getByTestId('location-search')).toHaveTextContent(/^$/))
     expect(screen.getByTestId('location-search')).not.toHaveTextContent('gorunum=')
     expect(screen.getByTestId('location-search')).not.toHaveTextContent('kategori=')
     expect(screen.getByTestId('location-search')).not.toHaveTextContent('durum=')
@@ -111,9 +125,9 @@ describe('RecordsPage filters', () => {
     await user.click(screen.getByRole('button', { name: 'Filtreler' }))
     await waitFor(() => expect(requestCount).toBeGreaterThan(0))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Kategoriler yüklenemedi')
+    expect((await screen.findAllByText(/Kategoriler yüklenemedi/)).length).toBeGreaterThan(0)
     apiMockServer.resetHandlers()
-    await user.click(screen.getByRole('button', { name: 'Tekrar dene' }))
+    await user.click(screen.getAllByRole('button', { name: 'Tekrar dene' })[0])
 
     const categorySelect = screen.getByRole('combobox', { name: 'Kategori' })
     await waitFor(() => expect(categorySelect).toBeEnabled())

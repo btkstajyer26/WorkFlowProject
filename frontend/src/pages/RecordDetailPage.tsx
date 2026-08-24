@@ -2,23 +2,19 @@ import { useQuery } from '@tanstack/react-query'
 import {
   ArrowLeft,
   CalendarDays,
-  Download,
-  FilePenLine,
-  FileText,
   FolderOpen,
+  User,
 } from 'lucide-react'
 import { Link, Navigate, useParams } from 'react-router'
-import { apiMode } from '../api/config'
 import { ApiClientError } from '../api/errors'
 import { getRecordDetail } from '../api/recordDetails'
 import { RecordActionPanel } from '../components/records/RecordActionPanel'
 import { RecordFilesPanel } from '../components/records/RecordFilesPanel'
 import { RecordHistoryDisclosure, RecordNoteDisclosure } from '../components/records/RecordDetailDisclosures'
 import { RecordStatusBadge } from '../components/records/RecordStatusBadge'
-import { useWorkflow } from '../context/workflowState'
 import { useCategories } from '../context/categoryState'
 import { queryKeys } from '../query/queryKeys'
-import type { UserRole } from '../types/auth'
+import type { AuthUser } from '../types/auth'
 import type { WorkflowRecord } from '../types/record'
 import { DetailLoadingSkeleton } from '../components/feedback/LoadingSkeleton'
 
@@ -30,23 +26,12 @@ const dateTimeFormatter = new Intl.DateTimeFormat('tr-TR', {
   minute: '2-digit',
 })
 
-export function RecordDetailPage({ role }: { role: UserRole }) {
-  return apiMode === 'backend'
-    ? <BackendRecordDetailPage role={role} />
-    : <MockRecordDetailPage role={role} />
+export function RecordDetailPage({ user }: { user: AuthUser }) {
+  return <BackendRecordDetailPage user={user} />
 }
 
-function MockRecordDetailPage({ role }: { role: UserRole }) {
-  const { recordId } = useParams()
-  const { records, visibleRecords } = useWorkflow()
-  const record = visibleRecords.find((item) => item.id === recordId)
-
-  if (!record) return <Navigate to={records.some((item) => item.id === recordId) ? '/403' : '/404'} replace />
-
-  return <RecordDetailContent record={record} role={role} source="mock" />
-}
-
-function BackendRecordDetailPage({ role }: { role: UserRole }) {
+function BackendRecordDetailPage({ user }: { user: AuthUser }) {
+  const role = user.role
   const { recordId } = useParams()
   const { categories, status: categoryStatus, reloadCategories } = useCategories()
   const categoryRevision = categories.map((category) => `${category.id}:${category.name}`).join('|')
@@ -100,22 +85,19 @@ function BackendRecordDetailPage({ role }: { role: UserRole }) {
     )
   }
 
-  return <RecordDetailContent record={recordQuery.data} role={role} source="backend" />
+  return <RecordDetailContent record={recordQuery.data} user={user} />
 }
 
 function RecordDetailContent({
   record,
-  role,
-  source,
+  user,
 }: {
   record: WorkflowRecord
-  role: UserRole
-  source: 'mock' | 'backend'
+  user: AuthUser
 }) {
   const history = record.history.toReversed()
   const latestEvent = history[0]
   const latestNotedEvent = latestEvent?.note?.trim() ? latestEvent : undefined
-  const editable = role === 'CALISAN' && (record.status === 'TASLAK' || record.status === 'DUZENLEME_BEKLIYOR')
 
   return (
     <article className="mx-auto max-w-[1400px] space-y-4 [overflow-wrap:anywhere]">
@@ -138,6 +120,15 @@ function RecordDetailContent({
             <FolderOpen className="size-4 text-app-text-faint" aria-hidden="true" />
             {record.category}
           </span>
+          {record.createdBy ? (
+            <>
+              <span className="text-app-text-faint" aria-hidden="true">•</span>
+              <span className="inline-flex items-center gap-2">
+                <User className="size-4 text-app-text-faint" aria-hidden="true" />
+                {record.createdBy}
+              </span>
+            </>
+          ) : null}
           <span className="text-app-text-faint" aria-hidden="true">•</span>
           <span className="inline-flex items-center gap-2">
             <CalendarDays className="size-4 text-app-text-faint" aria-hidden="true" />
@@ -146,22 +137,7 @@ function RecordDetailContent({
         </div>
       </header>
 
-      <RecordActionPanel record={record} role={role} source={source} />
-      {source === 'backend' && editable ? (
-        <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-app-border bg-app-surface px-5 py-4" aria-label="Kayıt işlemleri">
-          <div>
-            <h2 className="font-bold text-app-text">Taslağı düzenleyin</h2>
-            <p className="mt-1 text-sm text-app-text-muted">Değişiklikleriniz veritabanına kaydedilir.</p>
-          </div>
-          <Link
-            to={`/kayitlar/${record.id}/duzenle`}
-            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-bold text-white transition hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
-          >
-            <FilePenLine className="size-4" aria-hidden="true" />
-            Düzenle
-          </Link>
-        </section>
-      ) : null}
+      <RecordActionPanel record={record} user={user} />
 
       <section className="rounded-xl border border-app-border bg-app-surface px-5 py-5 sm:px-6 sm:py-6">
         <div>
@@ -170,39 +146,7 @@ function RecordDetailContent({
         </div>
 
         <div className="mt-6 border-t border-app-border-subtle pt-6">
-          {source === 'backend' ? (
-            <RecordFilesPanel recordId={record.id} />
-          ) : (
-            <>
-              <h2 className="text-base font-bold text-app-text">
-                Ek Dosyalar <span className="font-medium text-app-text-subtle">({record.attachments.length})</span>
-              </h2>
-              {record.attachments.length > 0 ? (
-            <ul className="mt-4 space-y-2">
-              {record.attachments.map((attachment) => (
-                <li key={attachment.id} className="flex items-center gap-3 rounded-lg border border-app-border px-3 py-2.5 sm:px-4">
-                  <FileText className="size-4 shrink-0 text-app-text-faint" aria-hidden="true" />
-                  <div className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-3">
-                    <p className="truncate text-[15px] font-bold text-app-text-emphasis">{attachment.name}</p>
-                    <p className="shrink-0 text-sm text-app-text-subtle">{attachment.size}</p>
-                  </div>
-                  <button
-                    type="button"
-                    className="flex size-9 shrink-0 items-center justify-center rounded-lg text-app-text-subtle transition hover:bg-brand-50 hover:text-brand-700 dark:hover:bg-brand-900/30 dark:hover:text-brand-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
-                    aria-label={`${attachment.name} dosyasını indir`}
-                  >
-                    <Download className="size-4" aria-hidden="true" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-              ) : (
-                <p className="mt-4 rounded-lg border border-dashed border-app-border px-4 py-5 text-center text-sm text-app-text-subtle">
-                  Bu kayda eklenmiş dosya bulunmuyor.
-                </p>
-              )}
-            </>
-          )}
+          <RecordFilesPanel recordId={record.id} />
         </div>
       </section>
 

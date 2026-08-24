@@ -1,9 +1,8 @@
 import { ChevronLeft, ChevronRight, Search, ShieldAlert, UserPlus } from 'lucide-react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { listAdminUsers } from '../../api/admin'
-import { apiMode } from '../../api/config'
 import { AccountStatusDialog } from '../../components/admin/AccountStatusDialog'
 import { ChangeRoleDialog } from '../../components/admin/ChangeRoleDialog'
 import { CreateUserDialog } from '../../components/admin/CreateUserDialog'
@@ -19,13 +18,12 @@ const pageSize = 6
 const roleValues: UserRole[] = ['CALISAN', 'BASKAN_YARDIMCISI', 'BASKAN', 'ADMIN']
 
 export function AdminUsersPage() {
-  const { users } = useAdmin()
+  useAdmin()
   const [searchParams, setSearchParams] = useSearchParams()
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [roleUser, setRoleUser] = useState<ManagedUser | null>(null)
   const [statusUser, setStatusUser] = useState<ManagedUser | null>(null)
   const queryText = searchParams.get('q')?.trim() ?? ''
-  const normalizedQuery = queryText.toLocaleLowerCase('tr-TR')
   const [searchInput, setSearchInput] = useDebouncedSearchParam(searchParams, setSearchParams)
   const roleParam = searchParams.get('rol')
   const role = roleValues.includes(roleParam as UserRole) ? roleParam as UserRole : ''
@@ -35,7 +33,6 @@ export function AdminUsersPage() {
     : ''
   const rawPage = Number(searchParams.get('sayfa'))
   const requestedPage = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1
-  const backendMode = apiMode === 'backend'
   const serverQuery = {
     q: queryText || undefined,
     role: role || undefined,
@@ -46,36 +43,25 @@ export function AdminUsersPage() {
   const usersQuery = useQuery({
     queryKey: queryKeys.admin.users.list(serverQuery),
     queryFn: () => listAdminUsers(serverQuery),
-    enabled: backendMode,
     placeholderData: keepPreviousData,
   })
 
-  const filteredUsers = useMemo(() => users.filter((user) => {
-    const searchable = `${user.firstName} ${user.lastName} ${user.email}`.toLocaleLowerCase('tr-TR')
-    return (!normalizedQuery || searchable.includes(normalizedQuery))
-      && (!role || user.role === role)
-      && (!status || user.isActive === (status === 'aktif'))
-  }), [normalizedQuery, role, status, users])
-  const pageCount = backendMode
-    ? Math.max(1, usersQuery.data?.totalPages ?? 1)
-    : Math.max(1, Math.ceil(filteredUsers.length / pageSize))
+  const pageCount = Math.max(1, usersQuery.data?.totalPages ?? 1)
   const currentPage = Math.min(requestedPage, pageCount)
-  const visibleUsers = backendMode
-    ? usersQuery.data?.content ?? []
-    : filteredUsers.slice((currentPage - 1) * pageSize, currentPage * pageSize)
-  const totalUserCount = backendMode ? usersQuery.data?.totalElements ?? 0 : filteredUsers.length
+  const visibleUsers = usersQuery.data?.content ?? []
+  const totalUserCount = usersQuery.data?.totalElements ?? 0
 
   useEffect(() => {
     const next = new URLSearchParams(searchParams)
     if (roleParam && !role) next.delete('rol')
     if (statusParam && !status) next.delete('durum')
     if (!Number.isInteger(rawPage) || rawPage <= 1) next.delete('sayfa')
-    else if ((!backendMode || !usersQuery.isPending) && rawPage > pageCount) {
+    else if (!usersQuery.isPending && rawPage > pageCount) {
       if (pageCount <= 1) next.delete('sayfa')
       else next.set('sayfa', String(pageCount))
     }
     if (next.toString() !== searchParams.toString()) setSearchParams(next, { replace: true })
-  }, [backendMode, pageCount, rawPage, role, roleParam, searchParams, setSearchParams, status, statusParam, usersQuery.isPending])
+  }, [pageCount, rawPage, role, roleParam, searchParams, setSearchParams, status, statusParam, usersQuery.isPending])
 
   const updateFilter = (key: string, value: string) => {
     const next = new URLSearchParams(searchParams)
@@ -132,9 +118,9 @@ export function AdminUsersPage() {
         <div className="border-b border-app-border-subtle px-4 py-3 text-xs font-semibold text-app-text-subtle sm:px-6">
           {totalUserCount} kullanıcı bulundu
         </div>
-        {backendMode && usersQuery.isPending ? (
+        {usersQuery.isPending ? (
           <ListLoadingSkeleton label="Kullanıcılar yükleniyor" rows={pageSize} />
-        ) : backendMode && usersQuery.isError ? (
+        ) : usersQuery.isError ? (
           <div className="px-5 py-14 text-center" role="alert">
             <h2 className="font-bold text-app-text-strong">Kullanıcılar yüklenemedi</h2>
             <button type="button" onClick={() => void usersQuery.refetch()} className="mt-4 min-h-10 rounded-lg border border-app-border px-4 text-xs font-bold text-app-text-secondary hover:bg-app-surface-muted">Tekrar dene</button>

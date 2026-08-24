@@ -31,6 +31,7 @@ export type RecordSearchListItem = {
   category: { id: number; name: string }
   status: RecordStatus
   createdBy: string
+  createdByFullName?: string
   assignedTo: string | null
   createdAt: string
   updatedAt: string | null
@@ -81,6 +82,7 @@ function normalizeRecord(
     category: { id: record.categoryId, name: categoryName },
     status: record.status,
     createdBy: record.createdBy,
+    createdByFullName: (record as RecordSearchResponse & { createdByFullName?: string }).createdByFullName?.trim() || undefined,
     assignedTo: record.assignedTo ?? null,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt ?? null,

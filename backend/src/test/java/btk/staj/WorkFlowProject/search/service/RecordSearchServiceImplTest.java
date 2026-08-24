@@ -2,8 +2,12 @@ package btk.staj.WorkFlowProject.search.service;
 
 import btk.staj.WorkFlowProject.common.dto.PagedResponse;
 import btk.staj.WorkFlowProject.record.entity.Record;
+import btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
+import btk.staj.WorkFlowProject.record.view.RecordContentView;
 import btk.staj.WorkFlowProject.search.dto.RecordSearchCriteria;
+import btk.staj.WorkFlowProject.user.entity.User;
+import btk.staj.WorkFlowProject.user.repository.UserRepository;
 import btk.staj.WorkFlowProject.search.dto.RecordSearchResponse;
 import btk.staj.WorkFlowProject.workflow.model.CurrentActor;
 import btk.staj.WorkFlowProject.workflow.port.CurrentActorProvider;
@@ -25,6 +29,8 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @DisplayName("Kayit aramasi")
@@ -34,8 +40,10 @@ class RecordSearchServiceImplTest {
 
     private final RecordRepository recordRepository = mock(RecordRepository.class);
     private final CurrentActorProvider currentActorProvider = mock(CurrentActorProvider.class);
+    private final UserRepository userRepository = mock(UserRepository.class);
     private final RecordSearchServiceImpl service =
-            new RecordSearchServiceImpl(recordRepository, currentActorProvider);
+            new RecordSearchServiceImpl(recordRepository, currentActorProvider,
+                    new RecordContentView(new RecordAccessPolicy()), userRepository);
 
     @Test
     @DisplayName("sayfalama bilgisini oldugu gibi aktarir")
@@ -67,6 +75,68 @@ class RecordSearchServiceImplTest {
 
         // Kimlik cozulemedigi halde sorgu calissaydi, kapsam disi kayitlar donerdi.
         verifyNoInteractions(recordRepository);
+    }
+
+    /**
+     * Ad cevaba konmasaydi istemci onu denetim izinden turetmek zorunda
+     * kalirdi; gecmisi kirpilan roller (Baskan) olusturma satirini gormedigi
+     * icin o yol yanlis kisiyi gosteriyordu.
+     */
+    @Test
+    @DisplayName("olusturanin adini cevaba koyar")
+    void resolvesTheCreatorName() {
+        givenActor(RoleName.CALISAN);
+        Pageable pageable = PageRequest.of(0, 10);
+        when(recordRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(record()), pageable, 1));
+        when(userRepository.findAllById(any())).thenReturn(List.of(user(USER_ID, "Ahmet", "Yılmaz")));
+
+        PagedResponse<RecordSearchResponse> result =
+                service.search(new RecordSearchCriteria(), pageable);
+
+        assertThat(result.getContent()).singleElement()
+                .satisfies(row -> assertThat(row.getCreatedByFullName()).isEqualTo("Ahmet Yılmaz"));
+    }
+
+    @Test
+    @DisplayName("ayni sayfadaki olusturanlar tek sorguda cozulur")
+    void resolvesAllCreatorsInASingleQuery() {
+        givenActor(RoleName.CALISAN);
+        Pageable pageable = PageRequest.of(0, 10);
+        when(recordRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(record(), record(), record()), pageable, 3));
+        when(userRepository.findAllById(any())).thenReturn(List.of(user(USER_ID, "Ahmet", "Yılmaz")));
+
+        service.search(new RecordSearchCriteria(), pageable);
+
+        // Kayit basina arama N+1 olurdu.
+        verify(userRepository, times(1)).findAllById(any());
+    }
+
+    @Test
+    @DisplayName("olusturan kullanici bulunamazsa ad bos kalir, cevap bozulmaz")
+    void leavesTheNameEmptyWhenTheCreatorIsGone() {
+        givenActor(RoleName.CALISAN);
+        Pageable pageable = PageRequest.of(0, 10);
+        when(recordRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(record()), pageable, 1));
+        when(userRepository.findAllById(any())).thenReturn(List.of());
+
+        PagedResponse<RecordSearchResponse> result =
+                service.search(new RecordSearchCriteria(), pageable);
+
+        assertThat(result.getContent()).singleElement().satisfies(row -> {
+            assertThat(row.getCreatedByFullName()).isNull();
+            assertThat(row.getCreatedBy()).isEqualTo(USER_ID);
+        });
+    }
+
+    private static User user(UUID id, String firstName, String lastName) {
+        User user = new User();
+        user.setId(id);
+        user.setFirstName(firstName);
+        user.setLastName(lastName);
+        return user;
     }
 
     private void givenActor(RoleName role) {

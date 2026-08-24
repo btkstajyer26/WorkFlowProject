@@ -2,7 +2,7 @@
 
 Bu belge, İş Akışı ve Onay Yönetim Sistemi'nin çalışan backend kodundaki workflow davranışını tanımlar. Ürün hedefinden çok **mevcut uygulamayı** esas alır; planlanan ancak henüz uygulanmayan davranışlar “Bilinen boşluklar” bölümünde ayrıca belirtilir.
 
-> Son kod doğrulaması 13 Ağustos 2026 tarihinde `test` dalının `806aeb80346993796f4cf46077b55a10fdaee8c0` commit'i üzerinde yapılmıştır. Durum makinesi, API veya hata eşlemesi değiştirildiğinde bu belge aynı değişiklik kapsamında güncellenmelidir.
+> Son kod doğrulaması 22 Ağustos 2026 tarihinde `feature/m9-envanter` dalının `183517e` commit'i üzerinde yapılmıştır. Durum makinesi, API veya hata eşlemesi değiştirildiğinde bu belge aynı değişiklik kapsamında güncellenmelidir.
 
 ## İçindekiler
 
@@ -95,13 +95,20 @@ Kayıt listeleme/detay görünürlüğü ile workflow aksiyonu yapma yetkisi ayn
 | Rol | Kayıt okuma kapsamı |
 | --- | --- |
 | `CALISAN` | Yaşam döngüsü boyunca kendisinin oluşturduğu kayıtlar |
-| `BASKAN_YARDIMCISI` | Yalnız o anda kendisine atanmış kayıtlar |
-| `BASKAN` | `BASKAN_INCELEMESINDE` durumundaki veya kendisine atanmış kayıtlar |
+| `BASKAN_YARDIMCISI` | Kendisine atanmış kayıtlar, `DUZENLEME_BEKLIYOR` durumundakiler ve bir kez kendi elinden geçmiş kayıtlar (`last_deputy_id`) |
+| `BASKAN` | `BASKAN_INCELEMESINDE` durumundaki, sonuçlanmış (`ONAYLANDI`/`REDDEDILDI`) veya kendisine atanmış kayıtlar |
 | `ADMIN` | Hiçbir workflow kaydı |
+
+Kapsamın iki kolu, `assigned_to`'nun geçişte boşalması yüzünden gerekli:
+
+- **Başkan Yardımcısı**, `BASKANA_ILET` ile `assigned_to`'yu Başkana devreder ama `last_deputy_id` kendisinde kalır. Bu kol olmasaydı ilettiği evrağı anında kaybeder; "Sonuçlananlar" ve panodaki "Son Kayıtlar" listeleri kalıcı olarak boş görünürdü.
+- **Başkan**, `ONAYLA`/`REDDET` ile `assigned_to`'yu boşaltır. Sonuçlanan iki durum kapsama açıkça yazılmasaydı kendi verdiği karardan sonra kaydı kaybeder; "Onaylananlar" ve "Reddedilenler" sekmeleri boş kalırdı. Bu iki duruma yalnız Başkanın kararıyla gelinebildiği için kapsam genişlemez.
 
 Liste sorguları soft-delete edilmiş kayıtları dışlar. Kayıt audit geçmişi ucu da okumadan önce aynı `RecordAccessPolicy` kuralını uygular.
 
-Workflow controller'ı ayrıca `RecordAccessPolicy` çağırmaz. Aksiyon yetkisi; rol, durum ve `createdBy`/`assignedTo` ilişkisi üzerinden durum makinesinde belirlenir. Başkan Yardımcısı kaydı Başkana ilettiğinde `assignedTo` değiştiği için, daha önce işlem yaptığı bu kaydı artık yalnız geçmişte işlem yapmış olması nedeniyle göremez.
+Aynı kural iki biçimde durur: tek kayıt için `RecordAccessPolicy`, sorgu koşulu olarak `RecordSpecifications.visibilityScope`. **Biri değişirse diğeri de değişmelidir** — ikisi ayrıştığında detay ucu kaydı açarken liste ucu onu hiç döndürmez.
+
+Workflow controller'ı ayrıca `RecordAccessPolicy` çağırmaz. Aksiyon yetkisi; rol, durum ve `createdBy`/`assignedTo` ilişkisi üzerinden durum makinesinde belirlenir. Okuma kapsamı bir kaydı görünür kılması, o kayıt üzerinde aksiyon yapılabileceği anlamına gelmez: ilettiği evrağı izleyen Başkan Yardımcısı onu salt okunur görür.
 
 ## Kayıt durumları
 
@@ -394,7 +401,9 @@ Mevcut otomatik testler şu katmanları kapsar:
 - bildirim geçmişi, sahiplik ve sayfalama servisi;
 - Thymeleaf e-posta şablonu ve HTML escaping.
 
-Son incelenen `test` commit'inin GitHub Actions çalışması başarılıdır: backend `verify` ve frontend lint/test/build job'ları geçmiştir.
+Doğrulama tabanı olan commit üzerinde `workflow` paketindeki **164 test** ve backend `verify`'ın tamamı (**448 test**) temiz bir PostgreSQL 15 örneğinde hatasız geçmiştir.
+
+Bu testlerin 11'i (`WorkflowTransitionPersistenceIntegrationTest`) gerçek bir PostgreSQL bağlantısı ister; veritabanı ayakta değilse `ApplicationContext` hatasıyla düşerler. Yerelde `docker compose up -d db` gerekir.
 
 Önemli eksik testler:
 
@@ -407,14 +416,15 @@ Son incelenen `test` commit'inin GitHub Actions çalışması başarılıdır: b
 
 1. ~~**Optimistic-lock hata eşlemesi**~~ — **çözüldü.** `RecordPortAdapter` çatışmayı `WORKFLOW_VERSION_CONFLICT`'e çeviriyor, handler bu kodu `409`'a eşliyor ve workflow dışı yazmalar için `OptimisticLockingFailureException` → `409 VERSION_CONFLICT` emniyet ağı var. Uçtan uca doğrulama `WorkflowTransitionPersistenceIntegrationTest` içinde.
 2. ~~**Tekil Başkan Yardımcısı ve istek hedefi**~~ — **çözüldü (C1).** `GONDER`/`TEKRAR_GONDER` hedefini artık backend, `BASKANA_ILET` ile aynı yoldan tek aktif kullanıcıdan çözer; istemci hedef göndermez, gönderirse istek reddedilir. Geriye kalan tek risk aşağıdaki 10. maddededir: tekil rol invariant'ı veritabanı kısıtıyla değil okuma anında zorlanır.
-3. **Frontend entegrasyonu:** Ana ekranlar hâlâ kısmen mock/local state kullanır. Workflow cevabından sonra kayıt yeniden yükleme ve hata kodu eşlemeleri gerçek backend ile tamamlanmalıdır.
-4. **İlk parola değişimi:** `mustChangePassword` istemciye dönse de workflow dahil diğer korumalı uçlar backend seviyesinde henüz engellenmez.
+3. ~~**Frontend entegrasyonu**~~ — **çözüldü.** `WorkflowContext` ve `transitionRecord` mock geçiş kolu frontend'den kaldırıldı; kayıt detayındaki aksiyon paneli yalnız gerçek API'yi (`useRecordWorkflowAction`) kullanıyor. Geçiş kuralı artık tek yerde, backend'de duruyor.
+4. ~~**İlk parola değişimi**~~ — **çözüldü.** `JwtAuthenticationFilter` parola değişimi bekleyen kullanıcıyı `403 PASSWORD_CHANGE_REQUIRED` ile durduruyor; workflow dahil bütün korumalı uçlar kapalı. Açık bırakılanlar yalnızca parola değiştirme, çıkış ve `GET /api/users/me`.
 5. **E-posta teslim garantisi:** Gönderim asenkron ve best-effort'tur; retry/outbox/DLQ yoktur.
 6. **Audit değiştirilemezliği:** Uygulama yazma/silme ucu sunmaz, fakat veritabanı rolü veya trigger ile append-only kuralı zorlanmaz.
 7. **Bildirim geçmişi indeksi:** Büyüyen veri için `(user_id, created_at DESC)` birleşik indeksi değerlendirilmelidir.
-8. **Sözleşme drift'i:** Entegrasyon sözleşmesindeki `BASKAN_ONAYINDA` örneği `BASKAN_INCELEMESINDE` olarak düzeltilmelidir.
-9. **Terminal ek silme ve dosya IDOR'u:** Yükleme terminal kayıtta engellenir; `deleteFile` kayıt kilidi, sahiplik veya görünürlük kontrolü yapmaz. İndirme/önizleme de kayıt görünürlüğüyle sınırlandırılmalıdır.
+8. ~~**Sözleşme drift'i (`BASKAN_ONAYINDA`)**~~ — **çözüldü.** İfade entegrasyon sözleşmesinde artık geçmiyor.
+9. ~~**Terminal ek silme ve dosya IDOR'u**~~ — **çözüldü.** `deleteFile` artık `RecordLockValidator.assertModifyAllowed` çağırıyor: soft-delete kontrolü, `created_by` sahiplik kontrolü ve yalnız `TASLAK`/`DUZENLEME_BEKLIYOR` durum kilidi. `downloadFile`, `previewFile` ve `listByRecord` ise `RecordAccessPolicy.assertCanView` üzerinden kayıt görünürlüğüyle sınırlı.
 10. **Tekil rolün yeniden etkinleştirilmesi:** `setActive(..., true)` aynı rolde başka aktif kullanıcı olup olmadığını kontrol etmez. İki aktif Başkan oluşursa `BASKANA_ILET`, iki aktif Başkan Yardımcısı oluşursa `GONDER`/`TEKRAR_GONDER` hedefi tekilleştiremediği için `409 WORKFLOW_ROLE_NOT_CONFIGURED` ile durur. C1 sonrası bu, Çalışanın en sık kullandığı aksiyonu da etkilediği için invariant'ın yazma tarafında (rol atama/aktifleştirme) zorlanması daha önemli hâle geldi.
+11. ~~**Koltuk devrinde `last_deputy_id` bayat kalıyor**~~ — **çözüldü (M5, 20 Ağustos 2026).** `RecordRepository.updateLastDeputyId` eklendi ve `UserService.kullaniciIsleriniDevret` içinde `devretBekleyenIsleri` ile **aynı transaction'da** çağrılıyor. Koltuk devrinden sonra `BASKAN_YARDIMCISINA_GERI_GONDER` yeni yardımcıyı çözüyor; devredilen kayıtlar yeni yardımcının görünürlük kapsamına da giriyor. `UserServiceTest` kapsıyor.
 
 Başlangıç şartnamesiyle bilinçli veya fiilî uygulama farkları da korunmalıdır:
 

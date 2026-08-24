@@ -4,6 +4,8 @@ import btk.staj.WorkFlowProject.audit.RequestAuditContext;
 import btk.staj.WorkFlowProject.auth.dto.LoginRequest;
 import btk.staj.WorkFlowProject.auth.dto.LoginResponse;
 import btk.staj.WorkFlowProject.common.exception.InvalidCredentialsException;
+import btk.staj.WorkFlowProject.notification.entity.DeviceToken;
+import btk.staj.WorkFlowProject.notification.repository.DeviceTokenRepository;
 import btk.staj.WorkFlowProject.rbac.config.JwtUtil;
 import btk.staj.WorkFlowProject.rbac.Role;
 import btk.staj.WorkFlowProject.user.entity.Token;
@@ -50,6 +52,9 @@ class AuthServiceTest {
     private RequestAuditContext requestAuditContext;
 
     @Mock
+    private DeviceTokenRepository deviceTokenRepository;
+
+    @Mock
     private User user;
 
     @Mock
@@ -61,7 +66,8 @@ class AuthServiceTest {
 
     @BeforeEach
     void setUp() {
-        authService = new AuthService(userRepository, tokenRepository, passwordEncoder, jwtUtil, requestAuditContext);
+        authService = new AuthService(userRepository, tokenRepository, passwordEncoder,
+                jwtUtil, requestAuditContext, deviceTokenRepository);
         userId = UUID.randomUUID();
     }
 
@@ -260,8 +266,9 @@ class AuthServiceTest {
         Token storedToken = mock(Token.class);
 
         when(tokenRepository.findByToken("token-to-revoke")).thenReturn(Optional.of(storedToken));
+        when(storedToken.getUser()).thenReturn(user);
 
-        authService.logout("token-to-revoke");
+        authService.logout("token-to-revoke", null);
 
         verify(storedToken, times(1)).setRevoked(true);
         verify(tokenRepository, times(1)).save(storedToken);
@@ -271,8 +278,73 @@ class AuthServiceTest {
     void logout_tokenBulunamazsa_hicbirSeyYapmamali() {
         when(tokenRepository.findByToken("olmayan-token")).thenReturn(Optional.empty());
 
-        authService.logout("olmayan-token");
+        authService.logout("olmayan-token", null);
 
         verify(tokenRepository, never()).save(any());
+    }
+
+    /**
+     * Is M4: web istemcisi cihaz token'i gondermez. Alan bos geldiginde
+     * cikis akisi eskisi gibi calismali, device_tokens tablosuna hic
+     * dokunulmamali.
+     */
+    @Test
+    void logout_deviceTokenYokken_webAkisiBozulmamali() {
+        Token storedToken = mock(Token.class);
+
+        when(tokenRepository.findByToken("token-to-revoke")).thenReturn(Optional.of(storedToken));
+        when(storedToken.getUser()).thenReturn(user);
+
+        authService.logout("token-to-revoke", null);
+
+        verify(storedToken).setRevoked(true);
+        verifyNoInteractions(deviceTokenRepository);
+    }
+
+    /**
+     * Is M4: mobil cihaz token'i gonderdiginde, refresh token iptal
+     * edilirken ayni islemde cihaz token'i da pasiflestirilir. Boylece
+     * cikis yapan cihaza push gitmez.
+     */
+    @Test
+    void logout_deviceTokenVarsa_cihazTokeniPasiflestirilmeli() {
+        Token storedToken = mock(Token.class);
+        DeviceToken deviceToken = mock(DeviceToken.class);
+
+        when(tokenRepository.findByToken("token-to-revoke")).thenReturn(Optional.of(storedToken));
+        when(storedToken.getUser()).thenReturn(user);
+        when(user.getId()).thenReturn(userId);
+        when(deviceTokenRepository.findByToken("cihaz-token")).thenReturn(Optional.of(deviceToken));
+        when(deviceToken.getUser()).thenReturn(user);
+
+        authService.logout("token-to-revoke", "cihaz-token");
+
+        verify(storedToken).setRevoked(true);
+        verify(deviceTokenRepository, times(1)).deactivateByToken("cihaz-token");
+    }
+
+    /**
+     * Is M4: gonderilen cihaz token'i oturumdaki kullaniciya ait degilse
+     * sessizce yok sayilir. Hata donmek, baskasina ait bir token'in
+     * varligini dogrulamis olurdu.
+     */
+    @Test
+    void logout_baskasininDeviceTokeni_pasiflestirilmemeli() {
+        Token storedToken = mock(Token.class);
+        DeviceToken deviceToken = mock(DeviceToken.class);
+        User baskaKullanici = mock(User.class);
+
+        when(tokenRepository.findByToken("token-to-revoke")).thenReturn(Optional.of(storedToken));
+        when(storedToken.getUser()).thenReturn(user);
+        when(user.getId()).thenReturn(userId);
+        when(deviceTokenRepository.findByToken("baskasinin-cihazi")).thenReturn(Optional.of(deviceToken));
+        when(deviceToken.getUser()).thenReturn(baskaKullanici);
+        when(baskaKullanici.getId()).thenReturn(UUID.randomUUID());
+
+        authService.logout("token-to-revoke", "baskasinin-cihazi");
+
+        // Refresh token yine de iptal edilir; yalnizca cihaz token'ina dokunulmaz.
+        verify(storedToken).setRevoked(true);
+        verify(deviceTokenRepository, never()).deactivateByToken(anyString());
     }
 }

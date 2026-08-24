@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "typecheck:e2e": "tsc -p tsconfig.e2e.json",
     "preview": "vite preview"
   },
   "dependencies": {

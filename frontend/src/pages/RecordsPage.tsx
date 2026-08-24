@@ -15,13 +15,11 @@ import { RecordStatusBadge } from '../components/records/RecordStatusBadge'
 import { CategoryLoadError } from '../components/records/CategoryLoadError'
 import { recordStatusMeta } from '../components/records/recordStatus'
 import { useCategories } from '../context/categoryState'
-import { useWorkflow } from '../context/workflowState'
 import { useDebouncedSearchParam } from '../hooks/useDebouncedSearchParam'
-import { apiMode } from '../api/config'
 import { searchRecords, type RecordSearchListItem } from '../api/recordSearch'
 import { queryKeys } from '../query/queryKeys'
 import type { UserRole } from '../types/auth'
-import type { RecordStatus, WorkflowRecord } from '../types/record'
+import type { RecordStatus } from '../types/record'
 import { ListLoadingSkeleton } from '../components/feedback/LoadingSkeleton'
 
 const viewConfigs: Record<string, { title: string; statuses: RecordStatus[] }> = {
@@ -56,23 +54,36 @@ const filterControlClass =
 
 const pageSizes = [5, 10, 20]
 
-function matchesView(record: WorkflowRecord, view: string | null, role: UserRole) {
-  if (!view) return true
-  const config = viewConfigs[view]
-  return config ? config.statuses.includes(record.status) : role === 'CALISAN'
-}
-
-function normalizeSearchValue(value: string) {
-  return value.trim().toLocaleLowerCase('tr-TR')
-}
-
 function isValidDateParam(value: string | null) {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
   const parsed = new Date(`${value}T00:00:00Z`)
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value
 }
 
-type RecordListViewItem = Pick<WorkflowRecord, 'id' | 'title' | 'description' | 'categoryId' | 'category' | 'status' | 'createdAt'>
+/**
+ * Ad backend'den `createdByFullName` ile gelir. Alan yoksa kimlik gösterilir;
+ * işlem geçmişinden ad türetilmez çünkü geçmiş role göre kırpılabilir.
+ */
+function formatCreatorName(
+  createdBy?: string,
+  createdByFullName?: string,
+) {
+  if (createdByFullName?.trim()) return createdByFullName.trim()
+  if (!createdBy) return '—'
+  return createdBy
+}
+
+type RecordListViewItem = {
+  id: string
+  title: string
+  description: string
+  categoryId: number
+  category: string
+  status: RecordStatus
+  createdAt: string
+  createdBy: string
+  createdByFullName?: string
+}
 
 function canEditRecord(role: UserRole, record: RecordListViewItem) {
   return role === 'CALISAN' && (record.status === 'TASLAK' || record.status === 'DUZENLEME_BEKLIYOR')
@@ -86,12 +97,13 @@ function toRecordListViewItem(record: RecordSearchListItem): RecordListViewItem 
     categoryId: record.category.id,
     category: record.category.name,
     status: record.status,
+    createdBy: record.createdBy,
+    createdByFullName: record.createdByFullName,
     createdAt: record.createdAt,
   }
 }
 
 export function RecordsPage({ role }: { role: UserRole }) {
-  const { visibleRecords: records } = useWorkflow()
   const { categories, status: categoryStatus, reloadCategories } = useCategories()
   const [searchParams, setSearchParams] = useSearchParams()
   const rawView = searchParams.get('gorunum')
@@ -128,7 +140,6 @@ export function RecordsPage({ role }: { role: UserRole }) {
   const page = Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1
   const pageSizeParam = Number(searchParams.get('boyut'))
   const pageSize = pageSizes.includes(pageSizeParam) ? pageSizeParam : 10
-  const backendMode = apiMode === 'backend'
   const categoryRevision = categories.map((category) => `${category.id}:${category.name}`).join('|')
   const requestedStatuses: Array<RecordStatus | undefined> = status !== 'ALL'
     ? [status]
@@ -151,7 +162,7 @@ export function RecordsPage({ role }: { role: UserRole }) {
       return {
         queryKey: queryKeys.records.list({ ...query, categoryRevision }),
         queryFn: () => searchRecords(query, categories),
-        enabled: backendMode && categoryStatus === 'ready' && !dateRangeInvalid,
+        enabled: categoryStatus === 'ready' && !dateRangeInvalid,
         placeholderData: keepPreviousData,
         refetchInterval: 30_000,
       }
@@ -183,20 +194,6 @@ export function RecordsPage({ role }: { role: UserRole }) {
     setSearchParams(nextParams, { replace: true })
   }
 
-  const searchValue = normalizeSearchValue(search)
-  const filteredRecords = records.filter((record) => {
-    if (!matchesView(record, view, role)) return false
-    if (categoryId !== 'ALL' && record.categoryId !== categoryId) return false
-    if (status !== 'ALL' && record.status !== status) return false
-    if (!dateRangeInvalid && dateFrom && record.createdAt.slice(0, 10) < dateFrom) return false
-    if (!dateRangeInvalid && dateTo && record.createdAt.slice(0, 10) > dateTo) return false
-    if (creator && !normalizeSearchValue(record.createdBy).includes(normalizeSearchValue(creator))) return false
-
-    if (!searchValue) return true
-    const haystack = normalizeSearchValue(`${record.title} ${record.description}`)
-    return haystack.includes(searchValue)
-  })
-
   const serverRecords = serverQueries
     .flatMap((query) => query.data?.content ?? [])
     .map(toRecordListViewItem)
@@ -205,17 +202,16 @@ export function RecordsPage({ role }: { role: UserRole }) {
     (total, query) => total + (query.data?.totalElements ?? 0),
     0,
   )
-  const totalRecordCount = backendMode ? serverTotalElements : filteredRecords.length
+  const totalRecordCount = serverTotalElements
   const totalPages = Math.max(1, Math.ceil(totalRecordCount / pageSize))
   const currentPage = Math.min(page, totalPages)
   const pageStart = (currentPage - 1) * pageSize
-  const visibleRecords: RecordListViewItem[] = backendMode
-    ? groupedStatusQuery
-      ? serverRecords.slice(pageStart, pageStart + pageSize)
-      : serverRecords
-    : filteredRecords.slice(pageStart, pageStart + pageSize)
-  const recordsPending = backendMode && categoryStatus !== 'error' && serverQueries.some((query) => query.isPending)
-  const recordsError = backendMode && (categoryStatus === 'error' || serverQueries.some((query) => query.isError))
+  const visibleRecords: RecordListViewItem[] = groupedStatusQuery
+    ? serverRecords.slice(pageStart, pageStart + pageSize)
+    : serverRecords
+
+  const recordsPending = categoryStatus !== 'error' && serverQueries.some((query) => query.isPending)
+  const recordsError = categoryStatus === 'error' || serverQueries.some((query) => query.isError)
   const activeFilterCount = [categoryId !== 'ALL', status !== 'ALL', Boolean(dateFrom), Boolean(dateTo), Boolean(creator)].filter(Boolean).length
 
   useEffect(() => {
@@ -228,6 +224,8 @@ export function RecordsPage({ role }: { role: UserRole }) {
   }, [page, recordsPending, searchParams, setSearchParams, totalPages])
 
   const resetFilters = () => {
+    setSearchInput('')
+    setCreatorInput('')
     updateQuery({ q: null, kategori: null, durum: null, baslangic: null, bitis: null, olusturan: null })
   }
 
@@ -387,27 +385,29 @@ export function RecordsPage({ role }: { role: UserRole }) {
         ) : visibleRecords.length > 0 ? (
           <>
             <div className="hidden overflow-x-auto lg:block">
-              <table className="w-full min-w-[780px] border-collapse text-left">
+              <table className="w-full min-w-[840px] table-fixed border-collapse text-left">
                 <thead className="bg-app-surface-muted/80 text-xs font-bold text-app-text-subtle">
                   <tr>
-                    <th className="px-5 py-3.5">Kayıt</th>
-                    <th className="px-4 py-3.5">Kategori</th>
-                    <th className="px-4 py-3.5">Durum</th>
-                    <th className="px-4 py-3.5">Oluşturulma</th>
-                    <th className="px-5 py-3.5 text-right">İşlem</th>
+                    <th className="w-[26%] px-5 py-3.5">Kayıt</th>
+                    <th className="w-[15%] px-4 py-3.5">Kategori</th>
+                    <th className="w-[18%] px-4 py-3.5">Durum</th>
+                    <th className="w-[16%] px-4 py-3.5">Oluşturulma</th>
+                    <th className="w-[17%] px-4 py-3.5">Oluşturan</th>
+                    <th className="w-[8%] px-5 py-3.5 text-right">İşlem</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-app-border-subtle">
                   {visibleRecords.map((record) => (
                     <tr key={record.id} className="group transition-colors hover:bg-brand-50/35 dark:hover:bg-brand-900/20">
                       <td className="px-5 py-4">
-                        <Link to={`/kayitlar/${record.id}`} className="font-bold text-app-text-strong transition hover:text-brand-700 dark:hover:text-brand-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500">
+                        <Link to={`/kayitlar/${record.id}`} className="block truncate font-bold text-app-text-strong transition hover:text-brand-700 dark:hover:text-brand-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500">
                           {record.title}
                         </Link>
                       </td>
-                      <td className="px-4 py-4 text-sm font-medium text-app-text-muted">{record.category}</td>
+                      <td className="truncate px-4 py-4 text-sm font-medium text-app-text-muted">{record.category}</td>
                       <td className="px-4 py-4"><RecordStatusBadge status={record.status} /></td>
                       <td className="whitespace-nowrap px-4 py-4 text-xs font-medium text-app-text-subtle">{dateFormatter.format(new Date(record.createdAt))}</td>
+                      <td className="truncate whitespace-nowrap px-4 py-4 text-xs font-medium text-app-text-secondary">{formatCreatorName(record.createdBy, record.createdByFullName)}</td>
                       <td className="px-5 py-4 text-right">
                         <Link
                           to={canEditRecord(role, record) ? `/kayitlar/${record.id}/duzenle` : `/kayitlar/${record.id}`}
@@ -432,10 +432,14 @@ export function RecordsPage({ role }: { role: UserRole }) {
                     </div>
                     <RecordStatusBadge status={record.status} />
                   </div>
-                  <dl className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-app-surface-muted p-3 text-xs">
+                  <dl className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-app-surface-muted p-3 text-xs sm:grid-cols-3">
                     <div>
                       <dt className="font-semibold text-app-text-subtle">Kategori</dt>
                       <dd className="mt-1 font-bold text-app-text-emphasis">{record.category}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold text-app-text-subtle">Oluşturan</dt>
+                      <dd className="mt-1 font-bold text-app-text-emphasis">{formatCreatorName(record.createdBy, record.createdByFullName)}</dd>
                     </div>
                     <div>
                       <dt className="font-semibold text-app-text-subtle">Oluşturulma</dt>

@@ -49,13 +49,32 @@ class RecordSpecificationsTest {
     }
 
     @Test
-    @DisplayName("Bsk. Yrd. yalnizca kendisine atananlari gorur")
+    @DisplayName("Bsk. Yrd. kendisine atananlari, duzeltmedekileri ve elinden gecenleri gorur")
     void aDeputyIsScopedToTheirAssignments() {
         Path<Object> assignedTo = pathFor("assignedTo");
+        Path<Object> status = pathFor("status");
+        Path<Object> lastDeputyId = pathFor("lastDeputyId");
 
         build(RoleName.BASKAN_YARDIMCISI);
 
         verify(cb).equal(assignedTo, USER_ID);
+        verify(cb).equal(status, RecordStatus.DUZENLEME_BEKLIYOR);
+        verify(cb).equal(lastDeputyId, USER_ID);
+    }
+
+    /**
+     * Kapsam kurali iki yerde duruyor: burada sorgu kosulu, RecordAccessPolicy'de
+     * tek kayda bakan boolean. Bu kol yalnizca policy'ye eklenmis, sorguya
+     * eklenmemisti; detay ucu kaydi aciyor ama liste onu hic dondurmuyordu.
+     */
+    @Test
+    @DisplayName("Bsk. Yrd. Baskana ilettigi kaydi listede kaybetmez")
+    void aDeputyKeepsSeeingRecordsTheyForwarded() {
+        Path<Object> lastDeputyId = pathFor("lastDeputyId");
+
+        build(RoleName.BASKAN_YARDIMCISI);
+
+        verify(cb).equal(lastDeputyId, USER_ID);
     }
 
     @Test
@@ -68,7 +87,25 @@ class RecordSpecificationsTest {
 
         verify(cb).equal(status, RecordStatus.BASKAN_INCELEMESINDE);
         verify(cb).equal(assignedTo, USER_ID);
-        verify(cb).or(any(Predicate.class), any(Predicate.class));
+        verify(cb).or(
+                any(Predicate.class), any(Predicate.class),
+                any(Predicate.class), any(Predicate.class));
+    }
+
+    /**
+     * ONAYLA/REDDET assignedTo'yu bosaltir. Sonuclanan iki durum kapsama
+     * acikca yazilmazsa Baskan kendi verdigi karardan sonra kaydi kaybeder ve
+     * "Onaylananlar"/"Reddedilenler" sekmeleri kalici olarak bos gorunur.
+     */
+    @Test
+    @DisplayName("Baskan sonuclandirdigi kayitlari kendi karardan sonra da gorur")
+    void aPresidentKeepsSeeingRecordsTheyDecided() {
+        Path<Object> status = pathFor("status");
+
+        build(RoleName.BASKAN);
+
+        verify(cb).equal(status, RecordStatus.ONAYLANDI);
+        verify(cb).equal(status, RecordStatus.REDDEDILDI);
     }
 
     @Test

@@ -14,4 +14,8 @@ public interface FileRepository extends JpaRepository<FileEntity, UUID> {
 
     // Bir kayda ait silinmemiş tüm dosyalar
     List<FileEntity> findAllByRecordIdAndDeletedAtIsNull(UUID recordId);
+
+    // Silinmişler dahil hepsi. Devir anındaki ek listesini kurmak için gerekli:
+    // o an duran ama sonradan silinen dosya da listeye girmelidir.
+    List<FileEntity> findAllByRecordId(UUID recordId);
 }

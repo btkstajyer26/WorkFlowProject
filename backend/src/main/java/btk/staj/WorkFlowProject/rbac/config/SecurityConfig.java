@@ -33,6 +33,11 @@ public class SecurityConfig {
             "/api/auth/login",
             "/api/auth/refresh",
             "/api/auth/logout",
+            // "Sifremi unuttum" akisi tanimi geregi oturumsuz calisir: kullanici
+            // sifresini bilmedigi icin token uretemez.
+            "/api/auth/forgot-password",
+            "/api/auth/verify-reset-code",
+            "/api/auth/reset-password",
             "/swagger-ui.html",
             "/swagger-ui/**",
             "/v3/api-docs",
@@ -40,7 +45,11 @@ public class SecurityConfig {
             "/v3/api-docs.yaml",
             // Servlet konteyneri hatayi /error'a yonlendirir; burasi kapali
             // kalirsa istemci gercek hata yerine 401 gorur.
-            "/error"
+            "/error",
+            // Reverse proxy ve container healthcheck'i bu ucu token'siz
+            // yoklar; kapali kalirsa 401 gorup servisi "sagliksiz" sayarlar.
+            // show-details=never oldugu icin yalnizca UP/DOWN disari cikar.
+            "/actuator/health"
     };
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;

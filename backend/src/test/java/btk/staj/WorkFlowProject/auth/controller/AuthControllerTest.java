@@ -4,7 +4,11 @@ import btk.staj.WorkFlowProject.auth.dto.LoginRequest;
 import btk.staj.WorkFlowProject.auth.dto.LoginResponse;
 import btk.staj.WorkFlowProject.auth.dto.LogoutRequest;
 import btk.staj.WorkFlowProject.auth.dto.RefreshTokenRequest;
+import btk.staj.WorkFlowProject.auth.exception.InvalidResetCodeException;
+import btk.staj.WorkFlowProject.auth.exception.InvalidResetTokenException;
+import btk.staj.WorkFlowProject.auth.exception.PasswordReuseException;
 import btk.staj.WorkFlowProject.auth.service.AuthService;
+import btk.staj.WorkFlowProject.auth.service.PasswordResetService;
 import btk.staj.WorkFlowProject.common.exception.GlobalExceptionHandler;
 import btk.staj.WorkFlowProject.common.exception.InvalidCredentialsException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -42,12 +46,15 @@ class AuthControllerTest {
     @Mock
     private AuthService authService;
 
+    @Mock
+    private PasswordResetService passwordResetService;
+
     private MockMvc mockMvc;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @BeforeEach
     void setUp() {
-        AuthController controller = new AuthController(authService);
+        AuthController controller = new AuthController(authService, passwordResetService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .defaultResponseCharacterEncoding(StandardCharsets.UTF_8)
@@ -136,7 +143,7 @@ class AuthControllerTest {
         RefreshTokenRequest request = new RefreshTokenRequest();
         request.setRefreshToken("valid-refresh-token");
 
-        LoginResponse expectedResponse = new LoginResponse("new-access-token", "valid-refresh-token",false);
+        LoginResponse expectedResponse = new LoginResponse("new-access-token", "valid-refresh-token", false);
         when(authService.refresh(anyString())).thenReturn(expectedResponse);
 
         mockMvc.perform(post("/api/auth/refresh")
@@ -194,7 +201,7 @@ class AuthControllerTest {
         LogoutRequest request = new LogoutRequest();
         request.setRefreshToken("token-to-revoke");
 
-        doNothing().when(authService).logout("token-to-revoke");
+        doNothing().when(authService).logout("token-to-revoke", null);
 
         mockMvc.perform(post("/api/auth/logout")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -202,7 +209,29 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Çıkış yapıldı"));
 
-        verify(authService, times(1)).logout("token-to-revoke");
+        verify(authService, times(1)).logout("token-to-revoke", null);
+    }
+
+    /**
+     * Is M4: mobil istemci cihaz token'ini govdede gonderir; controller bunu
+     * oldugu gibi servise iletmeli.
+     */
+    @Test
+    @DisplayName("Gövdedeki deviceToken servise iletilmeli")
+    void logout_deviceTokenGonderilirse_serviseIletilmeli() throws Exception {
+        LogoutRequest request = new LogoutRequest();
+        request.setRefreshToken("token-to-revoke");
+        request.setDeviceToken("cihaz-token");
+
+        doNothing().when(authService).logout("token-to-revoke", "cihaz-token");
+
+        mockMvc.perform(post("/api/auth/logout")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Çıkış yapıldı"));
+
+        verify(authService, times(1)).logout("token-to-revoke", "cihaz-token");
     }
 
     @Test
@@ -212,7 +241,7 @@ class AuthControllerTest {
         request.setRefreshToken("olmayan-token");
 
         // AuthService.logout, token bulunamazsa sessizce hiçbir şey yapmıyor (exception fırlatmıyor)
-        doNothing().when(authService).logout("olmayan-token");
+        doNothing().when(authService).logout("olmayan-token", null);
 
         mockMvc.perform(post("/api/auth/logout")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -220,7 +249,7 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Çıkış yapıldı"));
 
-        verify(authService, times(1)).logout("olmayan-token");
+        verify(authService, times(1)).logout("olmayan-token", null);
     }
 
     @Test
@@ -232,7 +261,7 @@ class AuthControllerTest {
         // AuthService.logout kimlik dogrulamaz, yalnizca token'i iptal eder.
         // Buradan gelen bir hata kimlik hatasi degil sunucu hatasidir.
         doThrow(new RuntimeException("Token işlenemedi"))
-                .when(authService).logout("bad-token");
+                .when(authService).logout("bad-token", null);
 
         mockMvc.perform(post("/api/auth/logout")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -240,5 +269,129 @@ class AuthControllerTest {
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.code").value("INTERNAL_ERROR"))
                 .andExpect(jsonPath("$.message").value("Beklenmeyen bir hata oluştu"));
+    }
+
+    // ==================== SIFREMI UNUTTUM ====================
+
+    @Test
+    @DisplayName("Şifre sıfırlama kodu istendiğinde 202 dönmeli")
+    void forgotPassword_gecerliEposta_202Donmeli() throws Exception {
+        mockMvc.perform(post("/api/auth/forgot-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"test@example.com"}"""))
+                .andExpect(status().isAccepted());
+
+        verify(passwordResetService, times(1)).requestCode("test@example.com");
+    }
+
+    @Test
+    @DisplayName("Kayıtsız e-posta da 202 almalı: cevap hesabın varlığını sızdırmamalı")
+    void forgotPassword_kayitsizEposta_yineDe202Donmeli() throws Exception {
+        // Servis bilinmeyen adres için sessizce geçiyor; controller da ayırt etmemeli.
+        mockMvc.perform(post("/api/auth/forgot-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"yok@example.com"}"""))
+                .andExpect(status().isAccepted())
+                .andExpect(content().string(""));
+    }
+
+    @Test
+    @DisplayName("Doğru kod ile 200 ve tek kullanımlık anahtar dönmeli")
+    void verifyResetCode_dogruKod_anahtarDonmeli() throws Exception {
+        when(passwordResetService.verifyCode("test@example.com", "123456")).thenReturn("anahtar");
+        when(passwordResetService.tokenTtlSeconds()).thenReturn(900L);
+
+        mockMvc.perform(post("/api/auth/verify-reset-code")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"test@example.com","code":"123456"}"""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resetToken").value("anahtar"))
+                .andExpect(jsonPath("$.expiresInSeconds").value(900));
+    }
+
+    @Test
+    @DisplayName("6 haneli olmayan kod servise ulaşmadan 400 ile reddedilmeli")
+    void verifyResetCode_altiHaneliDegil_400Donmeli() throws Exception {
+        mockMvc.perform(post("/api/auth/verify-reset-code")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"test@example.com","code":"12a4"}"""))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+        verifyNoInteractions(passwordResetService);
+    }
+
+    @Test
+    @DisplayName("Yanlış kod INVALID_OR_EXPIRED_RESET_CODE koduyla 400 dönmeli")
+    void verifyResetCode_yanlisKod_400Donmeli() throws Exception {
+        when(passwordResetService.verifyCode(anyString(), anyString()))
+                .thenThrow(new InvalidResetCodeException("Doğrulama kodu geçersiz veya süresi dolmuş"));
+
+        mockMvc.perform(post("/api/auth/verify-reset-code")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"test@example.com","code":"000000"}"""))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_OR_EXPIRED_RESET_CODE"))
+                .andExpect(jsonPath("$.message").value("Doğrulama kodu geçersiz veya süresi dolmuş"));
+    }
+
+    @Test
+    @DisplayName("Şifre sıfırlandığında 204 dönmeli")
+    void resetPassword_gecerliAnahtar_204Donmeli() throws Exception {
+        mockMvc.perform(post("/api/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"token":"anahtar","newPassword":"YeniSifre123"}"""))
+                .andExpect(status().isNoContent());
+
+        verify(passwordResetService, times(1)).resetPassword("anahtar", "YeniSifre123");
+    }
+
+    @Test
+    @DisplayName("Kurallara uymayan yeni şifre servise ulaşmadan 400 ile reddedilmeli")
+    void resetPassword_zayifSifre_400Donmeli() throws Exception {
+        mockMvc.perform(post("/api/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"token":"anahtar","newPassword":"kisa"}"""))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("newPassword"));
+
+        verifyNoInteractions(passwordResetService);
+    }
+
+    @Test
+    @DisplayName("Yeni şifre eskisiyle aynıysa PASSWORD_REUSED koduyla 400 dönmeli")
+    void resetPassword_ayniSifre_400Donmeli() throws Exception {
+        doThrow(new PasswordReuseException("Yeni şifreniz mevcut şifrenizle aynı olamaz"))
+                .when(passwordResetService).resetPassword(anyString(), anyString());
+
+        mockMvc.perform(post("/api/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"token":"anahtar","newPassword":"EskiSifre123"}"""))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("PASSWORD_REUSED"))
+                .andExpect(jsonPath("$.message").value("Yeni şifreniz mevcut şifrenizle aynı olamaz"));
+    }
+
+    @Test
+    @DisplayName("Geçersiz anahtar INVALID_OR_EXPIRED_RESET_TOKEN koduyla 400 dönmeli")
+    void resetPassword_gecersizAnahtar_400Donmeli() throws Exception {
+        doThrow(new InvalidResetTokenException("Şifre sıfırlama anahtarı geçersiz veya süresi dolmuş"))
+                .when(passwordResetService).resetPassword(anyString(), anyString());
+
+        mockMvc.perform(post("/api/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"token":"uydurma","newPassword":"YeniSifre123"}"""))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_OR_EXPIRED_RESET_TOKEN"));
     }
 }

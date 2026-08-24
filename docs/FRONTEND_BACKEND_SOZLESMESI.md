@@ -1,6 +1,6 @@
 # Frontend - Backend Entegrasyon Sözleşmesi
 
-Bu belge EBYS frontendinin ihtiyaç duyduğu API kabiliyetlerini tanımlar. Endpoint adları backend ekibinin Swagger/OpenAPI dokümanıyla kesinleştirilecektir. Buradaki örnek adresler öneridir; rol, durum ve aksiyon değerleri ise mevcut backend diyagramındaki adlarla uyumludur.
+Bu belge EBYS frontendinin kullandığı API sözleşmesini ve henüz tamamlanmamış entegrasyon ihtiyaçlarını tanımlar. Mevcut endpoint ve cevap modellerinde backend kodu ile Swagger/OpenAPI dokümanı esas alınır. Gelecekte eklenmesi beklenen işlemler ayrıca "backend bekleniyor" olarak işaretlenir.
 
 ## 1. Temel kararlar
 
@@ -19,8 +19,8 @@ Bu belge EBYS frontendinin ihtiyaç duyduğu API kabiliyetlerini tanımlar. Endp
 | API değeri | Arayüz etiketi | Temel kapsam |
 |---|---|---|
 | `CALISAN` | Çalışan | Yalnız kendi kayıtları |
-| `BASKAN_YARDIMCISI` | Başkan Yardımcısı | Kendisine atanan ve kendi işlem yaptığı kayıtlar |
-| `BASKAN` | Başkan | Onay aşamasında kendisine gelen ve kendi işlem yaptığı kayıtlar |
+| `BASKAN_YARDIMCISI` | Başkan Yardımcısı | Kendisine atanan, düzeltme bekleyen ve bir kez kendi elinden geçmiş kayıtlar |
+| `BASKAN` | Başkan | Onayına gelen ve sonuçlandırdığı (`ONAYLANDI`/`REDDEDILDI`) kayıtlar |
 | `ADMIN` | Sistem Yöneticisi | Kullanıcı/rol yönetimi ve sistem genelindeki audit kayıtlarını görüntüleme |
 
 `ADMIN` workflow aktörü veya hedefi olamaz. Yetkili bir Admin başka bir aktif kullanıcıya `ADMIN` rolü atayabilir.
@@ -40,7 +40,7 @@ REDDEDILDI
 
 ## 3. Yetki ve durum geçişleri
 
-Backend tarafından desteklenmesi beklenen aksiyon değerleri:
+Backend tarafından desteklenen aksiyon değerleri:
 
 ```text
 GONDER
@@ -67,14 +67,17 @@ Her geçiş tek transaction içinde kaydı güncellemeli, audit log eklemeli ve 
 
 ## 4. Kimlik doğrulama
 
-Önerilen endpointler:
+Mevcut endpointler:
 
 | Metot | Adres | Koruma | Amaç |
 |---|---|---|---|
 | `POST` | `/api/auth/login` | Açık | Access/refresh token ve zorunlu parola değişikliği bilgisini üretir |
-| `POST` | `/api/auth/refresh` | Refresh token | Access token yeniler |
-| `POST` | `/api/auth/logout` | Bearer | Aktif refresh tokenı iptal eder |
+| `POST` | `/api/auth/refresh` | Açık | Gövdedeki refresh tokenı döndürerek access/refresh token çiftini yeniler |
+| `POST` | `/api/auth/logout` | Açık | Gövdedeki aktif refresh tokenı iptal eder |
 | `POST` | `/api/auth/change-password` | Bearer | Mevcut parolayı doğrulayıp parolayı değiştirir |
+| `POST` | `/api/auth/forgot-password` | Açık | E-posta adresine 6 haneli doğrulama kodu yollar |
+| `POST` | `/api/auth/verify-reset-code` | Açık | Kodu doğrular, tek kullanımlık sıfırlama anahtarı üretir |
+| `POST` | `/api/auth/reset-password` | Açık | Sıfırlama anahtarıyla yeni parola belirler |
 | `GET` | `/api/users/me` | Bearer | Aktif kullanıcının kimlik ve rol bilgisini döner |
 
 Giriş isteği:
@@ -105,14 +108,56 @@ Giriş cevabı:
 }
 ```
 
-Yeni parola en az 8 karakter olmalı, en az bir harf ve bir rakam içermelidir. Başarılı değişiklik `mustChangePassword=false` yapar ve kullanıcının aktif refresh tokenlarını iptal eder. Frontend yerel oturumu temizleyip kullanıcıdan yeni parolasıyla tekrar giriş yapmasını ister.
+Yeni parola en az 8 karakter olmalı, en az bir harf ve bir rakam içermelidir. Ayrıca mevcut paroladan farklı olmalıdır; aynıysa backend `400 PASSWORD_REUSED` döner ve frontend mesajı yeni parola alanının altında gösterir. Başarılı değişiklik `mustChangePassword=false` yapar ve kullanıcının aktif refresh tokenlarını iptal eder. Frontend yerel oturumu temizleyip kullanıcıdan yeni parolasıyla tekrar giriş yapmasını ister.
 
-Backend ekibinin ayrıca netleştirmesi gerekenler:
+### Unutulan parola akışı
 
-- Refresh tokenın request body mi yoksa ayrı bir header ile mi gönderileceği
-- Refresh token rotation ve iptal davranışı
-- Access ve refresh süreleri
-- Süresi dolmuş, geçersiz ve iptal edilmiş tokenlar için hata `code` değerleri
+Akış üç adımdır ve oturum gerektirmez: kullanıcı giriş ekranındaki **Şifremi unuttum** bağlantısıyla `/sifre-sifirla` adresine gider, e-postasına gelen 6 haneli kodu aynı ekranda girer, kod doğrulanınca `/sifre-degistir?token=...` parola belirleme ekranına yönlendirilir.
+
+**1. Kod talebi** — `POST /api/auth/forgot-password`
+
+```json
+{
+  "email": "john.doe@kurum.gov.tr"
+}
+```
+
+E-posta sistemde bulunsa da bulunmasa da cevap aynıdır: `202 Accepted`, gövdesiz. Farklı bir cevap ucu kayıtlı e-postaları keşfetmek için kullanılabilir hâle getirirdi. Hesap varsa ve aktifse backend rastgele bir 6 haneli kod üretip e-postayla yollar; kodun yalnızca BCrypt özeti saklanır. Aynı hesap için önceki açık kodlar geçersiz kılınır ve bekleme süresi (varsayılan 60 sn) dolmadan ikinci kod üretilmez.
+
+**2. Kod doğrulama** — `POST /api/auth/verify-reset-code`
+
+```json
+{
+  "email": "john.doe@kurum.gov.tr",
+  "code": "135790"
+}
+```
+
+Cevap `200 OK`:
+
+```json
+{
+  "resetToken": "tek-kullanimlik-anahtar",
+  "expiresInSeconds": 900
+}
+```
+
+Kod varsayılan olarak 10 dakika geçerlidir ve 5 yanlış denemeden sonra ölür; her başarısız durum ortak hata sözleşmesiyle `400 INVALID_OR_EXPIRED_RESET_CODE` döner (hangi sebep olduğu bilgisi sızdırılmaz). Dönen anahtar 256 bit rastgeledir, veritabanında SHA-256 özetiyle tutulur ve varsayılan 15 dakika geçerlidir.
+
+**3. Parola belirleme** — `POST /api/auth/reset-password`
+
+```json
+{
+  "token": "tek-kullanimlik-anahtar",
+  "newPassword": "YeniParola123"
+}
+```
+
+Başarılı istek `204 No Content` döner; anahtar yeniden kullanılamaz, parola BCrypt ile özetlenerek saklanır, `mustChangePassword=false` olur ve kullanıcının mevcut refresh tokenları iptal edilir. Geçersiz, kullanılmış veya süresi dolmuş anahtar `INVALID_OR_EXPIRED_RESET_TOKEN` kodunu döner. Yeni parola mevcut paroladan farklı olmalıdır: aynıysa `PASSWORD_REUSED` döner ve anahtar tüketilmez, kullanıcı başka bir parolayla tekrar deneyebilir. Frontend başarılı sıfırlamadan sonra `/giris?reason=password-reset` adresine gider.
+
+Süreler ve bekleme aralığı `app.password-reset.*` ayarlarıyla (ortam değişkeni karşılıkları `PASSWORD_RESET_CODE_TTL_MINUTES`, `PASSWORD_RESET_TOKEN_TTL_MINUTES`, `PASSWORD_RESET_RESEND_COOLDOWN_SECONDS`) değiştirilebilir.
+
+Refresh ve logout istekleri `{ "refreshToken": "..." }` gövdesini kullanır. Başarılı refresh işleminde eski token iptal edilip yeni access/refresh çifti üretilir. Varsayılan access süresi 1 saat, refresh süresi 7 gündür ve ortam değişkenleriyle değiştirilebilir. Geçersiz veya süresi dolmuş giriş/refresh bilgisi `401 INVALID_CREDENTIALS` döner.
 
 Frontend, 401 cevabında bir kez token yenilemeyi deneyip başarısız olursa `/giris?reason=expired` adresine yönlendirecektir. Bearer tokenı tarayıcı depolamasında tutmak XSS etkisini artırır; mobil uyumluluk kararı korunurken frontend ve backend tarafında CSP, kısa access süresi ve refresh rotation uygulanmalıdır.
 
@@ -121,22 +166,23 @@ Frontend, 401 cevabında bir kez token yenilemeyi deneyip başarısız olursa `/
 ### Listeleme
 
 ```http
-GET /api/records?page=0&size=10&status=TASLAK&categoryId=4&q=sunucu&from=2026-08-01&to=2026-08-31&sort=updatedAt,desc
+GET /api/records?page=0&size=10&status=TASLAK&categoryId=4&q=sunucu&from=2026-08-01T00:00:00&to=2026-08-31T23:59:59&sort=updatedAt,desc
 Authorization: Bearer <accessToken>
 ```
 
-Desteklenmesi beklenen parametreler:
+Desteklenen parametreler:
 
 | Parametre | Tip | Açıklama |
 |---|---|---|
-| `page` | integer | Öneri: Spring ile uyumlu, 0 tabanlı |
+| `page` | integer | Spring ile uyumlu, 0 tabanlı |
 | `size` | integer | İlk sürümde `5`, `10`, `20` |
-| `q` | string | Kayıt numarası, başlık ve açıklamada arama |
-| `status` | enum veya tekrar eden parametre | Bir veya birden fazla durum |
+| `q` | string | Başlık ve açıklamada arama |
+| `status` | enum | Tek durum filtresi |
 | `categoryId` | integer/uuid | Kategori filtresi |
-| `from` | `YYYY-MM-DD` | Güncellenme tarihi başlangıcı |
-| `to` | `YYYY-MM-DD` | Güncellenme tarihi bitişi |
-| `sort` | string | Öneri: `updatedAt,desc` |
+| `from` | ISO 8601 date-time | Oluşturulma tarihi başlangıcı |
+| `to` | ISO 8601 date-time | Oluşturulma tarihi bitişi |
+| `creator` | string | Oluşturan kişinin ad/soyad bilgisinde arama |
+| `sort` | string | Spring Data sıralaması; ör. `updatedAt,desc` |
 
 Sayfalı cevap:
 
@@ -181,11 +227,31 @@ Rol bazlı `gorunum` eşlemeleri:
 
 ### Detay, oluşturma ve düzenleme
 
-| Metot | Önerilen adres | Amaç |
+| Metot | Adres | Amaç |
 |---|---|---|
 | `GET` | `/api/records/{id}` | Yetki kapsamındaki kayıt detayı |
 | `POST` | `/api/records` | Çalışanın yeni taslağını oluşturur |
 | `PUT` | `/api/records/{id}` | Sahibi olan çalışanın taslak/düzeltme kaydını günceller |
+
+#### Düzeltmedeki kaydın içeriği dondurulur
+
+Kayıt `CALISANA_GERI_GONDER` ile düzeltmeye düştüğünde içeriğinin o anki hali
+(`title`, `description`, `categoryId`) kaydın üzerinde saklanır. Başkan
+Yardımcısı `duzeltmede-olanlar` sekmesinden bu kaydı izlemeye devam eder, ancak
+evrak o sırada Çalışanın elindedir: yardımcıya **devir anındaki kopya**
+gösterilir. Çalışanın düzeltme sırasında kaydettiği değişiklikler ona yansımaz;
+`TEKRAR_GONDER` ile kayıt yeniden yardımcıya atandığında güncel içerik açılır.
+
+Kural detay ucunda, liste/arama ucunda ve ek dosya listesinde birlikte
+uygulanır — yalnızca biri dondurulsaydı liste başlığı ya da yeni yüklenen bir ek
+sızdırmaya devam ederdi. Ek dosyalar ayrıca kopyalanmaz; `uploaded_at` ve
+`deleted_at` üzerinden devir anına göre süzülür, dolayısıyla devirde duran ama
+sonradan silinen bir ek yardımcıda hâlâ görünür, sonradan eklenen görünmez.
+Listede gizlenen bir eke kimliğiyle doğrudan erişim de `404` döner.
+
+Kaydın sahibi Çalışan ve Başkan bu dondurmadan etkilenmez; ikisi de her zaman
+güncel içeriği görür. İşlem geçmişinde ise Başkanın da kendi kırpması vardır:
+geçmiş, evrak kendisine ilk iletildiği anda başlar (bkz. §6).
 | `DELETE` | `/api/records/{id}` | Yalnız `TASLAK` kaydını siler veya soft-delete yapar |
 
 Oluşturma/güncelleme gövdesi:
@@ -198,7 +264,9 @@ Oluşturma/güncelleme gövdesi:
 }
 ```
 
-Backend tarafından üretilmesi gereken alanlar: `id`, benzersiz ve değişmez `recordNo`, `status`, `createdBy`, `assignedTo`, `createdAt`, `updatedAt`.
+Tekil kayıt cevabı düz bir modeldir ve `id`, `title`, `description`, `categoryId`, `status`, `createdAt`, `createdBy`, `createdByFullName` alanlarını taşır. Liste cevabındaki öğeler bunlara ek olarak `assignedTo` ve `updatedAt` alanlarını içerir. Kategori adı `/api/categories`, ek dosyalar dosya endpointleri ve işlem geçmişi audit endpointi üzerinden alınır.
+
+`createdBy` kullanıcı UUID'sidir; `createdByFullName` ise onun gösterim adıdır ve **hem liste hem detay cevabında** gelir. Normal kullanıcıların başka kullanıcıları çözümleyebileceği genel bir kullanıcı listeleme endpointi yok, bu yüzden ad kayıtla birlikte gönderilir. İstemci adı işlem geçmişindeki `RECORD_CREATED` satırından türetmemelidir: geçmişi kırpılan roller (Başkan) o satırı hiç görmez ve geri düşülen ilk satır başka birini gösterir (bkz. §6). Kullanıcı silinmişse alan boş gelir; istemci kimliğe geri düşer. Oluşturan kişiye göre sunucu taraflı filtreleme `GET /api/records?creator=` parametresiyle desteklenir; bu parametre oluşturucunun ad ve soyadında arama yapar. Serbest metin `q` araması başlık ve açıklamayla sınırlı kalır.
 
 ### İş akışı aksiyonu
 
@@ -252,49 +320,59 @@ Başarılı aksiyon cevabı tam kayıt modeli değil, backend tarafından hesapl
 }
 ```
 
-Frontend başarılı cevaptan sonra bu geçiş özetini merkezi kayıt önbelleğine uygulayabilir veya kayıt detayını yeniden isteyebilir. Tercih, kayıt sorgu endpointleri ve OpenAPI sözleşmesi tamamlandığında API adaptörü içinde verilmelidir; component katmanına doğrudan `fetch` çağrısı eklenmemelidir.
+Frontend başarılı cevaptan sonra ilgili kayıt, liste ve geçmiş sorgularını geçersiz kılarak güncel veriyi yeniden ister. Bu davranış API/query katmanında tutulur; component katmanına doğrudan `fetch` çağrısı eklenmez.
 
-Bu endpoint şu anda `WorkflowActionApi` arayüzüyle HTTP sözleşmesi olarak tanımlanmıştır. Somut Spring controller, transaction sınırı, güvenlik aktörü, kalıcılık portları ve ortak hata eşlemesi tamamlanmadan frontend entegrasyonu çalışır kabul edilmemelidir.
+Endpoint somut controller ve uygulama servisiyle çalışır; durum/atama güncellemesi, audit kaydı ve bildirim aynı transaction içinde yürütülür. Yetkili aktör JWT'den belirlenir ve hedef kullanıcı backend tarafından çözülür.
+
+#### Frontend yeniden gönderme davranışı
+
+`DUZENLEME_BEKLIYOR` durumundaki kaydı formda kaydetmek yalnız `PUT /api/records/{id}` isteğiyle içeriği günceller; kayıt durumunu değiştirmez. Kullanıcı daha sonra `TEKRAR_GONDER` workflow aksiyonunu ayrıca çalıştırmalıdır. Frontend, geri dönen kaydın detayında **Yeniden Gönder** aksiyonunu göstermeli; düzenleme ekranında yalnız kaydetme sunuluyorsa kaydetme sonrasında kullanıcıyı bu aksiyona açıkça yönlendirmelidir. Bu davranış backend teslimi değil, frontend takip işidir.
 
 ### Kayıt detay cevap modeli
 
 ```json
 {
   "id": "record-uuid",
-  "recordNo": "EBYS-2026-000023",
   "title": "Sunucu Donanım Alım Talebi",
   "description": "Talebin ayrıntılı açıklaması",
-  "category": { "id": 4, "name": "Bilgi İşlem" },
+  "categoryId": 4,
   "status": "BASKAN_INCELEMESINDE",
-  "createdBy": {
-    "id": "employee-uuid",
-    "firstName": "John",
-    "lastName": "Doe",
-    "email": "john.doe@kurum.gov.tr"
-  },
-  "assignedTo": {
-    "id": "chair-uuid",
-    "firstName": "Mehmet",
-    "lastName": "Demir",
-    "role": "BASKAN"
-  },
-  "attachments": [],
-  "lastAction": {
-    "action": "BASKANA_ILET",
-    "comment": "Teknik şartname uygun bulundu.",
-    "actor": { "id": "deputy-uuid", "firstName": "Ayşe", "lastName": "Kaya" },
-    "createdAt": "2026-08-04T10:30:00Z"
-  },
-  "createdAt": "2026-08-01T09:15:00Z",
-  "updatedAt": "2026-08-04T10:30:00Z"
+  "createdAt": "2026-08-01T09:15:00"
 }
 ```
 
+Bu cevap kategori, dosya veya geçmiş nesnelerini içine gömmez. Frontend gerekli ek verileri ilgili endpointlerden alır ve sorgu önbelleğinde birleştirir.
+
 ## 6. İşlem geçmişi ve açıklamalar
 
-| Metot | Önerilen adres | Amaç |
+| Metot | Adres | Amaç |
 |---|---|---|
 | `GET` | `/api/audit-logs/record/{recordId}` | Kullanıcının görmeye yetkili olduğu kaydın işlem geçmişi ve kesinleşmiş açıklamaları |
+
+Kaydı görebilmek geçmişin tamamını görebilmek anlamına gelmez. Kural tek
+cümleyle: **kullanıcı evrağı yalnız kendi masasında olduğu dönem boyunca
+görür.** Bunun iki yönü var ve kırpma her ikisinde de sunucuda yapılır;
+gizlenen satırlar cevaba hiç konmaz.
+
+**Geriye doğru kırpma (Başkan Yardımcısı).** `duzeltmede-olanlar` sekmesi
+sayesinde geri gönderdiği kaydı `DUZENLEME_BEKLIYOR` durumunda izlemeye devam
+eder, ancak evrak o sırada Çalışanın elindedir: bu aralıkta geçmiş **devir
+anına kadar kırpılmış** döner. Çalışanın düzeltme sırasında ürettiği satırlar
+(`RECORD_UPDATED`) listeye girmez. Çalışan `TEKRAR_GONDER` ile kaydı geri
+yolladığında kayıt yeniden yardımcıya atanır ve geçmiş bütünüyle açılır.
+
+**İleriye doğru kırpma (Başkan).** Geçmiş, evrağın Başkana **ilk iletildiği
+andan itibaren** başlar; öncesindeki Çalışan–Başkan Yardımcısı trafiği
+(oluşturma, düzeltme turları, geri gönderme gerekçeleri) ona kapalıdır. Kesme
+noktası ilk iletimdir, sonuncusu değil: Başkan evrağı yardımcıya geri gönderip
+tekrar aldığında son iletime göre kırpmak, kendi yazdığı gerekçeyi de gizlerdi.
+İletimi açıklayan geçiş satırı bulunamazsa (veri tutarsızlığı) cevap boş döner.
+
+Kaydın sahibi Çalışan her iki kırpmadan da etkilenmez; geçmişini eksiksiz görür.
+
+Geçmişi kırpılan roller oluşturma satırını görmediği için, **kaydı oluşturanın
+adı denetim izinden türetilmemelidir**; `createdByFullName` alanı hem liste hem
+detay cevabında bu yüzden vardır (bkz. §5).
 
 Cevap `AuditLogResponse` listesidir. İşlemi yapan kişi **iç içe `actor` nesnesi
 değil, düz alanlar** olarak döner (`userId`, `userFullName`, `roleId`,
@@ -311,7 +389,7 @@ değil, düz alanlar** olarak döner (`userId`, `userFullName`, `roleId`,
     "roleName": "BASKAN_YARDIMCISI",
     "action": "BASKANA_ILET",
     "previousStatus": "BSK_YRD_INCELEMESINDE",
-    "newStatus": "BASKAN_ONAYINDA",
+    "newStatus": "BASKAN_INCELEMESINDE",
     "comment": "Uygun bulunmuştur.",
     "createdAt": "2026-08-04T10:30:00Z"
   }
@@ -326,9 +404,9 @@ Başkana iletme, gönderme ve onay açıklaması isteğe bağlı; ret ve tüm ge
 
 ## 7. Kategoriler
 
-| Metot | Önerilen adres | Amaç |
+| Metot | Adres | Amaç |
 |---|---|---|
-| `GET` | `/api/categories?active=true` | Form ve filtrelerde kullanılacak tek kategori kaynağı |
+| `GET` | `/api/categories` | Form ve filtrelerde kullanılacak tek kategori kaynağı |
 
 Kategori adı frontend içinde kalıcı enum olarak kabul edilmemelidir. Şu anki mock değerler: İdari, Mali, İnsan Kaynakları, Bilgi İşlem ve Teknik.
 
@@ -336,7 +414,7 @@ Başkan Yardımcısı ve Başkan frontend tarafından seçilmez. Backend beklene
 
 ## 8. Admin kullanıcı, rol ve log API'si
 
-| Metot | Önerilen adres | Amaç |
+| Metot | Adres | Amaç |
 |---|---|---|
 | `GET` | `/api/admin/users?page=0&size=10&q=&role=&active=` | Kullanıcı listesi, arama ve filtreleme |
 | `POST` | `/api/admin/users` | Varsayılan Çalışan rolüyle hesap açma; istek rol alanı içermez |
@@ -371,7 +449,7 @@ gövdesinde yapılır:
 
 - `roleName` zorunludur. `replacementBaskanYardimcisiId` normalde gönderilmez.
 - Bir kullanıcı **`BASKAN_YARDIMCISI` rolünden çıkıyorsa** koltuk boşalacağı için `replacementBaskanYardimcisiId` **aynı istekte zorunludur**; gönderilmezse `400 BUSINESS_RULE_VIOLATION`. Backend rastgele/otomatik atama yapmaz, devredilecek kişiyi Admin açıkça seçer.
-- Belirtilen kullanıcı aynı transaction içinde `BASKAN_YARDIMCISI` yapılır ve iki rol değişikliği için de birer `user_audit_logs` kaydı üretilir.
+- Belirtilen kullanıcı aynı transaction içinde `BASKAN_YARDIMCISI` yapılır, eski Başkan Yardımcısına atanmış kayıtlar yeni kullanıcıya devredilir ve rol/görev devri audit kayıtları üretilir.
 - Yerine atanacak kullanıcı koltuğu boşaltan kişinin kendisi olamaz ve pasif bir hesap olamaz → `400 BUSINESS_RULE_VIOLATION`. Kullanıcı bulunamazsa `404 RESOURCE_NOT_FOUND`.
 - **Aktif Başkan Yardımcısı doğrudan pasifleştirilemez.** `PATCH /api/admin/users/{id}/active` isteği `400 BUSINESS_RULE_VIOLATION` döner ("Önce Başkan Yardımcısı rolünü başka bir aktif kullanıcıya devredin"). Arayüz önce yukarıdaki devir isteğini yaptırmalı, pasifleştirmeyi ondan sonra denemelidir.
 - Admin hesabı da bu ekrandan pasifleştirilemez → `400 BUSINESS_RULE_VIOLATION`.
@@ -380,14 +458,15 @@ Hesap açma isteği `firstName`, `lastName`, `email` ve `password` alanlarını 
 
 ## 9. Dosyalar
 
-| Metot | Önerilen adres | Amaç |
+| Metot | Adres | Amaç |
 |---|---|---|
 | `POST` | `/api/records/{id}/files` | `multipart/form-data` ile dosya yükleme |
+| `GET` | `/api/records/{id}/files` | Yetki kapsamındaki kaydın eklerini listeleme |
 | `GET` | `/api/files/{id}/preview` | Yetki kontrolünden sonra önizleme |
 | `GET` | `/api/files/{id}/download` | Yetki kontrolünden sonra indirme |
 | `DELETE` | `/api/files/{id}` | Yalnız düzenlenebilir kayıttaki eki kaldırma |
 
-İlk sürümde frontend şu uzantıları kabul eder: PDF, DOC, DOCX, XLS, XLSX, PNG, JPG ve JPEG. Kesin dosya boyutu, dosya adedi ve MIME listesi backend ekibiyle netleştirilmelidir. Backend uzantıya güvenmemeli; içeriği/MIME değerini doğrulamalı ve saklama adını kullanıcıya göstermemelidir.
+Frontend ve backend PDF, DOC, DOCX, XLS, XLSX, PNG, JPG ve JPEG dosyalarını kabul eder. Backend dosya başına ve istek başına 10 MB sınırı uygular; içeriği Apache Tika ile doğrular, uzantı/MIME uyumunu denetler ve dosyayı rastgele saklama adıyla kaydeder. Kayıt başına azami dosya adedi henüz kesinleşmemiştir.
 
 ## 10. Bildirimler
 
@@ -413,7 +492,7 @@ Mevcut `NotificationResponse`; `id`, `recordId`, `message`, `notificationType`, 
 
 ## 11. Standart hata cevabı
 
-Spring Boot `@ControllerAdvice` ile ortak cevap önerisi:
+Spring Boot `@ControllerAdvice` ile kullanılan ortak cevap biçimi:
 
 ```json
 {
@@ -423,8 +502,7 @@ Spring Boot `@ControllerAdvice` ile ortak cevap önerisi:
   "message": "Bu kayıt mevcut durumunda yeniden gönderilemez.",
   "fieldErrors": [
     { "field": "title", "message": "Başlık zorunludur." }
-  ],
-  "traceId": "7f9c8a4b1a6e"
+  ]
 }
 ```
 
@@ -438,27 +516,25 @@ Beklenen HTTP durumları:
 | `404` | Kayıt bulunamadı ekranını gösterir |
 | `409` | Güncel olmayan durum/geçersiz geçiş mesajını gösterip kaydı yeniden çeker. `WORKFLOW_VERSION_CONFLICT` ve `VERSION_CONFLICT` kodları kayıt siz işlem yaparken değiştiği anlamına gelir: detay yeniden çekilmeli, güncel durum gösterilmeli, aksiyon **otomatik tekrarlanmamalıdır** |
 | `413` / `415` | Dosya boyutu/türü mesajını dosya alanında gösterir |
-| `500` | Genel hata mesajı ve `traceId` gösterir |
+| `500` | Hassas iç ayrıntı göstermeden genel hata mesajı sunar |
 
-## 12. Backend ekibinden beklenen teslimler
+## 12. Kalan backend entegrasyon ihtiyaçları
 
-1. Lokal API base URL ve varsa test ortamı URL'si
-2. Güncel Swagger/OpenAPI bağlantısı
-3. JWT login, refresh, logout ve hata örnekleri
-4. Sayfalama indeksinin 0 mı 1 mi başladığı
-5. Liste filtrelerinin ve çoklu `status` formatının kesin hali
-6. Kayıt aksiyon endpointinin kesin adresi ve request modeli
-7. Tek aktif Başkan Yardımcısı/Başkan çözümleme kuralı
-8. Kategori ve Admin kullanıcı/rol/audit endpointleri
-9. Dosya türü, boyutu ve adet sınırları
-10. Standart hata response'u ve tüm `code` değerleri
-11. CORS için `http://localhost:5173` izni
+1. Kayıt başına azami ek dosya adedi ve buna karşılık gelecek hata kodu
+2. README'deki ortak hata sözleşmesini tamamlamak için `ApiError` cevabına istek yolu (`path`) eklenmesi; dağıtık izleme kullanılacaksa `traceId` alanının ayrıca kararlaştırılması
+
+Kapanan maddeler:
+
+- ~~Kayıt liste/detay cevaplarında oluşturan kişinin güvenli gösterim adı~~ — **çözüldü.** `RecordResponse.createdByFullName` ve `RecordSearchResponse.createdByFullName` eklendi. Alan adı `createdByName` **değildir**; ad işlem geçmişinden türetilmemelidir (rol bazlı kırpma yüzünden Başkan'da yanlış kişiyi gösterir).
+- ~~Merkezi test ortamı açılırsa API base URL'si ve CORS origin yapılandırması~~ — **çözüldü (M9, 21 Ağustos 2026).** TEST ortamı `https://workflowproject-test.duckdns.org` adresinde ayakta; `CORS_ALLOWED_ORIGINS` ortam değişkeninden veriliyor. Ayrıntı: [TEST_ORTAMI_NOTU.md](TEST_ORTAMI_NOTU.md).
+
+Yerel geliştirmede API, Swagger/OpenAPI, JWT akışı, 0 tabanlı sayfalama, kayıt filtreleri, workflow aksiyonu, tekil rol hedefleme, kategori/Admin API'leri, ortak hata cevabı ve `http://localhost:5173` CORS izni mevcut backend tarafından sağlanmaktadır.
 
 Frontend ekibinin veritabanı bağlantı bilgisine veya şifresine ihtiyacı yoktur.
 
 ## 13. Açık ürün kararları
 
-- `records` tablosunda kullanıcıya gösterilecek benzersiz `record_no` alanı kesinleşmeli.
 - `notifications.record_id` zorunluysa kayıttan bağımsız sistem duyuruları desteklenmeyecek; gerekiyorsa şema değişmeli.
+- `ADMIN`, `BASKAN` ve `BASKAN_YARDIMCISI` tekil kalır. Başkan Yardımcısı için atomik devir modeli uygulanmıştır ve devredilecek kişi açıkça seçilir; rastgele kullanıcı atanmaz. Başkan için eşdeğer bir devir alanı/işlemi yoktur: mevcut Başkan varken başka bir kullanıcıyı Başkan yapma isteği `409 ADMIN_LIMIT_EXCEEDED` döner. Ürün kararı olarak bu davranışın korunacağı veya yeni Başkanı açıkça seçen atomik bir Başkanlık devri sözleşmesi ekleneceği netleştirilmelidir.
 - Profil güncelleme endpointi henüz kapsam dışıdır. Zorunlu ilk giriş parola değişikliği `POST /api/auth/change-password` ile desteklenir.
 - Self-service kayıt/signup ekranı kapsam dışıdır; kullanıcı hesaplarını yetkili sistem yöneticisi oluşturur.

@@ -20,6 +20,10 @@ public interface DeviceTokenRepository extends JpaRepository<DeviceToken, UUID> 
     @Query("SELECT d.token FROM DeviceToken d WHERE d.user.id = :userId AND d.active = true")
     List<String> findActiveTokensByUserId(@Param("userId") UUID userId);
 
+    /**
+     * Push gonderiminde token'in yaninda sahibi de loglandigi ve gecersiz token
+     * pasiflestirildigi icin kaydin tamami dondurulur.
+     */
     @Query("SELECT d FROM DeviceToken d WHERE d.user.id = :userId AND d.active = true")
     List<DeviceToken> findAllActiveByUserId(@Param("userId") UUID userId);
 

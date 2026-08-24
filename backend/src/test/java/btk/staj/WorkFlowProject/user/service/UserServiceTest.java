@@ -160,13 +160,17 @@ class UserServiceTest {
         when(roleRepository.findByName("BASKAN_YARDIMCISI")).thenReturn(Optional.of(bskYrd));
         when(userRepository.findByRole_NameAndActive("BASKAN", true)).thenReturn(List.of());
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
         when(recordRepository.devretBekleyenIsleri(targetId, replacementId)).thenReturn(5);
+        when(recordRepository.updateLastDeputyId(targetId, replacementId)).thenReturn(2);
 
         User result = userService.changeRole(targetId, "BASKAN", replacementId);
 
         assertThat(result.getRole().getName()).isEqualTo("BASKAN");
         assertThat(replacement.getRole().getName()).isEqualTo("BASKAN_YARDIMCISI");
+
         verify(recordRepository).devretBekleyenIsleri(targetId, replacementId);
+        verify(recordRepository).updateLastDeputyId(targetId, replacementId);
     }
 
     @Test
@@ -181,7 +185,6 @@ class UserServiceTest {
         when(roleRepository.findByName("BASKAN")).thenReturn(Optional.of(baskan));
         when(userRepository.findByRole_NameAndActive("BASKAN", true)).thenReturn(List.of());
         when(userRepository.save(target)).thenReturn(target);
-        when(userRepository.findById(targetId)).thenReturn(Optional.of(target));
 
         assertThatExceptionOfType(BusinessRuleException.class)
                 .isThrownBy(() -> userService.changeRole(targetId, "BASKAN", targetId));
@@ -206,6 +209,50 @@ class UserServiceTest {
         assertThatExceptionOfType(BusinessRuleException.class)
                 .isThrownBy(() -> userService.changeRole(targetId, "BASKAN", replacementId))
                 .withMessageContaining("Pasif");
+    }
+
+    // ---------------- Is A3: devralan aday yalnizca CALISAN olabilir ----------------
+
+    @Test
+    @DisplayName("Admin rolundeki aday Baskan Yardimcisi yapilamaz")
+    void changeRole_adminReplacementOlamaz() {
+        UUID targetId = UUID.randomUUID();
+        UUID replacementId = UUID.randomUUID();
+        Role bskYrd = role(2, "BASKAN_YARDIMCISI");
+        Role baskan = role(3, "BASKAN");
+        User target = user(targetId, bskYrd, true);
+        User adminReplacement = user(replacementId, role(4, "ADMIN"), true);
+
+        when(userRepository.findById(targetId)).thenReturn(Optional.of(target));
+        when(userRepository.findById(replacementId)).thenReturn(Optional.of(adminReplacement));
+        when(roleRepository.findByName("BASKAN")).thenReturn(Optional.of(baskan));
+        when(userRepository.findByRole_NameAndActive("BASKAN", true)).thenReturn(List.of());
+        when(userRepository.save(target)).thenReturn(target);
+
+        assertThatExceptionOfType(BusinessRuleException.class)
+                .isThrownBy(() -> userService.changeRole(targetId, "BASKAN", replacementId))
+                .withMessageContaining("Çalışan rolündeki");
+    }
+
+    @Test
+    @DisplayName("Baskan rolundeki aday Baskan Yardimcisi yapilamaz")
+    void changeRole_baskanReplacementOlamaz() {
+        UUID targetId = UUID.randomUUID();
+        UUID replacementId = UUID.randomUUID();
+        Role bskYrd = role(2, "BASKAN_YARDIMCISI");
+        Role baskan = role(3, "BASKAN");
+        User target = user(targetId, bskYrd, true);
+        User baskanReplacement = user(replacementId, baskan, true);
+
+        when(userRepository.findById(targetId)).thenReturn(Optional.of(target));
+        when(userRepository.findById(replacementId)).thenReturn(Optional.of(baskanReplacement));
+        when(roleRepository.findByName("BASKAN")).thenReturn(Optional.of(baskan));
+        when(userRepository.findByRole_NameAndActive("BASKAN", true)).thenReturn(List.of());
+        when(userRepository.save(target)).thenReturn(target);
+
+        assertThatExceptionOfType(BusinessRuleException.class)
+                .isThrownBy(() -> userService.changeRole(targetId, "BASKAN", replacementId))
+                .withMessageContaining("Çalışan rolündeki");
     }
 
     // ---------------- setActive ----------------
@@ -257,5 +304,54 @@ class UserServiceTest {
                 .isThrownBy(() -> userService.createUser("Ad", "Soyad", "mevcut@example.com", "sifre123"));
 
         verifyNoInteractions(userAuditLogService);
+    }
+
+    // ---------------- kullaniciIsleriniDevret (Is M5: last_deputy_id) ----------------
+
+    @Test
+    @DisplayName("kullaniciIsleriniDevret hem assigned_to hem last_deputy_id alanini devreder")
+    void kullaniciIsleriniDevret_assignedToVeLastDeputyIdBirlikteGuncellenir() {
+        UUID eskiKullaniciId = UUID.randomUUID();
+        UUID yeniKullaniciId = UUID.randomUUID();
+
+        when(recordRepository.devretBekleyenIsleri(eskiKullaniciId, yeniKullaniciId)).thenReturn(3);
+        when(recordRepository.updateLastDeputyId(eskiKullaniciId, yeniKullaniciId)).thenReturn(4);
+
+        userService.kullaniciIsleriniDevret(eskiKullaniciId, yeniKullaniciId);
+
+        verify(recordRepository).devretBekleyenIsleri(eskiKullaniciId, yeniKullaniciId);
+        verify(recordRepository).updateLastDeputyId(eskiKullaniciId, yeniKullaniciId);
+        verify(userAuditLogService).logIslem(
+                org.mockito.ArgumentMatchers.eq(yeniKullaniciId),
+                org.mockito.ArgumentMatchers.eq(ADMIN_ACTOR_ID),
+                org.mockito.ArgumentMatchers.eq("TASKS_REASSIGNED"),
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.contains("last_deputy_id"));
+    }
+
+    @Test
+    @DisplayName("last_deputy_id guncellenecek kayit yoksa devir yine de basarili tamamlanir")
+    void kullaniciIsleriniDevret_lastDeputyIdEtkilenenKayitYoksaHataVermez() {
+        UUID eskiKullaniciId = UUID.randomUUID();
+        UUID yeniKullaniciId = UUID.randomUUID();
+
+        when(recordRepository.devretBekleyenIsleri(eskiKullaniciId, yeniKullaniciId)).thenReturn(0);
+        when(recordRepository.updateLastDeputyId(eskiKullaniciId, yeniKullaniciId)).thenReturn(0);
+
+        userService.kullaniciIsleriniDevret(eskiKullaniciId, yeniKullaniciId);
+
+        verify(recordRepository).updateLastDeputyId(eskiKullaniciId, yeniKullaniciId);
+        verify(userAuditLogService).logIslem(
+                org.mockito.ArgumentMatchers.eq(yeniKullaniciId),
+                org.mockito.ArgumentMatchers.eq(ADMIN_ACTOR_ID),
+                org.mockito.ArgumentMatchers.eq("TASKS_REASSIGNED"),
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.anyString());
     }
 }

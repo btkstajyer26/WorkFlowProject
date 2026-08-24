@@ -10,12 +10,14 @@ import btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy;
 import btk.staj.WorkFlowProject.record.dto.*;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.mapper.RecordMapper;
+import btk.staj.WorkFlowProject.record.view.RecordContentView;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import btk.staj.WorkFlowProject.user.repository.UserRepository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -29,17 +31,23 @@ public class RecordServiceImpl implements RecordService {
     private final RecordAccessPolicy recordAccessPolicy;
     private final PermissionService permissionService;
     private final AuditLogService auditLogService;
+    private final RecordContentView recordContentView;
+    private final UserRepository userRepository;
 
     public RecordServiceImpl(RecordRepository recordRepository,
                              RecordMapper recordMapper,
                              RecordAccessPolicy recordAccessPolicy,
                              PermissionService permissionService,
-                             AuditLogService auditLogService) {
+                             AuditLogService auditLogService,
+                             RecordContentView recordContentView,
+                             UserRepository userRepository) {
         this.recordRepository = recordRepository;
         this.recordMapper = recordMapper;
         this.recordAccessPolicy = recordAccessPolicy;
         this.permissionService = permissionService;
         this.auditLogService = auditLogService;
+        this.recordContentView = recordContentView;
+        this.userRepository = userRepository;
     }
 
     /**
@@ -88,6 +96,9 @@ public class RecordServiceImpl implements RecordService {
 
         Record record = recordMapper.toEntity(request, getCurrentUserId());
         record.setCreatedAt(LocalDateTime.now());
+        // Sartnameye gore yeni kayit TASLAK baslar. Mapper zaten boyle kuruyor;
+        // bu satir niyeti cagri yerinde de gorunur kiliyor.
+        record.setStatus(RecordStatus.TASLAK);
 
         Record savedRecord = recordRepository.save(record);
 
@@ -105,15 +116,37 @@ public class RecordServiceImpl implements RecordService {
     @Override
     public RecordResponse getRecordById(UUID id) {
         Record record = findRecordOrThrow(id);
+        RoleName role = getCurrentUserRole();
+        UUID userId = getCurrentUserId();
 
         recordAccessPolicy.assertCanView(
-                getCurrentUserRole(),
-                getCurrentUserId(),
+                role,
+                userId,
                 record.getCreatedBy(),
                 record.getAssignedTo(),
+                record.getLastDeputyId(),
                 record.getStatus());
 
-        return recordMapper.toResponse(record);
+        // Kaydi gorebilmek guncel icerigi gormek demek degil: geri gonderen
+        // yetkiliye devir anindaki kopya gosterilir.
+        return recordMapper.toResponse(
+                record,
+                recordContentView.visibleContent(record, role, userId),
+                creatorFullName(record.getCreatedBy()));
+    }
+
+    /**
+     * Olusturanin gorunur adi. Kullanici silinmisse ad bos kalir; istemci
+     * kimlige geri duser. Adi cevaba koymak sart: gecmisi kirpilan roller
+     * (Baskan) olusturma satirini gormedigi icin denetim izinden turetemez.
+     */
+    private String creatorFullName(UUID createdBy) {
+        if (createdBy == null) {
+            return null;
+        }
+        return userRepository.findById(createdBy)
+                .map(user -> (user.getFirstName() + " " + user.getLastName()).trim())
+                .orElse(null);
     }
 
     // Listeleme burada degil: filtreleme ve gorunurluk kapsami RecordSearchService'e

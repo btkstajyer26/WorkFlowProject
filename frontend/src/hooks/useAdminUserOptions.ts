@@ -1,20 +1,17 @@
 import { useQuery } from '@tanstack/react-query'
 import { listAllAdminUsers } from '../api/admin'
-import { apiMode } from '../api/config'
 import { queryKeys } from '../query/queryKeys'
-import type { ManagedUser } from '../types/admin'
 
-export function useAdminUserOptions(mockUsers: ManagedUser[], enabled: boolean) {
-  const backendMode = apiMode === 'backend'
+export function useAdminUserOptions(enabled: boolean) {
   const query = useQuery({
     queryKey: queryKeys.admin.users.options,
     queryFn: () => listAllAdminUsers(),
-    enabled: backendMode && enabled,
+    enabled,
   })
 
   return {
-    users: backendMode ? query.data ?? [] : mockUsers,
-    isPending: backendMode && query.isPending,
-    isError: backendMode && query.isError,
+    users: query.data ?? [],
+    isPending: query.isPending,
+    isError: query.isError,
   }
 }

@@ -38,25 +38,57 @@ export class ApiClientError extends Error {
   }
 }
 
+export function sanitizeErrorMessage(message: string, code?: string, status?: number): string {
+  const normalized = message.trim()
+
+  if (
+    code === 'METHOD_NOT_ALLOWED' ||
+    status === 405 ||
+    /^Request method '\w+' (is )?not supported/i.test(normalized)
+  ) {
+    return 'İstenen işlem bu kaynak için geçerli değil veya desteklenmiyor.'
+  }
+
+  if (code === 'UNSUPPORTED_MEDIA_TYPE' || status === 415) {
+    return 'Desteklenmeyen dosya veya içerik türü.'
+  }
+
+  if (
+    code === 'INTERNAL_ERROR' ||
+    status === 500 ||
+    /Exception|NullPointer|ServletException|HttpMediaType/i.test(normalized)
+  ) {
+    return 'Sunucu tarafında bir hata oluştu. Lütfen tekrar deneyin.'
+  }
+
+  return normalized || 'Beklenmeyen bir hata oluştu.'
+}
+
 export function toApiClientError(error: unknown) {
   if (error instanceof ApiClientError) return error
 
   if (isAxiosError(error)) {
     const responseBody: unknown = error.response?.data
-    if (isApiErrorBody(responseBody)) return new ApiClientError(responseBody)
+    if (isApiErrorBody(responseBody)) {
+      return new ApiClientError({
+        ...responseBody,
+        message: sanitizeErrorMessage(responseBody.message, responseBody.code, responseBody.status),
+      })
+    }
 
+    const status = error.response?.status ?? 0
     return new ApiClientError({
-      code: error.response ? 'HTTP_ERROR' : 'NETWORK_ERROR',
+      code: error.response ? (status === 405 ? 'METHOD_NOT_ALLOWED' : 'HTTP_ERROR') : 'NETWORK_ERROR',
       message: error.response
-        ? 'Sunucu isteği tamamlanamadı.'
+        ? sanitizeErrorMessage('Sunucu isteği tamamlanamadı.', undefined, status)
         : 'Sunucuya ulaşılamadı.',
-      status: error.response?.status ?? 0,
+      status,
     })
   }
 
   return new ApiClientError({
     code: 'UNKNOWN_ERROR',
-    message: error instanceof Error ? error.message : 'Beklenmeyen bir hata oluştu.',
+    message: error instanceof Error ? sanitizeErrorMessage(error.message) : 'Beklenmeyen bir hata oluştu.',
     status: 0,
   })
 }

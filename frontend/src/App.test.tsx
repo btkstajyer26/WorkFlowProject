@@ -4,8 +4,8 @@ import { HttpResponse, http } from 'msw'
 import { MemoryRouter } from 'react-router'
 import { describe, expect, it } from 'vitest'
 import App from './App'
-import { getMockUserByRole } from './mocks/api/auth'
-import { api } from './api/client'
+import { requestPasswordReset } from './api/auth'
+import { MOCK_PASSWORD_RESET_CODE, getMockUserByRole, verifyMockPasswordResetCode } from './mocks/api/auth'
 import { apiBaseUrl } from './api/config'
 import { apiMockServer } from './mocks/api/server'
 import { seedAuthenticatedUser } from './test/auth'
@@ -49,7 +49,7 @@ describe('App authorization boundaries', () => {
 
   it('Başkanın kendi kapsamı dışındaki kaydını 403 ile sınırlar', async () => {
     await seedAuthenticatedUser('BASKAN')
-    renderApp('/kayitlar/rec-001')
+    renderApp('/kayitlar/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1')
     expect(await screen.findByRole('heading', { name: 'Bu sayfayı görüntüleme yetkiniz yok' })).toBeInTheDocument()
   })
 
@@ -78,9 +78,9 @@ describe('App authorization boundaries', () => {
 
   it('e-posta deep link adresini kayıt detayına yönlendirir', async () => {
     await seedAuthenticatedUser('CALISAN')
-    renderApp('/records/rec-001')
+    renderApp('/records/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1')
 
-    expect(await screen.findByRole('heading', { name: 'Sunucu Donanım Alım Talebi' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Sunucu alım talebi' })).toBeInTheDocument()
   })
 
   it('zorunlu şifre değişikliği tamamlanmadan korumalı sayfaları açmaz', async () => {
@@ -108,11 +108,72 @@ describe('App authorization boundaries', () => {
     expect(await screen.findByText('Şifreniz değiştirildi. Yeni şifrenizle tekrar giriş yapın.')).toBeInTheDocument()
   })
 
+  it('giriş ekranından başlayan şifremi unuttum akışını kodla tamamlar', async () => {
+    const user = userEvent.setup()
+    renderApp('/giris')
+
+    await user.click(await screen.findByRole('link', { name: 'Şifremi unuttum' }))
+    // Giriş ekranında da aynı etiket var; sıfırlama sayfası yüklenmeden yazmaya
+    // başlarsak e-posta yanlış forma gider.
+    await screen.findByRole('heading', { name: 'Şifrenizi sıfırlayın' })
+    await user.type(screen.getByLabelText('E-posta adresi'), 'john.doe@kurum.gov.tr')
+    await user.click(screen.getByRole('button', { name: 'Doğrulama kodu gönder' }))
+
+    await screen.findByRole('heading', { name: 'E-postanızı kontrol edin' })
+    await user.type(screen.getByLabelText('Doğrulama kodu'), MOCK_PASSWORD_RESET_CODE)
+    await user.click(screen.getByRole('button', { name: 'Kodu doğrula' }))
+
+    expect(await screen.findByRole('heading', { name: 'Yeni şifrenizi belirleyin' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Mevcut şifre')).not.toBeInTheDocument()
+    await user.type(screen.getByLabelText('Yeni şifre'), 'YeniParola123')
+    await user.type(screen.getByLabelText('Yeni şifre tekrar'), 'YeniParola123')
+    await user.click(screen.getByRole('button', { name: 'Şifreyi sıfırla' }))
+
+    expect(await screen.findByRole('heading', { name: 'Hesabınıza giriş yapın' })).toBeInTheDocument()
+    expect(screen.getByText('Şifreniz sıfırlandı. Yeni şifrenizle giriş yapabilirsiniz.')).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('E-posta adresi'), 'john.doe@kurum.gov.tr')
+    await user.type(screen.getByLabelText('Şifre'), 'YeniParola123')
+    await user.click(screen.getByRole('button', { name: 'Giriş Yap' }))
+    expect(await screen.findByRole('heading', { name: /Hoş geldiniz/ })).toBeInTheDocument()
+  })
+
+  it('sıfırlanan şifre eskisiyle aynıysa kaydetmez', async () => {
+    const user = userEvent.setup()
+    // Hesabın mevcut şifresi, yeni şifre kurallarını da karşılıyor; böylece
+    // istek arayüz doğrulamasına takılmadan sunucuya ulaşır.
+    const email = 'ilk.giris@kurum.gov.tr'
+    await requestPasswordReset({ email })
+    const token = verifyMockPasswordResetCode(email, MOCK_PASSWORD_RESET_CODE)
+    renderApp(`/sifre-degistir?token=${encodeURIComponent(token!)}`)
+
+    await screen.findByRole('heading', { name: 'Yeni şifrenizi belirleyin' })
+    await user.type(screen.getByLabelText('Yeni şifre'), 'Gecici123')
+    await user.type(screen.getByLabelText('Yeni şifre tekrar'), 'Gecici123')
+    await user.click(screen.getByRole('button', { name: 'Şifreyi sıfırla' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Yeni şifreniz mevcut şifrenizle aynı olamaz.')
+    expect(screen.getByRole('heading', { name: 'Yeni şifrenizi belirleyin' })).toBeInTheDocument()
+  })
+
+  it('geçersiz şifre sıfırlama anahtarı için yeni kod istemeyi önerir', async () => {
+    const user = userEvent.setup()
+    renderApp('/sifre-degistir?token=gecersiz-token')
+
+    await screen.findByRole('heading', { name: 'Yeni şifrenizi belirleyin' })
+    await user.type(screen.getByLabelText('Yeni şifre'), 'YeniParola123')
+    await user.type(screen.getByLabelText('Yeni şifre tekrar'), 'YeniParola123')
+    await user.click(screen.getByRole('button', { name: 'Şifreyi sıfırla' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('geçersiz, kullanılmış veya süresi dolmuş')
+    expect(screen.getByRole('link', { name: 'Yeni kod iste' })).toHaveAttribute('href', '/sifre-sifirla')
+  })
+
   it('kayıt detayında API tarafından adları sağlanmayan kişi alanlarını göstermez', async () => {
     await seedAuthenticatedUser('CALISAN')
-    renderApp('/kayitlar/rec-001')
+    renderApp('/kayitlar/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1')
 
-    expect(await screen.findByRole('heading', { name: 'Sunucu Donanım Alım Talebi' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Sunucu alım talebi' })).toBeInTheDocument()
     expect(screen.queryByText('Oluşturan')).not.toBeInTheDocument()
     expect(screen.queryByText('Atanan')).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /Ek Dosyalar/ })).toBeInTheDocument()
@@ -124,22 +185,6 @@ describe('App authorization boundaries', () => {
     expect(await screen.findByRole('heading', { name: 'Yönetim Özeti' })).toBeInTheDocument()
     expect(screen.getByText('Yetkili hesap')).toBeInTheDocument()
     expect(screen.queryByText('Pasif hesap')).not.toBeInTheDocument()
-  })
-
-  it('rol önizlemesinden Admin seçildiğinde API isteklerine Admin yetkisini taşır', async () => {
-    const user = userEvent.setup()
-    await seedAuthenticatedUser('CALISAN')
-    renderApp('/dashboard')
-
-    await user.click(await screen.findByRole('button', { name: 'Admin' }))
-    expect(await screen.findByRole('heading', { name: 'Yönetim Özeti' })).toBeInTheDocument()
-
-    await expect(api.admin.createUser({
-      firstName: 'John',
-      lastName: 'Doe',
-      email: 'john.doe@kurum.gov.tr',
-      password: 'guvenli123',
-    })).rejects.toMatchObject({ status: 409 })
   })
 
   it('Admin olmayan kullanıcının yönetim ekranını açmasını engeller', async () => {
@@ -157,7 +202,7 @@ describe('App authorization boundaries', () => {
       role: 'CALISAN',
       mustChangePassword: false,
     })
-    renderApp('/kayitlar/rec-006/duzenle')
+    renderApp('/kayitlar/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1/duzenle')
     expect(await screen.findByRole('heading', { name: 'Bu sayfayı görüntüleme yetkiniz yok' })).toBeInTheDocument()
   })
 })

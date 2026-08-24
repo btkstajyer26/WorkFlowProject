@@ -3,6 +3,7 @@ package btk.staj.WorkFlowProject.record.mapper;
 import btk.staj.WorkFlowProject.record.dto.RecordCreateRequest;
 import btk.staj.WorkFlowProject.record.dto.RecordResponse;
 import btk.staj.WorkFlowProject.record.entity.Record;
+import btk.staj.WorkFlowProject.record.view.RecordContentView;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import org.springframework.stereotype.Component;
 
@@ -21,14 +22,34 @@ public class RecordMapper {
                 .build();
     }
 
+    /** Kaydin guncel halini doner; icerigi kendi goren kullanicilar icin. */
     public RecordResponse toResponse(Record record) {
+        return toResponse(record, RecordContentView.live(record));
+    }
+
+    /** Olusturanin adiyla birlikte; adi cozebilen cagiranlar icin. */
+    public RecordResponse toResponse(Record record,
+                                     RecordContentView.Content content,
+                                     String createdByFullName) {
+        RecordResponse response = toResponse(record, content);
+        response.setCreatedByFullName(createdByFullName);
+        return response;
+    }
+
+    /**
+     * Icerigi disaridan verilen haliyle doner. Kaydi elinden cikarmis Baskan
+     * Yardimcisina devir anindaki kopya gosterilir; kalan alanlar (durum,
+     * olusturulma zamani) her zaman guncel kaydindan okunur.
+     */
+    public RecordResponse toResponse(Record record, RecordContentView.Content content) {
         RecordResponse response = new RecordResponse();
         response.setId(record.getId());
-        response.setTitle(record.getTitle());
-        response.setDescription(record.getDescription());
-        response.setCategoryId(record.getCategoryId());
+        response.setTitle(content.title());
+        response.setDescription(content.description());
+        response.setCategoryId(content.categoryId());
         response.setStatus(record.getStatus());
         response.setCreatedAt(record.getCreatedAt());
+        response.setCreatedBy(record.getCreatedBy());
         return response;
     }
 }

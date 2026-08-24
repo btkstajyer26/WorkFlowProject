@@ -4,6 +4,7 @@ import btk.staj.WorkFlowProject.attachment.repository.FileRepository;
 import btk.staj.WorkFlowProject.audit.repository.AuditLogRepository;
 import btk.staj.WorkFlowProject.audit.repository.UserAuditLogRepository;
 import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
+import btk.staj.WorkFlowProject.notification.repository.DeviceTokenRepository;
 import btk.staj.WorkFlowProject.notification.repository.NotificationRepository;
 import btk.staj.WorkFlowProject.rbac.Role;
 import btk.staj.WorkFlowProject.record.entity.Record;
@@ -11,6 +12,7 @@ import btk.staj.WorkFlowProject.record.repository.CategoryRepository;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
 import btk.staj.WorkFlowProject.user.entity.User;
 import btk.staj.WorkFlowProject.user.repository.RoleRepository;
+import btk.staj.WorkFlowProject.auth.repository.PasswordResetCodeRepository;
 import btk.staj.WorkFlowProject.user.repository.TokenRepository;
 import btk.staj.WorkFlowProject.user.repository.UserRepository;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
@@ -69,11 +71,13 @@ class AuthorizationMatrixTest {
     @MockitoBean private RoleRepository roleRepository;
     @MockitoBean private FileRepository fileRepository;
     @MockitoBean private TokenRepository tokenRepository;
+    @MockitoBean private PasswordResetCodeRepository passwordResetCodeRepository;
     @MockitoBean private RecordRepository recordRepository;
     @MockitoBean private CategoryRepository categoryRepository;
     @MockitoBean private AuditLogRepository auditLogRepository;
     @MockitoBean private UserAuditLogRepository userAuditLogRepository;
     @MockitoBean private NotificationRepository notificationRepository;
+    @MockitoBean private DeviceTokenRepository deviceTokenRepository;
 
     private static final String RECORD_JSON = """
             {"title":"Test","description":"Test","categoryId":1}

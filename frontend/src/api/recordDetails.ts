@@ -5,6 +5,7 @@ import type {
   RecordUpdateRequest,
 } from './generated/data-contracts'
 import { api } from './client'
+import { apiHttpClient } from './client'
 import type { RecordCategoryOption } from './categories'
 import { ApiClientError } from './errors'
 import type { RecordHistoryItem, RecordStatus, WorkflowRecord } from '../types/record'
@@ -62,7 +63,7 @@ function normalizeHistoryItem(item: AuditLogResponse): RecordHistoryItem {
 export async function getRecordDetail(recordId: string, categories: RecordCategoryOption[]): Promise<WorkflowRecord> {
   const [record, auditLogs] = await Promise.all([
     api.records.getRecordById({ id: recordId }),
-    api.auditLogs.getGecmis({ recordId }),
+    listRecordAuditLogs(recordId),
   ])
   const categoryName = record.categoryId
     ? categories.find((category) => category.id === record.categoryId)?.name
@@ -83,6 +84,14 @@ export async function getRecordDetail(recordId: string, categories: RecordCatego
   const history = auditLogs
     .map(normalizeHistoryItem)
     .toSorted((left, right) => left.date.localeCompare(right.date))
+  // Olusturan bilgisi kaydin kendisinden okunur, gecmisten turetilmez:
+  // Baskanin gecmisi evrak kendisine iletildigi anda basladigi icin
+  // "Kayıt oluşturuldu" satirini hic gormez ve geri dusulen history[0]
+  // ona Baskan Yardimcisini olusturan gibi gosterirdi.
+  const detail = record as RecordResponse & { createdBy?: string; createdByFullName?: string }
+  const creatorItem = history.find((item) => item.action === 'Kayıt oluşturuldu')
+  const createdById = detail.createdBy ?? creatorItem?.actorId
+  const createdByName = detail.createdByFullName?.trim() || creatorItem?.actor || ''
   return {
     id: record.id,
     recordNumber: '',
@@ -91,8 +100,8 @@ export async function getRecordDetail(recordId: string, categories: RecordCatego
     categoryId: record.categoryId,
     category: categoryName,
     status: record.status,
-    createdBy: '',
-    createdById: history.find((item) => item.action === 'Kayıt oluşturuldu')?.actorId,
+    createdBy: createdByName,
+    createdById,
     assignedTo: null,
     assignedToId: null,
     lastDeputyId: null,
@@ -102,6 +111,15 @@ export async function getRecordDetail(recordId: string, categories: RecordCatego
     attachments: [],
     history,
   }
+}
+
+/** OperationId çakışmalarından etkilenmemek için kayıt geçmişi yolu adapterda sabitlenir. */
+export function listRecordAuditLogs(recordId: string) {
+  return apiHttpClient.request<AuditLogResponse[]>({
+    path: `/api/audit-logs/record/${recordId}`,
+    method: 'GET',
+    secure: true,
+  })
 }
 
 function requireRecordId(record: RecordResponse) {

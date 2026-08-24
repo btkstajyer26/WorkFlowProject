@@ -23,11 +23,9 @@ import {
 } from '../../config/records'
 import { useCategories } from '../../context/categoryState'
 import { recordFormSchema, type RecordFormValues } from '../../schemas/record'
-import { useWorkflow, type RecordDraftInput } from '../../context/workflowState'
 import { useModalDialog } from '../../hooks/useModalDialog'
 import { useSingleFlight } from '../../hooks/useSingleFlight'
 import { CategoryLoadError } from './CategoryLoadError'
-import { apiMode } from '../../api/config'
 import { createRecordDraft, updateRecordDraft } from '../../api/recordDetails'
 import { performWorkflowAction } from '../../api/workflow'
 import { uploadRecordFile } from '../../api/files'
@@ -51,7 +49,6 @@ const emptyRecordFormValues: RecordFormValues = {
 export function NewRecordComposer({ open, requestId, onClose }: NewRecordComposerProps) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { createDraft, createAndSubmit, updateEditableRecord, updateAndSubmit } = useWorkflow()
   const { categories, status: categoryStatus, reloadCategories } = useCategories()
   const [minimized, setMinimized] = useState(false)
   const [expanded, setExpanded] = useState(false)
@@ -88,7 +85,6 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
   })
   const titleValue = watch('title')
   const { busy: mutationBusy, run: runMutation } = useSingleFlight()
-  const backendMode = apiMode === 'backend'
   const saveRecordMutation = useMutation({
     mutationFn: ({ recordId, values }: { recordId: string | null; values: RecordFormValues }) => (
       recordId
@@ -268,34 +264,12 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
     setAttachments((current) => [...current, ...uniqueFiles])
   }
 
-  const toDraftInput = (values: RecordFormValues): RecordDraftInput => {
-    const selectedCategory = categories.find((category) => category.id === values.categoryId)
-    if (!selectedCategory) throw new Error('Geçerli bir kategori seçin.')
-
-    return {
-      ...values,
-      categoryName: selectedCategory.name,
-      attachments: attachments.map((file, index) => ({
-        id: `${draftId ?? 'new'}-${file.lastModified}-${index}`,
-        name: file.name,
-        size: `${Math.max(1, Math.round(file.size / 1024))} KB`,
-      })),
-    }
-  }
-
   const saveDraft = handleSubmit((values) => runMutation(async () => {
     try {
       let uploadedFileCount = 0
-      const savedRecordId = backendMode
-        ? await saveRecordMutation.mutateAsync({ recordId: draftId, values })
-        : (() => {
-            const input = toDraftInput(values)
-            return draftId
-              ? updateEditableRecord(draftId, input).id
-              : createDraft(input).id
-          })()
+      const savedRecordId = await saveRecordMutation.mutateAsync({ recordId: draftId, values })
       setDraftId(savedRecordId)
-      if (backendMode && attachments.length > 0) {
+      if (attachments.length > 0) {
         uploadedFileCount = await uploadAttachmentsMutation.mutateAsync({ recordId: savedRecordId, files: [...attachments] })
       }
       setFeedback(uploadedFileCount > 0 ? `${uploadedFileCount} ek dosya yüklendi.` : null)
@@ -309,31 +283,21 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
   }))
 
   const submitRecord = handleSubmit((values) => runMutation(async () => {
-    if (backendMode) {
-      try {
-        const savedRecordId = await saveRecordMutation.mutateAsync({ recordId: draftId, values })
-        setDraftId(savedRecordId)
-        if (attachments.length > 0) {
-          await uploadAttachmentsMutation.mutateAsync({ recordId: savedRecordId, files: [...attachments] })
-        }
-        setAttachmentsDirty(false)
-        setDraftSaved(true)
-        reset(values)
-        await submitRecordMutation.mutateAsync({ recordId: savedRecordId })
-        onClose()
-        navigate(`/kayitlar/${savedRecordId}`)
-      } catch {
-        // Kayit basarili, workflow basarisiz olabilir. draftId korunur ve hata formda gosterilir.
+    try {
+      const savedRecordId = await saveRecordMutation.mutateAsync({ recordId: draftId, values })
+      setDraftId(savedRecordId)
+      if (attachments.length > 0) {
+        await uploadAttachmentsMutation.mutateAsync({ recordId: savedRecordId, files: [...attachments] })
       }
-      return
+      setAttachmentsDirty(false)
+      setDraftSaved(true)
+      reset(values)
+      await submitRecordMutation.mutateAsync({ recordId: savedRecordId })
+      onClose()
+      navigate(`/kayitlar/${savedRecordId}`)
+    } catch {
+      // Kayit basarili, workflow basarisiz olabilir. draftId korunur ve hata formda gosterilir.
     }
-
-    const input = toDraftInput(values)
-    const submittedRecord = draftId
-      ? updateAndSubmit(draftId, input)
-      : createAndSubmit(input)
-    onClose()
-    navigate(`/kayitlar/${submittedRecord.id}`)
   }))
 
   if (!open) return null
@@ -597,9 +561,7 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
             </div>
 
             <div className="rounded-xl border border-brand-100 dark:border-brand-800/60 bg-brand-50/70 dark:bg-brand-900/30 px-4 py-3 text-xs leading-5 text-brand-800 dark:text-brand-200">
-              {backendMode
-                ? 'Taslak ve ek dosyalar veritabanına kaydedilir; gönderimde hedef kullanıcıyı backend belirler.'
-                : 'Gönderildiğinde kayıt Başkan Yardımcısı incelemesine iletilecek.'}
+              Taslak ve ek dosyalar veritabanına kaydedilir; gönderimde hedef kullanıcıyı backend belirler.
             </div>
             {recordMutationError ? (
               <p className="rounded-xl bg-rose-50 px-4 py-3 text-xs font-semibold leading-5 text-rose-800 dark:bg-rose-950/40 dark:text-rose-200" role="alert">
