@@ -12,12 +12,10 @@ import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
 
-/**
- * Durum degisikligi e-postasini uretir ve gonderir.
- */
 @Service
 public class MailService {
 
@@ -26,13 +24,14 @@ public class MailService {
     private static final String NO_EXPLANATION = "—";
     private static final String TEMPLATE = "mail/workflow-status";
 
-    private static final String PASSWORD_RESET_TEMPLATE = "mail/password-reset-code";
-
     private final JavaMailSender mailSender;
     private final TemplateEngine templateEngine;
 
     @Value("${app.frontend-url:http://localhost:5173}")
     private String frontendUrl;
+
+    @Value("${app.backend-url:http://localhost:8080}")
+    private String backendUrl;
 
     @Value("${app.mail-from:ebys@ornek.local}")
     private String mailFrom;
@@ -43,6 +42,24 @@ public class MailService {
     }
 
     @Async
+    public void sendPasswordResetCode(String toEmail, String recipientName, String code, int ttlMinutes) {
+        try {
+            log.info("Şifre sıfırlama kodu gönderiliyor. Alıcı: {}", toEmail);
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, false, StandardCharsets.UTF_8.name());
+
+            helper.setFrom(mailFrom);
+            helper.setTo(toEmail);
+            helper.setSubject("EBYS - Şifre Sıfırlama Kodu");
+            helper.setText("Sayın " + recipientName + ",\n\nŞifre sıfırlama doğrulama kodunuz: " + code + "\nBu kod " + ttlMinutes + " dakika boyunca geçerlidir.", false);
+
+            mailSender.send(mimeMessage);
+        } catch (Exception e) {
+            log.error("Şifre sıfırlama kodu gönderilirken hata oluştu: " + toEmail, e);
+        }
+    }
+
+    @Async
     public void sendStatusChangeMail(String toEmail,
                                      String recipientName,
                                      UUID recordId,
@@ -50,7 +67,7 @@ public class MailService {
                                      String status,
                                      String reason) {
         try {
-            log.info("E-posta gönderimi başlatılıyor. Alıcı: {}, Evrak: {}", toEmail, recordId);
+            log.info("E-posta gönderimi başlatılıyor. Alıcı: {}, Evrak: {}, Durum: {}", toEmail, recordId, status);
 
             MimeMessage mimeMessage = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(
@@ -65,47 +82,8 @@ public class MailService {
             log.info("E-posta başarıyla gönderildi: {}", toEmail);
 
         } catch (Exception e) {
-            log.error("E-posta gönderilirken hata oluştu! Alıcı: {}, Hata: {}", toEmail, e.getMessage());
+            log.error("E-posta gönderilirken hata oluştu! Alıcı: " + toEmail, e);
         }
-    }
-
-    /**
-     * "Şifremi unuttum" kodunu gönderir.
-     *
-     * <p>Durum bildirimlerinden farklı olarak hata yutulamaz: kod ulaşmazsa
-     * kullanıcı akışı tamamlayamaz. Yine de {@code @Async} kalır ve istisna
-     * yalnızca loglanır &mdash; uca dönen cevap, hesabın varlığını sızdırmamak
-     * için her koşulda aynı olmalıdır.
-     */
-    @Async
-    public void sendPasswordResetCode(String toEmail, String recipientName, String code, int validForMinutes) {
-        try {
-            log.info("Şifre sıfırlama kodu gönderiliyor. Alıcı: {}", toEmail);
-
-            MimeMessage mimeMessage = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(
-                    mimeMessage, false, StandardCharsets.UTF_8.name());
-
-            helper.setFrom(mailFrom);
-            helper.setTo(toEmail);
-            helper.setSubject("EBYS - Şifre Sıfırlama Doğrulama Kodu");
-            helper.setText(renderPasswordResetCode(recipientName, code, validForMinutes), true);
-
-            mailSender.send(mimeMessage);
-            log.info("Şifre sıfırlama kodu gönderildi: {}", toEmail);
-
-        } catch (Exception e) {
-            // Kodun kendisi loglanmaz: log dosyası okuyan biri hesabı ele geçirebilirdi.
-            log.error("Şifre sıfırlama kodu gönderilemedi! Alıcı: {}, Hata: {}", toEmail, e.getMessage());
-        }
-    }
-
-    private String renderPasswordResetCode(String recipientName, String code, int validForMinutes) {
-        Context context = new Context();
-        context.setVariable("recipientName", recipientName);
-        context.setVariable("code", code);
-        context.setVariable("validForMinutes", validForMinutes);
-        return templateEngine.process(PASSWORD_RESET_TEMPLATE, context);
     }
 
     private String render(String recipientName, UUID recordId, String title, String status, String reason) {
@@ -113,11 +91,65 @@ public class MailService {
         context.setVariable("recipientName", recipientName);
         context.setVariable("recordId", recordId);
         context.setVariable("title", title);
-        context.setVariable("status", status);
-        context.setVariable("explanation",
-                (reason == null || reason.isBlank()) ? NO_EXPLANATION : reason);
+
+        String displayStatus = formatStatus(status);
+        context.setVariable("status", displayStatus);
+
+        context.setVariable("explanation", (reason == null || reason.isBlank()) ? NO_EXPLANATION : reason);
         context.setVariable("deepLink", frontendUrl + "/records/" + recordId);
+
+        String upper = status != null ? status.trim().toUpperCase(Locale.ENGLISH) : "";
+        String quickActionBase = backendUrl + "/api/public/notification/quick-action?recordId=" + recordId + "&action=";
+
+        // 1. Nihai durumlar -> Buton gösterilmez
+        if (upper.contains("ONAYLANDI") || upper.contains("REDDEDILDI") || upper.contains("APPROV") || upper.contains("REJECT")) {
+            context.setVariable("showActionBtn", false);
+        }
+        // 2. Başkana gelen bildirim -> ONAYLA aksiyonu
+        else if (upper.contains("BASKAN_INCELEMESINDE") || upper.contains("FORWARD") || upper.contains("PRESIDENT")) {
+            context.setVariable("showActionBtn", true);
+            context.setVariable("actionText", "Onayla");
+            context.setVariable("actionLink", quickActionBase + "ONAYLA");
+        }
+        // 3. Başkan Yardımcısına gelen bildirim -> BASKANA_ILET aksiyonu
+        else if (upper.contains("BSK_YRD_INCELEMESINDE") || upper.contains("SUBMIT") || upper.contains("DEPUTY")) {
+            context.setVariable("showActionBtn", true);
+            context.setVariable("actionText", "Onayla");
+            context.setVariable("actionLink", quickActionBase + "BASKANA_ILET");
+        }
+        // 4. Çalışana gelen bildirim -> GONDER aksiyonu
+        else {
+            context.setVariable("showActionBtn", true);
+            context.setVariable("actionText", "Onayla");
+            context.setVariable("actionLink", quickActionBase + "GONDER");
+        }
+
         return templateEngine.process(TEMPLATE, context);
+    }
+
+    private String formatStatus(String rawStatus) {
+        if (rawStatus == null || rawStatus.isBlank()) {
+            return "İncelemede";
+        }
+        String upper = rawStatus.trim().toUpperCase(Locale.ENGLISH);
+
+        if (upper.contains("BASKAN_INCELEMESINDE") || upper.contains("FORWARD") || upper.contains("PRESIDENT")) {
+            return "Başkan İncelemesinde";
+        }
+        if (upper.contains("BSK_YRD_INCELEMESINDE") || upper.contains("SUBMIT") || upper.contains("DEPUTY")) {
+            return "Başkan Yardımcısı İncelemesinde";
+        }
+        if (upper.contains("TASLAK") || upper.contains("DUZENLEME_BEKLIYOR") || upper.contains("RETURN") || upper.contains("DRAFT")) {
+            return "Çalışan İncelemesinde";
+        }
+        if (upper.contains("ONAYLANDI") || upper.contains("APPROV")) {
+            return "Onaylandı";
+        }
+        if (upper.contains("REDDEDILDI") || upper.contains("REJECT")) {
+            return "Reddedildi";
+        }
+
+        return "Başkan Yardımcısı İncelemesinde";
     }
 
     private static String subject(UUID recordId) {

@@ -1,136 +1,70 @@
 <!DOCTYPE html>
-<!--
-  Evrak durum degisikligi bildirim e-postasinin govdesi.
-
-  Model degiskenleri (MailService tarafindan doldurulur):
-    recipientName : aliciya hitap
-    recordId      : evrak kimligi
-    title         : evrak basligi
-    status        : yeni durumun adi
-    explanation   : aksiyon aciklamasi; bos gonderilmez, MailService "—" koyar
-    deepLink      : arayuzdeki evrak sayfasinin adresi
-
-  Bicim bilerek tablo tabanli ve satir ici stilli: e-posta istemcilerinin
-  buyuk kismi harici stil sayfasi ve modern yerlesim ozelliklerini
-  uygulamiyor.
--->
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="UTF-8">
   <title>EBYS Evrak Durum Bildirimi</title>
 </head>
-<body style="margin:0; padding:0;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#eef1f5; padding:32px 0; font-family:Segoe UI, Arial, sans-serif;">
+<body style="margin:0; padding:0; background-color:#eef1f5; font-family:Segoe UI, Arial, sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="padding:32px 0;">
   <tr>
     <td align="center">
       <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff; border-radius:8px; overflow:hidden; box-shadow:0 2px 6px rgba(0,0,0,0.08);">
-
+        
         <tr>
-          <td style="background-color:#0078d4; padding:24px 32px;">
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td style="font-family:Segoe UI, Arial, sans-serif; font-size:18px; font-weight:bold; color:#ffffff;">
-                  📄 İş Akışı ve Onay Yönetim Sistemi (EBYS)
-                </td>
-              </tr>
-            </table>
+          <td style="background-color:#0078d4; padding:24px 32px; font-size:18px; font-weight:bold; color:#ffffff;">
+            📄 İş Akışı ve Onay Yönetim Sistemi (EBYS)
           </td>
         </tr>
 
         <tr>
           <td style="padding:32px;">
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td style="font-family:Segoe UI, Arial, sans-serif; font-size:16px; color:#1a1a1a; padding-bottom:8px;">
-                  Sayın <b th:text="${recipientName}">Ad Soyad</b>,
-                </td>
-              </tr>
-              <tr>
-                <td style="font-family:Segoe UI, Arial, sans-serif; font-size:14px; color:#555555; line-height:22px; padding-bottom:24px;">
-                  Sistemdeki bir evrağın durumu değişti. Aşağıdaki bağlantıyı kullanarak evrağı görüntüleyebilirsiniz.
-                </td>
-              </tr>
+            <p style="font-size:16px; color:#1a1a1a; margin-top:0;">Sayın <b th:text="${recipientName}">Ad Soyad</b>,</p>
+            <p style="font-size:14px; color:#555555; line-height:22px;">Sistemdeki bir evrağın durumu güncellendi. Detaylar aşağıda yer almaktadır:</p>
 
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f7f9fc; border:1px solid #e3e8ef; border-radius:6px; margin:20px 0;">
               <tr>
-                <td>
-                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f7f9fc; border:1px solid #e3e8ef; border-radius:6px;">
-                    <tr>
-                      <td style="padding:16px 20px; font-family:Segoe UI, Arial, sans-serif; font-size:13px; color:#8a8f98; border-bottom:1px solid #e3e8ef;">
-                        EVRAK NO
-                      </td>
-                      <td style="padding:16px 20px; font-family:Segoe UI, Arial, sans-serif; font-size:14px; color:#1a1a1a; font-weight:600; text-align:right; border-bottom:1px solid #e3e8ef;"
-                          th:text="${recordId}">
-                        00000000-0000-0000-0000-000000000000
-                      </td>
-                    </tr>
-                    <tr>
-                      <td style="padding:16px 20px; font-family:Segoe UI, Arial, sans-serif; font-size:13px; color:#8a8f98; border-bottom:1px solid #e3e8ef;">
-                        BAŞLIK
-                      </td>
-                      <td style="padding:16px 20px; font-family:Segoe UI, Arial, sans-serif; font-size:14px; color:#1a1a1a; font-weight:600; text-align:right; border-bottom:1px solid #e3e8ef;"
-                          th:text="${title}">
-                        Evrak başlığı
-                      </td>
-                    </tr>
-                    <tr>
-                      <td style="padding:16px 20px; font-family:Segoe UI, Arial, sans-serif; font-size:13px; color:#8a8f98; border-bottom:1px solid #e3e8ef;">
-                        GÜNCEL DURUM
-                      </td>
-                      <td style="padding:16px 20px; text-align:right; border-bottom:1px solid #e3e8ef;">
-                        <span style="display:inline-block; background-color:#e6f2fc; color:#0078d4; font-family:Segoe UI, Arial, sans-serif; font-size:13px; font-weight:bold; padding:4px 12px; border-radius:12px;"
-                              th:text="${status}">
-                          DURUM
-                        </span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td style="padding:16px 20px; font-family:Segoe UI, Arial, sans-serif; font-size:13px; color:#8a8f98;">
-                        AÇIKLAMA
-                      </td>
-                      <td style="padding:16px 20px; font-family:Segoe UI, Arial, sans-serif; font-size:14px; color:#333333; font-style:italic; text-align:right;"
-                          th:text="${explanation}">
-                        —
-                      </td>
-                    </tr>
-                  </table>
+                <td style="padding:12px 16px; font-size:13px; color:#8a8f98; border-bottom:1px solid #e3e8ef;">EVRAK NO</td>
+                <td style="padding:12px 16px; font-size:14px; color:#1a1a1a; font-weight:600; text-align:right; border-bottom:1px solid #e3e8ef;" th:text="${recordId}">-</td>
+              </tr>
+              <tr>
+                <td style="padding:12px 16px; font-size:13px; color:#8a8f98; border-bottom:1px solid #e3e8ef;">BAŞLIK</td>
+                <td style="padding:12px 16px; font-size:14px; color:#1a1a1a; font-weight:600; text-align:right; border-bottom:1px solid #e3e8ef;" th:text="${title}">-</td>
+              </tr>
+              <tr>
+                <td style="padding:12px 16px; font-size:13px; color:#8a8f98; border-bottom:1px solid #e3e8ef;">GÜNCEL DURUM</td>
+                <td style="padding:12px 16px; text-align:right; border-bottom:1px solid #e3e8ef;">
+                  <span style="background-color:#e6f2fc; color:#0078d4; font-size:13px; font-weight:bold; padding:4px 12px; border-radius:12px;" th:text="${status}">DURUM</span>
                 </td>
               </tr>
-
               <tr>
-                <td align="center" style="padding-top:32px;">
-                  <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-                    <tr>
-                      <td align="center" bgcolor="#0078d4" style="border-radius:4px;">
-                        <a th:href="${deepLink}"
-                           href="#"
-                           target="_blank"
-                           style="display:inline-block; padding:12px 22px; font-family:Segoe UI, Arial, sans-serif; font-size:14px; font-weight:bold; color:#ffffff; text-decoration:none; border-radius:4px;">
-                          Evrağı Görüntüle
-                        </a>
-                      </td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-
-              <tr>
-                <td style="font-family:Segoe UI, Arial, sans-serif; font-size:12px; color:#9aa0a6; text-align:center; padding-top:28px;">
-                  Bu bağlantıya erişemiyorsanız, sistem yöneticinizle iletişime geçiniz.
-                </td>
+                <td style="padding:12px 16px; font-size:13px; color:#8a8f98;">AÇIKLAMA</td>
+                <td style="padding:12px 16px; font-size:14px; color:#333333; font-style:italic; text-align:right;" th:text="${explanation}">—</td>
               </tr>
             </table>
+
+            <!-- BUTONLAR ALANI -->
+            <div style="text-align:center; padding-top:24px;">
+              <!-- Yeşil Onayla Butonu -->
+              <a th:if="${showActionBtn}"
+                 th:href="${actionLink}"
+                 style="display:inline-block; background-color:#107c41; color:#ffffff; font-size:14px; font-weight:bold; text-decoration:none; padding:12px 24px; border-radius:4px; margin-right:12px;">
+                Onayla
+              </a>
+
+              <!-- Mavi Detay Butonu -->
+              <a th:href="${deepLink}"
+                 style="display:inline-block; background-color:#0078d4; color:#ffffff; font-size:14px; font-weight:bold; text-decoration:none; padding:12px 24px; border-radius:4px;">
+                Evrağı Görüntüle
+              </a>
+            </div>
+
+            <p style="font-size:12px; color:#9aa0a6; text-align:center; margin-top:32px;">Bu bağlantıya erişemiyorsanız sistem yöneticinizle iletişime geçiniz.</p>
           </td>
         </tr>
 
         <tr>
-          <td style="background-color:#f7f9fc; padding:18px 32px; border-top:1px solid #e3e8ef;">
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td style="font-family:Segoe UI, Arial, sans-serif; font-size:11px; color:#9aa0a6;">
-                  Bu otomatik bir bilgilendirme e-postasıdır, lütfen yanıtlamayınız.
-                </td>
-              </tr>
-            </table>
+          <td style="background-color:#f7f9fc; padding:16px 32px; border-top:1px solid #e3e8ef; font-size:11px; color:#9aa0a6;">
+            Bu otomatik bir bilgilendirme e-postasıdır, lütfen yanıtlamayınız.
           </td>
         </tr>
 

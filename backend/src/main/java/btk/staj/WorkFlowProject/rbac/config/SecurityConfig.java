@@ -22,33 +22,20 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableWebSecurity
 public class SecurityConfig {
 
-    /**
-     * Kimlik dogrulamasi istemeyen uclar.
-     *
-     * <p>Swagger arayuzu ve OpenAPI semasi acik tutulur ki dokumantasyon token
-     * olmadan okunabilsin; arayuzdeki <em>Authorize</em> butonuyla token girilerek
-     * korumali uclar denenir. Uclarin kendisi acik degildir.
-     */
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/auth/login",
             "/api/auth/refresh",
             "/api/auth/logout",
-            // "Sifremi unuttum" akisi tanimi geregi oturumsuz calisir: kullanici
-            // sifresini bilmedigi icin token uretemez.
             "/api/auth/forgot-password",
             "/api/auth/verify-reset-code",
             "/api/auth/reset-password",
+            "/api/public/**",
             "/swagger-ui.html",
             "/swagger-ui/**",
             "/v3/api-docs",
             "/v3/api-docs/**",
             "/v3/api-docs.yaml",
-            // Servlet konteyneri hatayi /error'a yonlendirir; burasi kapali
-            // kalirsa istemci gercek hata yerine 401 gorur.
             "/error",
-            // Reverse proxy ve container healthcheck'i bu ucu token'siz
-            // yoklar; kapali kalirsa 401 gorup servisi "sagliksiz" sayarlar.
-            // show-details=never oldugu icin yalnizca UP/DOWN disari cikar.
             "/actuator/health"
     };
 
@@ -88,10 +75,6 @@ public class SecurityConfig {
         return http.build();
     }
 
-    /**
-     * Servlet konteynerinin filtreyi ikinci kez (JWT'den once) calistirmasini
-     * engeller; yalnizca SecurityFilterChain icindeki sira gecerlidir.
-     */
     @Bean
     public FilterRegistrationBean<RequestAuditFilter> disableDuplicateRequestAuditFilter(
             RequestAuditFilter requestAuditFilter) {

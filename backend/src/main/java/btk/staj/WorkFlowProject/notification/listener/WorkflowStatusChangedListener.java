@@ -79,7 +79,7 @@ public class WorkflowStatusChangedListener {
         NotificationType type = NotificationType.of(event.action());
 
         for (UUID recipientId : recipients) {
-            // Push bildirimi (servis context'te varsa gönderilir)
+            // Push bildirimi (servis context'te varsa gÃ¶nderilir)
             if (pushNotificationService != null) {
                 pushNotificationService.sendPushNotification(
                         recipientId,
@@ -92,7 +92,7 @@ public class WorkflowStatusChangedListener {
             // E-posta bildirimi
             Optional<User> recipient = userRepository.findById(recipientId);
             if (recipient.isEmpty()) {
-                log.warn("Bildirim e-postası gönderilemedi, kullanıcı bulunamadı: {}", recipientId);
+                log.warn("Bildirim e-postasÄ± gÃ¶nderilemedi, kullanÄ±cÄ± bulunamadÄ±: {}", recipientId);
                 continue;
             }
 
@@ -102,7 +102,7 @@ public class WorkflowStatusChangedListener {
                     fullName(user),
                     event.recordId(),
                     title,
-                    statusName,
+                    event.action().name(),
                     event.comment());
         }
     }
@@ -136,7 +136,7 @@ public class WorkflowStatusChangedListener {
     private String recordTitle(UUID recordId) {
         return recordRepository.findById(recordId)
                 .map(Record::getTitle)
-                .orElse("(başlık okunamadı)");
+                .orElse("(baÅŸlÄ±k okunamadÄ±)");
     }
 
     private static String fullName(User user) {
@@ -146,10 +146,10 @@ public class WorkflowStatusChangedListener {
     private static String message(WorkflowStatusChangedEvent event) {
         String base = switch (NotificationType.of(event.action())) {
             case RECORD_SUBMITTED -> "Bir evrak incelemenize sunuldu";
-            case RECORD_FORWARDED -> "Bir evrak onayınıza iletildi";
-            case RECORD_APPROVED -> "Evrağınız onaylandı";
-            case RECORD_REJECTED -> "Evrağınız reddedildi";
-            case RECORD_RETURNED -> "Evrağınız düzeltme için geri gönderildi";
+            case RECORD_FORWARDED -> "Bir evrak onayÄ±nÄ±za iletildi";
+            case RECORD_APPROVED -> "EvraÄŸÄ±nÄ±z onaylandÄ±";
+            case RECORD_REJECTED -> "EvraÄŸÄ±nÄ±z reddedildi";
+            case RECORD_RETURNED -> "EvraÄŸÄ±nÄ±z dÃ¼zeltme iÃ§in geri gÃ¶nderildi";
         };
 
         if (event.comment() == null || event.comment().isBlank()) {
