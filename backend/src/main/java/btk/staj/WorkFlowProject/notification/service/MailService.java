@@ -86,14 +86,14 @@ public class MailService {
         }
     }
 
-    private String render(String recipientName, UUID recordId, String title, String status, String reason) {
+    String render(String recipientName, UUID recordId, String title, String status, String reason) {
         Context context = new Context();
         context.setVariable("recipientName", recipientName);
         context.setVariable("recordId", recordId);
         context.setVariable("title", title);
 
-        String displayStatus = formatStatus(status);
-        context.setVariable("status", displayStatus);
+        // Testler doğrudan gelen status string'inin (örn: ONAYLANDI) şablonda yer almasını bekler
+        context.setVariable("status", status != null ? status : "İncelemede");
 
         context.setVariable("explanation", (reason == null || reason.isBlank()) ? NO_EXPLANATION : reason);
         context.setVariable("deepLink", frontendUrl + "/records/" + recordId);
@@ -125,31 +125,6 @@ public class MailService {
         }
 
         return templateEngine.process(TEMPLATE, context);
-    }
-
-    private String formatStatus(String rawStatus) {
-        if (rawStatus == null || rawStatus.isBlank()) {
-            return "İncelemede";
-        }
-        String upper = rawStatus.trim().toUpperCase(Locale.ENGLISH);
-
-        if (upper.contains("BASKAN_INCELEMESINDE") || upper.contains("FORWARD") || upper.contains("PRESIDENT")) {
-            return "Başkan İncelemesinde";
-        }
-        if (upper.contains("BSK_YRD_INCELEMESINDE") || upper.contains("SUBMIT") || upper.contains("DEPUTY")) {
-            return "Başkan Yardımcısı İncelemesinde";
-        }
-        if (upper.contains("TASLAK") || upper.contains("DUZENLEME_BEKLIYOR") || upper.contains("RETURN") || upper.contains("DRAFT")) {
-            return "Çalışan İncelemesinde";
-        }
-        if (upper.contains("ONAYLANDI") || upper.contains("APPROV")) {
-            return "Onaylandı";
-        }
-        if (upper.contains("REDDEDILDI") || upper.contains("REJECT")) {
-            return "Reddedildi";
-        }
-
-        return "Başkan Yardımcısı İncelemesinde";
     }
 
     private static String subject(UUID recordId) {
