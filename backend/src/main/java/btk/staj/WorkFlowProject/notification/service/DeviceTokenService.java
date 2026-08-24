@@ -47,10 +47,30 @@ public class DeviceTokenService {
     }
 
     @Transactional
+    public void deactivateTokenForUser(UUID userId, String token) {
+        if (userId == null || token == null || token.isBlank()) {
+            return;
+        }
+        int updated = deviceTokenRepository.deactivateByTokenAndUserId(token, userId);
+        if (updated > 0) {
+            log.info("Cihaz token'ı pasifleştirildi. Kullanıcı: {}, Token: {}", userId, maskToken(token));
+        } else {
+            log.warn("Cihaz token'ı pasifleştirilemedi (kullanıcı eşleşmedi). Kullanıcı: {}", userId);
+        }
+    }
+
+    @Transactional
     public void deactivateToken(String token) {
         if (token != null && !token.isBlank()) {
             deviceTokenRepository.deactivateByToken(token);
-            log.info("Cihaz token'ı pasifleştirildi: {}", token);
+            log.info("Cihaz token'ı pasifleştirildi: {}", maskToken(token));
         }
+    }
+
+    public static String maskToken(String token) {
+        if (token == null || token.length() <= 8) {
+            return "***";
+        }
+        return token.substring(0, 4) + "..." + token.substring(token.length() - 4);
     }
 }

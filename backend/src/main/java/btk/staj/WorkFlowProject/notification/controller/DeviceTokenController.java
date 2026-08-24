@@ -37,9 +37,13 @@ public class DeviceTokenController {
     }
 
     @DeleteMapping
-    @Operation(summary = "Cihaz tokenını pasifleştir")
-    public ResponseEntity<Void> removeToken(@Valid @RequestBody DeviceTokenDeleteRequest request) {
-        deviceTokenService.deactivateToken(request.getToken());
+    @Operation(summary = "Cihaz tokenını pasifleştir (Sahiplik doğrulamalı)")
+    public ResponseEntity<Void> removeToken(
+            Authentication authentication,
+            @Valid @RequestBody DeviceTokenDeleteRequest request) {
+
+        UUID userId = extractUserId(authentication);
+        deviceTokenService.deactivateTokenForUser(userId, request.getToken());
         return ResponseEntity.noContent().build();
     }
 

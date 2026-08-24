@@ -73,4 +73,31 @@ class DeviceTokenServiceTest {
         assertThat(saved.getPlatform()).isEqualTo("IOS");
         assertThat(saved.isActive()).isTrue();
     }
+
+    @Test
+    @DisplayName("DELETE: Başkasının token'ı silinmeye çalışıldığında sessizce işlem yapılmamalı")
+    void whenOtherUserDeletesToken_thenDoNothing() {
+        UUID otherUserId = UUID.randomUUID();
+        String tokenStr = "victim-token-123";
+
+        when(deviceTokenRepository.deactivateByTokenAndUserId(tokenStr, otherUserId)).thenReturn(0);
+
+        deviceTokenService.deactivateTokenForUser(otherUserId, tokenStr);
+
+        verify(deviceTokenRepository, times(1)).deactivateByTokenAndUserId(tokenStr, otherUserId);
+        verify(deviceTokenRepository, never()).deactivateByToken(anyString());
+    }
+
+    @Test
+    @DisplayName("DELETE: Sahip olunan token başarıyla pasifleştirilmeli")
+    void whenOwnerDeletesToken_thenDeactivateSuccessfully() {
+        UUID ownerId = UUID.randomUUID();
+        String tokenStr = "my-device-token-123";
+
+        when(deviceTokenRepository.deactivateByTokenAndUserId(tokenStr, ownerId)).thenReturn(1);
+
+        deviceTokenService.deactivateTokenForUser(ownerId, tokenStr);
+
+        verify(deviceTokenRepository, times(1)).deactivateByTokenAndUserId(tokenStr, ownerId);
+    }
 }

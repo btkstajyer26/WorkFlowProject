@@ -101,7 +101,7 @@ public class PushNotificationService {
 
                 FirebaseMessaging.getInstance().send(message);
             } catch (FirebaseMessagingException e) {
-                log.warn("FCM gönderim hatası (token: {}): {}", token, e.getMessage());
+                log.warn("FCM gönderim hatası (token: {}): {}", DeviceTokenService.maskToken(token), e.getMessage());
                 handleFcmError(e, token);
             } catch (Exception e) {
                 log.error("Beklenmeyen push bildirim hatası: {}", e.getMessage());
@@ -112,7 +112,7 @@ public class PushNotificationService {
     private void handleFcmError(FirebaseMessagingException e, String token) {
         MessagingErrorCode errorCode = e.getMessagingErrorCode();
         if (errorCode == MessagingErrorCode.UNREGISTERED || errorCode == MessagingErrorCode.INVALID_ARGUMENT) {
-            log.info("Geçersiz FCM token pasifleştiriliyor: {}", token);
+            log.info("Geçersiz FCM token pasifleştiriliyor: {}", DeviceTokenService.maskToken(token));
             deviceTokenRepository.deactivateByToken(token);
         }
     }

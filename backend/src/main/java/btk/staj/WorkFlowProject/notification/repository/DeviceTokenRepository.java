@@ -25,6 +25,11 @@ public interface DeviceTokenRepository extends JpaRepository<DeviceToken, UUID> 
 
     @Transactional
     @Modifying
+    @Query("UPDATE DeviceToken d SET d.active = false, d.updatedAt = CURRENT_TIMESTAMP WHERE d.token = :token AND d.user.id = :userId")
+    int deactivateByTokenAndUserId(@Param("token") String token, @Param("userId") UUID userId);
+
+    @Transactional
+    @Modifying
     @Query("UPDATE DeviceToken d SET d.active = false, d.updatedAt = CURRENT_TIMESTAMP WHERE d.token = :token")
     void deactivateByToken(@Param("token") String token);
 }

@@ -3,6 +3,7 @@ package btk.staj.WorkFlowProject.notification.listener;
 import btk.staj.WorkFlowProject.notification.entity.NotificationType;
 import btk.staj.WorkFlowProject.notification.service.MailService;
 import btk.staj.WorkFlowProject.notification.service.NotificationService;
+import btk.staj.WorkFlowProject.notification.service.PushNotificationService;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
 import btk.staj.WorkFlowProject.user.entity.User;
@@ -24,10 +25,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @DisplayName("Durum degisikligi bildirimi")
 class WorkflowStatusChangedListenerTest {
@@ -39,11 +37,12 @@ class WorkflowStatusChangedListenerTest {
 
     private final NotificationService notificationService = mock(NotificationService.class);
     private final MailService mailService = mock(MailService.class);
+    private final PushNotificationService pushNotificationService = mock(PushNotificationService.class);
     private final RecordRepository recordRepository = mock(RecordRepository.class);
     private final UserRepository userRepository = mock(UserRepository.class);
 
     private final WorkflowStatusChangedListener listener = new WorkflowStatusChangedListener(
-            notificationService, mailService, recordRepository, userRepository);
+            notificationService, mailService, pushNotificationService, recordRepository, userRepository);
 
     @Test
     @DisplayName("bildirimi sirasi gelen kisiye yazar")
@@ -108,13 +107,29 @@ class WorkflowStatusChangedListenerTest {
     }
 
     @Test
+    @DisplayName("durum degistiginde FCM push bildirimi tetiklenir")
+    void sendsPushNotificationToAssignedUser() {
+        givenRecord();
+
+        listener.sendExternalNotifications(event(
+                WorkflowAction.BASKANA_ILET, RecordStatus.BASKAN_INCELEMESINDE, ASSIGNEE_ID, "Uygun görüldü"));
+
+        verify(pushNotificationService).sendPushNotification(
+                eq(ASSIGNEE_ID),
+                eq("Bütçe talebi"),
+                any(),
+                eq(RECORD_ID),
+                eq(NotificationType.RECORD_FORWARDED));
+    }
+
+    @Test
     @DisplayName("e-posta alicinin gercek adresine gider")
     void sendsTheMailToTheResolvedRecipient() {
         givenRecord();
         User assignee = user(ASSIGNEE_ID, "Mehmet", "Demir", "mehmet@ornek.test");
         when(userRepository.findById(ASSIGNEE_ID)).thenReturn(Optional.of(assignee));
 
-        listener.sendMail(event(
+        listener.sendExternalNotifications(event(
                 WorkflowAction.BASKANA_ILET, RecordStatus.BASKAN_INCELEMESINDE, ASSIGNEE_ID, "Uygun görüldü"));
 
         verify(mailService).sendStatusChangeMail(
@@ -128,7 +143,7 @@ class WorkflowStatusChangedListenerTest {
         givenRecord();
         when(userRepository.findById(ASSIGNEE_ID)).thenReturn(Optional.empty());
 
-        listener.sendMail(event(
+        listener.sendExternalNotifications(event(
                 WorkflowAction.BASKANA_ILET, RecordStatus.BASKAN_INCELEMESINDE, ASSIGNEE_ID, null));
 
         verifyNoInteractions(mailService);
