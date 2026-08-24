@@ -30,9 +30,11 @@ Son durum: tüm `feature/*` dalları `integration/tum-feature-branchleri` içine
 alınmıştır ve `test` dalı bu dalla aynı commit'tedir. Aşağıdaki maddeler, o
 birleşik hâlde kalan açıklardır.
 
-24 Ağustos 2026'da `feature/notification-service` entegre edildi: M2 (cihaz
+24 Ağustos 2026'da kapananlar: `feature/notification-service` ile M2 (cihaz
 token sahiplik doğrulaması, token log maskeleme) ve M3 (push servisinin
-`WorkflowStatusChangedListener`'a bağlanması) kapandı.
+`WorkflowStatusChangedListener`'a bağlanması); `feature/nisan-sumeyye` ile
+tekil rol invariant'ının yeniden etkinleştirmede de zorlanması
+(`UserService.ensureSingletonRoleAvailable`, `PATCH /api/admin/users/{id}/active`).
 
 Doğrulama (24 Ağustos 2026, yerel, Docker kapalı): backend 448 test koştu,
 **0 failure**; 8 error'ın tamamı PostgreSQL isteyen
@@ -45,7 +47,6 @@ için bu turda çalıştırılamamıştır.
 
 - Admin kullanıcı oluştururken parolayı istemciden almaktadır; backend üretimli geçici parola ve davet e-postası henüz uygulanmamıştır.
 - Audit değiştirilemezliği yalnızca uygulama seviyesinde sağlanır; veritabanı tarafında trigger veya rol kısıtı ile zorlanmaz.
-- Tekil rol invariant'ı yalnızca okuma anında kontrol edilir; `PATCH /api/admin/users/{id}/active` ile hesap yeniden etkinleştirilirken aynı rolde başka aktif kullanıcı olup olmadığına bakılmaz.
 - `/api/device-tokens` uçları `AuthorizationMatrixTest` kapsamında değildir (mobil görev dağılımındaki M8 açık).
 - Push gönderimi **gerçek cihazda hiç doğrulanmadı.** `PushNotificationService` artık `WorkflowStatusChangedListener`'a bağlıdır ve birim testleri yeşildir, ancak FCM anahtarları yalnız ortamdan gelir; uçtan uca kanıt için MOB-12 (mobil istemci tarafı) gerekir.
 
