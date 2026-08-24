@@ -205,7 +205,7 @@ export default function RecordDetailScreen() {
               </View>
               <View className="gap-1">
                 <AppText tone="muted" variant="caption">
-                  Oluşturulma tarihi
+                  İlk oluşturulma
                 </AppText>
                 <AppText>{formatDate(record.createdAt)}</AppText>
               </View>
