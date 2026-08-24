@@ -1,6 +1,6 @@
 # Mobil Entegrasyon — Görev Dağılımı
 
-**Tarih:** 23 Ağustos 2026 (kod doğrulaması aynı gün)
+**Tarih:** 24 Ağustos 2026 (kod doğrulaması aynı gün)
 **Dal:** `test`'ten `feature/<konu>` açılır, PR `test`'e gider.
 
 Mobil, mevcut Spring Boot REST API'sini kullanır. İş kuralları mobilde yazılmaz.
@@ -18,15 +18,14 @@ olarak durur; tasarım gerekçeleri envanter ve mimari belgelerindedir.
 |---|---|---|---|---|
 | M0-kalan | Entegrasyon | — | `docs/openapi.json` yeniden üretilmeli | 🔴 |
 | M1 | Ebrar Şeyma Karakuş | `audit` | İşlem geçmişi cevap boyutu ölçülüp sayfalama kararı yazılmalı | 🟡 |
-| M2-kalan | Melih Kocaman | `notification` | `DELETE /api/device-tokens` sahiplik doğrulaması + token log maskeleme | 🔴 |
-| M3 | Melih Kocaman | `notification` | `PushNotificationService` listener'a bağlanmalı | 🔴 |
 | M8 | Hacer Bengü Ünal | `rbac` | `/api/device-tokens` yetki matrisi testi | 🔵 |
 | MOB-12 | Mobil | `mobile/` | Push (FCM) istemci tarafı | 🔴 |
 | MOB-16 | Mobil | `mobile/` | iOS release / imza | 🟡 |
 
-> **En kritik madde M3'tür.** M2 ve M4 bittiği için mobil taraf token kaydedip
-> çıkışta pasifleştirebilir, ama `PushNotificationService` çağrılmadığı için
-> hiçbir push gönderilmez. MOB-12 bu bağlantı yapılmadan doğrulanamaz.
+> **En kritik madde artık MOB-12'dir.** M2 ve M3 24 Ağustos'ta kapandı: backend
+> hem cihaz tokenını sahiplik doğrulamasıyla yönetiyor hem de durum değişiminde
+> push gönderiyor. Push'un uçtan uca çalıştığı **hiç doğrulanmadı**, çünkü
+> istemci ayağı (MOB-12) hiç başlamadı.
 
 ---
 
@@ -71,89 +70,12 @@ gereksiz) gerekçesiyle kayıtlı.
 
 ---
 
-### 👤 Melih Kocaman — `notification`
-
-#### M2 kalanı — iki güvenlik açığı 🔴
-
-Cihaz token API'si kodda tam: `V10__device_tokens.sql`, `DeviceTokenController`,
-`DeviceTokenService`, `DeviceTokenRepository`, `DeviceToken` entity ve
-`DeviceTokenServiceTest`. Upsert kuralı uygulanmış durumda. İki madde açık:
-
-**1. `DELETE /api/device-tokens` sahiplik doğrulaması yapmıyor.**
-`DeviceTokenController.removeToken` `Authentication` parametresi almıyor;
-`deactivateByToken` yalnız token değerine göre güncelliyor. Kimliği doğrulanmış
-herhangi bir kullanıcı, başkasının token değerini gönderirse o kişinin push
-bildirimlerini kapatabilir. Uç `(token, user_id)` çifti üzerinden çalışmalı,
-kullanıcıya ait olmayan token M4'teki gibi **sessizce yok sayılmalı** — hata
-dönmek başkasının token'ının varlığını sızdırır.
-
-**2. Cihaz tokenları log'a açık yazılıyor.** `DeviceTokenService.deactivateToken`
-(`log.info`) ile `PushNotificationService` (`log.warn` / `log.info`) token
-değerini tam olarak yazıyor. Token bir kimlik bilgisidir ve log'lar 30 gün
-saklanıyor; maskelenmeli.
-
-> `DELETE /api/device-tokens` **normal çıkış akışı değildir.** Yalnız token
-> yenilenmesi ve cihazı elle kaldırma içindir; normal çıkışta token
-> `POST /api/auth/logout` üzerinden pasifleşir (M4, kapandı).
-
-**Bitti sayılır:** Başkasının token'ıyla `DELETE` çağrısı hiçbir satırı
-değiştirmiyor ve testte doğrulanıyor; log'larda tam token değeri geçmiyor.
-
----
-
-#### M3 — FCM push servisi bağlanmadı 🔴
-
-`PushNotificationService` depoda ve sözleşmenin tamamı yazılmış durumda: FCM
-başlatma, `data.recordId` / `data.type` payload'u, `handleFcmError` ile geçersiz
-token temizliği. Env anahtarları (`FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`,
-`FCM_PRIVATE_KEY`) `.env.example` içinde tanımlı.
-
-**Kalan iş — servis hiçbir yerden çağrılmıyor.** Tüm repoda, sınıfın kendi
-dosyası dışında `PushNotificationService` geçen tek satır yok.
-`WorkflowStatusChangedListener` yalnız uygulama içi bildirim ve e-posta
-üretiyor. Servis listener'a bağlanana kadar push **hiç gitmez** ve bu eksiklik
-sessizdir: hata üretmez, log'a düşmez.
-
-Bağlarken alıcılar mevcut `recipientsOf` matrisinden alınmalı; yeni alıcı
-mantığı yazılmamalı. Gönderim `@Async`'tir, onay akışını bloklamaz.
-
-##### Payload sözleşmesi (MOB-12 buna göre yazılır)
-
-```json
-{
-  "notification": { "title": "...", "body": "..." },
-  "data": {
-    "recordId": "uuid",
-    "type": "RECORD_SUBMITTED"
-  }
-}
-```
-
-`type` değerleri mevcut `NotificationType` enum'undan gelir; yeni sözlük
-uydurulmaz: `RECORD_SUBMITTED` · `RECORD_FORWARDED` · `RECORD_APPROVED` ·
-`RECORD_REJECTED` · `RECORD_RETURNED`
-
-`data` alanları **string** olmalı (FCM `data` yalnız string kabul eder).
-
-##### Geçersiz token temizliği (yazıldı, sözleşme olarak duruyor)
-
-| FCM cevabı | Yapılacak |
-|---|---|
-| `UNREGISTERED` (uygulama silinmiş / token iptal) | `is_active = false` |
-| `INVALID_ARGUMENT` (token bozuk) | `is_active = false` |
-| `UNAVAILABLE` / `INTERNAL` | Pasifleştirme **yok**, geçici hata |
-
-**Bitti sayılır:** Gerçek cihazda bildirim geliyor, `data.recordId` ve
-`data.type` okunuyor, geçersiz token otomatik pasifleşiyor.
-
----
-
 ### 👤 Hacer Bengü Ünal — `rbac`
 
 #### M8 — `/api/device-tokens` yetki testi 🔵
 
-**Bağımlılık:** M2 kalanı — sahiplik doğrulaması eklendikten sonra yazılmalı,
-yoksa test bugünkü yanlış davranışı sabitler.
+**Bağımlılık:** M2 (kapandı) — sahiplik doğrulaması artık kodda, dolayısıyla
+test doğru davranışı sabitleyebilir. Engel kalktı.
 
 `AuthorizationMatrixTest`'e satır ekle (auth zorunlu). Şu an test dizininde
 `device-tokens` geçen tek satır yok.
@@ -169,10 +91,11 @@ Jest testi temiz; CI'da `Mobile / quality` işi bunları her PR'da çalıştır�
 
 ### MOB-12 — Push (FCM) 🔴
 
-**Bağımlılık:** M2 kalanı, M3
+**Bağımlılık:** M2 ve M3 — ikisi de kapandı, backend hazır.
 
 Bugün mobilde `firebase`, `messaging` veya `device-tokens` geçen **tek satır
-yok**; istemci tarafı hiç başlamadı.
+yok**; istemci tarafı hiç başlamadı. Push'un uçtan uca çalıştığı bu yüzden hiç
+doğrulanmadı.
 
 Paketler: `@react-native-firebase/app`, `@react-native-firebase/messaging`
 
@@ -205,10 +128,39 @@ ayağı ayrıca APNs anahtarı ister (MOB-12 ile birlikte).
 
 ## Açık işler için gereken sözleşmeler
 
+### Push payload
+
+Backend'in gönderdiği payload. MOB-12 yönlendirmesi buna göre yazılır.
+
+```json
+{
+  "notification": { "title": "...", "body": "..." },
+  "data": {
+    "recordId": "uuid",
+    "type": "RECORD_SUBMITTED"
+  }
+}
+```
+
+`type` değerleri `NotificationType` enum'undan gelir; yeni sözlük uydurulmaz:
+`RECORD_SUBMITTED` · `RECORD_FORWARDED` · `RECORD_APPROVED` ·
+`RECORD_REJECTED` · `RECORD_RETURNED`
+
+`data` alanları **string** olmalı (FCM `data` yalnız string kabul eder).
+
+Geçersiz token temizliği backend'de yapılır — mobil tarafın ayrıca token
+silmesi gerekmez:
+
+| FCM cevabı | Backend ne yapar |
+|---|---|
+| `UNREGISTERED` (uygulama silinmiş / token iptal) | `is_active = false` |
+| `INVALID_ARGUMENT` (token bozuk) | `is_active = false` |
+| `UNAVAILABLE` / `INTERNAL` | Pasifleştirme **yok**, geçici hata |
+
 ### Deep-link
 
-Push'a dokunulduğunda açılacak route. M3 payload'u ile MOB-12 yönlendirmesi bu
-sözleşmeye göre yazılır.
+Push'a dokunulduğunda açılacak route. Yukarıdaki payload'un `data.recordId`
+alanı ile MOB-12 yönlendirmesi bu sözleşmeye göre yazılır.
 
 | | |
 |---|---|
@@ -256,11 +208,11 @@ o satırı hiç görmez (kural 1). Web'de bu hata yaşandı ve düzeltildi.
 
 ## Bağımlılıklar
 
-1. M2 kalanı → M8 (test, düzeltilmiş davranışı sabitlemeli)
-2. M2 kalanı + M3 → MOB-12
-3. M0 kalanı (`openapi.json`) → MOB-12'nin üretilmiş istemciyle token kaydı
-4. MOB-12 iOS ayağı → MOB-16 iOS release
-5. Backend PR'ları web akışını bozmaz
+1. M0 kalanı (`openapi.json`) → MOB-12'nin üretilmiş istemciyle token kaydı
+2. MOB-12 iOS ayağı → MOB-16 iOS release
+3. Backend PR'ları web akışını bozmaz
+
+M2 → M8 ve M2 + M3 → MOB-12 zincirlerindeki engeller 24 Ağustos'ta kalktı.
 
 ---
 
@@ -273,7 +225,9 @@ Aşağıdakiler koda karşı doğrulanmıştır; **yeniden açılmaz, yeniden ya
 | # | Sahip | İş | Kapanış |
 |---|---|---|---|
 | M0 | Entegrasyon | Uç envanteri ([MOBIL_API_ENVANTERI.md](MOBIL_API_ENVANTERI.md)) — hata kodları, sayfalama zarfı, `sort` tuzağı, tarih biçimi, görünürlük, dosya kuralları | 20 Ağu 2026 (`openapi.json` maddesi hariç) |
-| M2 | Melih Kocaman | `device_tokens` tablosu, `POST`/`DELETE` uçları, upsert kuralı: `token` UNIQUE üzerinden eşleşir, `user_id` dahil **tüm** alanlar güncellenir (aynı telefonda başka kullanıcı giriş yaparsa push yanlış kişiye gitmesin diye) | Kodda — iki güvenlik maddesi hariç |
+| M2 | Melih Kocaman | `device_tokens` tablosu, `POST`/`DELETE` uçları, upsert kuralı: `token` UNIQUE üzerinden eşleşir, `user_id` dahil **tüm** alanlar güncellenir (aynı telefonda başka kullanıcı giriş yaparsa push yanlış kişiye gitmesin diye) | 20 Ağu 2026 |
+| M2-kalan | Melih Kocaman | `DELETE /api/device-tokens` artık `(token, user_id)` çifti üzerinden çalışıyor (`deactivateByTokenAndUserId`); kullanıcıya ait olmayan token sessizce yok sayılır. Token değerleri log'da `maskToken` ile maskeleniyor. `DeviceTokenServiceTest` sahiplik senaryolarını kapsıyor | 24 Ağu 2026 |
+| M3 | Melih Kocaman | `PushNotificationService` `WorkflowStatusChangedListener`'a bağlandı; alıcılar mevcut `recipientsOf` matrisinden geliyor, servis `@Nullable` (FCM yapılandırılmamış ortamda akış pushsuz çalışır). `PushNotificationServiceTest` `UNREGISTERED`/`INVALID_ARGUMENT` pasifleştirmesini ve `UNAVAILABLE`'ın pasifleştirmediğini doğruluyor. **Gerçek cihazda doğrulanmadı — MOB-12 açık** | 24 Ağu 2026 |
 | M4 | Nisan Tat · Sümeyye Baykan | Çıkışta cihaz token'ı pasifleştirme. `LogoutRequest.deviceToken` opsiyonel; `AuthServiceTest` üç senaryoyu da kapsıyor: token yokken web akışı bozulmuyor, varken pasifleşiyor, **başkasınınki pasifleşmiyor** | 21 Ağu 2026 |
 | M5 | Alperen Kara · Fevzi Berke Urganioğlu · Nisan Tat · Sümeyye Baykan | Koltuk devrinde `last_deputy_id` güncelleme; `assigned_to` devriyle aynı transaction'da | 20 Ağu 2026 |
 | M6 | Ecesu Başak | Çoklu dosya upload — `@RequestPart("file") MultipartFile[]`, `List<FileResponseDto>` döner, tek dosyalı web çağrısı bozulmadı | 20 Ağu 2026 (`2c31c3a`) |

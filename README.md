@@ -6,7 +6,7 @@ Kurum içindeki belge, kayıt ve onay süreçlerini dijitalleştirmek için geli
 
 Sistem; kayıt oluşturma, hiyerarşik onay akışı, rol bazlı erişim, dosya yönetimi, denetim izi, arama ve bildirim yeteneklerini tek uygulamada birleştirir.
 
-> Proje aktif geliştirme aşamasındadır ve henüz üretim ortamına hazır değildir. Güncel geliştirme kodu `integration/tum-feature-branchleri` dalındadır; bu dal `test` dalının tamamını içerir ve ek olarak `feature/mobile-zeynep` (sekme rengi) ile `feature/nisan-sumeyye` (M4 çıkış / refresh token) çalışmalarını taşır. `test` dalı da aynı commit'tedir. Frontend'in çalışma zamanı mock katmanı kaldırılmıştır, mock'lar yalnızca testlerde (MSW) kullanılır. İlk Admin kurulumu ve ilk girişte parola değiştirme akışı tamamlanmıştır; backend üretimli geçici parola ve davet e-postası henüz yoktur.
+> Proje aktif geliştirme aşamasındadır ve henüz üretim ortamına hazır değildir. Güncel geliştirme kodu `integration/tum-feature-branchleri` ve `test` dallarındadır; ikisi aynı commit'tedir. Frontend'in çalışma zamanı mock katmanı kaldırılmıştır, mock'lar yalnızca testlerde (MSW) kullanılır. İlk Admin kurulumu ve ilk girişte parola değiştirme akışı tamamlanmıştır; backend üretimli geçici parola ve davet e-postası henüz yoktur.
 
 ## İçindekiler
 
@@ -27,12 +27,16 @@ Sistem; kayıt oluşturma, hiyerarşik onay akışı, rol bazlı erişim, dosya 
 ## Yapılacaklar
 
 Son durum: tüm `feature/*` dalları `integration/tum-feature-branchleri` içine
-alınmıştır. Bu dal `test` dalının tamamını, ek olarak `feature/mobile-zeynep`
-sekme rengi düzeltmesini ve `feature/nisan-sumeyye` M4 çıkış/refresh token
-çalışmasını içerir. Aşağıdaki maddeler, o birleşik hâlde kalan açıklardır.
+alınmıştır ve `test` dalı bu dalla aynı commit'tedir. Aşağıdaki maddeler, o
+birleşik hâlde kalan açıklardır.
 
-Doğrulama (23 Ağustos 2026, yerel, Docker kapalı): backend 448 testin 434'ü
-yeşil, kalan 14'ü PostgreSQL istediği için düşer; frontend `lint` +
+24 Ağustos 2026'da `feature/notification-service` entegre edildi: M2 (cihaz
+token sahiplik doğrulaması, token log maskeleme) ve M3 (push servisinin
+`WorkflowStatusChangedListener`'a bağlanması) kapandı.
+
+Doğrulama (24 Ağustos 2026, yerel, Docker kapalı): backend 448 test koştu,
+**0 failure**; 8 error'ın tamamı PostgreSQL isteyen
+`WorkflowTransitionPersistenceIntegrationTest` sınıfından. Frontend `lint` +
 `typecheck:e2e` temiz, 103/103 Vitest yeşil, `build` başarılı; mobil `lint` ve
 `typecheck` temiz, 10/10 Jest yeşil. Playwright E2E paketi Docker gerektirdiği
 için bu turda çalıştırılamamıştır.
@@ -42,15 +46,14 @@ için bu turda çalıştırılamamıştır.
 - Admin kullanıcı oluştururken parolayı istemciden almaktadır; backend üretimli geçici parola ve davet e-postası henüz uygulanmamıştır.
 - Audit değiştirilemezliği yalnızca uygulama seviyesinde sağlanır; veritabanı tarafında trigger veya rol kısıtı ile zorlanmaz.
 - Tekil rol invariant'ı yalnızca okuma anında kontrol edilir; `PATCH /api/admin/users/{id}/active` ile hesap yeniden etkinleştirilirken aynı rolde başka aktif kullanıcı olup olmadığına bakılmaz.
-- **Push bildirimi hiç gönderilmiyor.** `PushNotificationService` yazılmıştır (FCM başlatma, `data.recordId`/`data.type` payload'u, `UNREGISTERED`/`INVALID_ARGUMENT` token temizliği) ancak sınıf **hiçbir yerden çağrılmaz**; `WorkflowStatusChangedListener` yalnız uygulama içi bildirim ve e-posta üretir. Servisin listener'a bağlanması gerekir. Bağlanana kadar eksiklik sessizdir: hata üretmez, yalnız bildirim gitmez.
-- **`DELETE /api/device-tokens` sahiplik doğrulaması yapmaz.** `DeviceTokenController.removeToken` `Authentication` parametresi almaz ve `DeviceTokenRepository.deactivateByToken` yalnız token değerine göre günceller. Uç, `POST /api/auth/logout` gibi `(token, user_id)` çifti üzerinden çalışmalı, kullanıcıya ait olmayan token sessizce yok sayılmalıdır.
-- **Cihaz tokenları log'a açık yazılıyor.** `DeviceTokenService.deactivateToken` (`log.info`) ile `PushNotificationService` (`log.warn`/`log.info`) token değerini tam olarak yazar. Token bir kimlik bilgisidir ve log'lar 30 gün saklanır; maskelenmelidir.
 - `/api/device-tokens` uçları `AuthorizationMatrixTest` kapsamında değildir (mobil görev dağılımındaki M8 açık).
+- Push gönderimi **gerçek cihazda hiç doğrulanmadı.** `PushNotificationService` artık `WorkflowStatusChangedListener`'a bağlıdır ve birim testleri yeşildir, ancak FCM anahtarları yalnız ortamdan gelir; uçtan uca kanıt için MOB-12 (mobil istemci tarafı) gerekir.
 
 ### Mobil
 
 - `mobile/` paketinde auth ve ortak API davranışlarını doğrulayan 10 Jest testi bulunur; ekran ve cihaz entegrasyon testleri henüz yoktur.
-- Dosya ekranı, bildirim merkezi ve push entegrasyonu tamamlanmamıştır.
+- Push entegrasyonu (MOB-12) hiç başlamadı: mobilde `firebase`, `messaging` veya `device-tokens` geçen tek satır yok. Backend tarafı hazır olduğu için tek eksik istemci ayağıdır.
+- iOS release / imza (MOB-16) yapılmadı; Android tarafı EAS preview APK ile doğrulandı.
 
 ### Test ve CI
 
@@ -64,7 +67,7 @@ için bu turda çalıştırılamamıştır.
 
 - `integration/tum-feature-branchleri` ve `test` dalları aynı commit'tedir; birleşik hâl doğrulandıktan sonra ikisine birden push edilmiştir.
 - `main`, birleşik dalın 373 commit gerisindedir; sürüm alınacaksa `test` -> `main` birleştirmesi yapılmalıdır.
-- `origin/feature/notification-service` dalındaki iki commit, birleşik dalda daha ileri bir sürümle (`AuthenticatedUser` desteği eklenmiş `DeviceTokenController`) zaten karşılanmıştır. Bu dalın geri birleştirilmesi düzeltmeyi geriye alır; dal silinmelidir.
+- `origin/feature/notification-service` 24 Ağustos'ta entegre edildi (M2 + M3). Dal, çakışma çözümü sırasında `DeviceTokenController.extractUserId` içindeki `AuthenticatedUser` dalını düşürmüştü; bu birleştirme sırasında geri konuldu — o dal olmadan iki uç da gerçek isteklerde `IllegalArgumentException` atıyordu. Dal artık tüketilmiştir; silinebilir.
 - `feature/workflow-gonder-hedef-cozumleme` dalındaki C1a commit'inin davranışı (`GONDER`/`TEKRAR_GONDER` için `targetUserIdRequiredInRequest=false`) birleşik dalda zaten mevcuttur; dal güncelliğini yitirmiştir.
 - `origin/feature/m9-envanter` (`fc0d244`) ve `origin/feature/nisan-sumeyye` (`85e96d4`) dallarındaki son commitler, birleşik dalda bulunan `d365cd9` ve `4e3297d` ile **birebir aynı yamadır** (`git patch-id` eşleşir). Bu dallar tüketilmiştir; silinmelidir.
 - Yalnız yerelde duran `backup/proje-altyapisi-20260806`, `feature/proje-altyapisi` ve `feature/workflow-gonder-hedef-cozumleme` dalları temizlenmelidir.
@@ -398,8 +401,11 @@ Arama için ayrı bir uç yoktur; filtreleme kayıt listesi ucu üzerinden yapı
 GET /api/records?page&size&status&categoryId&q&from&to&creator&sort
 ```
 
-> [!WARNING]
-> `DELETE /api/device-tokens` şu an gönderilen tokenın **oturumdaki kullanıcıya ait olup olmadığını kontrol etmez**; token yalnız değerine göre pasifleştirilir. Kimliği doğrulanmış herhangi bir kullanıcı, başkasının token değerini ele geçirirse o kişinin push bildirimlerini kapatabilir. Ayrıntı ve düzeltme önerisi "Yapılacaklar" bölümündedir.
+> [!NOTE]
+> `DELETE /api/device-tokens` sahiplik doğrular: token `(token, user_id)` çifti
+> üzerinden pasifleştirilir, oturumdaki kullanıcıya ait olmayan token sessizce
+> yok sayılır. Bu uç **normal çıkış akışı değildir** — normal çıkışta cihaz
+> tokenı `POST /api/auth/logout` gövdesindeki `deviceToken` ile pasifleşir.
 
 Admin uçlarının tamamı `@PreAuthorize` ile yalnızca `ADMIN` rolüne açıktır; kayıt oluşturma, düzenleme, silme ve dosya ekleme aynı biçimde yalnızca `CALISAN` rolüne açıktır. Workflow ucunda rol kontrolü bilinçli olarak controller'da değil durum makinesinde yapılır; yetkisiz rol denemesi `403 WORKFLOW_ROLE_NOT_ALLOWED` ile döner.
 

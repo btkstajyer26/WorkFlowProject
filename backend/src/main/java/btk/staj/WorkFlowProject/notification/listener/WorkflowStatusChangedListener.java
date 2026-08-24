@@ -24,6 +24,23 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
+/**
+ * Onay akisi bir durum degisikligi yayinladiginda bildirim uretir.
+ *
+ * <p>Uc kanal bilerek farkli anlarda calisir:
+ *
+ * <ul>
+ *   <li><strong>Uygulama ici bildirim</strong> gecisle ayni transaction'da
+ *       yazilir. Sozlesme (bkz. {@code docs/FRONTEND_BACKEND_SOZLESMESI.md})
+ *       durum guncellemesi, denetim izi ve bildirimin tek transaction'da
+ *       tamamlanmasini soyluyor; gecis geri alinirsa bildirim de kalmaz.</li>
+ *   <li><strong>E-posta</strong> yalnizca commit sonrasi gonderilir. Geri
+ *       alinabilir bir islem icin disariya e-posta cikmasi geri alinamaz.</li>
+ *   <li><strong>Push</strong> da commit sonrasi, ayni gerekceyle gonderilir.
+ *       {@code pushNotificationService} null olabilir: FCM yapilandirilmamis
+ *       ortamlarda bean hic olusmaz ve akis pushsuz calisir.</li>
+ * </ul>
+ */
 @Component
 public class WorkflowStatusChangedListener {
 
@@ -107,6 +124,15 @@ public class WorkflowStatusChangedListener {
         }
     }
 
+    /**
+     * Bildirimi kim(ler) almali:
+     * <ul>
+     *   <li>{@code event.assignedTo() != null} -> yalniz atanan kisi.</li>
+     *   <li>{@code assignedTo == null} (nihai onay/ret) -> kaydi olusturan ve
+     *       kaydi Baskana ileten yardimci ({@code Record.lastDeputyId}).</li>
+     * </ul>
+     * LinkedHashSet sira garantisi verir ve ayni kisi iki role denk geldiginde mukerrerligi onler.
+     */
     public Set<UUID> recipientsOf(WorkflowStatusChangedEvent event) {
         Set<UUID> recipients = new LinkedHashSet<>();
 
@@ -158,6 +184,7 @@ public class WorkflowStatusChangedListener {
         return truncate(base + ": " + event.comment());
     }
 
+    /** message kolonu VARCHAR(500); uzun aciklama yazmayi engellememeli. */
     private static String truncate(String value) {
         return value.length() <= 500 ? value : value.substring(0, 497) + "...";
     }

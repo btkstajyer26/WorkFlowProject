@@ -1,5 +1,6 @@
 package btk.staj.WorkFlowProject.notification.controller;
 
+import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
 import btk.staj.WorkFlowProject.notification.dto.DeviceTokenDeleteRequest;
 import btk.staj.WorkFlowProject.notification.dto.DeviceTokenRequest;
 import btk.staj.WorkFlowProject.notification.service.DeviceTokenService;
@@ -44,6 +45,14 @@ public class DeviceTokenController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * JWT filtresi principal olarak {@link AuthenticatedUser} koyar; gercek
+     * isteklerde her zaman bu dal calisir. {@link AuthenticatedUser} bir
+     * {@link User} <em>degildir</em>, onu sarar (implements UserDetails) —
+     * bu yuzden ayri bir dal gerekir, {@code instanceof User} eslesmez.
+     * {@link User} / {@link UUID} fallback'leri test veya alternatif
+     * baglamlar icindir.
+     */
     private UUID extractUserId(Authentication authentication) {
         if (authentication == null || authentication.getPrincipal() == null) {
             throw new IllegalArgumentException("Kimlik doğrulaması bulunamadı.");
@@ -51,7 +60,9 @@ public class DeviceTokenController {
 
         Object principal = authentication.getPrincipal();
 
-        if (principal instanceof User user) {
+        if (principal instanceof AuthenticatedUser authenticatedUser) {
+            return authenticatedUser.getId();
+        } else if (principal instanceof User user) {
             return user.getId();
         } else if (principal instanceof UUID uuid) {
             return uuid;
