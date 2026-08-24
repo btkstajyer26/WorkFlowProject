@@ -9,12 +9,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { MobileHeader } from "@/components/navigation/MobileHeader";
 import { TabBarIcon } from "@/components/navigation/TabBarIcon";
+import { useCurrentUser } from "@/query/currentUser";
 import { useAppTheme } from "@/theme/ThemeProvider";
 import { appTokens } from "@/theme/theme";
 
 export default function AppLayout() {
   const insets = useSafeAreaInsets();
   const { colors, resolvedTheme } = useAppTheme();
+  const currentUser = useCurrentUser();
+  const canCreateRecord = currentUser.data?.roleName === "CALISAN";
   const activeTintColor =
     resolvedTheme === "dark" ? appTokens.brand[300] : appTokens.brand[600];
 
@@ -67,6 +70,7 @@ export default function AppLayout() {
       <Tabs.Screen
         name="olustur"
         options={{
+          href: canCreateRecord ? "/olustur" : null,
           tabBarAccessibilityLabel: "Yeni kayıt oluştur sekmesi",
           tabBarIcon: ({ color, focused }) => (
             <TabBarIcon
