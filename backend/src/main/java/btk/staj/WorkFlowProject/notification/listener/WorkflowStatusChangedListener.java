@@ -3,6 +3,7 @@ package btk.staj.WorkFlowProject.notification.listener;
 import btk.staj.WorkFlowProject.notification.entity.NotificationType;
 import btk.staj.WorkFlowProject.notification.service.MailService;
 import btk.staj.WorkFlowProject.notification.service.NotificationService;
+import btk.staj.WorkFlowProject.notification.service.PushNotificationService;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
 import btk.staj.WorkFlowProject.user.entity.User;
@@ -22,20 +23,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
-/**
- * Onay akisi bir durum degisikligi yayinladiginda bildirim uretir.
- *
- * <p>Iki kanal bilerek farkli anlarda calisir:
- *
- * <ul>
- *   <li><strong>Uygulama ici bildirim</strong> gecisle ayni transaction'da
- *       yazilir. Sozlesme (bkz. {@code docs/FRONTEND_BACKEND_SOZLESMESI.md})
- *       durum guncellemesi, denetim izi ve bildirimin tek transaction'da
- *       tamamlanmasini soyluyor; gecis geri alinirsa bildirim de kalmaz.</li>
- *   <li><strong>E-posta</strong> yalnizca commit sonrasi gonderilir. Geri
- *       alinabilir bir islem icin disariya e-posta cikmasi geri alinamaz.</li>
- * </ul>
- */
 @Component
 public class WorkflowStatusChangedListener {
 
@@ -43,15 +30,18 @@ public class WorkflowStatusChangedListener {
 
     private final NotificationService notificationService;
     private final MailService mailService;
+    private final PushNotificationService pushNotificationService;
     private final RecordRepository recordRepository;
     private final UserRepository userRepository;
 
     public WorkflowStatusChangedListener(NotificationService notificationService,
                                          MailService mailService,
+                                         PushNotificationService pushNotificationService,
                                          RecordRepository recordRepository,
                                          UserRepository userRepository) {
         this.notificationService = Objects.requireNonNull(notificationService, "notificationService");
         this.mailService = Objects.requireNonNull(mailService, "mailService");
+        this.pushNotificationService = Objects.requireNonNull(pushNotificationService, "pushNotificationService");
         this.recordRepository = Objects.requireNonNull(recordRepository, "recordRepository");
         this.userRepository = Objects.requireNonNull(userRepository, "userRepository");
     }
@@ -84,8 +74,19 @@ public class WorkflowStatusChangedListener {
 
         String title = recordTitle(event.recordId());
         String statusName = event.newStatus().name();
+        String pushBody = message(event);
+        NotificationType type = NotificationType.of(event.action());
 
         for (UUID recipientId : recipients) {
+            // Push bildirimi
+            pushNotificationService.sendPushNotification(
+                    recipientId,
+                    title,
+                    pushBody,
+                    event.recordId(),
+                    type);
+
+            // E-posta bildirimi
             Optional<User> recipient = userRepository.findById(recipientId);
             if (recipient.isEmpty()) {
                 log.warn("Bildirim e-postası gönderilemedi, kullanıcı bulunamadı: {}", recipientId);
@@ -103,15 +104,6 @@ public class WorkflowStatusChangedListener {
         }
     }
 
-    /**
-     * Bildirimi kim(ler) almali:
-     * <ul>
-     *   <li>{@code event.assignedTo() != null} -> yalniz atanan kisi.</li>
-     *   <li>{@code assignedTo == null} (nihai onay/ret) -> kaydi olusturan ve
-     *       kaydi Baskana ileten yardimci ({@code Record.lastDeputyId}).</li>
-     * </ul>
-     * LinkedHashSet sira garantisi verir ve ayni kisi iki role denk geldiginde mukerrerligi onler.
-     */
     public Set<UUID> recipientsOf(WorkflowStatusChangedEvent event) {
         Set<UUID> recipients = new LinkedHashSet<>();
 
@@ -163,7 +155,6 @@ public class WorkflowStatusChangedListener {
         return truncate(base + ": " + event.comment());
     }
 
-    /** message kolonu VARCHAR(500); uzun aciklama yazmayi engellememeli. */
     private static String truncate(String value) {
         return value.length() <= 500 ? value : value.substring(0, 497) + "...";
     }

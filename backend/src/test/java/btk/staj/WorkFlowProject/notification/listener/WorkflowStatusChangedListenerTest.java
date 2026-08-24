@@ -111,7 +111,7 @@ class WorkflowStatusChangedListenerTest {
     void sendsPushNotificationToAssignedUser() {
         givenRecord();
 
-        listener.sendExternalNotifications(event(
+        listener.sendMail(event(
                 WorkflowAction.BASKANA_ILET, RecordStatus.BASKAN_INCELEMESINDE, ASSIGNEE_ID, "Uygun görüldü"));
 
         verify(pushNotificationService).sendPushNotification(
@@ -129,7 +129,7 @@ class WorkflowStatusChangedListenerTest {
         User assignee = user(ASSIGNEE_ID, "Mehmet", "Demir", "mehmet@ornek.test");
         when(userRepository.findById(ASSIGNEE_ID)).thenReturn(Optional.of(assignee));
 
-        listener.sendExternalNotifications(event(
+        listener.sendMail(event(
                 WorkflowAction.BASKANA_ILET, RecordStatus.BASKAN_INCELEMESINDE, ASSIGNEE_ID, "Uygun görüldü"));
 
         verify(mailService).sendStatusChangeMail(
@@ -143,7 +143,7 @@ class WorkflowStatusChangedListenerTest {
         givenRecord();
         when(userRepository.findById(ASSIGNEE_ID)).thenReturn(Optional.empty());
 
-        listener.sendExternalNotifications(event(
+        listener.sendMail(event(
                 WorkflowAction.BASKANA_ILET, RecordStatus.BASKAN_INCELEMESINDE, ASSIGNEE_ID, null));
 
         verifyNoInteractions(mailService);
