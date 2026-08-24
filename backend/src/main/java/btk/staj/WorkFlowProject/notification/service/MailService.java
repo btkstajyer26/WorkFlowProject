@@ -21,7 +21,7 @@ public class MailService {
 
     private static final Logger log = LoggerFactory.getLogger(MailService.class);
 
-    private static final String NO_EXPLANATION = "â€”";
+    private static final String NO_EXPLANATION = "\u2014";
     private static final String TEMPLATE = "mail/workflow-status";
 
     private final JavaMailSender mailSender;
@@ -44,18 +44,18 @@ public class MailService {
     @Async
     public void sendPasswordResetCode(String toEmail, String recipientName, String code, int ttlMinutes) {
         try {
-            log.info("Åifre sÄ±fÄ±rlama kodu gÃ¶nderiliyor. AlÄ±cÄ±: {}", toEmail);
+            log.info("Şifre sıfırlama kodu gönderiliyor. Alıcı: {}", toEmail);
             MimeMessage mimeMessage = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, false, StandardCharsets.UTF_8.name());
 
             helper.setFrom(mailFrom);
             helper.setTo(toEmail);
-            helper.setSubject("EBYS - Åifre SÄ±fÄ±rlama Kodu");
-            helper.setText("SayÄ±n " + recipientName + ",\n\nÅifre sÄ±fÄ±rlama doÄŸrulama kodunuz: " + code + "\nBu kod " + ttlMinutes + " dakika boyunca geÃ§erlidir.", false);
+            helper.setSubject("EBYS - Şifre Sıfırlama Kodu");
+            helper.setText("Sayın " + recipientName + ",\n\nŞifre sıfırlama talebiniz için oluşturulan doğrulama kodunuz aşağıdadır:\n\nDOĞRULAMA KODU " + code + "\n\nBu kod " + ttlMinutes + " dakika boyunca geçerlidir.", false);
 
             mailSender.send(mimeMessage);
         } catch (Exception e) {
-            log.error("Åifre sÄ±fÄ±rlama kodu gÃ¶nderilirken hata oluÅŸtu: " + toEmail, e);
+            log.error("Şifre sıfırlama kodu gönderilirken hata oluştu: " + toEmail, e);
         }
     }
 
@@ -67,7 +67,7 @@ public class MailService {
                                      String status,
                                      String reason) {
         try {
-            log.info("E-posta gÃ¶nderimi baÅŸlatÄ±lÄ±yor. AlÄ±cÄ±: {}, Evrak: {}, Durum: {}", toEmail, recordId, status);
+            log.info("E-posta gönderimi başlatılıyor. Alıcı: {}, Evrak: {}, Durum: {}", toEmail, recordId, status);
 
             MimeMessage mimeMessage = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(
@@ -79,10 +79,10 @@ public class MailService {
             helper.setText(render(recipientName, recordId, title, status, reason), true);
 
             mailSender.send(mimeMessage);
-            log.info("E-posta baÅŸarÄ±yla gÃ¶nderildi: {}", toEmail);
+            log.info("E-posta başarıyla gönderildi: {}", toEmail);
 
         } catch (Exception e) {
-            log.error("E-posta gÃ¶nderilirken hata oluÅŸtu! AlÄ±cÄ±: " + toEmail, e);
+            log.error("E-posta gönderilirken hata oluştu! Alıcı: " + toEmail, e);
         }
     }
 
@@ -91,34 +91,24 @@ public class MailService {
         context.setVariable("recipientName", recipientName);
         context.setVariable("recordId", recordId);
         context.setVariable("title", title);
-
-        // Testler doÄŸrudan gelen status string'inin (Ã¶rn: ONAYLANDI) ÅŸablonda yer almasÄ±nÄ± bekler
-        context.setVariable("status", status != null ? status : "Ä°ncelemede");
-
+        context.setVariable("status", status != null ? status : "İncelemede");
         context.setVariable("explanation", (reason == null || reason.isBlank()) ? NO_EXPLANATION : reason);
         context.setVariable("deepLink", frontendUrl + "/records/" + recordId);
 
         String upper = status != null ? status.trim().toUpperCase(Locale.ENGLISH) : "";
         String quickActionBase = backendUrl + "/api/public/notification/quick-action?recordId=" + recordId + "&action=";
 
-        // 1. Nihai durumlar -> Buton gÃ¶sterilmez
         if (upper.contains("ONAYLANDI") || upper.contains("REDDEDILDI") || upper.contains("APPROV") || upper.contains("REJECT")) {
             context.setVariable("showActionBtn", false);
-        }
-        // 2. BaÅŸkana gelen bildirim -> ONAYLA aksiyonu
-        else if (upper.contains("BASKAN_INCELEMESINDE") || upper.contains("FORWARD") || upper.contains("PRESIDENT")) {
+        } else if (upper.contains("BASKAN_INCELEMESINDE") || upper.contains("FORWARD") || upper.contains("PRESIDENT")) {
             context.setVariable("showActionBtn", true);
             context.setVariable("actionText", "Onayla");
             context.setVariable("actionLink", quickActionBase + "ONAYLA");
-        }
-        // 3. BaÅŸkan YardÄ±mcÄ±sÄ±na gelen bildirim -> BASKANA_ILET aksiyonu
-        else if (upper.contains("BSK_YRD_INCELEMESINDE") || upper.contains("SUBMIT") || upper.contains("DEPUTY")) {
+        } else if (upper.contains("BSK_YRD_INCELEMESINDE") || upper.contains("SUBMIT") || upper.contains("DEPUTY")) {
             context.setVariable("showActionBtn", true);
             context.setVariable("actionText", "Onayla");
             context.setVariable("actionLink", quickActionBase + "BASKANA_ILET");
-        }
-        // 4. Ã‡alÄ±ÅŸana gelen bildirim -> GONDER aksiyonu
-        else {
+        } else {
             context.setVariable("showActionBtn", true);
             context.setVariable("actionText", "Onayla");
             context.setVariable("actionLink", quickActionBase + "GONDER");
@@ -129,6 +119,6 @@ public class MailService {
 
     private static String subject(UUID recordId) {
         String id = recordId.toString();
-        return "EBYS - Evrak Durum DeÄŸiÅŸikliÄŸi Bildirimi [#" + id.substring(0, 8) + "]";
+        return "EBYS - Evrak Durum Değişikliği Bildirimi [#" + id.substring(0, 8) + "]";
     }
 }
