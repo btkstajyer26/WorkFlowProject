@@ -5,27 +5,35 @@ import btk.staj.WorkFlowProject.notification.entity.DeviceToken;
 import btk.staj.WorkFlowProject.notification.repository.DeviceTokenRepository;
 import btk.staj.WorkFlowProject.user.entity.User;
 import btk.staj.WorkFlowProject.user.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.sql.DataSource;
 import java.util.UUID;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class DeviceTokenService {
 
     private final DeviceTokenRepository deviceTokenRepository;
     private final UserRepository userRepository;
 
+    @Autowired
+    public DeviceTokenService(@Lazy @Autowired(required = false) DeviceTokenRepository deviceTokenRepository,
+                              @Lazy @Autowired(required = false) UserRepository userRepository) {
+        this.deviceTokenRepository = deviceTokenRepository;
+        this.userRepository = userRepository;
+    }
+
     @Transactional
     public void registerOrUpdateToken(UUID userId, DeviceTokenRequest request) {
         if (userId == null) {
             throw new IllegalArgumentException("Kullanıcı kimliği doğrulanamadı.");
+        }
+        if (deviceTokenRepository == null || userRepository == null) {
+            return;
         }
 
         User user = userRepository.findById(userId)
@@ -47,7 +55,7 @@ public class DeviceTokenService {
 
     @Transactional
     public void deactivateTokenForUser(UUID userId, String token) {
-        if (userId == null || token == null || token.isBlank()) {
+        if (userId == null || token == null || token.isBlank() || deviceTokenRepository == null) {
             return;
         }
         int updated = deviceTokenRepository.deactivateByTokenAndUserId(token, userId);
@@ -60,7 +68,7 @@ public class DeviceTokenService {
 
     @Transactional
     public void deactivateToken(String token) {
-        if (token != null && !token.isBlank()) {
+        if (token != null && !token.isBlank() && deviceTokenRepository != null) {
             deviceTokenRepository.deactivateByToken(token);
             log.info("Cihaz token'ı pasifleştirildi: {}", maskToken(token));
         }
