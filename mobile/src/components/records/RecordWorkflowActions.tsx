@@ -68,9 +68,11 @@ function getAvailableActions(
 }
 
 export function RecordWorkflowActions({
+  onActionSuccess,
   record,
   user,
 }: {
+  onActionSuccess?: (action: WorkflowAction) => void;
   record: RecordDetail;
   user: CurrentUser;
 }) {
@@ -102,6 +104,7 @@ export function RecordWorkflowActions({
         action: selectedAction.action,
         ...(normalizedComment ? { comment: normalizedComment } : {}),
       });
+      onActionSuccess?.(selectedAction.action);
       closeModal();
     } catch (error) {
       setErrorMessage(

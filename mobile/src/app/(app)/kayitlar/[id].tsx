@@ -236,7 +236,15 @@ export default function RecordDetailScreen() {
               </AppCard>
             ) : null}
 
-            <RecordWorkflowActions record={record} user={currentUser} />
+            <RecordWorkflowActions
+              onActionSuccess={(action) => {
+                if (action === 'BASKAN_YARDIMCISINA_GERI_GONDER') {
+                  router.replace('/');
+                }
+              }}
+              record={record}
+              user={currentUser}
+            />
             <RecordFilesIntegrationSlot recordId={record.id} />
 
             {historyQuery.isPending ? (
