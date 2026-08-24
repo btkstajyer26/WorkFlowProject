@@ -12,6 +12,7 @@ import btk.staj.WorkFlowProject.workflow.model.WorkflowStatusChangedEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -36,12 +37,12 @@ public class WorkflowStatusChangedListener {
 
     public WorkflowStatusChangedListener(NotificationService notificationService,
                                          MailService mailService,
-                                         PushNotificationService pushNotificationService,
+                                         @Nullable PushNotificationService pushNotificationService,
                                          RecordRepository recordRepository,
                                          UserRepository userRepository) {
         this.notificationService = Objects.requireNonNull(notificationService, "notificationService");
         this.mailService = Objects.requireNonNull(mailService, "mailService");
-        this.pushNotificationService = Objects.requireNonNull(pushNotificationService, "pushNotificationService");
+        this.pushNotificationService = pushNotificationService;
         this.recordRepository = Objects.requireNonNull(recordRepository, "recordRepository");
         this.userRepository = Objects.requireNonNull(userRepository, "userRepository");
     }
@@ -78,13 +79,15 @@ public class WorkflowStatusChangedListener {
         NotificationType type = NotificationType.of(event.action());
 
         for (UUID recipientId : recipients) {
-            // Push bildirimi
-            pushNotificationService.sendPushNotification(
-                    recipientId,
-                    title,
-                    pushBody,
-                    event.recordId(),
-                    type);
+            // Push bildirimi (servis context'te varsa gönderilir)
+            if (pushNotificationService != null) {
+                pushNotificationService.sendPushNotification(
+                        recipientId,
+                        title,
+                        pushBody,
+                        event.recordId(),
+                        type);
+            }
 
             // E-posta bildirimi
             Optional<User> recipient = userRepository.findById(recipientId);

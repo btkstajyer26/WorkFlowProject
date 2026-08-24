@@ -16,7 +16,6 @@ import java.util.UUID;
 
 @Slf4j
 @Service
-@ConditionalOnBean(DataSource.class)
 @RequiredArgsConstructor
 public class DeviceTokenService {
 
