@@ -237,11 +237,7 @@ export default function RecordDetailScreen() {
             ) : null}
 
             <RecordWorkflowActions
-              onActionSuccess={(action) => {
-                if (action === 'BASKAN_YARDIMCISINA_GERI_GONDER') {
-                  router.replace('/');
-                }
-              }}
+              onActionSuccess={() => router.replace('/')}
               record={record}
               user={currentUser}
             />

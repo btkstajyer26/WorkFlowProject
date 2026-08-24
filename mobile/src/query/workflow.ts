@@ -18,11 +18,28 @@ const conflictCodes = new Set([
 export function useRecordWorkflow(recordId: string) {
   const queryClient = useQueryClient();
 
-  const refreshRecord = async () => {
+  const refreshAfterConflict = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: recordQueryKeys.all }),
       queryClient.invalidateQueries({
         queryKey: auditLogQueryKeys.record(recordId),
+      }),
+    ]);
+  };
+
+  const refreshAfterSuccess = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: recordQueryKeys.lists() }),
+      queryClient.invalidateQueries({ queryKey: recordQueryKeys.counts() }),
+      queryClient.invalidateQueries({
+        exact: true,
+        queryKey: recordQueryKeys.detail(recordId),
+        refetchType: 'none',
+      }),
+      queryClient.invalidateQueries({
+        exact: true,
+        queryKey: auditLogQueryKeys.record(recordId),
+        refetchType: 'none',
       }),
     ]);
   };
@@ -32,9 +49,9 @@ export function useRecordWorkflow(recordId: string) {
       performWorkflowAction(recordId, request),
     onError: async (error) => {
       if (error instanceof ApiClientError && conflictCodes.has(error.code)) {
-        await refreshRecord();
+        await refreshAfterConflict();
       }
     },
-    onSuccess: refreshRecord,
+    onSuccess: refreshAfterSuccess,
   });
 }
