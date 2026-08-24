@@ -17,7 +17,6 @@ olarak durur; tasarım gerekçeleri envanter ve mimari belgelerindedir.
 | # | Sahip | Modül | İş | Durum |
 |---|---|---|---|---|
 | M0-kalan | Entegrasyon | — | `docs/openapi.json` yeniden üretilmeli | 🔴 |
-| M1 | Ebrar Şeyma Karakuş | `audit` | İşlem geçmişi cevap boyutu ölçülüp sayfalama kararı yazılmalı | 🟡 |
 | M8 | Hacer Bengü Ünal | `rbac` | `/api/device-tokens` yetki matrisi testi | 🔵 |
 | MOB-12 | Mobil | `mobile/` | Push (FCM) istemci tarafı | 🔴 |
 | MOB-16 | Mobil | `mobile/` | iOS release / imza | 🟡 |
@@ -43,30 +42,6 @@ alınmalı; komut envanterde.
 
 **Bitti sayılır:** `docs/openapi.json` içinde `/api/device-tokens` `POST` ve
 `DELETE` uçları var.
-
----
-
-### 👤 Ebrar Şeyma Karakuş — `audit`
-
-#### M1 — İşlem geçmişi ucunun mobil doğrulaması 🟡
-
-Üç maddenin **ikisi kapandı**, biri açık:
-
-| Madde | Durum |
-|---|---|
-| Kırpma kurallarının envantere doğru yazılması | ✅ Envanter §5'te yazılı |
-| `httpMethod` / `requestPath` / `httpStatus` / `errorCode` alanlarının opsiyonel işaretlenmesi | ✅ Envanter §5'te "her zaman `null`" notuyla yazılı |
-| **Cevap boyutu ölçümü ve sayfalama kararı** | 🟡 **Açık** — envanterde ne ölçüm ne gerekçeli karar var |
-
-`GET /api/audit-logs/record/{recordId}` sayfalama yapmaz, tüm satırları tek
-listede döndürür. Mobilde uzun geçmişi olan bir kayıt tek istekte iner.
-
-Gerçekçi en büyük geçmiş için cevap boyutu ölçülmeli. Sınır aşılıyorsa sayfalama
-veya `limit` **önerilmeli** — kendiliğinden eklenmemeli; web istemcisi bu ucu
-sayfalamasız kullanıyor.
-
-**Bitti sayılır:** Envanterde ölçülen boyut ve sayfalama kararı (gerekli /
-gereksiz) gerekçesiyle kayıtlı.
 
 ---
 
@@ -226,6 +201,7 @@ Aşağıdakiler koda karşı doğrulanmıştır; **yeniden açılmaz, yeniden ya
 |---|---|---|---|
 | M0 | Entegrasyon | Uç envanteri ([MOBIL_API_ENVANTERI.md](MOBIL_API_ENVANTERI.md)) — hata kodları, sayfalama zarfı, `sort` tuzağı, tarih biçimi, görünürlük, dosya kuralları | 20 Ağu 2026 (`openapi.json` maddesi hariç) |
 | M2 | Melih Kocaman | `device_tokens` tablosu, `POST`/`DELETE` uçları, upsert kuralı: `token` UNIQUE üzerinden eşleşir, `user_id` dahil **tüm** alanlar güncellenir (aynı telefonda başka kullanıcı giriş yaparsa push yanlış kişiye gitmesin diye) | 20 Ağu 2026 |
+| M1 | Ebrar Şeyma Karakuş | İşlem geçmişi ucunun mobil doğrulaması: kırpma kuralları ve her zaman `null` dönen HTTP alanları envanter §5'te yazılı; cevap boyutu ölçülüp **sayfalama eklenmeme kararı** gerekçesiyle kayıtlı (gerçekçi en kötü durum 20 geri gönderme turu = 106 satır = 44,5 KB) | 24 Ağu 2026 |
 | M2-kalan | Melih Kocaman | `DELETE /api/device-tokens` artık `(token, user_id)` çifti üzerinden çalışıyor (`deactivateByTokenAndUserId`); kullanıcıya ait olmayan token sessizce yok sayılır. Token değerleri log'da `maskToken` ile maskeleniyor. `DeviceTokenServiceTest` sahiplik senaryolarını kapsıyor | 24 Ağu 2026 |
 | M3 | Melih Kocaman | `PushNotificationService` `WorkflowStatusChangedListener`'a bağlandı; alıcılar mevcut `recipientsOf` matrisinden geliyor, servis `@Nullable` (FCM yapılandırılmamış ortamda akış pushsuz çalışır). `PushNotificationServiceTest` `UNREGISTERED`/`INVALID_ARGUMENT` pasifleştirmesini ve `UNAVAILABLE`'ın pasifleştirmediğini doğruluyor. **Gerçek cihazda doğrulanmadı — MOB-12 açık** | 24 Ağu 2026 |
 | M4 | Nisan Tat · Sümeyye Baykan | Çıkışta cihaz token'ı pasifleştirme. `LogoutRequest.deviceToken` opsiyonel; `AuthServiceTest` üç senaryoyu da kapsıyor: token yokken web akışı bozulmuyor, varken pasifleşiyor, **başkasınınki pasifleşmiyor** | 21 Ağu 2026 |
