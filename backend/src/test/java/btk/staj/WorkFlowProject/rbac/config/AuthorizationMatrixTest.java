@@ -42,6 +42,7 @@ import java.util.UUID;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -160,10 +161,6 @@ class AuthorizationMatrixTest {
         @Test
         @DisplayName("giris ucu acik kalir")
         void girisUcuAcik() throws Exception {
-            // Istek filtre zincirinde durdurulmamali, AuthService'e ulasmali.
-            // Bos govde gecerli bir kullaniciya karsilik gelmedigi icin sonuc
-            // yine 401'dir; ancak filtrenin "UNAUTHORIZED" reddinden farkli
-            // olarak is katmaninin "INVALID_CREDENTIALS" kodunu tasir.
             mockMvc.perform(post("/api/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{}"))
@@ -200,8 +197,6 @@ class AuthorizationMatrixTest {
         @WithMockUser(roles = "CALISAN")
         @DisplayName("Calisan icin yetki engeli yoktur")
         void calisanEngellenmez() throws Exception {
-            // Servis katmani mock oldugu icin sonuc basarili olmayabilir;
-            // onemli olan istegin YETKI nedeniyle reddedilmemesi.
             mockMvc.perform(post("/api/records")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(RECORD_JSON))
@@ -209,13 +204,6 @@ class AuthorizationMatrixTest {
         }
     }
 
-    /**
-     * Onay akisi aksiyonlari tek uctan gecer; hangi rolun hangi durumda hangi
-     * aksiyonu alabilecegine durum makinesi karar verir. Tabloda karsiligi
-     * olmayan rol/aksiyon birlesimi {@code WORKFLOW_INVALID_TRANSITION} ile
-     * reddedilir. Workflow aktoru olmayan ADMIN ise daha erken, ayri bir kodla
-     * ({@code WORKFLOW_ROLE_NOT_ALLOWED}) elenir ve 403 alir.
-     */
     @Nested
     @DisplayName("Onay ve red yalnizca Baskan")
     class OnayVeRed {
@@ -238,7 +226,7 @@ class AuthorizationMatrixTest {
             givenRecord(recordId, RecordStatus.BASKAN_INCELEMESINDE);
 
             performAction(recordId, RoleName.BASKAN_YARDIMCISI,
-                    "{\"action\":\"REDDET\",\"comment\":\"Uygun değil\"}")
+                    "{\"action\":\"REDDET\",\"comment\":\"Uygun degil\"}")
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.code").value("WORKFLOW_INVALID_TRANSITION"));
         }
@@ -268,11 +256,6 @@ class AuthorizationMatrixTest {
     @DisplayName("Kullanici yonetimi yalnizca Admin")
     class KullaniciYonetimi {
 
-        /**
-         * Govde bilerek gecerli: DTO dogrulamasi argüman cozumlemesi sirasinda
-         * calistigi icin gecersiz govde yetki kontrolune hic ulasmadan 400
-         * dondurur. Burada olculmek istenen yetki reddidir.
-         */
         private static final String GECERLI_GOVDE = """
                 {"firstName":"Test","lastName":"Kullanici",
                  "email":"test@ornek.test","password":"sifre123"}
@@ -307,12 +290,72 @@ class AuthorizationMatrixTest {
         @WithMockUser(roles = "BASKAN")
         @DisplayName("Baskan dosya yukleyemez")
         void baskanYukleyemez() throws Exception {
-            // Yukleme ucu sozlesmeye uyacak sekilde POST /api/records/{id}/files
-            // adresine tasindi; kayit kimligi artik yoldan geliyor.
             mockMvc.perform(multipart("/api/records/{id}/files", UUID.randomUUID())
                             .file(new MockMultipartFile("file", "rapor.pdf",
                                     "application/pdf", "icerik".getBytes())))
                     .andExpect(status().isForbidden());
+        }
+    }
+
+    @Nested
+    @DisplayName("Cihaz token yonetimi auth gerektirir")
+    class DeviceTokenYonetimi {
+
+        private static final String REGISTER_JSON = """
+                {"token":"test-token-123","platform":"ANDROID","deviceName":"Test Cihaz"}
+                """;
+
+        private static final String DELETE_JSON = """
+                {"token":"test-token-123"}
+                """;
+
+        @Test
+        @DisplayName("Auth olmadan token kaydi 401 doner")
+        void authOlmadanKayit401Doner() throws Exception {
+            mockMvc.perform(post("/api/device-tokens")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(REGISTER_JSON))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("Auth olmadan token silme 401 doner")
+        void authOlmadanSilme401Doner() throws Exception {
+            mockMvc.perform(delete("/api/device-tokens")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(DELETE_JSON))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("Girisi olan kullanici kendi token kaydini yapabilir")
+        void girisliKullaniciKayitYapabilir() throws Exception {
+            AuthenticatedUser authenticatedUser = actor(RoleName.CALISAN);
+            when(userRepository.findById(authenticatedUser.getId()))
+                    .thenReturn(Optional.of(authenticatedUser.getUser()));
+            when(deviceTokenRepository.findByToken("test-token-123"))
+                    .thenReturn(Optional.empty());
+
+            mockMvc.perform(post("/api/device-tokens")
+                            .with(user(authenticatedUser))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(REGISTER_JSON))
+                    .andExpect(status().is(not(403)));
+        }
+
+        @Test
+        @DisplayName("Girisi olan kullanici kendi tokenini silebilir")
+        void girisliKullaniciSilebilir() throws Exception {
+            AuthenticatedUser authenticatedUser = actor(RoleName.CALISAN);
+            when(deviceTokenRepository.deactivateByTokenAndUserId(
+                    "test-token-123", authenticatedUser.getId()))
+                    .thenReturn(1);
+
+            mockMvc.perform(delete("/api/device-tokens")
+                            .with(user(authenticatedUser))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(DELETE_JSON))
+                    .andExpect(status().is(not(403)));
         }
     }
 }
