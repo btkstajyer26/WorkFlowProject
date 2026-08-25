@@ -45,8 +45,11 @@ Mobil istemci kodu bu dosyadan üretildiği için cihaz token kaydı üretilmiş
 istemciyle yapılamaz. Backend ayaktayken `/v3/api-docs` çıktısı yeniden
 alınmalı; komut envanterde.
 
-**Bitti sayılır:** `docs/openapi.json` içinde `/api/device-tokens` `POST` ve
-`DELETE` uçları var.
+25 Ağustos'ta eklenen `/api/public/mail-actions/preview` ve `/consume` uçları
+da dosyada yok; aynı yeniden üretimle gelecekler.
+
+**Bitti sayılır:** `docs/openapi.json` içinde `/api/device-tokens` ve
+`/api/public/mail-actions/*` uçları var.
 
 ---
 
@@ -92,66 +95,96 @@ ayağı ayrıca APNs anahtarı ister (MOB-12 ile birlikte).
 
 ---
 
-## Engellenen iş — e-posta hızlı onay
+## E-posta hızlı işlem — güvenli sürüm yazıldı
 
 `origin/feature/notification-service` dalındaki dört commit
-(`2b602f4`, `f5173cd`, `b91d897`, `dbb8523`) **entegre edilmedi.** Getirdiği
-özellik makul: durum bildirimi e-postasına "Onayla" düğmesi koyup akışı
-hızlandırmak. Uygulaması güvenli değil.
+(`2b602f4`, `f5173cd`, `b91d897`, `dbb8523`) **alınmadı**; özellik güvenli
+deseniyle yeniden yazıldı. Fikir aynı: durum bildirimi e-postasına "Hızlı
+İşlem" düğmesi koyup akışı hızlandırmak.
 
-### Neden alınmadı
+### Reddedilen sürümdeki sorunlar
 
-**1. Uç kimlik doğrulaması olmadan açılıyor ve kullanıcı taklit ediyor.**
-`SecurityConfig`'e `/api/public/**` eklenmiş; `MailActionController`
-`GET /api/public/notification/quick-action?recordId={uuid}&action=ONAYLA`
-adresinde dinliyor. Uç yalnız `recordId` ve `action` alıyor — **token, imza,
-tek kullanımlık anahtar veya son kullanma tarihi yok.** Kaydın `assignedTo`
-alanındaki kişiyi bulup `SecurityContextHolder`'a onun adına kimlik yazıyor ve
-aksiyonu o kişi olarak yürütüyor.
+| # | Sorun |
+|---|---|
+| 1 | `GET /api/public/notification/quick-action?recordId=&action=` kimlik doğrulaması olmadan açıktı ve kaydın `assignedTo` kişisini bulup **onun adına** aksiyon yürütüyordu. Kayıt UUID'sini bilen herkes evrağı onaylayabilirdi. |
+| 2 | Durum değiştiren bir `GET`. Posta ağ geçitleri linkleri önceden getirir; alıcı dokunmadan evrak onaylanabilirdi. |
+| 3 | `catch (Exception e)` hatayı yutup her koşulda `302` dönüyordu; başarısız işlem başarılı görünüyordu. |
+| 4 | `String.valueOf(actor.getRole())` bir entity üzerinde çalışıyordu; üretilen authority geçersizdi. |
+| 5 | `spring.flyway.validate-on-migrate=false` — "uygulanmış migration'ı değiştirmeyin" kuralını zorlayan checksum kontrolü kapatılmıştı. |
+| 6 | `sendPasswordResetCode` Thymeleaf şablonundan string birleştirmeye düşürülmüştü. |
 
-Sonuç: bir kayıt UUID'sini bilen herkes o evrağı onaylayabilir ve denetim izi
-işlemi meşru onaylayanın üzerine yazar. Bu, RBAC'ın ve onay akışının tamamını
-devre dışı bırakır.
+> Ayrıca özellik **zaten çalışmıyordu.** `SecurityCurrentActorProvider`
+> principal'in `AuthenticatedUser` olmasını şart koşar
+> (`principal.getClass() != AuthenticatedUser.class` → `AuthenticationServiceException`).
+> Reddedilen kod principal olarak `User` entity'si koyuyordu, yani her çağrı
+> istisna atıp yutulan `catch` bloğuna düşer ve kullanıcı `302` görürdü.
 
-**2. Durum değiştiren bir `GET`.** E-posta istemcileri, kurumsal posta ağ
-geçitleri ve bağlantı tarayıcıları linkleri **önceden getirir** (ör. Outlook
-Safe Links). Alıcı düğmeye hiç dokunmadan, yalnız posta taraması yüzünden evrak
-onaylanabilir.
+### Yazılan sürüm
 
-**3. Hata yutuluyor, sonuç her koşulda aynı.** `catch (Exception e)` yalnız
-log'a yazıyor ve uç başarı/başarısızlık ayrımı olmadan hep `302` ile frontend'e
-yönlendiriyor. Onaylanmayan bir evrak, onaylanmış gibi görünür.
+**Migration:** `V11__mail_action_tokens.sql` — `mail_action_tokens` tablosu.
+Anahtarın kendisi saklanmaz, yalnız SHA-256 özeti (parola sıfırlamadaki desen).
 
-**4. Yetki adı bozuk.** `String.valueOf(actor.getRole())` bir `Role` entity'si
-üzerinde çalışıyor; ürettiği metin `ROLE_BASKAN` değil, entity'nin `toString`
-çıktısı. Başına `ROLE_` eklenince ortaya geçersiz bir authority çıkıyor.
+Anahtar üç sınırla birlikte çalışır:
 
-**5. Flyway güvenlik ağı kapatılmış.** Aynı dal `application.properties`'e
-`spring.flyway.validate-on-migrate=false` ve `spring.flyway.out-of-order=true`
-ekliyor. Birincisi, projenin "uygulanmış migration dosyalarını değiştirmeyin"
-kuralını **zorlayan** checksum kontrolüdür; kapatılırsa değiştirilmiş bir
-migration sessizce geçer. İkincisi migrationların ortamlar arasında farklı
-sırada uygulanmasına izin verir.
+1. `consumed_at` → tek kullanım
+2. `expires_at` → süre (`MAIL_ACTION_TOKEN_TTL_HOURS`, varsayılan 72 saat)
+3. `user_id` + `record_id` + `action` → başka evrağa, aksiyona veya kişiye taşınamaz
 
-**6. Parola sıfırlama e-postası şablondan düz metne düşürülmüş.**
-`PASSWORD_RESET_TEMPLATE` sabiti silinmiş, `sendPasswordResetCode` artık
-Thymeleaf yerine string birleştirme kullanıyor. Commit mesajı gerekçeyi
-"E2E testinin beklediği biçime uydurmak" diye veriyor — üretim kodu teste
-uydurulmuş. `password-reset-code.html` şablonu depoda öksüz kaldı.
+Bu üçü yetmez: tüketimde **gerçek durum makinesi yeniden çalışır**. Evrak arada
+el değiştirdiyse geçiş oradan reddedilir. Tablo yetki kaynağı değildir.
 
-### Güvenli hâle gelmesi için gereken
+**Uçlar** — ikisi de `POST`, ikisi de oturumsuz:
 
-- Link, kayıt + aksiyon + alıcıya bağlı, **tek kullanımlık ve süreli** bir
-  imzalı token taşımalı. Parola sıfırlama akışındaki
-  `password_reset_codes` deseni aynen uygulanabilir.
-- Aksiyon `GET` ile değil, token'ı doğrulayan bir onay sayfasından gelen
-  `POST` ile yürütülmeli — böylece bağlantı önizlemesi durumu değiştirmez.
-- Aktör token'dan çözülmeli; `assignedTo` alanından **türetilmemeli**.
-- Başarı ve başarısızlık kullanıcıya ayırt edilebilir biçimde dönmeli.
-- Flyway ve Thymeleaf ayarları geri alınmalı; şablon kararı ayrı ele alınmalı.
+| Uç | Ne yapar |
+|---|---|
+| `POST /api/public/mail-actions/preview` | Anahtarı doğrular, onay ekranı bilgisini döner. **Durum değiştirmez**, güvenle önceden getirilebilir. |
+| `POST /api/public/mail-actions/consume` | Anahtarı tüketir ve aksiyonu yürütür. Yalnız kullanıcının açık onayıyla çağrılır. |
 
-Bu koşullar sağlandığında dal yeniden değerlendirilebilir. **Mevcut hâliyle
-`test` dalına alınmamalıdır.**
+Önizleme de `POST`'tur çünkü anahtar **gövdede** taşınır; URL'ye yazılsaydı
+erişim log'larına, `Referer` başlığına ve tarayıcı geçmişine düşerdi. Proje bu
+kararı `afbf4b5` ile şifre sıfırlama akışında zaten vermişti.
+
+`SecurityConfig`'de joker yol (`/api/public/**`) **bilerek kullanılmadı**; iki
+uç adıyla açıldı. Joker, o önekle eklenen her yeni ucu sessizce herkese açardı;
+`AuthorizationMatrixTest` bunu sabitleyen bir test taşıyor.
+
+**Aktör anahtardan çözülür**, evrağın `assignedTo` alanından türetilmez —
+türetilseydi anahtar, koltuk devredildikten sonra yeni kişinin adına iş yapardı.
+`consume` içinde `SecurityContext` anahtarın sahibiyle kurulur; anahtar
+doğrulandığı için bu, JWT filtresinin yaptığı işin aynı yetkiye dayanan
+eşdeğeridir. Önceki bağlam `finally` ile aynen geri konur.
+
+**Tüketim aksiyondan önce yazılır.** Aksiyon durum makinesinden dönerse
+transaction geri alınır ve anahtar tüketilmemiş kalır. "Tüketildi ama iş
+yapılmadı" ya da "iş yapıldı ama anahtar açık kaldı" aralığı oluşmaz.
+
+**E-posta bağlantısı:** `{frontendUrl}/hizli-islem#token=...` — anahtar adres
+**parçasında**. Parça sunucuya hiç gönderilmez. Arayüz değeri okur okumaz
+`history.replaceState` ile adresten siler.
+
+**Hangi aksiyon önerilir:** rolden değil evrağın yeni durumundan türetilir
+(`MailActionTokenService.primaryActionFor`). Bildirim zaten yalnız evrağın
+atandığı kişiye gider, dolayısıyla durum alıcıyı tek bir aksiyona bağlar.
+
+| Durum | Önerilen aksiyon |
+|---|---|
+| `BSK_YRD_INCELEMESINDE` | `BASKANA_ILET` |
+| `BASKAN_INCELEMESINDE` | `ONAYLA` |
+| `DUZENLEME_BEKLIYOR` | `TEKRAR_GONDER` |
+| `TASLAK`, `ONAYLANDI`, `REDDEDILDI` | yok — düğme çıkmaz |
+
+Geri gönderme ve ret bilerek dışarıdadır: ikisinde de açıklama zorunludur, tek
+tıkla yapılamaz.
+
+**Testler:** `MailActionTokenServiceTest` (14), `AuthorizationMatrixTest`
+içinde 4 uç testi, `WorkflowStatusChangedListenerTest`'te 3 yeni senaryo,
+frontend `QuickActionPage.test.tsx` (6).
+
+### Kalan
+
+- Gerçek SMTP/Mailpit üzerinden uçtan uca deneme yapılmadı (Docker gerekiyordu).
+- Süresi dolmuş satırların toplu temizliği için zamanlanmış iş yok; indeks
+  (`idx_mail_action_tokens_expires_at`) hazır, iş tanımlanmadı.
 
 ---
 

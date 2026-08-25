@@ -8,7 +8,11 @@
     title         : evrak basligi
     status        : yeni durumun adi
     explanation   : aksiyon aciklamasi; bos gonderilmez, MailService "—" koyar
-    deepLink      : arayuzdeki evrak sayfasinin adresi
+    deepLink        : arayuzdeki evrak sayfasinin adresi
+    quickActionLink : postadan tek tikla aksiyon baglantisi. Alicinin o durumda
+                      alabilecegi bir aksiyon yoksa bos gelir ve dugme hic
+                      cizilmez. Baglantinin kendisi islem yapmaz; kullaniciyi
+                      onay ekranina goturur.
 
   Bicim bilerek tablo tabanli ve satir ici stilli: e-posta istemcilerinin
   buyuk kismi harici stil sayfasi ve modern yerlesim ozelliklerini
@@ -100,6 +104,19 @@
                 <td align="center" style="padding-top:32px;">
                   <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                     <tr>
+                      <!-- Hizli islem dugmesi yalnizca alicinin o durumda
+                           alabilecegi bir aksiyon varsa cikar. Baglanti islemi
+                           dogrudan yapmaz; onay ekranini acar. -->
+                      <td th:if="${quickActionLink != null}"
+                          align="center" bgcolor="#107c41"
+                          style="border-radius:4px; padding-right:12px;">
+                        <a th:href="${quickActionLink}"
+                           href="#"
+                           target="_blank"
+                           style="display:inline-block; padding:12px 22px; font-family:Segoe UI, Arial, sans-serif; font-size:14px; font-weight:bold; color:#ffffff; text-decoration:none; border-radius:4px;">
+                          Hızlı İşlem
+                        </a>
+                      </td>
                       <td align="center" bgcolor="#0078d4" style="border-radius:4px;">
                         <a th:href="${deepLink}"
                            href="#"

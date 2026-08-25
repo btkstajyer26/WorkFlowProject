@@ -38,6 +38,13 @@ public class SecurityConfig {
             "/api/auth/forgot-password",
             "/api/auth/verify-reset-code",
             "/api/auth/reset-password",
+            // E-posta bildirimindeki tek tiklik aksiyon baglantisi. Oturum
+            // yoktur cunku kullanici postadan gelir; kimlik istekte tasinan tek
+            // kullanimlik anahtardan cozulur (bkz. MailActionTokenService).
+            // Joker yol (/api/public/**) BILEREK kullanilmadi: boyle bir kalip,
+            // ileride o onekle eklenen her ucu sessizce herkese acardi.
+            "/api/public/mail-actions/preview",
+            "/api/public/mail-actions/consume",
             "/swagger-ui.html",
             "/swagger-ui/**",
             "/v3/api-docs",

@@ -41,7 +41,7 @@ class MailServiceTest {
     @DisplayName("evrak bilgileri ve derin baglanti govdeye islenir")
     void theRecordDetailsAreRendered() throws Exception {
         mailService.sendStatusChangeMail(
-                "alici@ornek.local", "Ayşe Yılmaz", RECORD_ID, "Bütçe teklifi", "ONAYLANDI", "Uygun görüldü");
+                "alici@ornek.local", "Ayşe Yılmaz", RECORD_ID, "Bütçe teklifi", "ONAYLANDI", "Uygun görüldü", null);
 
         String body = sentBody();
         assertThat(body).contains("Ayşe Yılmaz");
@@ -55,7 +55,7 @@ class MailServiceTest {
     @DisplayName("aciklama bos birakildiginda govdede 'null' gorunmez")
     void aBlankExplanationIsReplaced() throws Exception {
         mailService.sendStatusChangeMail(
-                "alici@ornek.local", "Ayşe Yılmaz", RECORD_ID, "Bütçe teklifi", "ONAYLANDI", "  ");
+                "alici@ornek.local", "Ayşe Yılmaz", RECORD_ID, "Bütçe teklifi", "ONAYLANDI", "  ", null);
 
         assertThat(sentBody()).doesNotContain("null").contains("—");
     }
@@ -64,7 +64,7 @@ class MailServiceTest {
     @DisplayName("evrak basligindaki HTML kacisli yazilir")
     void theTitleIsEscaped() throws Exception {
         mailService.sendStatusChangeMail(
-                "alici@ornek.local", "Ayşe Yılmaz", RECORD_ID, "<script>alert(1)</script>", "ONAYLANDI", null);
+                "alici@ornek.local", "Ayşe Yılmaz", RECORD_ID, "<script>alert(1)</script>", "ONAYLANDI", null, null);
 
         assertThat(sentBody()).doesNotContain("<script>").contains("&lt;script&gt;");
     }
@@ -75,7 +75,7 @@ class MailServiceTest {
         when(mailSender.createMimeMessage()).thenThrow(new IllegalStateException("SMTP kapali"));
 
         mailService.sendStatusChangeMail(
-                "alici@ornek.local", "Ayşe Yılmaz", RECORD_ID, "Bütçe teklifi", "ONAYLANDI", null);
+                "alici@ornek.local", "Ayşe Yılmaz", RECORD_ID, "Bütçe teklifi", "ONAYLANDI", null, null);
 
         verify(mailSender, never()).send(any(MimeMessage.class));
     }

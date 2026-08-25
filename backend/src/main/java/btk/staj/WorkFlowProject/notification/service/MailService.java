@@ -42,13 +42,19 @@ public class MailService {
         this.templateEngine = Objects.requireNonNull(templateEngine, "templateEngine");
     }
 
+    /**
+     * @param quickActionToken postadan tek tikla aksiyon icin uretilmis tek
+     *                         kullanimlik anahtar; {@code null} ise e-postada
+     *                         dugme cikmaz. Deger loglanmaz.
+     */
     @Async
     public void sendStatusChangeMail(String toEmail,
                                      String recipientName,
                                      UUID recordId,
                                      String title,
                                      String status,
-                                     String reason) {
+                                     String reason,
+                                     String quickActionToken) {
         try {
             log.info("E-posta gönderimi başlatılıyor. Alıcı: {}, Evrak: {}", toEmail, recordId);
 
@@ -59,7 +65,7 @@ public class MailService {
             helper.setFrom(mailFrom);
             helper.setTo(toEmail);
             helper.setSubject(subject(recordId));
-            helper.setText(render(recipientName, recordId, title, status, reason), true);
+            helper.setText(render(recipientName, recordId, title, status, reason, quickActionToken), true);
 
             mailSender.send(mimeMessage);
             log.info("E-posta başarıyla gönderildi: {}", toEmail);
@@ -108,7 +114,8 @@ public class MailService {
         return templateEngine.process(PASSWORD_RESET_TEMPLATE, context);
     }
 
-    private String render(String recipientName, UUID recordId, String title, String status, String reason) {
+    private String render(String recipientName, UUID recordId, String title, String status,
+                          String reason, String quickActionToken) {
         Context context = new Context();
         context.setVariable("recipientName", recipientName);
         context.setVariable("recordId", recordId);
@@ -117,7 +124,25 @@ public class MailService {
         context.setVariable("explanation",
                 (reason == null || reason.isBlank()) ? NO_EXPLANATION : reason);
         context.setVariable("deepLink", frontendUrl + "/records/" + recordId);
+        context.setVariable("quickActionLink", quickActionLink(quickActionToken));
         return templateEngine.process(TEMPLATE, context);
+    }
+
+    /**
+     * Anahtar adres <strong>parcasinda</strong> (fragment) tasinir, sorgu
+     * dizisinde degil.
+     *
+     * <p>Fragment sunucuya hic gonderilmez: ne erisim log'una ne de
+     * {@code Referer} basligina duser. Arayuz degeri okuduktan hemen sonra
+     * adresten siler, boylece tarayici gecmisinde de kalmaz. Proje tek
+     * kullanimlik anahtarlari URL'ye yazmama karari almisti; bu, e-postayla
+     * tasinmasi zorunlu bir anahtar icin en yakin karsiligidir.
+     */
+    private String quickActionLink(String quickActionToken) {
+        if (quickActionToken == null || quickActionToken.isBlank()) {
+            return null;
+        }
+        return frontendUrl + "/hizli-islem#token=" + quickActionToken;
     }
 
     private static String subject(UUID recordId) {

@@ -4,6 +4,7 @@ import btk.staj.WorkFlowProject.attachment.repository.FileRepository;
 import btk.staj.WorkFlowProject.auth.repository.PasswordResetCodeRepository;
 import btk.staj.WorkFlowProject.audit.repository.AuditLogRepository;
 import btk.staj.WorkFlowProject.notification.repository.DeviceTokenRepository;
+import btk.staj.WorkFlowProject.notification.repository.MailActionTokenRepository;
 import btk.staj.WorkFlowProject.notification.repository.NotificationRepository;
 import btk.staj.WorkFlowProject.audit.repository.UserAuditLogRepository;
 import btk.staj.WorkFlowProject.record.repository.CategoryRepository;
@@ -75,6 +76,7 @@ class SecurityConfigTest {
 
     @MockitoBean
     private DeviceTokenRepository deviceTokenRepository;
+    @MockitoBean private MailActionTokenRepository mailActionTokenRepository;
 
     @Test
     @DisplayName("swagger-ui.html giris istemeden yonlendirme doner")

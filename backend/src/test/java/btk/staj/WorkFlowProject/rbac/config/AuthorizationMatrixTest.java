@@ -5,6 +5,7 @@ import btk.staj.WorkFlowProject.audit.repository.AuditLogRepository;
 import btk.staj.WorkFlowProject.audit.repository.UserAuditLogRepository;
 import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
 import btk.staj.WorkFlowProject.notification.repository.DeviceTokenRepository;
+import btk.staj.WorkFlowProject.notification.repository.MailActionTokenRepository;
 import btk.staj.WorkFlowProject.notification.repository.NotificationRepository;
 import btk.staj.WorkFlowProject.rbac.Role;
 import btk.staj.WorkFlowProject.record.entity.Record;
@@ -79,6 +80,7 @@ class AuthorizationMatrixTest {
     @MockitoBean private UserAuditLogRepository userAuditLogRepository;
     @MockitoBean private NotificationRepository notificationRepository;
     @MockitoBean private DeviceTokenRepository deviceTokenRepository;
+    @MockitoBean private MailActionTokenRepository mailActionTokenRepository;
 
     private static final String RECORD_JSON = """
             {"title":"Test","description":"Test","categoryId":1}
@@ -376,6 +378,63 @@ class AuthorizationMatrixTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(DELETE_JSON))
                     .andExpect(status().is(not(403)));
+        }
+    }
+
+    /**
+     * E-posta bildirimindeki tek tiklik aksiyon baglantisi oturum gerektirmez;
+     * kimlik istekte tasinan tek kullanimlik anahtardan gelir. Bu yuzden iki uc
+     * bilerek PUBLIC_ENDPOINTS icindedir. Test, aciklarin <em>yalnizca</em> bu
+     * iki adres oldugunu ve kardes yollarin acilmadigini sabitler.
+     */
+    @Nested
+    @DisplayName("E-posta aksiyon uclari oturumsuz acilir, kardes yollar acilmaz")
+    class MailActionUclari {
+
+        private static final String TOKEN_JSON = """
+                {"token":"gecersiz-anahtar"}
+                """;
+
+        @Test
+        @DisplayName("onizleme ucu oturumsuz erisilebilir")
+        void onizlemeOturumsuzErisilebilir() throws Exception {
+            // Anahtar gecersiz oldugu icin is katmani 400 doner; olculen sey
+            // istegin 401/403 ile filtrede durdurulmamasi.
+            mockMvc.perform(post("/api/public/mail-actions/preview")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(TOKEN_JSON))
+                    .andExpect(status().is(not(401)))
+                    .andExpect(status().is(not(403)));
+        }
+
+        @Test
+        @DisplayName("tuketim ucu oturumsuz erisilebilir")
+        void tuketimOturumsuzErisilebilir() throws Exception {
+            mockMvc.perform(post("/api/public/mail-actions/consume")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(TOKEN_JSON))
+                    .andExpect(status().is(not(401)))
+                    .andExpect(status().is(not(403)));
+        }
+
+        @Test
+        @DisplayName("gecersiz anahtar ayirt edilebilir hata koduyla doner")
+        void gecersizAnahtarHataKoduDoner() throws Exception {
+            mockMvc.perform(post("/api/public/mail-actions/consume")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(TOKEN_JSON))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("INVALID_OR_EXPIRED_MAIL_ACTION_TOKEN"));
+        }
+
+        @Test
+        @DisplayName("/api/public altindaki baska bir yol kendiliginden acilmaz")
+        void baskaPublicYolAcilmaz() throws Exception {
+            // Joker yol yerine iki uc adiyla acildi; bu test o karari sabitler.
+            mockMvc.perform(post("/api/public/uydurma-uc")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{}"))
+                    .andExpect(status().isUnauthorized());
         }
     }
 }

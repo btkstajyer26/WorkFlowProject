@@ -36,24 +36,24 @@ M8 (`/api/device-tokens` yetki matrisi testi), M1 (işlem geçmişi boyut ölç�
 ve sayfalama kararı) ve tekil rol invariant'ının yeniden etkinleştirmede de
 zorlanması (`UserService.ensureSingletonRoleAvailable`).
 
-> [!WARNING]
-> `origin/feature/notification-service` dalının 24 Ağustos'taki dört yeni
-> commit'i **entegre edilmedi.** E-posta üzerinden tek tıkla onay özelliği
-> getiriyor, ancak uç kimlik doğrulaması olmadan açılıyor
-> (`/api/public/notification/quick-action`) ve kaydın atandığı kişi adına
-> workflow aksiyonu yürütüyor; ayrıca Flyway checksum doğrulamasını kapatıyor.
-> Gerekçe ve düzeltme koşulları
-> [mobil görev dağılımındaki "Engellenen iş" bölümünde](docs/MOBIL_ENTEGRASYON_GOREV_DAGILIMI.md#engellenen-iş--e-posta-hızlı-onay).
+> [!NOTE]
+> E-posta üzerinden tek tıkla işlem özelliği **güvenli deseniyle yeniden
+> yazıldı.** `origin/feature/notification-service` dalındaki sürüm alınmadı:
+> ucu kimlik doğrulaması olmadan açıyor ve kaydın atandığı kişi adına aksiyon
+> yürütüyordu. Yerine tek kullanımlık, süreli, evrak/aksiyon/kişiye bağlı
+> anahtar üzerinden çalışan bir akış eklendi.
+> [Ayrıntı ve reddedilen sürümün sorunları](docs/MOBIL_ENTEGRASYON_GOREV_DAGILIMI.md#e-posta-hızlı-işlem--güvenli-sürüm-yazıldı).
 
-Doğrulama (24 Ağustos 2026, yerel, Docker kapalı): backend 454 test koştu,
-**0 failure**; 8 error'ın tamamı PostgreSQL isteyen
-`WorkflowTransitionPersistenceIntegrationTest` sınıfından. Frontend `lint` +
-`typecheck:e2e` temiz, 103/103 Vitest yeşil, `build` başarılı; mobil `lint` ve
-`typecheck` temiz, 10/10 Jest yeşil. Playwright E2E paketi Docker gerektirdiği
-için bu turda çalıştırılamamıştır.
+Doğrulama (25 Ağustos 2026, yerel, Docker kapalı): backend 481 test koştu,
+**0 failure**; 14 error'ın tamamı aşağıda sayılan PostgreSQL bağımlı dört
+sınıftan. Frontend `lint` + `typecheck:e2e` temiz, 109/109 Vitest yeşil,
+`build` başarılı; mobil `lint` ve `typecheck` temiz, 10/10 Jest yeşil.
+Playwright E2E paketi Docker gerektirdiği için bu turda çalıştırılamamıştır.
 
 ### Ürün ve backend
 
+- E-postadaki "Hızlı İşlem" akışı **gerçek posta üzerinden uçtan uca denenmedi**; birim ve yetki testleri yeşil, ancak Mailpit/SMTP ile gerçek bir tur atılması Docker gerektirdiği için yapılamadı.
+- `mail_action_tokens` tablosunda süresi dolmuş satırların toplu temizliği için zamanlanmış iş yoktur; indeks hazır, iş tanımlanmadı.
 - Admin kullanıcı oluştururken parolayı istemciden almaktadır; backend üretimli geçici parola ve davet e-postası henüz uygulanmamıştır.
 - Audit değiştirilemezliği yalnızca uygulama seviyesinde sağlanır; veritabanı tarafında trigger veya rol kısıtı ile zorlanmaz.
 - Push gönderimi **gerçek cihazda hiç doğrulanmadı.** `PushNotificationService` artık `WorkflowStatusChangedListener`'a bağlıdır ve birim testleri yeşildir, ancak FCM anahtarları yalnız ortamdan gelir; uçtan uca kanıt için MOB-12 (mobil istemci tarafı) gerekir.
@@ -66,10 +66,10 @@ için bu turda çalıştırılamamıştır.
 
 ### Test ve CI
 
-- Backend'de dört test sınıfı (toplam 14 test) gerçek bir PostgreSQL bağlantısı ister ve veritabanı olmadan `ApplicationContext` hatasıyla düşer: `WorkflowTransitionPersistenceIntegrationTest` (11 test), `WorkFlowProjectApplicationTests`, `AuditLogRepositoryIntegrationTest`, `RecordRepositorySortingTest`. CI bunları `postgres:15-alpine` servisiyle çalıştırır; yerelde `docker compose up -d db` gerekir. Toplam 454 backend testinin kalan 440'ı veritabanısız geçer.
+- Backend'de dört test sınıfı (toplam 14 test) gerçek bir PostgreSQL bağlantısı ister ve veritabanı olmadan `ApplicationContext` hatasıyla düşer: `WorkflowTransitionPersistenceIntegrationTest` (11 test), `WorkFlowProjectApplicationTests`, `AuditLogRepositoryIntegrationTest`, `RecordRepositorySortingTest`. CI bunları `postgres:15-alpine` servisiyle çalıştırır; yerelde `docker compose up -d db` gerekir. Toplam 481 backend testinin kalan 467'si veritabanısız geçer.
 - Playwright E2E paketi yalnız `docker-compose.e2e.yml` ile ayağa kalkan izole backend'e karşı çalışır; Docker'sız bir geliştirici makinesinde hiç koşturulamaz. `Frontend / E2E` işi CI'da bu boşluğu kapatır, ancak yerel doğrulama zinciri Docker'a bağımlıdır.
 - E2E `global-setup.ts` yalnız `E2E_PROVISION_USER=true` ile hesap açar ve bu mod ortak/production veritabanına karşı çalıştırılırsa gerçek veri üretir; koruma yalnız belgelenmiş bir uyarıdır, kodda ortam kontrolü yoktur.
-- Vitest için açık bir `testTimeout`/havuz sınırı ayarlanmamıştır. 23 Ağustos turunda `npm run test` 14 saniyede 103/103 yeşil bitmiştir; yine de yavaş makinelerde `findBy*` beklemelerinin zaman aşımına uğrama riski sürüyor.
+- Vitest için açık bir `testTimeout`/havuz sınırı ayarlanmamıştır. Boşta koşarken `npm run test` 109/109 yeşil bitiyor, ancak 25 Ağustos turunda backend derlemesiyle **aynı anda** koşturulduğunda `App`, `RecordDetailPage`, `RecordFormsEdgeCases` ve `AdminUsersPage` dosyalarındaki 7 test `findBy*` zaman aşımıyla düştü; tek başına tekrarlandığında hepsi geçti. Yük altında güvenilir değil.
 - `test` ve `main` dalları için branch protection kuralları etkin değildir (GitHub API `404` döner). Beş CI işi de merge için teknik olarak zorunlu değildir.
 
 ### Dal hijyeni
@@ -349,6 +349,7 @@ npm run dev
 | `PASSWORD_RESET_CODE_TTL_MINUTES` | `10` | E-postayla gönderilen 6 haneli kodun geçerlilik süresi |
 | `PASSWORD_RESET_TOKEN_TTL_MINUTES` | `15` | Kod doğrulandıktan sonra verilen sıfırlama anahtarının süresi |
 | `PASSWORD_RESET_RESEND_COOLDOWN_SECONDS` | `60` | Yeni kod istemek için beklenmesi gereken süre |
+| `MAIL_ACTION_TOKEN_TTL_HOURS` | `72` | E-postadaki "Hızlı İşlem" bağlantısının ömrü; anahtar tek kullanımlık ve tek evrak/aksiyon/kişiye bağlıdır |
 
 > [!NOTE]
 > İlk Admin yalnızca **iki değişken de doludur** ve sistemde **aktif Admin yoktur** koşulunda oluşturulur. Hesap `mustChangePassword` işaretiyle açılır; ilk girişte parola değiştirilmeden diğer uçlara erişilemez.
@@ -402,6 +403,8 @@ Tüm uçlar `/api` altındadır; sürüm öneki kullanılmaz.
 | Bildirim | `GET /api/notifications/unread` | Okunmamış bildirimler |
 | Bildirim | `GET /api/notifications/unread/count` | Okunmamış bildirim sayısı |
 | Bildirim | `PUT /api/notifications/{id}/read` | Bildirimi okundu işaretleme |
+| Hızlı işlem | `POST /api/public/mail-actions/preview` | E-posta bağlantısını doğrular, onay ekranı bilgisini döner; **oturum gerektirmez, durum değiştirmez** |
+| Hızlı işlem | `POST /api/public/mail-actions/consume` | Bağlantıyı tüketir ve workflow aksiyonunu yürütür; **oturum gerektirmez** |
 | Cihaz token | `POST /api/device-tokens` | Mobil FCM token kaydı/güncellemesi (upsert); kullanıcı JWT'den okunur |
 | Cihaz token | `DELETE /api/device-tokens` | Cihaz tokenını pasifleştirme; aşağıdaki nota bakınız |
 
@@ -436,6 +439,7 @@ Flyway migrationları `backend/src/main/resources/db/migration` dizinindedir.
 | `V8__password_reset_codes.sql` | Parola sıfırlama kodları tablosu (`password_reset_codes`) ve indeksleri |
 | `V9__record_handoff_snapshot.sql` | Kayıt Çalışana geri gönderildiğinde içeriğini donduran `snapshot_*` kolonları |
 | `V10__device_tokens.sql` | Mobil push için `device_tokens` tablosu ve `(user_id, is_active)` indeksi |
+| `V11__mail_action_tokens.sql` | E-posta bildirimindeki tek tıkla işlem bağlantısının tek kullanımlık anahtarları |
 
 `V1` hazırlanırken daha önce taslak olarak adlandırılan Admin ve workflow migrationları ortak veritabanına uygulanmadan birleştirilmiştir. Bu nedenle numaralandırmadaki boşluklar tarihsel tasarım kararının sonucudur.
 
