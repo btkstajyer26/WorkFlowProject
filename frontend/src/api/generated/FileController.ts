@@ -1,0 +1,117 @@
+/* eslint-disable */
+/* tslint:disable */
+// @ts-nocheck
+/*
+ * ---------------------------------------------------------------
+ * ## THIS FILE WAS GENERATED VIA SWAGGER-TYPESCRIPT-API        ##
+ * ##                                                           ##
+ * ## AUTHOR: acacode                                           ##
+ * ## SOURCE: https://github.com/acacode/swagger-typescript-api ##
+ * ---------------------------------------------------------------
+ */
+
+import type {
+  DeleteFileData,
+  DeleteFileParams,
+  DownloadFileData,
+  DownloadFileParams,
+  ListFilesData,
+  ListFilesParams,
+  PreviewFileData,
+  PreviewFileParams,
+  UploadFilesData,
+  UploadFilesParams,
+  UploadFilesPayload,
+} from "./data-contracts";
+import { HttpClient } from "./http-client";
+import type { RequestParams } from "./http-client";
+
+export class FileController<SecurityDataType = unknown> {
+  http: HttpClient<SecurityDataType>;
+
+  constructor(http: HttpClient<SecurityDataType>) {
+    this.http = http;
+  }
+
+  /**
+   * No description
+   *
+   * @tags file-controller
+   * @name DeleteFile
+   * @request DELETE:/api/files/{id}
+   * @secure
+   */
+  deleteFile = ({ id }: DeleteFileParams, params: RequestParams = {}) =>
+    this.http.request<DeleteFileData, any>({
+      path: `/api/files/${id}`,
+      method: "DELETE",
+      secure: true,
+      ...params,
+    });
+  /**
+   * No description
+   *
+   * @tags file-controller
+   * @name DownloadFile
+   * @request GET:/api/files/{id}/download
+   * @secure
+   */
+  downloadFile = ({ id }: DownloadFileParams, params: RequestParams = {}) =>
+    this.http.request<DownloadFileData, any>({
+      path: `/api/files/${id}/download`,
+      method: "GET",
+      secure: true,
+      ...params,
+    });
+  /**
+   * No description
+   *
+   * @tags file-controller
+   * @name ListFiles
+   * @request GET:/api/records/{id}/files
+   * @secure
+   */
+  listFiles = ({ id }: ListFilesParams, params: RequestParams = {}) =>
+    this.http.request<ListFilesData, any>({
+      path: `/api/records/${id}/files`,
+      method: "GET",
+      secure: true,
+      ...params,
+    });
+  /**
+   * No description
+   *
+   * @tags file-controller
+   * @name PreviewFile
+   * @request GET:/api/files/{id}/preview
+   * @secure
+   */
+  previewFile = ({ id }: PreviewFileParams, params: RequestParams = {}) =>
+    this.http.request<PreviewFileData, any>({
+      path: `/api/files/${id}/preview`,
+      method: "GET",
+      secure: true,
+      ...params,
+    });
+  /**
+   * No description
+   *
+   * @tags file-controller
+   * @name UploadFiles
+   * @request POST:/api/records/{id}/files
+   * @secure
+   */
+  uploadFiles = (
+    { id }: UploadFilesParams,
+    data: UploadFilesPayload,
+    params: RequestParams = {},
+  ) =>
+    this.http.request<UploadFilesData, any>({
+      path: `/api/records/${id}/files`,
+      method: "POST",
+      body: data,
+      secure: true,
+      type: "multipart/form-data",
+      ...params,
+    });
+}

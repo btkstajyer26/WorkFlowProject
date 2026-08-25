@@ -1,0 +1,27 @@
+# Build çıktıları
+backend/target/
+frontend/dist/
+frontend/node_modules/
+frontend/playwright-report/
+frontend/test-results/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Ortam ve loglar
+.env
+*.log
+# LOG_PATH goreli oldugu icin uygulamanin nerden baslatildigina gore hem
+# backend/logs/ hem kok logs/ olusuyor; ikisi de yoksayilir. Icerigi logback
+# 30 gunluk rotasyonla kendi yonetir, elle tutulmasi gerekmez.
+logs/
+
+# Yüklenen dosyalar (local çalıştırmada)
+# UPLOAD_DIR göreli olduğu için uygulamanın nereden başlatıldığına göre
+# hem backend/uploads/ hem de kök uploads/ oluşabiliyor; ikisi de yoksayılır.
+uploads/
+
+# MSW postinstall ciktisi; npm ci her kurulumda yeniden uretir
+frontend/public/mockServiceWorker.js

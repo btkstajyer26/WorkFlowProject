@@ -1,0 +1,123 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: workflow-db
+    environment:
+      POSTGRES_DB: ${DB_NAME:-workflowdb}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      # Yalnız bu makineden erişilir. Sunucuya kurulduğunda 0.0.0.0'a bağlamak
+      # veritabanını internete açardı; psql/DBeaver localhost üzerinden çalışır.
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    volumes:
+      # PostgreSQL 17 ile oluşturulmuş olabilecek eski db-data volume'ünü
+      # silmeden korumak için PostgreSQL 15 ayrı bir volume kullanır.
+      - db-data-pg15:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-workflowdb}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # Gerçek Outlook SMTP hesabı olmadan e-posta akışını test etmek için sahte SMTP.
+  # Giden tüm mailler http://localhost:8025 arayüzünde görüntülenir.
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: workflow-mailpit
+    ports:
+      # Yalnız bu makineden erişilir. Arayüz parola sıfırlama kodlarını ve tüm
+      # bildirim maillerini gösteriyor; 1025 de açık bir SMTP relay olurdu.
+      - "127.0.0.1:8025:8025"
+      - "127.0.0.1:1025:1025"
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+    container_name: workflow-backend
+    depends_on:
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-workflowdb}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      # Varsayılanlar yerel mailpit'i gösterir. TEST/PROD ortamında gerçek SMTP
+      # bilgileri .env üzerinden verilir; bu yüzden sabit değil değişken.
+      MAIL_HOST: ${MAIL_HOST:-mailpit}
+      MAIL_PORT: ${MAIL_PORT:-1025}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_AUTH: ${MAIL_AUTH:-false}
+      MAIL_STARTTLS: ${MAIL_STARTTLS:-false}
+      MAIL_FROM: ${MAIL_FROM:-ebys@ornek.local}
+      UPLOAD_DIR: /app/uploads
+      JWT_SECRET: ${JWT_SECRET:-yerel-gelistirme-icin-en-az-32-karakter-uzunlugunda-gecici-anahtar}
+      JWT_ACCESS_TOKEN_EXPIRATION: ${JWT_ACCESS_TOKEN_EXPIRATION:-3600000}
+      JWT_REFRESH_TOKEN_EXPIRATION: ${JWT_REFRESH_TOKEN_EXPIRATION:-604800000}
+      # E-postadaki derin bağlantının işaret ettiği arayüz adresi. Gerçek bir web
+      # arayüzünün adresidir; API adresi buraya yazılmaz (bkz.
+      # docs/TEST_ORTAMI_NOTU.md — API-only TEST topolojisinde mail derin
+      # bağlantıları desteklenmez).
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      # Tarayıcıdan gelen isteklerin izinli origin listesi. Varsayılan yerel Vite
+      # frontend'i ve Expo web geliştirme sunucusunu kapsar; TEST ortamında
+      # public adrese daraltılır. TEK tanım olmalı: Compose aynı anahtarı iki kez
+      # gören dosyayı hiç parse etmez ve tüm dağıtım bloke olur.
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:8081}
+      # Tarihler LocalDateTime olarak, yani sunucu yerel saatiyle saklanıyor.
+      # Sunucu UTC kalırsa bütün kayıt saatleri ekipçe geride görünür.
+      TZ: ${TZ:-Europe/Istanbul}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+      # Mobil push bildirimleri icin FCM servis hesabi; bos birakilirsa push atlanir.
+      FCM_PROJECT_ID: ${FCM_PROJECT_ID:-}
+      FCM_CLIENT_EMAIL: ${FCM_CLIENT_EMAIL:-}
+      FCM_PRIVATE_KEY: ${FCM_PRIVATE_KEY:-}
+    ports:
+      # Yalnız bu makineden erişilir. Sunucuya kurulduğunda 0.0.0.0'a bağlamak
+      # backend'i TLS'siz olarak internete açardı; dışarıya çıkan tek servis
+      # Caddy'dir (bkz. docker-compose.test.yml).
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - uploads:/app/uploads
+    healthcheck:
+      # İmaj alpine tabanlı: curl yok, busybox wget var.
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      # İlk açılışta Flyway migration'ları çalıştığı için cömert tutuldu.
+      start_period: 60s
+    restart: unless-stopped
+
+  # Frontend geliştirme servisini gerektiğinde profille başlatın:
+  # docker compose --profile frontend up
+  frontend:
+    profiles: ["frontend"]
+    build:
+      context: ./frontend
+    container_name: workflow-frontend
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080}
+      # Windows/OneDrive bind mount'larında dosya değişiklik olayları kaçabildiği
+      # için Vite'ın kaynakları düzenli aralıklarla kontrol etmesini sağlar.
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "300"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  db-data-pg15:
+  uploads:

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/brand/favicon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/brand/apple-touch-icon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="EBYS İş Akışı ve Onay Yönetim Sistemi"
+    />
+    <title>EBYS | İş Akışı ve Onay Yönetim Sistemi</title>
+    <script>
+      (() => {
+        try {
+          const storedTheme = window.localStorage.getItem('ebys:theme:v1')
+          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+          const hasStoredTheme = storedTheme === 'light' || storedTheme === 'dark'
+          const isDark = storedTheme === 'dark' || (!hasStoredTheme && prefersDark)
+          document.documentElement.classList.toggle('dark', isDark)
+          document.documentElement.style.colorScheme = isDark ? 'dark' : 'light'
+        } catch {
+          const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+          document.documentElement.classList.toggle('dark', isDark)
+          document.documentElement.style.colorScheme = isDark ? 'dark' : 'light'
+        }
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

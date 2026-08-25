@@ -1,0 +1,287 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - test
+      - main
+      - 'integration/**'
+  push:
+    branches:
+      - test
+      - main
+      - 'integration/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend / verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_NAME: workflowdb
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      JWT_SECRET: ci-only-test-jwt-secret-not-for-production-0001
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: workflowdb
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d workflowdb"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: |
+            backend/pom.xml
+            backend/.mvn/wrapper/maven-wrapper.properties
+
+      - name: Verify backend
+        run: ./mvnw --batch-mode --no-transfer-progress verify
+
+      - name: Upload Surefire reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-surefire-reports
+          path: backend/target/surefire-reports/**
+          if-no-files-found: warn
+
+  frontend:
+    name: Frontend / quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          check-latest: true
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Lint frontend
+        run: npm run lint
+
+      - name: Typecheck browser tests
+        run: npm run typecheck:e2e
+
+      - name: Test frontend
+        run: npm run test
+
+      - name: Build frontend
+        run: npm run build
+
+  mobile:
+    name: Mobile / quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          check-latest: true
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install mobile dependencies
+        run: npm ci
+
+      - name: Lint mobile
+        run: npm run lint
+
+      - name: Typecheck mobile
+        run: npm run typecheck
+
+      - name: Test mobile
+        run: npm test -- --runInBand
+
+  frontend-e2e:
+    name: Frontend / E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      E2E_PROVISION_USER: 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          check-latest: true
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Typecheck browser tests
+        working-directory: frontend
+        run: npm run typecheck:e2e
+
+      - name: Start isolated E2E backend
+        run: docker compose -p workflow-e2e -f docker-compose.e2e.yml up -d --build --wait
+
+      - name: Run browser E2E tests
+        working-directory: frontend
+        run: npm run test:e2e
+
+      - name: Capture E2E service logs
+        if: always()
+        run: docker compose -p workflow-e2e -f docker-compose.e2e.yml logs --no-color > e2e-services.log
+
+      - name: Upload E2E evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-e2e-evidence
+          path: |
+            frontend/playwright-report/**
+            frontend/test-results/**
+            e2e-services.log
+          if-no-files-found: warn
+
+      - name: Stop isolated E2E backend
+        if: always()
+        run: docker compose -p workflow-e2e -f docker-compose.e2e.yml down -v
+
+  # TEST dagitimi tek bir birlesik Compose dosyasindan cikiyor ama bugune kadar
+  # CI'da hic parse edilmedi. Bu job olmasaydi docker-compose.yml icindeki
+  # tekrarlanan CORS_ALLOWED_ORIGINS anahtari (dosyayi tamamen parse edilemez
+  # yapan hata) ancak sunucuda deploy denenirken fark edilirdi.
+  deploy-config:
+    name: Deploy / compose + shell
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      # Yalnizca render icin gereken sahte degerler. Gercek bir sirri temsil
+      # etmezler; TEST_DOMAIN icin bilerek cozulemeyen .invalid TLD secildi
+      # (RFC 2606), boylece kazara bir yere istek gitmez.
+      TEST_DOMAIN: ci.invalid
+      MAILPIT_USER: ci-dummy
+      MAILPIT_PASSWORD_HASH: ci-dummy-not-a-real-hash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Merged compose config parses
+        run: docker compose -f docker-compose.yml -f docker-compose.test.yml config --quiet
+
+      - name: Only Caddy publishes host ports
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.test.yml config --format json \
+            > /tmp/test-config.json
+
+          # TEST birlesiminde disariya bakan tek servis Caddy olmali. db, backend
+          # veya mailpit host portu yayinlarsa veritabani ve parola sifirlama
+          # kodlarini gosteren Mailpit arayuzu TLS'siz internete acilir.
+          publishers=$(jq -r '
+            .services | to_entries
+            | map(select((.value.ports // []) | length > 0))
+            | map(.key) | sort | join(",")
+          ' /tmp/test-config.json)
+          if [ "$publishers" != "caddy" ]; then
+            echo "Host portu yayinlayan servisler: '${publishers:-yok}' (beklenen: 'caddy')"
+            jq '.services | map_values(.ports)' /tmp/test-config.json
+            exit 1
+          fi
+
+          # published string olarak geliyor; sayisal siralamak icin tonumber.
+          caddy_ports=$(jq -r '
+            [.services.caddy.ports[].published | tonumber] | sort | map(tostring) | join(",")
+          ' /tmp/test-config.json)
+          if [ "$caddy_ports" != "80,443" ]; then
+            echo "Caddy portlari '$caddy_ports' (beklenen: '80,443')"
+            exit 1
+          fi
+          echo "Port yuzeyi beklenen halde: yalnizca caddy 80/443"
+
+      - name: Frontend service is inactive in TEST profile
+        run: |
+          # frontend yalnizca "frontend" profiliyle acilmali. Profil kaybolursa
+          # Vite dev sunucusu 5173'u host'a acar ve TEST'te ikinci bir public
+          # yuzey olusur.
+          if jq -e '.services | has("frontend")' /tmp/test-config.json > /dev/null; then
+            echo "frontend servisi TEST birlesiminde aktif; profile ile kapatilmali."
+            exit 1
+          fi
+          echo "frontend servisi TEST birlesiminde pasif"
+
+      - name: Deploy shell scripts are Linux-ready
+        run: |
+          status=0
+
+          # Sunucuda `./deploy/x.sh` diye calistiriliyorlar; exec biti git'te
+          # tutulmazsa Linux'ta "Permission denied" verirler.
+          while read -r mode _ _ path; do
+            if [ "$mode" != "100755" ]; then
+              echo "$path git modu $mode (beklenen 100755)"
+              status=1
+            fi
+          done < <(git ls-files -s 'deploy/*.sh')
+
+          # CRLF ile checkout edilirlerse "bad interpreter: ...^M" ile duserler.
+          # .gitattributes bunu garanti eder; kontrol garantinin tutup tutmadigina bakar.
+          if git ls-files --eol 'deploy/*.sh' | grep -v 'w/lf'; then
+            echo "Yukaridaki betikler LF ile checkout edilmiyor (.gitattributes eksik?)"
+            status=1
+          fi
+
+          for script in deploy/*.sh; do
+            bash -n "$script" || status=1
+          done
+
+          exit $status
+
+      - name: ShellCheck
+        run: shellcheck --severity=warning deploy/*.sh

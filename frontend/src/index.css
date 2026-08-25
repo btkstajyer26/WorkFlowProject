@@ -1,0 +1,169 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-brand-50: #f6f3ff;
+  --color-brand-100: #eee8ff;
+  --color-brand-200: #dfd4ff;
+  --color-brand-300: #c9b2ff;
+  --color-brand-400: #aa85ff;
+  --color-brand-500: #8957f2;
+  --color-brand-600: #7137dc;
+  --color-brand-700: #5f2db8;
+  --color-brand-800: #502993;
+  --color-brand-900: #432477;
+}
+
+@theme inline {
+  --color-app-canvas: var(--app-canvas);
+  --color-app-surface: var(--app-surface);
+  --color-app-surface-muted: var(--app-surface-muted);
+  --color-app-surface-strong: var(--app-surface-strong);
+  --color-app-surface-selected: var(--app-surface-selected);
+  --color-app-border: var(--app-border);
+  --color-app-border-subtle: var(--app-border-subtle);
+  --color-app-text: var(--app-text);
+  --color-app-text-strong: var(--app-text-strong);
+  --color-app-text-emphasis: var(--app-text-emphasis);
+  --color-app-text-secondary: var(--app-text-secondary);
+  --color-app-text-muted: var(--app-text-muted);
+  --color-app-text-subtle: var(--app-text-subtle);
+  --color-app-text-faint: var(--app-text-faint);
+  --color-app-text-disabled: var(--app-text-disabled);
+}
+
+:root {
+  --app-canvas: #f7f8fc;
+  --app-surface: #ffffff;
+  --app-surface-muted: #f8fafc;
+  --app-surface-strong: #f1f5f9;
+  --app-surface-selected: #e2e8f0;
+  --app-border: #e2e8f0;
+  --app-border-subtle: #f1f5f9;
+  --app-text: #020617;
+  --app-text-strong: #0f172a;
+  --app-text-emphasis: #1e293b;
+  --app-text-secondary: #334155;
+  --app-text-muted: #475569;
+  --app-text-subtle: #64748b;
+  --app-text-faint: #94a3b8;
+  --app-text-disabled: #cbd5e1;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  color: var(--app-text);
+  background: var(--app-canvas);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.dark {
+  --app-canvas: #0b1020;
+  --app-surface: #151d30;
+  --app-surface-muted: #10182a;
+  --app-surface-strong: #1b263b;
+  --app-surface-selected: #26334a;
+  --app-border: #2b3952;
+  --app-border-subtle: #202c42;
+  --app-text: #f8fafc;
+  --app-text-strong: #f1f5f9;
+  --app-text-emphasis: #e2e8f0;
+  --app-text-secondary: #cbd5e1;
+  --app-text-muted: #a8b4c7;
+  --app-text-subtle: #94a3b8;
+  --app-text-faint: #64748b;
+  --app-text-disabled: #475569;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-width: 320px;
+  min-height: 100%;
+  margin: 0;
+  background: var(--app-canvas);
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  cursor: pointer;
+}
+
+input[type='password']::-ms-reveal,
+input[type='password']::-ms-clear {
+  display: none;
+}
+
+@keyframes composer-genie-in {
+  from {
+    opacity: 0.2;
+    transform: scale(0.08, 0.025);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.composer-genie-enter {
+  transform-origin: 100% 100%;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  animation: composer-genie-in 360ms cubic-bezier(0.2, 0.8, 0.25, 1) both;
+  will-change: transform, opacity;
+}
+
+@keyframes composer-action-nudge {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  24% {
+    transform: translateX(-5px);
+  }
+  48% {
+    transform: translateX(4px);
+  }
+  72% {
+    transform: translateX(-2px);
+  }
+}
+
+.composer-action-nudge {
+  animation: composer-action-nudge 420ms ease-out;
+}
+
+@media (max-width: 639px) {
+  .composer-genie-enter {
+    transform-origin: 50% 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
