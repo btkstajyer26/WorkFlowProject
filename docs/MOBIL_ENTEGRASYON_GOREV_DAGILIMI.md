@@ -17,14 +17,19 @@ olarak durur; tasarım gerekçeleri envanter ve mimari belgelerindedir.
 | # | Sahip | Modül | İş | Durum |
 |---|---|---|---|---|
 | M0-kalan | Entegrasyon | — | `docs/openapi.json` yeniden üretilmeli | 🔴 |
-| M8 | Hacer Bengü Ünal | `rbac` | `/api/device-tokens` yetki matrisi testi | 🔵 |
 | MOB-12 | Mobil | `mobile/` | Push (FCM) istemci tarafı | 🔴 |
 | MOB-16 | Mobil | `mobile/` | iOS release / imza | 🟡 |
 
-> **En kritik madde artık MOB-12'dir.** M2 ve M3 24 Ağustos'ta kapandı: backend
-> hem cihaz tokenını sahiplik doğrulamasıyla yönetiyor hem de durum değişiminde
-> push gönderiyor. Push'un uçtan uca çalıştığı **hiç doğrulanmadı**, çünkü
-> istemci ayağı (MOB-12) hiç başlamadı.
+> **En kritik madde MOB-12'dir.** Backend tarafı tamamen hazır: cihaz tokenı
+> sahiplik doğrulamasıyla yönetiliyor (M2), durum değişiminde push gönderiliyor
+> (M3) ve uçlar yetki matrisinde kapsanıyor (M8). Push'un uçtan uca çalıştığı
+> **hiç doğrulanmadı**, çünkü istemci ayağı hiç başlamadı.
+
+> ⛔ **`feature/notification-service` entegre EDİLMEDİ.** Dalın 24 Ağustos'taki
+> dört yeni commit'i e-posta üzerinden tek tıkla onay özelliği getiriyor, ancak
+> uç kimlik doğrulaması olmadan açılıyor ve kaydın atandığı kişi adına workflow
+> aksiyonu yürütüyor. Ayrıntı ve düzeltme koşulları aşağıda "Engellenen iş"
+> bölümünde.
 
 ---
 
@@ -42,20 +47,6 @@ alınmalı; komut envanterde.
 
 **Bitti sayılır:** `docs/openapi.json` içinde `/api/device-tokens` `POST` ve
 `DELETE` uçları var.
-
----
-
-### 👤 Hacer Bengü Ünal — `rbac`
-
-#### M8 — `/api/device-tokens` yetki testi 🔵
-
-**Bağımlılık:** M2 (kapandı) — sahiplik doğrulaması artık kodda, dolayısıyla
-test doğru davranışı sabitleyebilir. Engel kalktı.
-
-`AuthorizationMatrixTest`'e satır ekle (auth zorunlu). Şu an test dizininde
-`device-tokens` geçen tek satır yok.
-
-**Bitti sayılır:** Matrix yeşil ve `/api/device-tokens` uçlarını kapsıyor.
 
 ---
 
@@ -98,6 +89,69 @@ A34 / Android 16 cihazda TEST ortamına bağlanıldı (M9 kabulü).
 
 **Kalan:** iOS build, imza / provisioning ve iOS cihaz doğrulaması. Push'un iOS
 ayağı ayrıca APNs anahtarı ister (MOB-12 ile birlikte).
+
+---
+
+## Engellenen iş — e-posta hızlı onay
+
+`origin/feature/notification-service` dalındaki dört commit
+(`2b602f4`, `f5173cd`, `b91d897`, `dbb8523`) **entegre edilmedi.** Getirdiği
+özellik makul: durum bildirimi e-postasına "Onayla" düğmesi koyup akışı
+hızlandırmak. Uygulaması güvenli değil.
+
+### Neden alınmadı
+
+**1. Uç kimlik doğrulaması olmadan açılıyor ve kullanıcı taklit ediyor.**
+`SecurityConfig`'e `/api/public/**` eklenmiş; `MailActionController`
+`GET /api/public/notification/quick-action?recordId={uuid}&action=ONAYLA`
+adresinde dinliyor. Uç yalnız `recordId` ve `action` alıyor — **token, imza,
+tek kullanımlık anahtar veya son kullanma tarihi yok.** Kaydın `assignedTo`
+alanındaki kişiyi bulup `SecurityContextHolder`'a onun adına kimlik yazıyor ve
+aksiyonu o kişi olarak yürütüyor.
+
+Sonuç: bir kayıt UUID'sini bilen herkes o evrağı onaylayabilir ve denetim izi
+işlemi meşru onaylayanın üzerine yazar. Bu, RBAC'ın ve onay akışının tamamını
+devre dışı bırakır.
+
+**2. Durum değiştiren bir `GET`.** E-posta istemcileri, kurumsal posta ağ
+geçitleri ve bağlantı tarayıcıları linkleri **önceden getirir** (ör. Outlook
+Safe Links). Alıcı düğmeye hiç dokunmadan, yalnız posta taraması yüzünden evrak
+onaylanabilir.
+
+**3. Hata yutuluyor, sonuç her koşulda aynı.** `catch (Exception e)` yalnız
+log'a yazıyor ve uç başarı/başarısızlık ayrımı olmadan hep `302` ile frontend'e
+yönlendiriyor. Onaylanmayan bir evrak, onaylanmış gibi görünür.
+
+**4. Yetki adı bozuk.** `String.valueOf(actor.getRole())` bir `Role` entity'si
+üzerinde çalışıyor; ürettiği metin `ROLE_BASKAN` değil, entity'nin `toString`
+çıktısı. Başına `ROLE_` eklenince ortaya geçersiz bir authority çıkıyor.
+
+**5. Flyway güvenlik ağı kapatılmış.** Aynı dal `application.properties`'e
+`spring.flyway.validate-on-migrate=false` ve `spring.flyway.out-of-order=true`
+ekliyor. Birincisi, projenin "uygulanmış migration dosyalarını değiştirmeyin"
+kuralını **zorlayan** checksum kontrolüdür; kapatılırsa değiştirilmiş bir
+migration sessizce geçer. İkincisi migrationların ortamlar arasında farklı
+sırada uygulanmasına izin verir.
+
+**6. Parola sıfırlama e-postası şablondan düz metne düşürülmüş.**
+`PASSWORD_RESET_TEMPLATE` sabiti silinmiş, `sendPasswordResetCode` artık
+Thymeleaf yerine string birleştirme kullanıyor. Commit mesajı gerekçeyi
+"E2E testinin beklediği biçime uydurmak" diye veriyor — üretim kodu teste
+uydurulmuş. `password-reset-code.html` şablonu depoda öksüz kaldı.
+
+### Güvenli hâle gelmesi için gereken
+
+- Link, kayıt + aksiyon + alıcıya bağlı, **tek kullanımlık ve süreli** bir
+  imzalı token taşımalı. Parola sıfırlama akışındaki
+  `password_reset_codes` deseni aynen uygulanabilir.
+- Aksiyon `GET` ile değil, token'ı doğrulayan bir onay sayfasından gelen
+  `POST` ile yürütülmeli — böylece bağlantı önizlemesi durumu değiştirmez.
+- Aktör token'dan çözülmeli; `assignedTo` alanından **türetilmemeli**.
+- Başarı ve başarısızlık kullanıcıya ayırt edilebilir biçimde dönmeli.
+- Flyway ve Thymeleaf ayarları geri alınmalı; şablon kararı ayrı ele alınmalı.
+
+Bu koşullar sağlandığında dal yeniden değerlendirilebilir. **Mevcut hâliyle
+`test` dalına alınmamalıdır.**
 
 ---
 
@@ -187,7 +241,8 @@ o satırı hiç görmez (kural 1). Web'de bu hata yaşandı ve düzeltildi.
 2. MOB-12 iOS ayağı → MOB-16 iOS release
 3. Backend PR'ları web akışını bozmaz
 
-M2 → M8 ve M2 + M3 → MOB-12 zincirlerindeki engeller 24 Ağustos'ta kalktı.
+M2 → M8 ve M2 + M3 → MOB-12 zincirlerindeki engeller 24 Ağustos'ta kalktı; M8 de
+aynı gün kapandı.
 
 ---
 
@@ -202,6 +257,7 @@ Aşağıdakiler koda karşı doğrulanmıştır; **yeniden açılmaz, yeniden ya
 | M0 | Entegrasyon | Uç envanteri ([MOBIL_API_ENVANTERI.md](MOBIL_API_ENVANTERI.md)) — hata kodları, sayfalama zarfı, `sort` tuzağı, tarih biçimi, görünürlük, dosya kuralları | 20 Ağu 2026 (`openapi.json` maddesi hariç) |
 | M2 | Melih Kocaman | `device_tokens` tablosu, `POST`/`DELETE` uçları, upsert kuralı: `token` UNIQUE üzerinden eşleşir, `user_id` dahil **tüm** alanlar güncellenir (aynı telefonda başka kullanıcı giriş yaparsa push yanlış kişiye gitmesin diye) | 20 Ağu 2026 |
 | M1 | Ebrar Şeyma Karakuş | İşlem geçmişi ucunun mobil doğrulaması: kırpma kuralları ve her zaman `null` dönen HTTP alanları envanter §5'te yazılı; cevap boyutu ölçülüp **sayfalama eklenmeme kararı** gerekçesiyle kayıtlı (gerçekçi en kötü durum 20 geri gönderme turu = 106 satır = 44,5 KB) | 24 Ağu 2026 |
+| M8 | Hacer Bengü Ünal | `/api/device-tokens` yetki matrisi testi. `AuthorizationMatrixTest.DeviceTokenYonetimi`: auth'suz `POST` ve `DELETE` 401 döner; girişli kullanıcı kendi tokenını kaydedip silebilir. Kayıt testi principal olarak `AuthenticatedUser` kullanıyor — gerçek filtre davranışını yansıtıyor | 24 Ağu 2026 |
 | M2-kalan | Melih Kocaman | `DELETE /api/device-tokens` artık `(token, user_id)` çifti üzerinden çalışıyor (`deactivateByTokenAndUserId`); kullanıcıya ait olmayan token sessizce yok sayılır. Token değerleri log'da `maskToken` ile maskeleniyor. `DeviceTokenServiceTest` sahiplik senaryolarını kapsıyor | 24 Ağu 2026 |
 | M3 | Melih Kocaman | `PushNotificationService` `WorkflowStatusChangedListener`'a bağlandı; alıcılar mevcut `recipientsOf` matrisinden geliyor, servis `@Nullable` (FCM yapılandırılmamış ortamda akış pushsuz çalışır). `PushNotificationServiceTest` `UNREGISTERED`/`INVALID_ARGUMENT` pasifleştirmesini ve `UNAVAILABLE`'ın pasifleştirmediğini doğruluyor. **Gerçek cihazda doğrulanmadı — MOB-12 açık** | 24 Ağu 2026 |
 | M4 | Nisan Tat · Sümeyye Baykan | Çıkışta cihaz token'ı pasifleştirme. `LogoutRequest.deviceToken` opsiyonel; `AuthServiceTest` üç senaryoyu da kapsıyor: token yokken web akışı bozulmuyor, varken pasifleşiyor, **başkasınınki pasifleşmiyor** | 21 Ağu 2026 |

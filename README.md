@@ -30,13 +30,22 @@ Son durum: tüm `feature/*` dalları `integration/tum-feature-branchleri` içine
 alınmıştır ve `test` dalı bu dalla aynı commit'tedir. Aşağıdaki maddeler, o
 birleşik hâlde kalan açıklardır.
 
-24 Ağustos 2026'da kapananlar: `feature/notification-service` ile M2 (cihaz
-token sahiplik doğrulaması, token log maskeleme) ve M3 (push servisinin
-`WorkflowStatusChangedListener`'a bağlanması); `feature/nisan-sumeyye` ile
-tekil rol invariant'ının yeniden etkinleştirmede de zorlanması
-(`UserService.ensureSingletonRoleAvailable`, `PATCH /api/admin/users/{id}/active`).
+24 Ağustos 2026'da kapananlar: M2 (cihaz token sahiplik doğrulaması, token log
+maskeleme), M3 (push servisinin `WorkflowStatusChangedListener`'a bağlanması),
+M8 (`/api/device-tokens` yetki matrisi testi), M1 (işlem geçmişi boyut ölçümü
+ve sayfalama kararı) ve tekil rol invariant'ının yeniden etkinleştirmede de
+zorlanması (`UserService.ensureSingletonRoleAvailable`).
 
-Doğrulama (24 Ağustos 2026, yerel, Docker kapalı): backend 448 test koştu,
+> [!WARNING]
+> `origin/feature/notification-service` dalının 24 Ağustos'taki dört yeni
+> commit'i **entegre edilmedi.** E-posta üzerinden tek tıkla onay özelliği
+> getiriyor, ancak uç kimlik doğrulaması olmadan açılıyor
+> (`/api/public/notification/quick-action`) ve kaydın atandığı kişi adına
+> workflow aksiyonu yürütüyor; ayrıca Flyway checksum doğrulamasını kapatıyor.
+> Gerekçe ve düzeltme koşulları
+> [mobil görev dağılımındaki "Engellenen iş" bölümünde](docs/MOBIL_ENTEGRASYON_GOREV_DAGILIMI.md#engellenen-iş--e-posta-hızlı-onay).
+
+Doğrulama (24 Ağustos 2026, yerel, Docker kapalı): backend 454 test koştu,
 **0 failure**; 8 error'ın tamamı PostgreSQL isteyen
 `WorkflowTransitionPersistenceIntegrationTest` sınıfından. Frontend `lint` +
 `typecheck:e2e` temiz, 103/103 Vitest yeşil, `build` başarılı; mobil `lint` ve
@@ -47,7 +56,6 @@ için bu turda çalıştırılamamıştır.
 
 - Admin kullanıcı oluştururken parolayı istemciden almaktadır; backend üretimli geçici parola ve davet e-postası henüz uygulanmamıştır.
 - Audit değiştirilemezliği yalnızca uygulama seviyesinde sağlanır; veritabanı tarafında trigger veya rol kısıtı ile zorlanmaz.
-- `/api/device-tokens` uçları `AuthorizationMatrixTest` kapsamında değildir (mobil görev dağılımındaki M8 açık).
 - Push gönderimi **gerçek cihazda hiç doğrulanmadı.** `PushNotificationService` artık `WorkflowStatusChangedListener`'a bağlıdır ve birim testleri yeşildir, ancak FCM anahtarları yalnız ortamdan gelir; uçtan uca kanıt için MOB-12 (mobil istemci tarafı) gerekir.
 
 ### Mobil
@@ -58,7 +66,7 @@ için bu turda çalıştırılamamıştır.
 
 ### Test ve CI
 
-- Backend'de dört test sınıfı (toplam 14 test) gerçek bir PostgreSQL bağlantısı ister ve veritabanı olmadan `ApplicationContext` hatasıyla düşer: `WorkflowTransitionPersistenceIntegrationTest` (11 test), `WorkFlowProjectApplicationTests`, `AuditLogRepositoryIntegrationTest`, `RecordRepositorySortingTest`. CI bunları `postgres:15-alpine` servisiyle çalıştırır; yerelde `docker compose up -d db` gerekir. Toplam 448 backend testinin kalan 434'ü veritabanısız geçer.
+- Backend'de dört test sınıfı (toplam 14 test) gerçek bir PostgreSQL bağlantısı ister ve veritabanı olmadan `ApplicationContext` hatasıyla düşer: `WorkflowTransitionPersistenceIntegrationTest` (11 test), `WorkFlowProjectApplicationTests`, `AuditLogRepositoryIntegrationTest`, `RecordRepositorySortingTest`. CI bunları `postgres:15-alpine` servisiyle çalıştırır; yerelde `docker compose up -d db` gerekir. Toplam 454 backend testinin kalan 440'ı veritabanısız geçer.
 - Playwright E2E paketi yalnız `docker-compose.e2e.yml` ile ayağa kalkan izole backend'e karşı çalışır; Docker'sız bir geliştirici makinesinde hiç koşturulamaz. `Frontend / E2E` işi CI'da bu boşluğu kapatır, ancak yerel doğrulama zinciri Docker'a bağımlıdır.
 - E2E `global-setup.ts` yalnız `E2E_PROVISION_USER=true` ile hesap açar ve bu mod ortak/production veritabanına karşı çalıştırılırsa gerçek veri üretir; koruma yalnız belgelenmiş bir uyarıdır, kodda ortam kontrolü yoktur.
 - Vitest için açık bir `testTimeout`/havuz sınırı ayarlanmamıştır. 23 Ağustos turunda `npm run test` 14 saniyede 103/103 yeşil bitmiştir; yine de yavaş makinelerde `findBy*` beklemelerinin zaman aşımına uğrama riski sürüyor.
@@ -68,7 +76,8 @@ için bu turda çalıştırılamamıştır.
 
 - `integration/tum-feature-branchleri` ve `test` dalları aynı commit'tedir; birleşik hâl doğrulandıktan sonra ikisine birden push edilmiştir.
 - `main`, birleşik dalın 373 commit gerisindedir; sürüm alınacaksa `test` -> `main` birleştirmesi yapılmalıdır.
-- `origin/feature/notification-service` 24 Ağustos'ta entegre edildi (M2 + M3). Dal, çakışma çözümü sırasında `DeviceTokenController.extractUserId` içindeki `AuthenticatedUser` dalını düşürmüştü; bu birleştirme sırasında geri konuldu — o dal olmadan iki uç da gerçek isteklerde `IllegalArgumentException` atıyordu. Dal artık tüketilmiştir; silinebilir.
+- `origin/feature/notification-service`'in M2 + M3 commit'leri 24 Ağustos'ta entegre edildi. Dal, çakışma çözümü sırasında `DeviceTokenController.extractUserId` içindeki `AuthenticatedUser` dalını düşürmüştü; birleştirme sırasında geri konuldu — o dal olmadan iki uç da gerçek isteklerde `IllegalArgumentException` atıyordu. **Dalın sonraki dört commit'i alınmadı** (yukarıdaki uyarı); dal silinmemeli, düzeltilip yeniden değerlendirilmeli.
+- `origin/feature/m8-device-token-yetki-testi` entegre edildi (PR #41). Bu dal da M8 testlerinin yanında `AuthorizationMatrixTest` içindeki beş açıklama bloğunu silmişti; birleştirme sırasında geri konuldu.
 - `feature/workflow-gonder-hedef-cozumleme` dalındaki C1a commit'inin davranışı (`GONDER`/`TEKRAR_GONDER` için `targetUserIdRequiredInRequest=false`) birleşik dalda zaten mevcuttur; dal güncelliğini yitirmiştir.
 - `origin/feature/m9-envanter` (`fc0d244`) ve `origin/feature/nisan-sumeyye` (`85e96d4`) dallarındaki son commitler, birleşik dalda bulunan `d365cd9` ve `4e3297d` ile **birebir aynı yamadır** (`git patch-id` eşleşir). Bu dallar tüketilmiştir; silinmelidir.
 - Yalnız yerelde duran `backup/proje-altyapisi-20260806`, `feature/proje-altyapisi` ve `feature/workflow-gonder-hedef-cozumleme` dalları temizlenmelidir.

@@ -161,6 +161,10 @@ class AuthorizationMatrixTest {
         @Test
         @DisplayName("giris ucu acik kalir")
         void girisUcuAcik() throws Exception {
+            // Istek filtre zincirinde durdurulmamali, AuthService'e ulasmali.
+            // Bos govde gecerli bir kullaniciya karsilik gelmedigi icin sonuc
+            // yine 401'dir; ancak filtrenin "UNAUTHORIZED" reddinden farkli
+            // olarak is katmaninin "INVALID_CREDENTIALS" kodunu tasir.
             mockMvc.perform(post("/api/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{}"))
@@ -197,6 +201,8 @@ class AuthorizationMatrixTest {
         @WithMockUser(roles = "CALISAN")
         @DisplayName("Calisan icin yetki engeli yoktur")
         void calisanEngellenmez() throws Exception {
+            // Servis katmani mock oldugu icin sonuc basarili olmayabilir;
+            // onemli olan istegin YETKI nedeniyle reddedilmemesi.
             mockMvc.perform(post("/api/records")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(RECORD_JSON))
@@ -204,6 +210,13 @@ class AuthorizationMatrixTest {
         }
     }
 
+    /**
+     * Onay akisi aksiyonlari tek uctan gecer; hangi rolun hangi durumda hangi
+     * aksiyonu alabilecegine durum makinesi karar verir. Tabloda karsiligi
+     * olmayan rol/aksiyon birlesimi {@code WORKFLOW_INVALID_TRANSITION} ile
+     * reddedilir. Workflow aktoru olmayan ADMIN ise daha erken, ayri bir kodla
+     * ({@code WORKFLOW_ROLE_NOT_ALLOWED}) elenir ve 403 alir.
+     */
     @Nested
     @DisplayName("Onay ve red yalnizca Baskan")
     class OnayVeRed {
@@ -256,6 +269,11 @@ class AuthorizationMatrixTest {
     @DisplayName("Kullanici yonetimi yalnizca Admin")
     class KullaniciYonetimi {
 
+        /**
+         * Govde bilerek gecerli: DTO dogrulamasi arguman cozumlemesi sirasinda
+         * calistigi icin gecersiz govde yetki kontrolune hic ulasmadan 400
+         * dondurur. Burada olculmek istenen yetki reddidir.
+         */
         private static final String GECERLI_GOVDE = """
                 {"firstName":"Test","lastName":"Kullanici",
                  "email":"test@ornek.test","password":"sifre123"}
@@ -290,6 +308,8 @@ class AuthorizationMatrixTest {
         @WithMockUser(roles = "BASKAN")
         @DisplayName("Baskan dosya yukleyemez")
         void baskanYukleyemez() throws Exception {
+            // Yukleme ucu sozlesmeye uyacak sekilde POST /api/records/{id}/files
+            // adresine tasindi; kayit kimligi artik yoldan geliyor.
             mockMvc.perform(multipart("/api/records/{id}/files", UUID.randomUUID())
                             .file(new MockMultipartFile("file", "rapor.pdf",
                                     "application/pdf", "icerik".getBytes())))
