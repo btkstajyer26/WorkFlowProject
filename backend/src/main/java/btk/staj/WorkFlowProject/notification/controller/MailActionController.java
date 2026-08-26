@@ -34,8 +34,8 @@ public class MailActionController {
     private final UserRepository userRepository;
 
     public MailActionController(WorkflowActionService workflowActionService,
-                         RecordRepository recordRepository,
-                         UserRepository userRepository) {
+                                RecordRepository recordRepository,
+                                UserRepository userRepository) {
         this.workflowActionService = workflowActionService;
         this.recordRepository = recordRepository;
         this.userRepository = userRepository;
@@ -46,12 +46,12 @@ public class MailActionController {
             @RequestParam UUID recordId,
             @RequestParam(required = false) String action) {
 
-        log.info(">>> E-posta hizli islem tetiklendi: recordId={}, actionParam={}", recordId, action);
+        log.info("E-posta hızlı işlem: recordId={}, action={}", recordId, action);
 
         try {
             Optional<Record> recordOpt = recordRepository.findById(recordId);
             if (recordOpt.isEmpty()) {
-                return ResponseEntity.ok(renderHtml("Evrak Bulunamadi", "Islem yapilmak istenen evrak bulunamadi.", false));
+                return ResponseEntity.ok(renderHtml("Evrak Bulunamadı", "İşlem yapılmak istenen evrak bulunamadı.", false));
             }
 
             Record record = recordOpt.get();
@@ -62,13 +62,13 @@ public class MailActionController {
             String successMessage = "";
 
             if (status == RecordStatus.BASKAN_INCELEMESINDE) {
-               workflowAction = WorkflowAction.ONAYLA;
+                workflowAction = WorkflowAction.ONAYLA;
                 actorId = record.getAssignedTo();
-                successMessage = "Evrak basariyla onaylandi.";
+                successMessage = "Evrak başarıyla onaylandı.";
             } else if (status == RecordStatus.BSK_YRD_INCELEMESINDE) {
                 workflowAction = WorkflowAction.BASKANA_ILET;
                 actorId = record.getAssignedTo();
-                successMessage = "Evrak basariyla Baskan'a iletildi.";
+                successMessage = "Evrak başarıyla Başkan'a iletildi.";
             } else if (status == RecordStatus.TASLAK) {
                 workflowAction = WorkflowAction.GONDER;
                 actorId = record.getCreatedBy();
@@ -78,16 +78,16 @@ public class MailActionController {
                 actorId = record.getCreatedBy();
                 successMessage = "Evrak tekrar incelemeye sunuldu.";
             } else {
-                return ResponseEntity.ok(renderHtml("Islem Yapilamaz", "Bu evrak zatan sonuclandirilmis (" + status + ").", false));
+                return ResponseEntity.ok(renderHtml("İşlem Yapılamaz", "Bu evrak zaten sonuçlandırılmış (" + status + ").", false));
             }
 
             if (actorId == null) {
-                return ResponseEntity.ok(renderHtml("Hata", "Islem yetkilisi tespit edilemedi.", false));
+                return ResponseEntity.ok(renderHtml("Hata", "İşlem yetkilisi tespit edilemedi.", false));
             }
 
             Optional<User> actorOpt = userRepository.findById(actorId);
             if (actorOpt.isEmpty()) {
-                return ResponseEntity.ok(renderHtml("Hata", "Islem yetkilisi sistemde bulunamadi.", false));
+                return ResponseEntity.ok(renderHtml("Hata", "İşlem yetkilisi sistemde kayıtlı değil.", false));
             }
 
             User actor = actorOpt.get();
@@ -95,7 +95,7 @@ public class MailActionController {
 
             UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
                     authenticatedUser,
-                 null,
+                    null,
                     authenticatedUser.getAuthorities()
             );
             SecurityContextHolder.getContext().setAuthentication(auth);
@@ -103,17 +103,16 @@ public class MailActionController {
             WorkflowActionRequest request = new WorkflowActionRequest(
                     workflowAction,
                     null,
-                    "E-posta hizli onay butonu uzerinden otomatik islem yapildi."
+                    "E-posta üzerinden otomatik onaylandı."
             );
 
             workflowActionService.performAction(recordId, request);
-            log.info(">>> E-posta islemi basariyla tamamlandi: Evrak={}, Islem={}, Aktor={}", recordId, workflowAction, actor.getEmail());
 
-            return ResponseEntity.ok(renderHtml("Islem Basarili", successMessage, true));
+            return ResponseEntity.ok(renderHtml("İşlem Başarılı", successMessage, true));
 
         } catch (Exception e) {
-            log.error(">>> E-posta hizli islem hatasi: ", e);
-            return ResponseEntity.ok(renderHtml("Islem Basarisiz", "Islem sirasinda bir hata olustu: " + e.getMessage(), false));
+            log.error("E-posta hızlı işlem hatası: ", e);
+            return ResponseEntity.ok(renderHtml("Hata", "İşlem sırasında hata oluştu: " + e.getMessage(), false));
         } finally {
             SecurityContextHolder.clearContext();
         }
@@ -132,9 +131,9 @@ public class MailActionController {
                 + "<title>" + title + "</title>"
                 + "<style>"
                 + "body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f4f6f8; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }"
-                + ".card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); text-align: center; max-width: 440px; width: 90%;}"
+                + ".card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); text-align: center; max-width: 440px; width: 90%; }"
                 + ".icon { width: 64px; height: 64px; border-radius: 50%; background-color: " + bgColor + "; color: " + color + "; font-size: 32px; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-weight: bold; }"
-               + "h2 { color: #1a1a1a; margin-bottom: 12px; font-size: 22px; }"
+                + "h2 { color: #1a1a1a; margin-bottom: 12px; font-size: 22px; }"
                 + "p { color: #555555; font-size: 15px; line-height: 1.5; margin-bottom: 24px; }"
                 + ".footer-note { font-size: 12px; color: #888888; border-top: 1px solid #eeeeee; padding-top: 16px; }"
                 + "</style>"
@@ -144,9 +143,9 @@ public class MailActionController {
                 + "<div class='icon'>" + icon + "</div>"
                 + "<h2>" + title + "</h2>"
                 + "<p>" + message + "</p>"
-                + "<div class='footer-note'>Bu sekmeyi guvenle kapatabilirsiniz.</div>"
+                + "<div class='footer-note'>Bu sekmeyi güvenle kapatabilirsiniz.</div>"
                 + "</div>"
-               + "</body>"
+                + "</body>"
                 + "</html>";
     }
 }

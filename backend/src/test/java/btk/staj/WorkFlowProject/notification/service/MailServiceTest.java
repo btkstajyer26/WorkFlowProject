@@ -1,5 +1,6 @@
 package btk.staj.WorkFlowProject.notification.service;
 
+import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -7,6 +8,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.IContext;
 
+import java.util.Properties;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -29,19 +31,19 @@ class MailServiceTest {
 
     @Test
     void sendStatusChangeMail_sendsSuccessfully() {
-        MimeMessage mimeMessage = mock(MimeMessage.class);
+        MimeMessage mimeMessage = new MimeMessage(Session.getInstance(new Properties()));
         when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
         when(templateEngine.process(any(String.class), any(IContext.class))).thenReturn("<html>Test</html>");
 
         mailService.sendStatusChangeMail(
                 "test@example.com",
-                "Evrak Durumu",
+                "Ahmet Yilmaz",
                 UUID.randomUUID(),
                 "Taslak",
-                "Başkan İncelemesinde",
+                "BASKAN_INCELEMESINDE",
                 "Açıklama"
         );
 
-        verify(mailSender).send(mimeMessage);
+        verify(mailSender).send(any(MimeMessage.class));
     }
 }
