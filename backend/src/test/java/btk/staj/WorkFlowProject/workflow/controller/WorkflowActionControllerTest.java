@@ -6,6 +6,7 @@ import btk.staj.WorkFlowProject.audit.repository.AuditLogRepository;
 import btk.staj.WorkFlowProject.audit.repository.UserAuditLogRepository;
 import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
 import btk.staj.WorkFlowProject.notification.repository.DeviceTokenRepository;
+import btk.staj.WorkFlowProject.notification.repository.MailActionTokenRepository;
 import btk.staj.WorkFlowProject.notification.repository.NotificationRepository;
 import btk.staj.WorkFlowProject.rbac.Role;
 import btk.staj.WorkFlowProject.record.entity.Record;
@@ -83,6 +84,7 @@ class WorkflowActionControllerTest {
     @MockitoBean private UserAuditLogRepository userAuditLogRepository;
     @MockitoBean private NotificationRepository notificationRepository;
     @MockitoBean private DeviceTokenRepository deviceTokenRepository;
+    @MockitoBean private MailActionTokenRepository mailActionTokenRepository;
 
     @TestConfiguration
     static class NoOpTransactionConfig {

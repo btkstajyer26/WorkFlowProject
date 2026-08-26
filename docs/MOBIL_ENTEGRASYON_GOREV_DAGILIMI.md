@@ -1,6 +1,6 @@
 # Mobil Entegrasyon — Görev Dağılımı
 
-**Tarih:** 23 Ağustos 2026 (kod doğrulaması aynı gün)
+**Tarih:** 24 Ağustos 2026 (kod doğrulaması aynı gün)
 **Dal:** `test`'ten `feature/<konu>` açılır, PR `test`'e gider.
 
 Mobil, mevcut Spring Boot REST API'sini kullanır. İş kuralları mobilde yazılmaz.
@@ -17,16 +17,19 @@ olarak durur; tasarım gerekçeleri envanter ve mimari belgelerindedir.
 | # | Sahip | Modül | İş | Durum |
 |---|---|---|---|---|
 | M0-kalan | Entegrasyon | — | `docs/openapi.json` yeniden üretilmeli | 🔴 |
-| M1 | Ebrar Şeyma Karakuş | `audit` | İşlem geçmişi cevap boyutu ölçülüp sayfalama kararı yazılmalı | 🟡 |
-| M2-kalan | Melih Kocaman | `notification` | `DELETE /api/device-tokens` sahiplik doğrulaması + token log maskeleme | 🔴 |
-| M3 | Melih Kocaman | `notification` | `PushNotificationService` listener'a bağlanmalı | 🔴 |
-| M8 | Hacer Bengü Ünal | `rbac` | `/api/device-tokens` yetki matrisi testi | 🔵 |
 | MOB-12 | Mobil | `mobile/` | Push (FCM) istemci tarafı | 🔴 |
 | MOB-16 | Mobil | `mobile/` | iOS release / imza | 🟡 |
 
-> **En kritik madde M3'tür.** M2 ve M4 bittiği için mobil taraf token kaydedip
-> çıkışta pasifleştirebilir, ama `PushNotificationService` çağrılmadığı için
-> hiçbir push gönderilmez. MOB-12 bu bağlantı yapılmadan doğrulanamaz.
+> **En kritik madde MOB-12'dir.** Backend tarafı tamamen hazır: cihaz tokenı
+> sahiplik doğrulamasıyla yönetiliyor (M2), durum değişiminde push gönderiliyor
+> (M3) ve uçlar yetki matrisinde kapsanıyor (M8). Push'un uçtan uca çalıştığı
+> **hiç doğrulanmadı**, çünkü istemci ayağı hiç başlamadı.
+
+> ⛔ **`feature/notification-service` entegre EDİLMEDİ.** Dalın 24 Ağustos'taki
+> dört yeni commit'i e-posta üzerinden tek tıkla onay özelliği getiriyor, ancak
+> uç kimlik doğrulaması olmadan açılıyor ve kaydın atandığı kişi adına workflow
+> aksiyonu yürütüyor. Ayrıntı ve düzeltme koşulları aşağıda "Engellenen iş"
+> bölümünde.
 
 ---
 
@@ -42,123 +45,11 @@ Mobil istemci kodu bu dosyadan üretildiği için cihaz token kaydı üretilmiş
 istemciyle yapılamaz. Backend ayaktayken `/v3/api-docs` çıktısı yeniden
 alınmalı; komut envanterde.
 
-**Bitti sayılır:** `docs/openapi.json` içinde `/api/device-tokens` `POST` ve
-`DELETE` uçları var.
+25 Ağustos'ta eklenen `/api/public/mail-actions/preview` ve `/consume` uçları
+da dosyada yok; aynı yeniden üretimle gelecekler.
 
----
-
-### 👤 Ebrar Şeyma Karakuş — `audit`
-
-#### M1 — İşlem geçmişi ucunun mobil doğrulaması 🟡
-
-Üç maddenin **ikisi kapandı**, biri açık:
-
-| Madde | Durum |
-|---|---|
-| Kırpma kurallarının envantere doğru yazılması | ✅ Envanter §5'te yazılı |
-| `httpMethod` / `requestPath` / `httpStatus` / `errorCode` alanlarının opsiyonel işaretlenmesi | ✅ Envanter §5'te "her zaman `null`" notuyla yazılı |
-| **Cevap boyutu ölçümü ve sayfalama kararı** | 🟡 **Açık** — envanterde ne ölçüm ne gerekçeli karar var |
-
-`GET /api/audit-logs/record/{recordId}` sayfalama yapmaz, tüm satırları tek
-listede döndürür. Mobilde uzun geçmişi olan bir kayıt tek istekte iner.
-
-Gerçekçi en büyük geçmiş için cevap boyutu ölçülmeli. Sınır aşılıyorsa sayfalama
-veya `limit` **önerilmeli** — kendiliğinden eklenmemeli; web istemcisi bu ucu
-sayfalamasız kullanıyor.
-
-**Bitti sayılır:** Envanterde ölçülen boyut ve sayfalama kararı (gerekli /
-gereksiz) gerekçesiyle kayıtlı.
-
----
-
-### 👤 Melih Kocaman — `notification`
-
-#### M2 kalanı — iki güvenlik açığı 🔴
-
-Cihaz token API'si kodda tam: `V10__device_tokens.sql`, `DeviceTokenController`,
-`DeviceTokenService`, `DeviceTokenRepository`, `DeviceToken` entity ve
-`DeviceTokenServiceTest`. Upsert kuralı uygulanmış durumda. İki madde açık:
-
-**1. `DELETE /api/device-tokens` sahiplik doğrulaması yapmıyor.**
-`DeviceTokenController.removeToken` `Authentication` parametresi almıyor;
-`deactivateByToken` yalnız token değerine göre güncelliyor. Kimliği doğrulanmış
-herhangi bir kullanıcı, başkasının token değerini gönderirse o kişinin push
-bildirimlerini kapatabilir. Uç `(token, user_id)` çifti üzerinden çalışmalı,
-kullanıcıya ait olmayan token M4'teki gibi **sessizce yok sayılmalı** — hata
-dönmek başkasının token'ının varlığını sızdırır.
-
-**2. Cihaz tokenları log'a açık yazılıyor.** `DeviceTokenService.deactivateToken`
-(`log.info`) ile `PushNotificationService` (`log.warn` / `log.info`) token
-değerini tam olarak yazıyor. Token bir kimlik bilgisidir ve log'lar 30 gün
-saklanıyor; maskelenmeli.
-
-> `DELETE /api/device-tokens` **normal çıkış akışı değildir.** Yalnız token
-> yenilenmesi ve cihazı elle kaldırma içindir; normal çıkışta token
-> `POST /api/auth/logout` üzerinden pasifleşir (M4, kapandı).
-
-**Bitti sayılır:** Başkasının token'ıyla `DELETE` çağrısı hiçbir satırı
-değiştirmiyor ve testte doğrulanıyor; log'larda tam token değeri geçmiyor.
-
----
-
-#### M3 — FCM push servisi bağlanmadı 🔴
-
-`PushNotificationService` depoda ve sözleşmenin tamamı yazılmış durumda: FCM
-başlatma, `data.recordId` / `data.type` payload'u, `handleFcmError` ile geçersiz
-token temizliği. Env anahtarları (`FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`,
-`FCM_PRIVATE_KEY`) `.env.example` içinde tanımlı.
-
-**Kalan iş — servis hiçbir yerden çağrılmıyor.** Tüm repoda, sınıfın kendi
-dosyası dışında `PushNotificationService` geçen tek satır yok.
-`WorkflowStatusChangedListener` yalnız uygulama içi bildirim ve e-posta
-üretiyor. Servis listener'a bağlanana kadar push **hiç gitmez** ve bu eksiklik
-sessizdir: hata üretmez, log'a düşmez.
-
-Bağlarken alıcılar mevcut `recipientsOf` matrisinden alınmalı; yeni alıcı
-mantığı yazılmamalı. Gönderim `@Async`'tir, onay akışını bloklamaz.
-
-##### Payload sözleşmesi (MOB-12 buna göre yazılır)
-
-```json
-{
-  "notification": { "title": "...", "body": "..." },
-  "data": {
-    "recordId": "uuid",
-    "type": "RECORD_SUBMITTED"
-  }
-}
-```
-
-`type` değerleri mevcut `NotificationType` enum'undan gelir; yeni sözlük
-uydurulmaz: `RECORD_SUBMITTED` · `RECORD_FORWARDED` · `RECORD_APPROVED` ·
-`RECORD_REJECTED` · `RECORD_RETURNED`
-
-`data` alanları **string** olmalı (FCM `data` yalnız string kabul eder).
-
-##### Geçersiz token temizliği (yazıldı, sözleşme olarak duruyor)
-
-| FCM cevabı | Yapılacak |
-|---|---|
-| `UNREGISTERED` (uygulama silinmiş / token iptal) | `is_active = false` |
-| `INVALID_ARGUMENT` (token bozuk) | `is_active = false` |
-| `UNAVAILABLE` / `INTERNAL` | Pasifleştirme **yok**, geçici hata |
-
-**Bitti sayılır:** Gerçek cihazda bildirim geliyor, `data.recordId` ve
-`data.type` okunuyor, geçersiz token otomatik pasifleşiyor.
-
----
-
-### 👤 Hacer Bengü Ünal — `rbac`
-
-#### M8 — `/api/device-tokens` yetki testi 🔵
-
-**Bağımlılık:** M2 kalanı — sahiplik doğrulaması eklendikten sonra yazılmalı,
-yoksa test bugünkü yanlış davranışı sabitler.
-
-`AuthorizationMatrixTest`'e satır ekle (auth zorunlu). Şu an test dizininde
-`device-tokens` geçen tek satır yok.
-
-**Bitti sayılır:** Matrix yeşil ve `/api/device-tokens` uçlarını kapsıyor.
+**Bitti sayılır:** `docs/openapi.json` içinde `/api/device-tokens` ve
+`/api/public/mail-actions/*` uçları var.
 
 ---
 
@@ -169,10 +60,11 @@ Jest testi temiz; CI'da `Mobile / quality` işi bunları her PR'da çalıştır�
 
 ### MOB-12 — Push (FCM) 🔴
 
-**Bağımlılık:** M2 kalanı, M3
+**Bağımlılık:** M2 ve M3 — ikisi de kapandı, backend hazır.
 
 Bugün mobilde `firebase`, `messaging` veya `device-tokens` geçen **tek satır
-yok**; istemci tarafı hiç başlamadı.
+yok**; istemci tarafı hiç başlamadı. Push'un uçtan uca çalıştığı bu yüzden hiç
+doğrulanmadı.
 
 Paketler: `@react-native-firebase/app`, `@react-native-firebase/messaging`
 
@@ -203,12 +95,134 @@ ayağı ayrıca APNs anahtarı ister (MOB-12 ile birlikte).
 
 ---
 
+## E-posta hızlı işlem — güvenli sürüm yazıldı
+
+`origin/feature/notification-service` dalındaki dört commit
+(`2b602f4`, `f5173cd`, `b91d897`, `dbb8523`) **alınmadı**; özellik güvenli
+deseniyle yeniden yazıldı. Fikir aynı: durum bildirimi e-postasına "Hızlı
+İşlem" düğmesi koyup akışı hızlandırmak.
+
+### Reddedilen sürümdeki sorunlar
+
+| # | Sorun |
+|---|---|
+| 1 | `GET /api/public/notification/quick-action?recordId=&action=` kimlik doğrulaması olmadan açıktı ve kaydın `assignedTo` kişisini bulup **onun adına** aksiyon yürütüyordu. Kayıt UUID'sini bilen herkes evrağı onaylayabilirdi. |
+| 2 | Durum değiştiren bir `GET`. Posta ağ geçitleri linkleri önceden getirir; alıcı dokunmadan evrak onaylanabilirdi. |
+| 3 | `catch (Exception e)` hatayı yutup her koşulda `302` dönüyordu; başarısız işlem başarılı görünüyordu. |
+| 4 | `String.valueOf(actor.getRole())` bir entity üzerinde çalışıyordu; üretilen authority geçersizdi. |
+| 5 | `spring.flyway.validate-on-migrate=false` — "uygulanmış migration'ı değiştirmeyin" kuralını zorlayan checksum kontrolü kapatılmıştı. |
+| 6 | `sendPasswordResetCode` Thymeleaf şablonundan string birleştirmeye düşürülmüştü. |
+
+> Ayrıca özellik **zaten çalışmıyordu.** `SecurityCurrentActorProvider`
+> principal'in `AuthenticatedUser` olmasını şart koşar
+> (`principal.getClass() != AuthenticatedUser.class` → `AuthenticationServiceException`).
+> Reddedilen kod principal olarak `User` entity'si koyuyordu, yani her çağrı
+> istisna atıp yutulan `catch` bloğuna düşer ve kullanıcı `302` görürdü.
+
+### Yazılan sürüm
+
+**Migration:** `V11__mail_action_tokens.sql` — `mail_action_tokens` tablosu.
+Anahtarın kendisi saklanmaz, yalnız SHA-256 özeti (parola sıfırlamadaki desen).
+
+Anahtar üç sınırla birlikte çalışır:
+
+1. `consumed_at` → tek kullanım
+2. `expires_at` → süre (`MAIL_ACTION_TOKEN_TTL_HOURS`, varsayılan 72 saat)
+3. `user_id` + `record_id` + `action` → başka evrağa, aksiyona veya kişiye taşınamaz
+
+Bu üçü yetmez: tüketimde **gerçek durum makinesi yeniden çalışır**. Evrak arada
+el değiştirdiyse geçiş oradan reddedilir. Tablo yetki kaynağı değildir.
+
+**Uçlar** — ikisi de `POST`, ikisi de oturumsuz:
+
+| Uç | Ne yapar |
+|---|---|
+| `POST /api/public/mail-actions/preview` | Anahtarı doğrular, onay ekranı bilgisini döner. **Durum değiştirmez**, güvenle önceden getirilebilir. |
+| `POST /api/public/mail-actions/consume` | Anahtarı tüketir ve aksiyonu yürütür. Yalnız kullanıcının açık onayıyla çağrılır. |
+
+Önizleme de `POST`'tur çünkü anahtar **gövdede** taşınır; URL'ye yazılsaydı
+erişim log'larına, `Referer` başlığına ve tarayıcı geçmişine düşerdi. Proje bu
+kararı `afbf4b5` ile şifre sıfırlama akışında zaten vermişti.
+
+`SecurityConfig`'de joker yol (`/api/public/**`) **bilerek kullanılmadı**; iki
+uç adıyla açıldı. Joker, o önekle eklenen her yeni ucu sessizce herkese açardı;
+`AuthorizationMatrixTest` bunu sabitleyen bir test taşıyor.
+
+**Aktör anahtardan çözülür**, evrağın `assignedTo` alanından türetilmez —
+türetilseydi anahtar, koltuk devredildikten sonra yeni kişinin adına iş yapardı.
+`consume` içinde `SecurityContext` anahtarın sahibiyle kurulur; anahtar
+doğrulandığı için bu, JWT filtresinin yaptığı işin aynı yetkiye dayanan
+eşdeğeridir. Önceki bağlam `finally` ile aynen geri konur.
+
+**Tüketim aksiyondan önce yazılır.** Aksiyon durum makinesinden dönerse
+transaction geri alınır ve anahtar tüketilmemiş kalır. "Tüketildi ama iş
+yapılmadı" ya da "iş yapıldı ama anahtar açık kaldı" aralığı oluşmaz.
+
+**E-posta bağlantısı:** `{frontendUrl}/hizli-islem#token=...` — anahtar adres
+**parçasında**. Parça sunucuya hiç gönderilmez. Arayüz değeri okur okumaz
+`history.replaceState` ile adresten siler.
+
+**Hangi aksiyon önerilir:** rolden değil evrağın yeni durumundan türetilir
+(`MailActionTokenService.primaryActionFor`). Bildirim zaten yalnız evrağın
+atandığı kişiye gider, dolayısıyla durum alıcıyı tek bir aksiyona bağlar.
+
+| Durum | Önerilen aksiyon |
+|---|---|
+| `BSK_YRD_INCELEMESINDE` | `BASKANA_ILET` |
+| `BASKAN_INCELEMESINDE` | `ONAYLA` |
+| `DUZENLEME_BEKLIYOR` | `TEKRAR_GONDER` |
+| `TASLAK`, `ONAYLANDI`, `REDDEDILDI` | yok — düğme çıkmaz |
+
+Geri gönderme ve ret bilerek dışarıdadır: ikisinde de açıklama zorunludur, tek
+tıkla yapılamaz.
+
+**Testler:** `MailActionTokenServiceTest` (14), `AuthorizationMatrixTest`
+içinde 4 uç testi, `WorkflowStatusChangedListenerTest`'te 3 yeni senaryo,
+frontend `QuickActionPage.test.tsx` (6).
+
+### Kalan
+
+- Gerçek SMTP/Mailpit üzerinden uçtan uca deneme yapılmadı (Docker gerekiyordu).
+- Süresi dolmuş satırların toplu temizliği için zamanlanmış iş yok; indeks
+  (`idx_mail_action_tokens_expires_at`) hazır, iş tanımlanmadı.
+
+---
+
 ## Açık işler için gereken sözleşmeler
+
+### Push payload
+
+Backend'in gönderdiği payload. MOB-12 yönlendirmesi buna göre yazılır.
+
+```json
+{
+  "notification": { "title": "...", "body": "..." },
+  "data": {
+    "recordId": "uuid",
+    "type": "RECORD_SUBMITTED"
+  }
+}
+```
+
+`type` değerleri `NotificationType` enum'undan gelir; yeni sözlük uydurulmaz:
+`RECORD_SUBMITTED` · `RECORD_FORWARDED` · `RECORD_APPROVED` ·
+`RECORD_REJECTED` · `RECORD_RETURNED`
+
+`data` alanları **string** olmalı (FCM `data` yalnız string kabul eder).
+
+Geçersiz token temizliği backend'de yapılır — mobil tarafın ayrıca token
+silmesi gerekmez:
+
+| FCM cevabı | Backend ne yapar |
+|---|---|
+| `UNREGISTERED` (uygulama silinmiş / token iptal) | `is_active = false` |
+| `INVALID_ARGUMENT` (token bozuk) | `is_active = false` |
+| `UNAVAILABLE` / `INTERNAL` | Pasifleştirme **yok**, geçici hata |
 
 ### Deep-link
 
-Push'a dokunulduğunda açılacak route. M3 payload'u ile MOB-12 yönlendirmesi bu
-sözleşmeye göre yazılır.
+Push'a dokunulduğunda açılacak route. Yukarıdaki payload'un `data.recordId`
+alanı ile MOB-12 yönlendirmesi bu sözleşmeye göre yazılır.
 
 | | |
 |---|---|
@@ -256,11 +270,12 @@ o satırı hiç görmez (kural 1). Web'de bu hata yaşandı ve düzeltildi.
 
 ## Bağımlılıklar
 
-1. M2 kalanı → M8 (test, düzeltilmiş davranışı sabitlemeli)
-2. M2 kalanı + M3 → MOB-12
-3. M0 kalanı (`openapi.json`) → MOB-12'nin üretilmiş istemciyle token kaydı
-4. MOB-12 iOS ayağı → MOB-16 iOS release
-5. Backend PR'ları web akışını bozmaz
+1. M0 kalanı (`openapi.json`) → MOB-12'nin üretilmiş istemciyle token kaydı
+2. MOB-12 iOS ayağı → MOB-16 iOS release
+3. Backend PR'ları web akışını bozmaz
+
+M2 → M8 ve M2 + M3 → MOB-12 zincirlerindeki engeller 24 Ağustos'ta kalktı; M8 de
+aynı gün kapandı.
 
 ---
 
@@ -273,7 +288,11 @@ Aşağıdakiler koda karşı doğrulanmıştır; **yeniden açılmaz, yeniden ya
 | # | Sahip | İş | Kapanış |
 |---|---|---|---|
 | M0 | Entegrasyon | Uç envanteri ([MOBIL_API_ENVANTERI.md](MOBIL_API_ENVANTERI.md)) — hata kodları, sayfalama zarfı, `sort` tuzağı, tarih biçimi, görünürlük, dosya kuralları | 20 Ağu 2026 (`openapi.json` maddesi hariç) |
-| M2 | Melih Kocaman | `device_tokens` tablosu, `POST`/`DELETE` uçları, upsert kuralı: `token` UNIQUE üzerinden eşleşir, `user_id` dahil **tüm** alanlar güncellenir (aynı telefonda başka kullanıcı giriş yaparsa push yanlış kişiye gitmesin diye) | Kodda — iki güvenlik maddesi hariç |
+| M2 | Melih Kocaman | `device_tokens` tablosu, `POST`/`DELETE` uçları, upsert kuralı: `token` UNIQUE üzerinden eşleşir, `user_id` dahil **tüm** alanlar güncellenir (aynı telefonda başka kullanıcı giriş yaparsa push yanlış kişiye gitmesin diye) | 20 Ağu 2026 |
+| M1 | Ebrar Şeyma Karakuş | İşlem geçmişi ucunun mobil doğrulaması: kırpma kuralları ve her zaman `null` dönen HTTP alanları envanter §5'te yazılı; cevap boyutu ölçülüp **sayfalama eklenmeme kararı** gerekçesiyle kayıtlı (gerçekçi en kötü durum 20 geri gönderme turu = 106 satır = 44,5 KB) | 24 Ağu 2026 |
+| M8 | Hacer Bengü Ünal | `/api/device-tokens` yetki matrisi testi. `AuthorizationMatrixTest.DeviceTokenYonetimi`: auth'suz `POST` ve `DELETE` 401 döner; girişli kullanıcı kendi tokenını kaydedip silebilir. Kayıt testi principal olarak `AuthenticatedUser` kullanıyor — gerçek filtre davranışını yansıtıyor | 24 Ağu 2026 |
+| M2-kalan | Melih Kocaman | `DELETE /api/device-tokens` artık `(token, user_id)` çifti üzerinden çalışıyor (`deactivateByTokenAndUserId`); kullanıcıya ait olmayan token sessizce yok sayılır. Token değerleri log'da `maskToken` ile maskeleniyor. `DeviceTokenServiceTest` sahiplik senaryolarını kapsıyor | 24 Ağu 2026 |
+| M3 | Melih Kocaman | `PushNotificationService` `WorkflowStatusChangedListener`'a bağlandı; alıcılar mevcut `recipientsOf` matrisinden geliyor, servis `@Nullable` (FCM yapılandırılmamış ortamda akış pushsuz çalışır). `PushNotificationServiceTest` `UNREGISTERED`/`INVALID_ARGUMENT` pasifleştirmesini ve `UNAVAILABLE`'ın pasifleştirmediğini doğruluyor. **Gerçek cihazda doğrulanmadı — MOB-12 açık** | 24 Ağu 2026 |
 | M4 | Nisan Tat · Sümeyye Baykan | Çıkışta cihaz token'ı pasifleştirme. `LogoutRequest.deviceToken` opsiyonel; `AuthServiceTest` üç senaryoyu da kapsıyor: token yokken web akışı bozulmuyor, varken pasifleşiyor, **başkasınınki pasifleşmiyor** | 21 Ağu 2026 |
 | M5 | Alperen Kara · Fevzi Berke Urganioğlu · Nisan Tat · Sümeyye Baykan | Koltuk devrinde `last_deputy_id` güncelleme; `assigned_to` devriyle aynı transaction'da | 20 Ağu 2026 |
 | M6 | Ecesu Başak | Çoklu dosya upload — `@RequestPart("file") MultipartFile[]`, `List<FileResponseDto>` döner, tek dosyalı web çağrısı bozulmadı | 20 Ağu 2026 (`2c31c3a`) |

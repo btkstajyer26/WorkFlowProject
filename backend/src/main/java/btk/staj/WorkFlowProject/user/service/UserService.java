@@ -116,15 +116,7 @@ public class UserService {
         Role newRole = roleRepository.findByName(newRoleName)
                 .orElseThrow(() -> new RoleNotFoundException("Rol bulunamadı: " + newRoleName));
 
-        if (SINGLETON_ROLES.contains(newRole.getName())) {
-            boolean alreadyHeldByAnother = userRepository.findByRole_NameAndActive(newRole.getName(), true)
-                    .stream()
-                    .anyMatch(existing -> !existing.getId().equals(userId));
-            if (alreadyHeldByAnother) {
-                throw new AdminLimitExceededException(
-                        "Bu rol zaten başka bir kullanıcıya atanmış: " + newRole.getName());
-            }
-        }
+        ensureSingletonRoleAvailable(newRole.getName(), userId);
 
         boolean wasBaskanYardimcisi = previousRole != null && "BASKAN_YARDIMCISI".equals(previousRole.getName());
         boolean leavingBaskanYardimcisi = wasBaskanYardimcisi && !"BASKAN_YARDIMCISI".equals(newRole.getName());
@@ -258,6 +250,10 @@ public class UserService {
                     "Önce Başkan Yardımcısı rolünü başka bir aktif kullanıcıya devredin");
         }
 
+        if (active) {
+            ensureSingletonRoleAvailable(user.getRole().getName(), userId);
+        }
+
         boolean previousActive = user.isActive();
         user.setActive(active);
         user.setUpdatedAt(LocalDateTime.now());
@@ -287,5 +283,28 @@ public class UserService {
         return roleRepository.findAllByOrderByIdAsc().stream()
                 .map(RoleResponse::from)
                 .toList();
+    }
+
+    /**
+     * {@code roleName} tekil bir rolse (bkz. {@link #SINGLETON_ROLES}), o
+     * rolde {@code excludingUserId} disinda aktif baska bir kullanici
+     * olmadigini dogrular. Hem yeni rol atamada ({@link #changeRole}) hem
+     * de pasif bir tekil rol sahibini yeniden aktiflestirirken
+     * ({@link #setActive}) kullanilir — ikisi de ayni invariant'i korur:
+     * bir tekil rolde ayni anda en fazla bir aktif kullanici olabilir.
+     */
+    private void ensureSingletonRoleAvailable(String roleName, UUID excludingUserId) {
+        if (!SINGLETON_ROLES.contains(roleName)) {
+            return;
+        }
+
+        boolean alreadyHeldByAnother = userRepository.findByRole_NameAndActive(roleName, true)
+                .stream()
+                .anyMatch(existing -> !existing.getId().equals(excludingUserId));
+
+        if (alreadyHeldByAnother) {
+            throw new AdminLimitExceededException(
+                    "Bu rol zaten başka bir kullanıcıya atanmış: " + roleName);
+        }
     }
 }

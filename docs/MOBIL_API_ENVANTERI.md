@@ -445,28 +445,69 @@ başlamaması normaldir.
 
 ### Sayfalama kararı — gerekçeli
 
-Projede önceden tanımlanmış sayısal bir cevap boyutu sınırı bulunamadı
+Projede önceden tanımlanmış sayısal bir cevap boyutu sınırı yoktur
 (sözleşmedeki boyut sınırları yalnızca dosya yüklemeleri içindir).
 
-Tek satır ortalama ~535 byte. Gerçekçi bir kullanım senaryosunda (birkaç
-geri-gönderme döngüsü, ~20-50 satır) cevap ~10-26 KB — mobil için önemsiz.
+**Karar: sayfalama eklenmeyecek.** Ölçüm aşağıda; gerçekçi en kötü durumda
+bile cevap mobil için önemsiz kalıyor.
 
-**Ancak durum makinesinde `BSK_YRD_INCELEMESINDE ↔ DUZENLEME_BEKLIYOR` ve
-`BASKAN_INCELEMESINDE ↔ DUZENLEME_BEKLIYOR` arasındaki geçiş sayısını
-sınırlayan hiçbir iş kuralı yok.** Teorik olarak 1000 satır ~522 KB'a,
-5000 satır ~2.5 MB'a ulaşabilir — bu, mobil için ciddi bir sorun olurdu.
+#### Satır başına boyut (ölçülen, UTF-8 bayt)
 
-**Karar: Şimdilik sayfalama eklenmeyecek** (web istemcisi sayfalamasız
-kullanıyor, gerçek kullanımda yüzlerce geri-gönderme beklenmiyor), **ama bu
-bir risk alanı olarak işaretleniyor.** Öneri: ya bir evrağın geri-gönderme
-sayısına iş kuralı düzeyinde bir üst sınır getirilmeli, ya da bu uca
-ileride sayfalama eklenmeli. Karar `record`/`workflow` ekipleriyle
-görüşülmeli.
+Jackson varsayılan ayarlarıyla (null alanlar dahil, boşluksuz), gerçek enum
+değerleri ve gerçek yaşam döngüsü yorumlarıyla:
 
-*(Not: Bu ölçüm, çalışan bir ortamda gerçek verilerle değil, örnek bir
-JSON satırının hesaplanmasıyla yapıldı. TEST ortamı artık ayakta — ölçüm
-gerçek verilerle tekrarlanabilir, ama henüz tekrarlanmadı. Bu iş M9
-kapsamında değildir; `record`/`workflow` ekipleriyle ayrı ele alınmalı.)*
+| Satır türü | Bayt |
+|---|---|
+| Yorumsuz geçiş (`GONDER`, `BASKANA_ILET`, …) | 403 |
+| Yaşam döngüsü (`RECORD_CREATED` / `UPDATED` / `DELETED`) | 408 |
+| Tipik yorumlu geri gönderme (~50 karakter açıklama) | 476 |
+| **En kötü:** 2000 karakterlik yorum + en uzun enum'lar | 2474 |
+
+Yorum uzunluğu üst sınırı `WorkflowActionRequest`'teki `@Size(max = 2000)`
+ile zorlanır. Yaşam döngüsü satırlarının yorumu sabit metindir
+("Kayıt oluşturuldu.", "Başlık ve kategori güncellendi.",
+"Kayıt soft delete işlemiyle silindi."), kullanıcı girdisi değildir.
+
+#### Gerçekçi akış (oluşturma + 2 düzenleme + gönder/ilet + N geri gönderme turu + onay)
+
+| Geri gönderme turu | Satır | Cevap |
+|---|---|---|
+| 0 | 6 | 2,4 KB |
+| 1 | 11 | 4,5 KB |
+| 3 | 21 | 8,7 KB |
+| 5 | 31 | 12,9 KB |
+| 10 | 56 | 23,4 KB |
+| 20 | 106 | **44,5 KB** |
+
+Yirmi tur geri gönderme zaten uçuk bir senaryo ve cevap hâlâ 45 KB. Mobil
+tarafta tek istekte inmesi sorun değil.
+
+1 MB'a ulaşmak için gereken satır sayısı: tipik satırla **~2200**, her satırda
+azami uzunlukta yorum varsa **~423**.
+
+#### Sınırın davranışsal olduğu — kodda zorlanmıyor
+
+Boyut iki bağımsız kaynaktan sınırsız büyüyebilir; ikisini de kısıtlayan bir iş
+kuralı **yok**:
+
+1. `BSK_YRD_INCELEMESINDE ↔ DUZENLEME_BEKLIYOR` ve
+   `BASKAN_INCELEMESINDE ↔ DUZENLEME_BEKLIYOR` döngüleri sınırsız tekrarlanabilir.
+2. **Her `PUT /api/records/{id}` çağrısı ayrı bir `RECORD_UPDATED` satırı yazar.**
+   Taslağını çok kez kaydeden bir Çalışan, hiç geri gönderme olmadan da satır
+   biriktirir. Bu kaynak döngü sayısından bağımsızdır.
+
+Kararı değiştirecek eşik: tek bir kaydın geçmişi **birkaç yüz satırı** düzenli
+olarak aşmaya başlarsa. O noktada tercih sırası — önce geri gönderme sayısına iş
+kuralı düzeyinde üst sınır, o kabul edilmezse bu uca `limit` parametresi.
+Sayfalama son çare: web istemcisi ucu sayfalamasız kullanıyor ve kırpma kuralı
+(yukarıda) sayfalı bir uçta doğru uygulanmak zorunda kalır, bu da kuralı iki
+yerde tutmayı gerektirir.
+
+> Ölçüm çalışan bir ortamda gerçek verilerle değil, gerçek DTO alanları, enum
+> değerleri ve doğrulama sınırları kullanılarak JSON serileştirmesiyle yapıldı.
+> Satır sayısı ile boyut arasındaki ilişki doğrusal olduğu için gerçek veriyle
+> tekrarlandığında sonucun değişmesi beklenmez.
+
 ---
 
 ## 6. Dosyalar
