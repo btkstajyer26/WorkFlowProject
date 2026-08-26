@@ -1,6 +1,7 @@
 package btk.staj.WorkFlowProject.notification.controller;
 
 import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
+import btk.staj.WorkFlowProject.notification.service.MailActionTokenService;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
 import btk.staj.WorkFlowProject.user.entity.User;
@@ -11,20 +12,21 @@ import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/public/notification")
 public class MailActionController {
 
     private static final Logger log = LoggerFactory.getLogger(MailActionController.class);
@@ -32,16 +34,20 @@ public class MailActionController {
     private final WorkflowActionService workflowActionService;
     private final RecordRepository recordRepository;
     private final UserRepository userRepository;
+    private final MailActionTokenService mailActionTokenService;
 
     public MailActionController(WorkflowActionService workflowActionService,
                                 RecordRepository recordRepository,
-                                UserRepository userRepository) {
+                                UserRepository userRepository,
+                                MailActionTokenService mailActionTokenService) {
         this.workflowActionService = workflowActionService;
         this.recordRepository = recordRepository;
         this.userRepository = userRepository;
+        this.mailActionTokenService = mailActionTokenService;
     }
 
-    @GetMapping(value = "/quick-action", produces = MediaType.TEXT_HTML_VALUE)
+    // --- BIZIM HIZLI E-POSTA ONAY ENDPOINT'IMIZ ---
+    @GetMapping(value = "/api/public/notification/quick-action", produces = MediaType.TEXT_HTML_VALUE)
     public ResponseEntity<String> handleQuickAction(
             @RequestParam UUID recordId,
             @RequestParam(required = false) String action) {
@@ -115,6 +121,37 @@ public class MailActionController {
             return ResponseEntity.ok(renderHtml("Hata", "İşlem sırasında hata oluştu: " + e.getMessage(), false));
         } finally {
             SecurityContextHolder.clearContext();
+        }
+    }
+
+    // --- MAIN BRANCH UYUMLULUK ENDPOINT'LERI ---
+    @GetMapping("/api/public/mail-actions/preview")
+    public ResponseEntity<?> preview(@RequestParam(name = "token", required = false) String token) {
+        if (token == null || token.isBlank()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Token gerekli"));
+        }
+        try {
+            var preview = mailActionTokenService.preview(token);
+            return ResponseEntity.ok(preview);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/api/public/mail-actions/consume")
+    public ResponseEntity<?> consume(@RequestParam(name = "token", required = false) String token) {
+        if (token == null || token.isBlank()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Token gerekli"));
+        }
+        try {
+            var result = mailActionTokenService.consume(token);
+            return ResponseEntity.ok(result);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", e.getMessage()));
         }
     }
 
