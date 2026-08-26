@@ -126,30 +126,48 @@ public class MailActionController {
     @GetMapping("/api/public/mail-actions/preview")
     public ResponseEntity<?> preview(@RequestParam(name = "token", required = false) String token) {
         if (token == null || token.isBlank()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("code", "TOKEN_GEREKLI", "message", "Token gerekli"));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                    "code", "INVALID_OR_EXPIRED_MAIL_ACTION_TOKEN",
+                    "message", "Geçersiz veya süresi dolmuş işlem anahtarı."
+            ));
         }
         try {
             var preview = mailActionTokenService.preview(token);
             return ResponseEntity.ok(preview);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("code", "GECERSIZ_ANAHTAR", "message", e.getMessage()));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                    "code", "INVALID_OR_EXPIRED_MAIL_ACTION_TOKEN",
+                    "message", e.getMessage() != null ? e.getMessage() : "Geçersiz veya süresi dolmuş işlem anahtarı."
+            ));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("code", "SUNUCU_HATASI", "message", e.getMessage()));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                    "code", "INTERNAL_SERVER_ERROR",
+                    "message", e.getMessage()
+            ));
         }
     }
 
     @PostMapping("/api/public/mail-actions/consume")
     public ResponseEntity<?> consume(@RequestParam(name = "token", required = false) String token) {
         if (token == null || token.isBlank()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("code", "TOKEN_GEREKLI", "message", "Token gerekli"));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                    "code", "INVALID_OR_EXPIRED_MAIL_ACTION_TOKEN",
+                    "message", "Geçersiz veya süresi dolmuş işlem anahtarı."
+            ));
         }
         try {
             var result = mailActionTokenService.consume(token);
             return ResponseEntity.ok(result);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("code", "GECERSIZ_ANAHTAR", "message", e.getMessage()));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                    "code", "INVALID_OR_EXPIRED_MAIL_ACTION_TOKEN",
+                    "message", e.getMessage() != null ? e.getMessage() : "Geçersiz veya süresi dolmuş işlem anahtarı."
+            ));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("code", "SUNUCU_HATASI", "message", e.getMessage()));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                    "code", "INTERNAL_SERVER_ERROR",
+                    "message", e.getMessage()
+            ));
         }
     }
 
