@@ -46,7 +46,6 @@ public class MailActionController {
         this.mailActionTokenService = mailActionTokenService;
     }
 
-    // --- BIZIM HIZLI E-POSTA ONAY ENDPOINT'IMIZ ---
     @GetMapping(value = "/api/public/notification/quick-action", produces = MediaType.TEXT_HTML_VALUE)
     public ResponseEntity<String> handleQuickAction(
             @RequestParam UUID recordId,
@@ -124,34 +123,33 @@ public class MailActionController {
         }
     }
 
-    // --- MAIN BRANCH UYUMLULUK ENDPOINT'LERI ---
     @GetMapping("/api/public/mail-actions/preview")
     public ResponseEntity<?> preview(@RequestParam(name = "token", required = false) String token) {
         if (token == null || token.isBlank()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Token gerekli"));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("code", "TOKEN_GEREKLI", "message", "Token gerekli"));
         }
         try {
             var preview = mailActionTokenService.preview(token);
             return ResponseEntity.ok(preview);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("code", "GECERSIZ_ANAHTAR", "message", e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", e.getMessage()));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("code", "SUNUCU_HATASI", "message", e.getMessage()));
         }
     }
 
     @PostMapping("/api/public/mail-actions/consume")
     public ResponseEntity<?> consume(@RequestParam(name = "token", required = false) String token) {
         if (token == null || token.isBlank()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Token gerekli"));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("code", "TOKEN_GEREKLI", "message", "Token gerekli"));
         }
         try {
             var result = mailActionTokenService.consume(token);
             return ResponseEntity.ok(result);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("code", "GECERSIZ_ANAHTAR", "message", e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", e.getMessage()));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("code", "SUNUCU_HATASI", "message", e.getMessage()));
         }
     }
 
