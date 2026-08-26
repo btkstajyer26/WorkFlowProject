@@ -50,10 +50,18 @@ public class MailService {
 
             helper.setFrom(mailFrom != null ? mailFrom : "ebys@ornek.local");
             helper.setTo(toEmail);
-            helper.setSubject("EBYS - Sıfırlama Kodu");
-            helper.setText("Sayın " + recipientName + ",\n\nSıfırlama talebiniz için oluşturulan doğrulama kodunuz aşağıdadır:\n\n" + code + "\n\n" + ttlMinutes + " dakika geçerlidir.", false);
+            helper.setSubject("EBYS - Şifre Sıfırlama Kodu");
+            
+            String text = "Sayın " + recipientName + ",\n\n"
+                    + "Şifre sıfırlama talebiniz için oluşturulan doğrulama kodunuz aşağıdadır:\n\n"
+                    + code + "\n\n"
+                    + "Bu kod " + ttlMinutes + " dakika boyunca geçerlidir.\n"
+                    + "Talebi siz yapmadıysanız bu e-postayı dikkate almayınız.";
+            
+            helper.setText(text, false);
 
             mailSender.send(mimeMessage);
+            log.info("Sıfırlama kodu başarıyla gönderildi: {}", toEmail);
         } catch (Exception e) {
             log.error("Sıfırlama kodu gönderilirken hata oluştu: " + toEmail, e);
         }
