@@ -1,5 +1,6 @@
 package btk.staj.WorkFlowProject.notification.controller;
 
+import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
 import btk.staj.WorkFlowProject.user.entity.User;
@@ -10,20 +11,15 @@ import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.net.URI;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -37,94 +33,120 @@ public class MailActionController {
     private final RecordRepository recordRepository;
     private final UserRepository userRepository;
 
-    @Value("${app.frontend-url:http://localhost:5173}")
-    private String frontendUrl;
-
     public MailActionController(WorkflowActionService workflowActionService,
-                                RecordRepository recordRepository,
-                                UserRepository userRepository) {
+                         RecordRepository recordRepository,
+                         UserRepository userRepository) {
         this.workflowActionService = workflowActionService;
         this.recordRepository = recordRepository;
         this.userRepository = userRepository;
     }
 
-    @GetMapping("/quick-action")
-    public ResponseEntity<Void> handleQuickAction(
+    @GetMapping(value = "/quick-action", produces = MediaType.TEXT_HTML_VALUE)
+    public ResponseEntity<String> handleQuickAction(
             @RequestParam UUID recordId,
-            @RequestParam String action) {
+            @RequestParam(required = false) String action) {
 
-        log.info(">>> E-posta hızlı onay tetiklendi -> Evrak: {}, Aksiyon Parametresi: {}", recordId, action);
+        log.info(">>> E-posta hizli islem tetiklendi: recordId={}, actionParam={}", recordId, action);
 
         try {
             Optional<Record> recordOpt = recordRepository.findById(recordId);
-            if (recordOpt.isPresent()) {
-                Record record = recordOpt.get();
-                String act = action.toUpperCase();
-
-                UUID actorId = null;
-                WorkflowAction workflowAction = null;
-
-                // 1. BAŞKANIN ONAYLAMASI
-                if ("APPROVE".equals(act) || "ONAYLA".equals(act)) {
-                    workflowAction = WorkflowAction.ONAYLA;
-                    actorId = record.getAssignedTo();
-                }
-                // 2. BAŞKAN YARDIMCISININ BAŞKANA İLETMESİ
-                else if ("FORWARD".equals(act) || "BASKANA_ILET".equals(act)) {
-                    workflowAction = WorkflowAction.BASKANA_ILET;
-                    actorId = record.getAssignedTo() != null ? record.getAssignedTo() : record.getLastDeputyId();
-                }
-                // 3. ÇALIŞANIN SUNMASI
-                else if ("SUBMIT".equals(act) || "GONDER".equals(act)) {
-                    workflowAction = (record.getStatus() == RecordStatus.DUZENLEME_BEKLIYOR)
-                            ? WorkflowAction.TEKRAR_GONDER
-                            : WorkflowAction.GONDER;
-                    actorId = record.getCreatedBy();
-                }
-
-                if (actorId != null && workflowAction != null) {
-                    Optional<User> actorOpt = userRepository.findById(actorId);
-                    if (actorOpt.isPresent()) {
-                        User actor = actorOpt.get();
-
-                        String roleName = String.valueOf(actor.getRole());
-                        if (!roleName.startsWith("ROLE_")) {
-                            roleName = "ROLE_" + roleName;
-                        }
-
-                        // Principal olarak aktörün kendisini (veya ID/Email) geçiyoruz
-                        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                                actor,
-                                null,
-                                List.of(new SimpleGrantedAuthority(roleName))
-                        );
-                        SecurityContextHolder.getContext().setAuthentication(auth);
-
-                        WorkflowActionRequest request = new WorkflowActionRequest(
-                                workflowAction,
-                                null,
-                                "E-posta üzerinden hızlı onaylama işlemi gerçekleştirildi."
-                        );
-
-                        workflowActionService.performAction(recordId, request);
-                        log.info(">>> [BAŞARILI] Workflow aksiyonu başarıyla tamamlandı: Evrak: {}, Aksiyon: {}, Aktör: {}", recordId, workflowAction, actor.getEmail());
-                    } else {
-                        log.warn(">>> Aktör kullanıcı bulunamadı! ID: {}", actorId);
-                    }
-                } else {
-                    log.warn(">>> Aktör veya aksiyon çözümlenemedi. RecordId: {}, Action: {}", recordId, action);
-                }
-            } else {
-                log.warn(">>> Evrak bulunamadı: {}", recordId);
+            if (recordOpt.isEmpty()) {
+                return ResponseEntity.ok(renderHtml("Evrak Bulunamadi", "Islem yapilmak istenen evrak bulunamadi.", false));
             }
+
+            Record record = recordOpt.get();
+            RecordStatus status = record.getStatus();
+
+            UUID actorId = null;
+            WorkflowAction workflowAction = null;
+            String successMessage = "";
+
+            if (status == RecordStatus.BASKAN_INCELEMESINDE) {
+               workflowAction = WorkflowAction.ONAYLA;
+                actorId = record.getAssignedTo();
+                successMessage = "Evrak basariyla onaylandi.";
+            } else if (status == RecordStatus.BSK_YRD_INCELEMESINDE) {
+                workflowAction = WorkflowAction.BASKANA_ILET;
+                actorId = record.getAssignedTo();
+                successMessage = "Evrak basariyla Baskan'a iletildi.";
+            } else if (status == RecordStatus.TASLAK) {
+                workflowAction = WorkflowAction.GONDER;
+                actorId = record.getCreatedBy();
+                successMessage = "Evrak incelemeye sunuldu.";
+            } else if (status == RecordStatus.DUZENLEME_BEKLIYOR) {
+                workflowAction = WorkflowAction.TEKRAR_GONDER;
+                actorId = record.getCreatedBy();
+                successMessage = "Evrak tekrar incelemeye sunuldu.";
+            } else {
+                return ResponseEntity.ok(renderHtml("Islem Yapilamaz", "Bu evrak zatan sonuclandirilmis (" + status + ").", false));
+            }
+
+            if (actorId == null) {
+                return ResponseEntity.ok(renderHtml("Hata", "Islem yetkilisi tespit edilemedi.", false));
+            }
+
+            Optional<User> actorOpt = userRepository.findById(actorId);
+            if (actorOpt.isEmpty()) {
+                return ResponseEntity.ok(renderHtml("Hata", "Islem yetkilisi sistemde bulunamadi.", false));
+            }
+
+            User actor = actorOpt.get();
+            AuthenticatedUser authenticatedUser = new AuthenticatedUser(actor);
+
+            UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                    authenticatedUser,
+                 null,
+                    authenticatedUser.getAuthorities()
+            );
+            SecurityContextHolder.getContext().setAuthentication(auth);
+
+            WorkflowActionRequest request = new WorkflowActionRequest(
+                    workflowAction,
+                    null,
+                    "E-posta hizli onay butonu uzerinden otomatik islem yapildi."
+            );
+
+            workflowActionService.performAction(recordId, request);
+            log.info(">>> E-posta islemi basariyla tamamlandi: Evrak={}, Islem={}, Aktor={}", recordId, workflowAction, actor.getEmail());
+
+            return ResponseEntity.ok(renderHtml("Islem Basarili", successMessage, true));
+
         } catch (Exception e) {
-            log.error(">>> E-posta hızlı aksiyon yürütülürken hata:", e);
+            log.error(">>> E-posta hizli islem hatasi: ", e);
+            return ResponseEntity.ok(renderHtml("Islem Basarisiz", "Islem sirasinda bir hata olustu: " + e.getMessage(), false));
         } finally {
             SecurityContextHolder.clearContext();
         }
+    }
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setLocation(URI.create(frontendUrl + "/records/" + recordId));
-        return new ResponseEntity<>(headers, HttpStatus.FOUND);
+    private String renderHtml(String title, String message, boolean isSuccess) {
+        String icon = isSuccess ? "&#10004;" : "&#10008;";
+        String color = isSuccess ? "#2e7d32" : "#d32f2f";
+        String bgColor = isSuccess ? "#e8f5e9" : "#ffebee";
+
+        return "<!DOCTYPE html>"
+                + "<html lang='tr'>"
+                + "<head>"
+                + "<meta charset='UTF-8'>"
+                + "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
+                + "<title>" + title + "</title>"
+                + "<style>"
+                + "body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f4f6f8; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }"
+                + ".card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); text-align: center; max-width: 440px; width: 90%;}"
+                + ".icon { width: 64px; height: 64px; border-radius: 50%; background-color: " + bgColor + "; color: " + color + "; font-size: 32px; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-weight: bold; }"
+               + "h2 { color: #1a1a1a; margin-bottom: 12px; font-size: 22px; }"
+                + "p { color: #555555; font-size: 15px; line-height: 1.5; margin-bottom: 24px; }"
+                + ".footer-note { font-size: 12px; color: #888888; border-top: 1px solid #eeeeee; padding-top: 16px; }"
+                + "</style>"
+                + "</head>"
+                + "<body>"
+                + "<div class='card'>"
+                + "<div class='icon'>" + icon + "</div>"
+                + "<h2>" + title + "</h2>"
+                + "<p>" + message + "</p>"
+                + "<div class='footer-note'>Bu sekmeyi guvenle kapatabilirsiniz.</div>"
+                + "</div>"
+               + "</body>"
+                + "</html>";
     }
 }
