@@ -3,7 +3,6 @@ package btk.staj.WorkFlowProject.notification.controller;
 import btk.staj.WorkFlowProject.notification.service.MailActionTokenService;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
-import btk.staj.WorkFlowProject.user.entity.Role;
 import btk.staj.WorkFlowProject.user.entity.User;
 import btk.staj.WorkFlowProject.user.repository.UserRepository;
 import btk.staj.WorkFlowProject.workflow.service.WorkflowActionService;
@@ -51,7 +50,8 @@ class MailActionControllerTest {
         User user = new User();
         user.setId(userId);
         user.setEmail("baskan@ornek.local");
-        user.setRole(Role.BASKAN);
+        user.setFirstName("Baskan");
+        user.setLastName("User");
 
         when(recordRepository.findById(recordId)).thenReturn(Optional.of(record));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
