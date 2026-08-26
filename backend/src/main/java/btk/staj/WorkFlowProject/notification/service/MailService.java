@@ -21,20 +21,20 @@ public class MailService {
 
     private static final Logger log = LoggerFactory.getLogger(MailService.class);
 
-    private static final String NO_EXPLANATION = "\u2014";
+    private static final String NO_EXPLANATION = "—";
     private static final String TEMPLATE = "mail/workflow-status";
 
     private final JavaMailSender mailSender;
     private final TemplateEngine templateEngine;
 
     @Value("${app.frontend-url:http://localhost:5173}")
-    private String frontendUrl;
+    private String frontendUrl = "http://localhost:5173";
 
     @Value("${app.backend-url:http://localhost:8080}")
-    private String backendUrl;
+    private String backendUrl = "http://localhost:8080";
 
     @Value("${app.mail-from:ebys@ornek.local}")
-    private String mailFrom;
+    private String mailFrom = "ebys@ornek.local";
 
     public MailService(JavaMailSender mailSender, TemplateEngine templateEngine) {
         this.mailSender = Objects.requireNonNull(mailSender, "mailSender");
@@ -44,18 +44,18 @@ public class MailService {
     @Async
     public void sendPasswordResetCode(String toEmail, String recipientName, String code, int ttlMinutes) {
         try {
-            log.info("Şifre sıfırlama kodu gönderiliyor. Alıcı: {}", toEmail);
+            log.info("Sıfırlama kodu gönderiliyor. Alıcı: {}", toEmail);
             MimeMessage mimeMessage = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, false, StandardCharsets.UTF_8.name());
 
-            helper.setFrom(mailFrom);
+            helper.setFrom(mailFrom != null ? mailFrom : "ebys@ornek.local");
             helper.setTo(toEmail);
-            helper.setSubject("EBYS - Şifre Sıfırlama Kodu");
-            helper.setText("Sayın " + recipientName + ",\n\nŞifre sıfırlama talebiniz için oluşturulan doğrulama kodunuz aşağıdadır:\n\nDOĞRULAMA KODU " + code + "\n\nBu kod " + ttlMinutes + " dakika boyunca geçerlidir.", false);
+            helper.setSubject("EBYS - Sıfırlama Kodu");
+            helper.setText("Sayın " + recipientName + ",\n\nSıfırlama talebiniz için oluşturulan doğrulama kodunuz aşağıdadır:\n\n" + code + "\n\n" + ttlMinutes + " dakika geçerlidir.", false);
 
             mailSender.send(mimeMessage);
         } catch (Exception e) {
-            log.error("Şifre sıfırlama kodu gönderilirken hata oluştu: " + toEmail, e);
+            log.error("Sıfırlama kodu gönderilirken hata oluştu: " + toEmail, e);
         }
     }
 
@@ -73,7 +73,7 @@ public class MailService {
             MimeMessageHelper helper = new MimeMessageHelper(
                     mimeMessage, false, StandardCharsets.UTF_8.name());
 
-            helper.setFrom(mailFrom);
+            helper.setFrom(mailFrom != null ? mailFrom : "ebys@ornek.local");
             helper.setTo(toEmail);
             helper.setSubject(subject(recordId));
             helper.setText(render(recipientName, recordId, title, status, reason), true);
@@ -83,6 +83,7 @@ public class MailService {
 
         } catch (Exception e) {
             log.error("E-posta gönderilirken hata oluştu! Alıcı: " + toEmail, e);
+            throw new RuntimeException("E-posta gönderilemedi", e);
         }
     }
 
@@ -93,25 +94,25 @@ public class MailService {
         context.setVariable("title", title);
         context.setVariable("status", status != null ? status : "İncelemede");
         context.setVariable("explanation", (reason == null || reason.isBlank()) ? NO_EXPLANATION : reason);
-        context.setVariable("deepLink", frontendUrl + "/records/" + recordId);
+        context.setVariable("deepLink", (frontendUrl != null ? frontendUrl : "http://localhost:5173") + "/records/" + recordId);
 
         String upper = status != null ? status.trim().toUpperCase(Locale.ENGLISH) : "";
-        String quickActionBase = backendUrl + "/api/public/notification/quick-action?recordId=" + recordId + "&action=";
+        String base = (backendUrl != null ? backendUrl : "http://localhost:8080") + "/api/public/notification/quick-action?recordId=" + recordId + "&action=";
 
         if (upper.contains("ONAYLANDI") || upper.contains("REDDEDILDI") || upper.contains("APPROV") || upper.contains("REJECT")) {
             context.setVariable("showActionBtn", false);
         } else if (upper.contains("BASKAN_INCELEMESINDE") || upper.contains("FORWARD") || upper.contains("PRESIDENT")) {
             context.setVariable("showActionBtn", true);
             context.setVariable("actionText", "Onayla");
-            context.setVariable("actionLink", quickActionBase + "ONAYLA");
+            context.setVariable("actionLink", base + "ONAYLA");
         } else if (upper.contains("BSK_YRD_INCELEMESINDE") || upper.contains("SUBMIT") || upper.contains("DEPUTY")) {
             context.setVariable("showActionBtn", true);
             context.setVariable("actionText", "Onayla");
-            context.setVariable("actionLink", quickActionBase + "BASKANA_ILET");
+            context.setVariable("actionLink", base + "BASKANA_ILET");
         } else {
             context.setVariable("showActionBtn", true);
             context.setVariable("actionText", "Onayla");
-            context.setVariable("actionLink", quickActionBase + "GONDER");
+            context.setVariable("actionLink", base + "GONDER");
         }
 
         return templateEngine.process(TEMPLATE, context);
