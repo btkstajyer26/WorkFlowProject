@@ -54,6 +54,7 @@ public class MailService {
             
             String text = "Sayın " + recipientName + ",\n\n"
                     + "Şifre sıfırlama talebiniz için oluşturulan doğrulama kodunuz aşağıdadır:\n\n"
+                    + "DOĞRULAMA KODU\n"
                     + code + "\n\n"
                     + "Bu kod " + ttlMinutes + " dakika boyunca geçerlidir.\n"
                     + "Talebi siz yapmadıysanız bu e-postayı dikkate almayınız.";
