@@ -62,6 +62,8 @@ export function toApiDateRange(filters: RecordListFilterValues) {
 }
 
 type RecordFiltersPanelProps = {
+  allStatusesLabel?: string;
+  availableStatuses?: readonly RecordStatus[];
   categories: Category[];
   initialValues: RecordListFilterValues;
   onApply: (filters: RecordListFilterValues) => void;
@@ -69,6 +71,8 @@ type RecordFiltersPanelProps = {
 };
 
 export function RecordFiltersPanel({
+  allStatusesLabel = 'Tümü',
+  availableStatuses = statuses,
   categories,
   initialValues,
   onApply,
@@ -123,13 +127,13 @@ export function RecordFiltersPanel({
         <AppText variant="label">Durum</AppText>
         <View className="flex-row flex-wrap gap-2">
           <FilterChip
-            label="Tümü"
+            label={allStatusesLabel}
             onPress={() =>
               setDraft((current) => ({ ...current, status: undefined }))
             }
             selected={!draft.status}
           />
-          {statuses.map((status) => (
+          {availableStatuses.map((status) => (
             <FilterChip
               key={status}
               label={recordStatusMeta[status].label}
