@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -9,6 +9,10 @@ import '../../global.css';
 import { AuthProvider, useAuth } from '@/auth/AuthProvider';
 import { OfflineBanner } from '@/components/feedback/OfflineBanner';
 import { QueryProvider, useNetworkStatus } from '@/query/QueryProvider';
+import {
+  registerPushTokenWithBackend,
+  subscribeToNotificationResponses,
+} from '@/services/notifications/pushNotificationManager';
 import { ThemeProvider, useAppTheme } from '@/theme/ThemeProvider';
 
 void SplashScreen.preventAutoHideAsync();
@@ -35,6 +39,7 @@ export default function RootLayout() {
 }
 
 function RootNavigator() {
+  const router = useRouter();
   const {
     isAuthenticated,
     isReady: isAuthReady,
@@ -46,6 +51,18 @@ function RootNavigator() {
   useEffect(() => {
     if (isReady && isAuthReady) void SplashScreen.hideAsync();
   }, [isAuthReady, isReady]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    void registerPushTokenWithBackend();
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToNotificationResponses((recordId) => {
+      router.push(`/(app)/kayitlar/${recordId}`);
+    });
+    return unsubscribe;
+  }, [router]);
 
   if (!isReady || !isAuthReady) return null;
 

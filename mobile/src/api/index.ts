@@ -25,6 +25,13 @@ export {
   setApiAuthHandlers,
 } from './client';
 export type { ApiAuthHandlers, ApiRequestOptions } from './client';
+export {
+  deleteDeviceToken,
+  devicePlatformSchema,
+  deviceTokenRequestSchema,
+  registerDeviceToken,
+} from './deviceTokens';
+export type { DevicePlatform, DeviceTokenRequest } from './deviceTokens';
 export { ApiClientError } from './errors';
 export type { ApiErrorBody, ApiFieldError } from './errors';
 export {
