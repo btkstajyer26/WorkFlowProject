@@ -293,6 +293,40 @@ class UserServiceTest {
     }
 
     @Test
+    @DisplayName("pasif tekil rol sahibi, koltuk baska aktif kullanicidayken yeniden aktiflestirilemez")
+    void setActive_pasifTekilRolSahibiKoltukDoluykenAktiflestirilemez() {
+        UUID targetId = UUID.randomUUID();
+        Role baskan = role(3, "BASKAN");
+        User target = user(targetId, baskan, false);
+        User existingBaskan = user(UUID.randomUUID(), baskan, true);
+
+        when(userRepository.findById(targetId)).thenReturn(Optional.of(target));
+        when(userRepository.findByRole_NameAndActive("BASKAN", true)).thenReturn(List.of(existingBaskan));
+
+        assertThatExceptionOfType(AdminLimitExceededException.class)
+                .isThrownBy(() -> userService.setActive(targetId, true));
+
+        verify(userRepository, org.mockito.Mockito.never()).save(target);
+        verifyNoInteractions(userAuditLogService);
+    }
+
+    @Test
+    @DisplayName("koltuk boskan pasif tekil rol sahibi normal sekilde yeniden aktiflestirilebilir")
+    void setActive_koltukBoskenYenidenAktiflestirmeBasarili() {
+        UUID targetId = UUID.randomUUID();
+        Role baskan = role(3, "BASKAN");
+        User target = user(targetId, baskan, false);
+
+        when(userRepository.findById(targetId)).thenReturn(Optional.of(target));
+        when(userRepository.findByRole_NameAndActive("BASKAN", true)).thenReturn(List.of());
+        when(userRepository.save(target)).thenReturn(target);
+
+        User result = userService.setActive(targetId, true);
+
+        assertThat(result.isActive()).isTrue();
+    }
+
+    @Test
     @DisplayName("ayni e-posta ile kayit denemesinde DB kisiti ihlali yukari firlatilir")
     void createUser_ayniEpostaDbKisitiIhlaliniFirlatir() {
         when(roleRepository.findByName("CALISAN")).thenReturn(Optional.of(role(1, "CALISAN")));

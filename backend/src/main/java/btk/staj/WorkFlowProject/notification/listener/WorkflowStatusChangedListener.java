@@ -1,16 +1,20 @@
 package btk.staj.WorkFlowProject.notification.listener;
 
 import btk.staj.WorkFlowProject.notification.entity.NotificationType;
+import btk.staj.WorkFlowProject.notification.service.MailActionTokenService;
 import btk.staj.WorkFlowProject.notification.service.MailService;
 import btk.staj.WorkFlowProject.notification.service.NotificationService;
+import btk.staj.WorkFlowProject.notification.service.PushNotificationService;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
 import btk.staj.WorkFlowProject.user.entity.User;
 import btk.staj.WorkFlowProject.user.repository.UserRepository;
 import btk.staj.WorkFlowProject.workflow.model.WorkflowStatusChangedEvent;
+import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -25,7 +29,7 @@ import java.util.UUID;
 /**
  * Onay akisi bir durum degisikligi yayinladiginda bildirim uretir.
  *
- * <p>Iki kanal bilerek farkli anlarda calisir:
+ * <p>Uc kanal bilerek farkli anlarda calisir:
  *
  * <ul>
  *   <li><strong>Uygulama ici bildirim</strong> gecisle ayni transaction'da
@@ -34,6 +38,9 @@ import java.util.UUID;
  *       tamamlanmasini soyluyor; gecis geri alinirsa bildirim de kalmaz.</li>
  *   <li><strong>E-posta</strong> yalnizca commit sonrasi gonderilir. Geri
  *       alinabilir bir islem icin disariya e-posta cikmasi geri alinamaz.</li>
+ *   <li><strong>Push</strong> da commit sonrasi, ayni gerekceyle gonderilir.
+ *       {@code pushNotificationService} null olabilir: FCM yapilandirilmamis
+ *       ortamlarda bean hic olusmaz ve akis pushsuz calisir.</li>
  * </ul>
  */
 @Component
@@ -43,15 +50,21 @@ public class WorkflowStatusChangedListener {
 
     private final NotificationService notificationService;
     private final MailService mailService;
+    private final PushNotificationService pushNotificationService;
+    private final MailActionTokenService mailActionTokenService;
     private final RecordRepository recordRepository;
     private final UserRepository userRepository;
 
     public WorkflowStatusChangedListener(NotificationService notificationService,
                                          MailService mailService,
+                                         @Nullable PushNotificationService pushNotificationService,
+                                         @Nullable MailActionTokenService mailActionTokenService,
                                          RecordRepository recordRepository,
                                          UserRepository userRepository) {
         this.notificationService = Objects.requireNonNull(notificationService, "notificationService");
         this.mailService = Objects.requireNonNull(mailService, "mailService");
+        this.pushNotificationService = pushNotificationService;
+        this.mailActionTokenService = mailActionTokenService;
         this.recordRepository = Objects.requireNonNull(recordRepository, "recordRepository");
         this.userRepository = Objects.requireNonNull(userRepository, "userRepository");
     }
@@ -84,8 +97,21 @@ public class WorkflowStatusChangedListener {
 
         String title = recordTitle(event.recordId());
         String statusName = event.newStatus().name();
+        String pushBody = message(event);
+        NotificationType type = NotificationType.of(event.action());
 
         for (UUID recipientId : recipients) {
+            // Push bildirimi (servis context'te varsa gönderilir)
+            if (pushNotificationService != null) {
+                pushNotificationService.sendPushNotification(
+                        recipientId,
+                        title,
+                        pushBody,
+                        event.recordId(),
+                        type);
+            }
+
+            // E-posta bildirimi
             Optional<User> recipient = userRepository.findById(recipientId);
             if (recipient.isEmpty()) {
                 log.warn("Bildirim e-postası gönderilemedi, kullanıcı bulunamadı: {}", recipientId);
@@ -99,7 +125,39 @@ public class WorkflowStatusChangedListener {
                     event.recordId(),
                     title,
                     statusName,
-                    event.comment());
+                    event.comment(),
+                    quickActionTokenFor(event, user));
+        }
+    }
+
+    /**
+     * Alicinin postadan tek tikla alabilecegi aksiyon icin tek kullanimlik
+     * anahtar uretir; yoksa {@code null} doner ve e-postada dugme cikmaz.
+     *
+     * <p>Anahtar yalnizca evragin <strong>atandigi</strong> kisiye verilir.
+     * Nihai onay/ret bildirimi olusturana ve yardimciya da gider, ama o
+     * durumlar terminaldir: {@code primaryActionFor} bos doner.
+     *
+     * <p>Anahtar uretimi bildirimi engellememeli: hata durumunda e-posta
+     * dugmesiz gonderilir, kullanici arayuzden islemi yapabilir.
+     */
+    private String quickActionTokenFor(WorkflowStatusChangedEvent event, User recipient) {
+        if (mailActionTokenService == null || event.assignedTo() == null
+                || !event.assignedTo().equals(recipient.getId())) {
+            return null;
+        }
+
+        Optional<WorkflowAction> action = MailActionTokenService.primaryActionFor(event.newStatus());
+        if (action.isEmpty()) {
+            return null;
+        }
+
+        try {
+            return mailActionTokenService.issue(event.recordId(), recipient, action.get());
+        } catch (RuntimeException exception) {
+            log.warn("Hızlı aksiyon anahtarı üretilemedi, e-posta düğmesiz gönderilecek. Evrak: {}, Hata: {}",
+                    event.recordId(), exception.getMessage());
+            return null;
         }
     }
 

@@ -24,6 +24,7 @@ const LoginPage = lazy(() => import('./pages/LoginPage').then((module) => ({ def
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage').then((module) => ({ default: module.NotificationsPage })))
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then((module) => ({ default: module.ProfilePage })))
 const PasswordChangePage = lazy(() => import('./pages/PasswordChangePage').then((module) => ({ default: module.PasswordChangePage })))
+const QuickActionPage = lazy(() => import('./pages/QuickActionPage').then((module) => ({ default: module.QuickActionPage })))
 const RecordDetailPage = lazy(() => import('./pages/RecordDetailPage').then((module) => ({ default: module.RecordDetailPage })))
 const RecordEditPage = lazy(() => import('./pages/RecordEditPage').then((module) => ({ default: module.RecordEditPage })))
 const RecordsPage = lazy(() => import('./pages/RecordsPage').then((module) => ({ default: module.RecordsPage })))
@@ -101,6 +102,17 @@ function App() {
             <Route
               path="/sifre-sifirla"
               element={<ForgotPasswordPage user={user} />}
+            />
+            {/*
+              E-postadaki "Hızlı İşlem" bağlantısı buraya düşer. Kimlik
+              doğrulaması aranmaz: kullanıcı postadan gelir ve kimliği,
+              sayfanın adres parçasından okuyup gövdede backend'e taşıdığı tek
+              kullanımlık anahtardan gelir. Oturumu açık bir kullanıcı da aynı
+              sayfayı görür; anahtar zaten kime ait olduğunu taşır.
+            */}
+            <Route
+              path="/hizli-islem"
+              element={<QuickActionPage />}
             />
             <Route
               path="/sifre-degistir"

@@ -232,7 +232,7 @@ export default function DashboardScreen() {
       >
         <View className="gap-1">
           <AppText accessibilityRole="header" variant="title">
-            Hoş geldiniz, {user.firstName}
+            Hoş geldiniz, {user.firstName} {user.lastName}
           </AppText>
           <AppText tone="muted">
             {userRoleLabels[user.roleName]} olarak kayıt süreçlerinizi buradan takip

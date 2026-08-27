@@ -3,8 +3,8 @@
 > [!NOTE]
 > **Bu belge 19 Ağustos 2026'da kapatılmıştır ve tarihsel kayıttır.**
 > Aşağıdaki tablolar kapatıldığı tarihteki entegrasyon durumunu yansıtır.
-> Güncel durum için [README](../README.md) "Mevcut durum" ve "Bilinen eksikler"
-> bölümlerine, workflow davranışı için [workflow.md](workflow.md)'ye bakınız.
+> Güncel durum için [README](../../README.md) "Mevcut durum" ve "Bilinen eksikler"
+> bölümlerine, workflow davranışı için [workflow.md](../workflow.md)'ye bakınız.
 >
 > **Kapanış durumu:** §1.1'deki tek açık madde — bildirim geçmişinin arayüze
 > bağlanması — **kapandı.** `hooks/useNotificationCenter.ts` `listNotifications`
@@ -16,7 +16,7 @@
 > durmaktadır.
 
 **Tarih:** 13 Ağustos 2026
-**Kaynak:** `integration/tum-feature-branchleri` × [FRONTEND_BACKEND_SOZLESMESI.md](FRONTEND_BACKEND_SOZLESMESI.md)
+**Kaynak:** `integration/tum-feature-branchleri` × [FRONTEND_BACKEND_SOZLESMESI.md](../FRONTEND_BACKEND_SOZLESMESI.md)
 **Kapsam:** `auth` ve `user` modülleri **hariç** — o iş listesi tamamlandığı
 için ayrı dosya artık tutulmuyor; kalan test boşlukları
 [EKSIK_SINIFLAR_VE_ONCELIK.md](EKSIK_SINIFLAR_VE_ONCELIK.md) altında.

@@ -9,21 +9,14 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import javax.sql.DataSource;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/device-tokens")
-@ConditionalOnBean(DataSource.class)
 @RequiredArgsConstructor
 @Tag(name = "Device Tokens", description = "Mobil cihaz push bildirim token yönetim uçları")
 public class DeviceTokenController {
@@ -42,15 +35,23 @@ public class DeviceTokenController {
     }
 
     @DeleteMapping
-    @Operation(summary = "Cihaz tokenını pasifleştir")
-    public ResponseEntity<Void> removeToken(@Valid @RequestBody DeviceTokenDeleteRequest request) {
-        deviceTokenService.deactivateToken(request.getToken());
+    @Operation(summary = "Cihaz tokenını pasifleştir (Sahiplik doğrulamalı)")
+    public ResponseEntity<Void> removeToken(
+            Authentication authentication,
+            @Valid @RequestBody DeviceTokenDeleteRequest request) {
+
+        UUID userId = extractUserId(authentication);
+        deviceTokenService.deactivateTokenForUser(userId, request.getToken());
         return ResponseEntity.noContent().build();
     }
 
     /**
-     * JWT filtresi principal olarak {@link AuthenticatedUser} koyar.
-     * {@link User} / {@link UUID} fallback'leri test veya alternatif baglamlar icindir.
+     * JWT filtresi principal olarak {@link AuthenticatedUser} koyar; gercek
+     * isteklerde her zaman bu dal calisir. {@link AuthenticatedUser} bir
+     * {@link User} <em>degildir</em>, onu sarar (implements UserDetails) —
+     * bu yuzden ayri bir dal gerekir, {@code instanceof User} eslesmez.
+     * {@link User} / {@link UUID} fallback'leri test veya alternatif
+     * baglamlar icindir.
      */
     private UUID extractUserId(Authentication authentication) {
         if (authentication == null || authentication.getPrincipal() == null) {
@@ -61,11 +62,9 @@ public class DeviceTokenController {
 
         if (principal instanceof AuthenticatedUser authenticatedUser) {
             return authenticatedUser.getId();
-        }
-        if (principal instanceof User user) {
+        } else if (principal instanceof User user) {
             return user.getId();
-        }
-        if (principal instanceof UUID uuid) {
+        } else if (principal instanceof UUID uuid) {
             return uuid;
         }
 

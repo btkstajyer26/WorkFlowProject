@@ -521,9 +521,12 @@ Beklenen HTTP durumları:
 ## 12. Kalan backend entegrasyon ihtiyaçları
 
 1. Kayıt başına azami ek dosya adedi ve buna karşılık gelecek hata kodu
-2. Kayıt liste/detay cevaplarında oluşturan kişinin güvenli gösterim adı
-3. README'deki ortak hata sözleşmesini tamamlamak için `ApiError` cevabına istek yolu (`path`) eklenmesi; dağıtık izleme kullanılacaksa `traceId` alanının ayrıca kararlaştırılması
-4. Merkezi test ortamı açılırsa API base URL'si ve o ortama özel CORS origin yapılandırması
+2. README'deki ortak hata sözleşmesini tamamlamak için `ApiError` cevabına istek yolu (`path`) eklenmesi; dağıtık izleme kullanılacaksa `traceId` alanının ayrıca kararlaştırılması
+
+Kapanan maddeler:
+
+- ~~Kayıt liste/detay cevaplarında oluşturan kişinin güvenli gösterim adı~~ — **çözüldü.** `RecordResponse.createdByFullName` ve `RecordSearchResponse.createdByFullName` eklendi. Alan adı `createdByName` **değildir**; ad işlem geçmişinden türetilmemelidir (rol bazlı kırpma yüzünden Başkan'da yanlış kişiyi gösterir).
+- ~~Merkezi test ortamı açılırsa API base URL'si ve CORS origin yapılandırması~~ — **çözüldü (M9, 21 Ağustos 2026).** TEST ortamı `https://workflowproject-test.duckdns.org` adresinde ayakta; `CORS_ALLOWED_ORIGINS` ortam değişkeninden veriliyor. Ayrıntı: [TEST_ORTAMI_NOTU.md](TEST_ORTAMI_NOTU.md).
 
 Yerel geliştirmede API, Swagger/OpenAPI, JWT akışı, 0 tabanlı sayfalama, kayıt filtreleri, workflow aksiyonu, tekil rol hedefleme, kategori/Admin API'leri, ortak hata cevabı ve `http://localhost:5173` CORS izni mevcut backend tarafından sağlanmaktadır.
 

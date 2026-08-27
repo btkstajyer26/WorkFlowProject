@@ -5,6 +5,7 @@ import btk.staj.WorkFlowProject.audit.repository.AuditLogRepository;
 import btk.staj.WorkFlowProject.audit.repository.UserAuditLogRepository;
 import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
 import btk.staj.WorkFlowProject.notification.repository.DeviceTokenRepository;
+import btk.staj.WorkFlowProject.notification.repository.MailActionTokenRepository;
 import btk.staj.WorkFlowProject.notification.repository.NotificationRepository;
 import btk.staj.WorkFlowProject.rbac.Role;
 import btk.staj.WorkFlowProject.record.entity.Record;
@@ -42,6 +43,7 @@ import java.util.UUID;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -78,6 +80,7 @@ class AuthorizationMatrixTest {
     @MockitoBean private UserAuditLogRepository userAuditLogRepository;
     @MockitoBean private NotificationRepository notificationRepository;
     @MockitoBean private DeviceTokenRepository deviceTokenRepository;
+    @MockitoBean private MailActionTokenRepository mailActionTokenRepository;
 
     private static final String RECORD_JSON = """
             {"title":"Test","description":"Test","categoryId":1}
@@ -238,7 +241,7 @@ class AuthorizationMatrixTest {
             givenRecord(recordId, RecordStatus.BASKAN_INCELEMESINDE);
 
             performAction(recordId, RoleName.BASKAN_YARDIMCISI,
-                    "{\"action\":\"REDDET\",\"comment\":\"Uygun değil\"}")
+                    "{\"action\":\"REDDET\",\"comment\":\"Uygun degil\"}")
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.code").value("WORKFLOW_INVALID_TRANSITION"));
         }
@@ -269,7 +272,7 @@ class AuthorizationMatrixTest {
     class KullaniciYonetimi {
 
         /**
-         * Govde bilerek gecerli: DTO dogrulamasi argüman cozumlemesi sirasinda
+         * Govde bilerek gecerli: DTO dogrulamasi arguman cozumlemesi sirasinda
          * calistigi icin gecersiz govde yetki kontrolune hic ulasmadan 400
          * dondurur. Burada olculmek istenen yetki reddidir.
          */
@@ -313,6 +316,125 @@ class AuthorizationMatrixTest {
                             .file(new MockMultipartFile("file", "rapor.pdf",
                                     "application/pdf", "icerik".getBytes())))
                     .andExpect(status().isForbidden());
+        }
+    }
+
+    @Nested
+    @DisplayName("Cihaz token yonetimi auth gerektirir")
+    class DeviceTokenYonetimi {
+
+        private static final String REGISTER_JSON = """
+                {"token":"test-token-123","platform":"ANDROID","deviceName":"Test Cihaz"}
+                """;
+
+        private static final String DELETE_JSON = """
+                {"token":"test-token-123"}
+                """;
+
+        @Test
+        @DisplayName("Auth olmadan token kaydi 401 doner")
+        void authOlmadanKayit401Doner() throws Exception {
+            mockMvc.perform(post("/api/device-tokens")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(REGISTER_JSON))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("Auth olmadan token silme 401 doner")
+        void authOlmadanSilme401Doner() throws Exception {
+            mockMvc.perform(delete("/api/device-tokens")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(DELETE_JSON))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("Girisi olan kullanici kendi token kaydini yapabilir")
+        void girisliKullaniciKayitYapabilir() throws Exception {
+            AuthenticatedUser authenticatedUser = actor(RoleName.CALISAN);
+            when(userRepository.findById(authenticatedUser.getId()))
+                    .thenReturn(Optional.of(authenticatedUser.getUser()));
+            when(deviceTokenRepository.findByToken("test-token-123"))
+                    .thenReturn(Optional.empty());
+
+            mockMvc.perform(post("/api/device-tokens")
+                            .with(user(authenticatedUser))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(REGISTER_JSON))
+                    .andExpect(status().is(not(403)));
+        }
+
+        @Test
+        @DisplayName("Girisi olan kullanici kendi tokenini silebilir")
+        void girisliKullaniciSilebilir() throws Exception {
+            AuthenticatedUser authenticatedUser = actor(RoleName.CALISAN);
+            when(deviceTokenRepository.deactivateByTokenAndUserId(
+                    "test-token-123", authenticatedUser.getId()))
+                    .thenReturn(1);
+
+            mockMvc.perform(delete("/api/device-tokens")
+                            .with(user(authenticatedUser))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(DELETE_JSON))
+                    .andExpect(status().is(not(403)));
+        }
+    }
+
+    /**
+     * E-posta bildirimindeki tek tiklik aksiyon baglantisi oturum gerektirmez;
+     * kimlik istekte tasinan tek kullanimlik anahtardan gelir. Bu yuzden iki uc
+     * bilerek PUBLIC_ENDPOINTS icindedir. Test, aciklarin <em>yalnizca</em> bu
+     * iki adres oldugunu ve kardes yollarin acilmadigini sabitler.
+     */
+    @Nested
+    @DisplayName("E-posta aksiyon uclari oturumsuz acilir, kardes yollar acilmaz")
+    class MailActionUclari {
+
+        private static final String TOKEN_JSON = """
+                {"token":"gecersiz-anahtar"}
+                """;
+
+        @Test
+        @DisplayName("onizleme ucu oturumsuz erisilebilir")
+        void onizlemeOturumsuzErisilebilir() throws Exception {
+            // Anahtar gecersiz oldugu icin is katmani 400 doner; olculen sey
+            // istegin 401/403 ile filtrede durdurulmamasi.
+            mockMvc.perform(post("/api/public/mail-actions/preview")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(TOKEN_JSON))
+                    .andExpect(status().is(not(401)))
+                    .andExpect(status().is(not(403)));
+        }
+
+        @Test
+        @DisplayName("tuketim ucu oturumsuz erisilebilir")
+        void tuketimOturumsuzErisilebilir() throws Exception {
+            mockMvc.perform(post("/api/public/mail-actions/consume")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(TOKEN_JSON))
+                    .andExpect(status().is(not(401)))
+                    .andExpect(status().is(not(403)));
+        }
+
+        @Test
+        @DisplayName("gecersiz anahtar ayirt edilebilir hata koduyla doner")
+        void gecersizAnahtarHataKoduDoner() throws Exception {
+            mockMvc.perform(post("/api/public/mail-actions/consume")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(TOKEN_JSON))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("INVALID_OR_EXPIRED_MAIL_ACTION_TOKEN"));
+        }
+
+        @Test
+        @DisplayName("/api/public altindaki baska bir yol kendiliginden acilmaz")
+        void baskaPublicYolAcilmaz() throws Exception {
+            // Joker yol yerine iki uc adiyla acildi; bu test o karari sabitler.
+            mockMvc.perform(post("/api/public/uydurma-uc")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{}"))
+                    .andExpect(status().isUnauthorized());
         }
     }
 }

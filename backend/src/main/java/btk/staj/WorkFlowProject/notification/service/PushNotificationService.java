@@ -7,14 +7,13 @@ import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.messaging.*;
 import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
-import javax.sql.DataSource;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -22,8 +21,6 @@ import java.util.UUID;
 
 @Slf4j
 @Service
-@ConditionalOnBean(DataSource.class)
-@RequiredArgsConstructor
 public class PushNotificationService {
 
     private final DeviceTokenRepository deviceTokenRepository;
@@ -38,6 +35,11 @@ public class PushNotificationService {
     private String fcmPrivateKey;
 
     private boolean fcmEnabled = false;
+
+    @Autowired
+    public PushNotificationService(@Lazy @Autowired(required = false) DeviceTokenRepository deviceTokenRepository) {
+        this.deviceTokenRepository = deviceTokenRepository;
+    }
 
     @PostConstruct
     public void init() {
@@ -78,7 +80,7 @@ public class PushNotificationService {
 
     @Async
     public void sendPushNotification(UUID recipientId, String title, String pushBody, UUID recordId, NotificationType type) {
-        if (!fcmEnabled) {
+        if (!fcmEnabled || deviceTokenRepository == null) {
             return;
         }
 
@@ -101,7 +103,7 @@ public class PushNotificationService {
 
                 FirebaseMessaging.getInstance().send(message);
             } catch (FirebaseMessagingException e) {
-                log.warn("FCM gönderim hatası (token: {}): {}", token, e.getMessage());
+                log.warn("FCM gönderim hatası (token: {}): {}", DeviceTokenService.maskToken(token), e.getMessage());
                 handleFcmError(e, token);
             } catch (Exception e) {
                 log.error("Beklenmeyen push bildirim hatası: {}", e.getMessage());
@@ -110,9 +112,12 @@ public class PushNotificationService {
     }
 
     private void handleFcmError(FirebaseMessagingException e, String token) {
+        if (deviceTokenRepository == null) {
+            return;
+        }
         MessagingErrorCode errorCode = e.getMessagingErrorCode();
         if (errorCode == MessagingErrorCode.UNREGISTERED || errorCode == MessagingErrorCode.INVALID_ARGUMENT) {
-            log.info("Geçersiz FCM token pasifleştiriliyor: {}", token);
+            log.info("Geçersiz FCM token pasifleştiriliyor: {}", DeviceTokenService.maskToken(token));
             deviceTokenRepository.deactivateByToken(token);
         }
     }

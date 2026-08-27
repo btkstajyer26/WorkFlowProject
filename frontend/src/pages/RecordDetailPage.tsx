@@ -132,7 +132,7 @@ function RecordDetailContent({
           <span className="text-app-text-faint" aria-hidden="true">•</span>
           <span className="inline-flex items-center gap-2">
             <CalendarDays className="size-4 text-app-text-faint" aria-hidden="true" />
-            {dateTimeFormatter.format(new Date(record.createdAt))}
+            İlk oluşturulma: {dateTimeFormatter.format(new Date(record.createdAt))}
           </span>
         </div>
       </header>

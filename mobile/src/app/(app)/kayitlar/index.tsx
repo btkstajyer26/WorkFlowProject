@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
 import Files from 'lucide-react-native/icons/files';
 import SlidersHorizontal from 'lucide-react-native/icons/sliders-horizontal';
 import {
@@ -66,11 +66,18 @@ export default function RecordsScreen() {
   const totalElements = recordsQuery.data?.pages[0]?.totalElements ?? 0;
   const activeFilterCount = countActiveFilters(filters);
   const fetchNextRecordsPage = recordsQuery.fetchNextPage;
+  const refetchRecords = recordsQuery.refetch;
   const refreshing =
     recordsQuery.isRefetching && !recordsQuery.isFetchingNextPage;
 
+  useFocusEffect(
+    useCallback(() => {
+      void refetchRecords();
+    }, [refetchRecords]),
+  );
+
   const refreshRecords = async () => {
-    await Promise.all([recordsQuery.refetch(), categoriesQuery.refetch()]);
+    await Promise.all([refetchRecords(), categoriesQuery.refetch()]);
   };
 
   const clearFilters = () => {

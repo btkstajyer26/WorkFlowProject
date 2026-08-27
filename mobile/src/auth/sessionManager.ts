@@ -22,6 +22,10 @@ export type AuthSession = {
   mustChangePassword: boolean;
 };
 
+export type EndSessionOptions = {
+  deviceToken?: string;
+};
+
 type SessionListener = (session: AuthSession | null) => void;
 
 const sessionListeners = new Set<SessionListener>();
@@ -81,12 +85,17 @@ export async function restoreSession(): Promise<LoginResponse | null> {
   }
 }
 
-export async function endSession(): Promise<void> {
+export async function endSession(
+  { deviceToken }: EndSessionOptions = {},
+): Promise<void> {
   const refreshToken = await getRefreshToken();
 
   try {
     if (refreshToken) {
-      await requestLogout({ refreshToken });
+      await requestLogout({
+        refreshToken,
+        ...(deviceToken ? { deviceToken } : {}),
+      });
     }
   } catch {
     // Sunucuya ulaşılamasa da cihazdaki oturum güvenli biçimde kapatılır.

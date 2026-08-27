@@ -2,7 +2,7 @@
 
 Bu belge, İş Akışı ve Onay Yönetim Sistemi'nin çalışan backend kodundaki workflow davranışını tanımlar. Ürün hedefinden çok **mevcut uygulamayı** esas alır; planlanan ancak henüz uygulanmayan davranışlar “Bilinen boşluklar” bölümünde ayrıca belirtilir.
 
-> Son kod doğrulaması 19 Ağustos 2026 tarihinde `test` dalının `2b5016a` commit'i üzerinde yapılmıştır. Durum makinesi, API veya hata eşlemesi değiştirildiğinde bu belge aynı değişiklik kapsamında güncellenmelidir.
+> Son kod doğrulaması 22 Ağustos 2026 tarihinde `feature/m9-envanter` dalının `183517e` commit'i üzerinde yapılmıştır. Durum makinesi, API veya hata eşlemesi değiştirildiğinde bu belge aynı değişiklik kapsamında güncellenmelidir.
 
 ## İçindekiler
 
@@ -401,7 +401,9 @@ Mevcut otomatik testler şu katmanları kapsar:
 - bildirim geçmişi, sahiplik ve sayfalama servisi;
 - Thymeleaf e-posta şablonu ve HTML escaping.
 
-Doğrulama tabanı olan commit üzerinde `workflow` paketindeki **162 test** ve backend `verify`'ın tamamı (**383 test**) temiz bir PostgreSQL 15 örneğinde hatasız geçmiştir.
+Doğrulama tabanı olan commit üzerinde `workflow` paketindeki **164 test** ve backend `verify`'ın tamamı (**448 test**) temiz bir PostgreSQL 15 örneğinde hatasız geçmiştir.
+
+Bu testlerin 11'i (`WorkflowTransitionPersistenceIntegrationTest`) gerçek bir PostgreSQL bağlantısı ister; veritabanı ayakta değilse `ApplicationContext` hatasıyla düşerler. Yerelde `docker compose up -d db` gerekir.
 
 Önemli eksik testler:
 
@@ -414,7 +416,7 @@ Doğrulama tabanı olan commit üzerinde `workflow` paketindeki **162 test** ve 
 
 1. ~~**Optimistic-lock hata eşlemesi**~~ — **çözüldü.** `RecordPortAdapter` çatışmayı `WORKFLOW_VERSION_CONFLICT`'e çeviriyor, handler bu kodu `409`'a eşliyor ve workflow dışı yazmalar için `OptimisticLockingFailureException` → `409 VERSION_CONFLICT` emniyet ağı var. Uçtan uca doğrulama `WorkflowTransitionPersistenceIntegrationTest` içinde.
 2. ~~**Tekil Başkan Yardımcısı ve istek hedefi**~~ — **çözüldü (C1).** `GONDER`/`TEKRAR_GONDER` hedefini artık backend, `BASKANA_ILET` ile aynı yoldan tek aktif kullanıcıdan çözer; istemci hedef göndermez, gönderirse istek reddedilir. Geriye kalan tek risk aşağıdaki 10. maddededir: tekil rol invariant'ı veritabanı kısıtıyla değil okuma anında zorlanır.
-3. **Frontend entegrasyonu:** Kayıt detayındaki aksiyon paneli gerçek API'yi kullanır (`useRecordWorkflowAction`), ancak `WorkflowContext` hâlâ mock geçiş mantığını (`transitionRecord`) taşır. Aynı iş kuralının iki yerde durması ikisinin ayrışmasına açıktır; mock kol kaldırılmalıdır.
+3. ~~**Frontend entegrasyonu**~~ — **çözüldü.** `WorkflowContext` ve `transitionRecord` mock geçiş kolu frontend'den kaldırıldı; kayıt detayındaki aksiyon paneli yalnız gerçek API'yi (`useRecordWorkflowAction`) kullanıyor. Geçiş kuralı artık tek yerde, backend'de duruyor.
 4. ~~**İlk parola değişimi**~~ — **çözüldü.** `JwtAuthenticationFilter` parola değişimi bekleyen kullanıcıyı `403 PASSWORD_CHANGE_REQUIRED` ile durduruyor; workflow dahil bütün korumalı uçlar kapalı. Açık bırakılanlar yalnızca parola değiştirme, çıkış ve `GET /api/users/me`.
 5. **E-posta teslim garantisi:** Gönderim asenkron ve best-effort'tur; retry/outbox/DLQ yoktur.
 6. **Audit değiştirilemezliği:** Uygulama yazma/silme ucu sunmaz, fakat veritabanı rolü veya trigger ile append-only kuralı zorlanmaz.
@@ -422,7 +424,7 @@ Doğrulama tabanı olan commit üzerinde `workflow` paketindeki **162 test** ve 
 8. ~~**Sözleşme drift'i (`BASKAN_ONAYINDA`)**~~ — **çözüldü.** İfade entegrasyon sözleşmesinde artık geçmiyor.
 9. ~~**Terminal ek silme ve dosya IDOR'u**~~ — **çözüldü.** `deleteFile` artık `RecordLockValidator.assertModifyAllowed` çağırıyor: soft-delete kontrolü, `created_by` sahiplik kontrolü ve yalnız `TASLAK`/`DUZENLEME_BEKLIYOR` durum kilidi. `downloadFile`, `previewFile` ve `listByRecord` ise `RecordAccessPolicy.assertCanView` üzerinden kayıt görünürlüğüyle sınırlı.
 10. **Tekil rolün yeniden etkinleştirilmesi:** `setActive(..., true)` aynı rolde başka aktif kullanıcı olup olmadığını kontrol etmez. İki aktif Başkan oluşursa `BASKANA_ILET`, iki aktif Başkan Yardımcısı oluşursa `GONDER`/`TEKRAR_GONDER` hedefi tekilleştiremediği için `409 WORKFLOW_ROLE_NOT_CONFIGURED` ile durur. C1 sonrası bu, Çalışanın en sık kullandığı aksiyonu da etkilediği için invariant'ın yazma tarafında (rol atama/aktifleştirme) zorlanması daha önemli hâle geldi.
-11. **Koltuk devrinde `last_deputy_id` bayat kalıyor.** Başkan Yardımcısı koltuğu devredilirken `UserService.changeRole` → `RecordRepository.devretBekleyenIsleri` yalnız `assigned_to` kolonunu yeni yardımcıya yazar; `last_deputy_id`'ye dokunmaz. `BASKAN_INCELEMESINDE` durumundaki bir kayıtta devir olursa `BASKAN_YARDIMCISINA_GERI_GONDER` hâlâ eski yardımcıyı çözer, o kişi artık `BASKAN_YARDIMCISI` rolünde olmadığı için istek `400 WORKFLOW_TARGET_ROLE_INVALID` ile durur ve o kayıtta bu aksiyon kalıcı olarak kullanılamaz hâle gelir. Başkanın diğer aksiyonları (`ONAYLA`, `REDDET`, `CALISANA_GERI_GONDER`) etkilenmez. Düzeltme devir sorgusunun `last_deputy_id`'yi de taşımasıdır.
+11. ~~**Koltuk devrinde `last_deputy_id` bayat kalıyor**~~ — **çözüldü (M5, 20 Ağustos 2026).** `RecordRepository.updateLastDeputyId` eklendi ve `UserService.kullaniciIsleriniDevret` içinde `devretBekleyenIsleri` ile **aynı transaction'da** çağrılıyor. Koltuk devrinden sonra `BASKAN_YARDIMCISINA_GERI_GONDER` yeni yardımcıyı çözüyor; devredilen kayıtlar yeni yardımcının görünürlük kapsamına da giriyor. `UserServiceTest` kapsıyor.
 
 Başlangıç şartnamesiyle bilinçli veya fiilî uygulama farkları da korunmalıdır:
 

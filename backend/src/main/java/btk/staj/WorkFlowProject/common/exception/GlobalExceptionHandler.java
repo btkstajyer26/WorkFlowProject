@@ -3,6 +3,7 @@ package btk.staj.WorkFlowProject.common.exception;
 import btk.staj.WorkFlowProject.auth.exception.InvalidResetCodeException;
 import btk.staj.WorkFlowProject.auth.exception.InvalidResetTokenException;
 import btk.staj.WorkFlowProject.auth.exception.PasswordReuseException;
+import btk.staj.WorkFlowProject.notification.exception.InvalidMailActionTokenException;
 import btk.staj.WorkFlowProject.user.service.AdminLimitExceededException;
 import btk.staj.WorkFlowProject.user.service.RoleNotFoundException;
 import btk.staj.WorkFlowProject.workflow.exception.WorkflowApplicationException;
@@ -141,6 +142,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidResetTokenException.class)
     public ResponseEntity<ApiError> handleInvalidResetToken(InvalidResetTokenException ex) {
         return build("INVALID_OR_EXPIRED_RESET_TOKEN", ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * E-posta bildirimindeki tek tiklik aksiyon baglantisi kullanilamaz
+     * durumda. Bulunamama, sure dolmasi ve daha once kullanilmis olma ayni
+     * kodla doner; ayirmak gecerli bir anahtarin varligini sizdirirdi.
+     */
+    @ExceptionHandler(InvalidMailActionTokenException.class)
+    public ResponseEntity<ApiError> handleInvalidMailActionToken(InvalidMailActionTokenException ex) {
+        return build("INVALID_OR_EXPIRED_MAIL_ACTION_TOKEN", ex.getMessage(), HttpStatus.BAD_REQUEST);
     }
 
     /**
