@@ -3,10 +3,12 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { View } from 'react-native';
 
 import '../../global.css';
 import { AuthProvider, useAuth } from '@/auth/AuthProvider';
-import { QueryProvider } from '@/query/QueryProvider';
+import { OfflineBanner } from '@/components/feedback/OfflineBanner';
+import { QueryProvider, useNetworkStatus } from '@/query/QueryProvider';
 import { ThemeProvider, useAppTheme } from '@/theme/ThemeProvider';
 
 void SplashScreen.preventAutoHideAsync();
@@ -33,8 +35,13 @@ export default function RootLayout() {
 }
 
 function RootNavigator() {
-  const { isAuthenticated, isReady: isAuthReady, mustChangePassword } = useAuth();
+  const {
+    isAuthenticated,
+    isReady: isAuthReady,
+    mustChangePassword,
+  } = useAuth();
   const { colors, isReady, resolvedTheme } = useAppTheme();
+  const isOffline = useNetworkStatus();
 
   useEffect(() => {
     if (isReady && isAuthReady) void SplashScreen.hideAsync();
@@ -43,8 +50,9 @@ function RootNavigator() {
   if (!isReady || !isAuthReady) return null;
 
   return (
-    <>
+    <View className="flex-1" style={{ backgroundColor: colors.canvas }}>
       <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} />
+      <OfflineBanner isOffline={isOffline} />
       <Stack
         screenOptions={{
           animation: 'fade',
@@ -62,6 +70,6 @@ function RootNavigator() {
           <Stack.Screen name="(password)" />
         </Stack.Protected>
       </Stack>
-    </>
+    </View>
   );
 }
