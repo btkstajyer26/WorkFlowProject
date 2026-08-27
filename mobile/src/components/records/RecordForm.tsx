@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import type { ReactNode } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { Pressable, View } from 'react-native';
 import { z } from 'zod';
@@ -25,6 +26,7 @@ type RecordFormValues = z.infer<typeof recordFormSchema>;
 
 type RecordFormProps = {
   categories: Category[];
+  children?: ReactNode;
   initialValues?: RecordMutationRequest;
   onCancel?: () => void;
   onSubmit: (values: RecordMutationRequest) => Promise<void>;
@@ -33,6 +35,7 @@ type RecordFormProps = {
 
 export function RecordForm({
   categories,
+  children,
   initialValues,
   onCancel,
   onSubmit,
@@ -152,6 +155,8 @@ export function RecordForm({
           />
         )}
       />
+
+      {children}
 
       {errors.root?.server?.message ? (
         <AppText accessibilityLiveRegion="polite" tone="danger">

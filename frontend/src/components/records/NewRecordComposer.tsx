@@ -464,7 +464,7 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
             </div>
 
             <div>
-              <div className="mb-2 flex items-center justify-between gap-3">
+              <div className="mb-2 flex flex-col items-start gap-2 md:flex-row md:items-center md:gap-3">
                 <div>
                   <p className="text-xs font-bold text-app-text-secondary">Ek dosyalar</p>
                   <p id="record-attachment-help" className="mt-0.5 text-xs text-app-text-subtle">
@@ -472,7 +472,7 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
                   </p>
                 </div>
                 <label
-                  className="flex min-h-10 cursor-pointer items-center gap-2 rounded-xl border border-app-border bg-app-surface px-3 text-xs font-bold text-app-text-secondary transition hover:border-brand-300 hover:text-brand-700 focus-within:outline-2 focus-within:outline-brand-500 dark:hover:border-brand-600 dark:hover:text-brand-300"
+                  className="w-30 flex min-h-10 cursor-pointer items-center gap-2 rounded-xl border border-app-border bg-app-surface px-3 text-xs font-bold text-app-text-secondary transition hover:border-brand-300 hover:text-brand-700 focus-within:outline-2 focus-within:outline-brand-500 dark:hover:border-brand-600 dark:hover:text-brand-300"
                 >
                   <Paperclip className="size-4" aria-hidden="true" />
                   Dosya ekle
@@ -560,9 +560,6 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
               </div>
             </div>
 
-            <div className="rounded-xl border border-brand-100 dark:border-brand-800/60 bg-brand-50/70 dark:bg-brand-900/30 px-4 py-3 text-xs leading-5 text-brand-800 dark:text-brand-200">
-              Taslak ve ek dosyalar veritabanına kaydedilir; gönderimde hedef kullanıcıyı backend belirler.
-            </div>
             {recordMutationError ? (
               <p className="rounded-xl bg-rose-50 px-4 py-3 text-xs font-semibold leading-5 text-rose-800 dark:bg-rose-950/40 dark:text-rose-200" role="alert">
                 {recordMutationError instanceof Error ? recordMutationError.message : 'Taslak kaydedilemedi.'}

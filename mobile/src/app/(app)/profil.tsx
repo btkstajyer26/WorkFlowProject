@@ -71,7 +71,6 @@ export default function ProfileScreen() {
           <AppText accessibilityRole="header" variant="title">
             Profil
           </AppText>
-          <AppText tone="muted">Temel kullanıcı ve yetki bilgilerinizi görüntüleyin.</AppText>
         </View>
 
         <AppCard className="gap-5 p-5">

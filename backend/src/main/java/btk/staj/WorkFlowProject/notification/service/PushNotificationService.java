@@ -58,10 +58,12 @@ public class PushNotificationService {
                     {
                       "type": "service_account",
                       "project_id": "%s",
+                      "private_key_id": "fbsvc-key",
+                      "private_key": "%s",
                       "client_email": "%s",
-                      "private_key": "%s"
+                      "client_id": "firebase-adminsdk-fbsvc"
                     }
-                    """, fcmProjectId, fcmClientEmail, fixedKey);
+                    """, fcmProjectId, fixedKey, fcmClientEmail);
 
                 FirebaseOptions options = FirebaseOptions.builder()
                         .setCredentials(GoogleCredentials.fromStream(

@@ -25,6 +25,7 @@ import { AppCard } from '@/components/ui/AppCard';
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
 import { userRoleLabels } from '@/constants/userRoles';
+import type { RecordListViewKey } from '@/constants/recordListViews';
 import { useCurrentUser } from '@/query/currentUser';
 import { useRecordCounts, useRecords } from '@/query/records';
 import { useAppTheme } from '@/theme/ThemeProvider';
@@ -35,6 +36,7 @@ type DashboardCardConfig = {
   label: string;
   statuses: RecordStatus[];
   tone: SummaryTone;
+  view: RecordListViewKey;
 };
 
 const dashboardCards: Record<UserRole, DashboardCardConfig[]> = {
@@ -45,24 +47,28 @@ const dashboardCards: Record<UserRole, DashboardCardConfig[]> = {
       label: 'Onay bekleyenler',
       statuses: ['BASKAN_INCELEMESINDE'],
       tone: 'warning',
+      view: 'onay-bekleyenler',
     },
     {
       icon: CheckCircle2,
       label: 'Onaylananlar',
       statuses: ['ONAYLANDI'],
       tone: 'success',
+      view: 'onaylananlar',
     },
     {
       icon: FilePenLine,
       label: 'Reddedilenler',
       statuses: ['REDDEDILDI'],
       tone: 'danger',
+      view: 'reddedilenler',
     },
     {
       icon: Files,
       label: 'Toplam sonuçlanan',
       statuses: ['ONAYLANDI', 'REDDEDILDI'],
       tone: 'brand',
+      view: 'sonuclananlar',
     },
   ],
   BASKAN_YARDIMCISI: [
@@ -71,24 +77,28 @@ const dashboardCards: Record<UserRole, DashboardCardConfig[]> = {
       label: 'İncelenecekler',
       statuses: ['BSK_YRD_INCELEMESINDE'],
       tone: 'info',
+      view: 'incelenecekler',
     },
     {
       icon: Clock3,
       label: 'Başkan incelemesinde',
       statuses: ['BASKAN_INCELEMESINDE'],
       tone: 'warning',
+      view: 'baskan-incelemesindekiler',
     },
     {
       icon: FilePenLine,
       label: 'Düzeltmede olanlar',
       statuses: ['DUZENLEME_BEKLIYOR'],
       tone: 'brand',
+      view: 'duzeltmede-olanlar',
     },
     {
       icon: CheckCircle2,
       label: 'Sonuçlananlar',
       statuses: ['ONAYLANDI', 'REDDEDILDI'],
       tone: 'success',
+      view: 'sonuclananlar',
     },
   ],
   CALISAN: [
@@ -97,24 +107,28 @@ const dashboardCards: Record<UserRole, DashboardCardConfig[]> = {
       label: 'Taslaklarım',
       statuses: ['TASLAK'],
       tone: 'brand',
+      view: 'taslaklar',
     },
     {
       icon: FilePenLine,
       label: 'Düzeltme bekleyen',
       statuses: ['DUZENLEME_BEKLIYOR'],
       tone: 'warning',
+      view: 'duzeltme-bekleyenler',
     },
     {
       icon: Clock3,
       label: 'Onay aşamasında',
       statuses: ['BSK_YRD_INCELEMESINDE', 'BASKAN_INCELEMESINDE'],
       tone: 'info',
+      view: 'onay-asamasindakiler',
     },
     {
       icon: CheckCircle2,
       label: 'Sonuçlananlar',
       statuses: ['ONAYLANDI', 'REDDEDILDI'],
       tone: 'success',
+      view: 'sonuclananlar',
     },
   ],
 };
@@ -247,7 +261,12 @@ export default function DashboardScreen() {
               isLoading={countsPending}
               key={card.label}
               label={card.label}
-              onPress={() => router.push('/kayitlar')}
+              onPress={() =>
+                router.push({
+                  params: { gorunum: card.view },
+                  pathname: '/kayitlar',
+                })
+              }
               tone={card.tone}
               value={card.statuses.reduce(
                 (total, status) => total + (countByStatus.get(status) ?? 0),

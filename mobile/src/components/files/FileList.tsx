@@ -1,78 +1,112 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
-import { RecordFile, downloadFileToLocal } from '../../api/files';
-import { formatFileSize } from '../../utils/fileFormatters';
-import { EmptyState } from '../states/EmptyState';
+import { ExternalLink, Trash2 } from 'lucide-react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Alert, TouchableOpacity, View } from 'react-native';
+
+import { downloadAndOpenFile, type RecordFile } from '@/api/files';
+import { EmptyState } from '@/components/states/EmptyState';
+import { AppText } from '@/components/ui/AppText';
+import { formatFileSize } from '@/utils/fileFormatters';
 
 interface FileListProps {
+  canDelete?: boolean;
   files: RecordFile[];
   onDeleteFile?: (fileId: string) => void;
-  canDelete?: boolean;
 }
 
-export const FileList: React.FC<FileListProps> = ({
+export function FileList({
+  canDelete = false,
   files,
   onDeleteFile,
-  canDelete = false,
-}) => {
+}: FileListProps) {
+  const [openingFileId, setOpeningFileId] = useState<string | null>(null);
+
   if (!files || files.length === 0) {
-    return <EmptyState title="Dosya Yok" message="Bu kayda henüz bir dosya eklenmemiş." />;
+    return (
+      <EmptyState
+        message="Bu kayda henüz bir dosya eklenmemiş."
+        title="Dosya Yok"
+      />
+    );
   }
 
-  const handleDownload = async (file: RecordFile) => {
+  const handleOpenOrShare = async (file: RecordFile) => {
+    setOpeningFileId(file.id);
     try {
-      await downloadFileToLocal(file.id, file.originalName);
-      Alert.alert('Başarılı', `Dosya indirildi: ${file.originalName}`);
+      const { shared } = await downloadAndOpenFile(
+        file.id,
+        file.originalName,
+        file.mimeType,
+      );
+      if (!shared) {
+        Alert.alert('İndirildi', `${file.originalName} cihazınıza indirildi.`);
+      }
     } catch (error: unknown) {
       Alert.alert(
-        'İndirme Hatası',
-        error instanceof Error ? error.message : 'Dosya indirilemedi.',
+        'Dosya Açılamadı',
+        error instanceof Error ? error.message : 'Dosya indirilirken bir hata oluştu.',
       );
+    } finally {
+      setOpeningFileId(null);
     }
   };
 
   return (
-    <View className="space-y-2">
-      {files.map((file) => (
-        <View
-          key={file.id}
-          className="flex-row items-center justify-between p-3 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg"
-        >
-          <View className="flex-1 mr-3">
-            <Text
-              numberOfLines={1}
-              className="text-sm font-medium text-gray-800 dark:text-gray-100"
-            >
-              {file.originalName}
-            </Text>
-            <Text className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              {formatFileSize(file.fileSize)}
-            </Text>
-          </View>
+    <View className="gap-2">
+      {files.map((file) => {
+        const isOpening = openingFileId === file.id;
 
-          <View className="flex-row items-center space-x-2">
-            <TouchableOpacity
-              onPress={() => handleDownload(file)}
-              className="bg-gray-100 dark:bg-slate-800 px-3 py-1.5 rounded-md"
-              accessibilityRole="button"
-              accessibilityLabel={`${file.originalName} dosyasını indir`}
-            >
-              <Text className="text-xs font-semibold text-gray-700 dark:text-gray-300">İndir</Text>
-            </TouchableOpacity>
+        return (
+          <View
+            className="flex-row items-center justify-between rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900"
+            key={file.id}
+          >
+            <View className="mr-3 flex-1">
+              <AppText numberOfLines={1} variant="body">
+                {file.originalName}
+              </AppText>
+              <AppText className="mt-0.5" tone="muted" variant="caption">
+                {formatFileSize(file.fileSize)}
+              </AppText>
+            </View>
 
-            {canDelete && onDeleteFile && (
+            <View className="flex-row items-center gap-2">
               <TouchableOpacity
-                onPress={() => onDeleteFile(file.id)}
-                className="bg-red-50 dark:bg-red-950/40 px-3 py-1.5 rounded-md"
+                accessibilityHint="Dosyayı uygun uygulamayla açar; açılamazsa paylaşım seçeneklerini gösterir"
+                accessibilityLabel={`${file.originalName} dosyasını aç veya paylaş`}
                 accessibilityRole="button"
-                accessibilityLabel={`${file.originalName} dosyasını sil`}
+                className="flex-row items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-2 dark:bg-slate-800"
+                disabled={isOpening}
+                onPress={() => void handleOpenOrShare(file)}
               >
-                <Text className="text-xs font-semibold text-red-600 dark:text-red-400">Sil</Text>
+                {isOpening ? (
+                  <ActivityIndicator size="small" />
+                ) : (
+                  <>
+                    <ExternalLink color="#475569" size={14} />
+                    <AppText className="font-semibold text-slate-700 dark:text-slate-200" variant="caption">
+                      Aç / Paylaş
+                    </AppText>
+                  </>
+                )}
               </TouchableOpacity>
-            )}
+
+              {canDelete && onDeleteFile ? (
+                <TouchableOpacity
+                  accessibilityHint="Dosyayı bu kayıttan siler"
+                  accessibilityLabel={`${file.originalName} dosyasını sil`}
+                  accessibilityRole="button"
+                  className="rounded-lg bg-rose-50 p-2 dark:bg-rose-950/40"
+                  disabled={isOpening}
+                  onPress={() => onDeleteFile(file.id)}
+                >
+                  <Trash2 color="#e11d48" size={16} />
+                </TouchableOpacity>
+              ) : null}
+            </View>
           </View>
-        </View>
-      ))}
+        );
+      })}
     </View>
   );
-};
+}
+
