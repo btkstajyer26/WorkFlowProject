@@ -30,11 +30,11 @@ function getNotificationTypeMeta(type: NotificationType) {
   switch (type) {
     case 'RECORD_SUBMITTED':
       return {
-        bgColor: 'bg-blue-50 dark:bg-blue-950/40',
-        color: '#2563eb',
+        bgColor: 'bg-brand-50 dark:bg-brand-950/40',
+        color: appTokens.brand[600],
         icon: Send,
         label: 'İncelemeye Sunuldu',
-        textColor: 'text-blue-700 dark:text-blue-300',
+        textColor: 'text-brand-700 dark:text-brand-300',
       };
     case 'RECORD_FORWARDED':
       return {
@@ -139,16 +139,9 @@ export default function NotificationsScreen() {
   return (
     <Screen className="p-4">
       {/* Header & Filter Tabs */}
-      <View className="mb-3 gap-2">
+      <View className="mb-3 gap-2.5">
         <View className="flex-row items-center justify-between">
           <AppText variant="title">Bildirimler</AppText>
-          {unreadCount > 0 ? (
-            <View className="rounded-full bg-blue-600 px-2.5 py-0.5">
-              <AppText className="text-xs font-semibold text-white">
-                {unreadCount} yeni
-              </AppText>
-            </View>
-          ) : null}
         </View>
 
         <View className="flex-row gap-2">
@@ -157,7 +150,7 @@ export default function NotificationsScreen() {
             accessibilityState={{ selected: filter === 'all' }}
             className={`rounded-full px-3.5 py-1.5 ${
               filter === 'all'
-                ? 'bg-slate-900 dark:bg-white'
+                ? 'bg-brand-600 dark:bg-brand-500'
                 : 'bg-slate-100 dark:bg-slate-800'
             }`}
             onPress={() => setFilter('all')}
@@ -165,11 +158,20 @@ export default function NotificationsScreen() {
             <AppText
               className={`text-xs font-semibold ${
                 filter === 'all'
-                  ? 'text-white dark:text-slate-950'
+                  ? 'text-white'
                   : 'text-slate-600 dark:text-slate-300'
               }`}
             >
-              Tümü ({allItems.length})
+              Tümü{' '}
+              <AppText
+                className={`text-xs ${
+                  filter === 'all'
+                    ? 'font-normal text-white/80'
+                    : 'text-slate-400 dark:text-slate-500'
+                }`}
+              >
+                ({allItems.length})
+              </AppText>
             </AppText>
           </Pressable>
 
@@ -178,7 +180,7 @@ export default function NotificationsScreen() {
             accessibilityState={{ selected: filter === 'unread' }}
             className={`rounded-full px-3.5 py-1.5 ${
               filter === 'unread'
-                ? 'bg-slate-900 dark:bg-white'
+                ? 'bg-brand-600 dark:bg-brand-500'
                 : 'bg-slate-100 dark:bg-slate-800'
             }`}
             onPress={() => setFilter('unread')}
@@ -186,11 +188,20 @@ export default function NotificationsScreen() {
             <AppText
               className={`text-xs font-semibold ${
                 filter === 'unread'
-                  ? 'text-white dark:text-slate-950'
+                  ? 'text-white'
                   : 'text-slate-600 dark:text-slate-300'
               }`}
             >
-              Okunmamış ({unreadCount})
+              Okunmamış{' '}
+              <AppText
+                className={`text-xs ${
+                  filter === 'unread'
+                    ? 'font-normal text-white/80'
+                    : 'text-slate-400 dark:text-slate-500'
+                }`}
+              >
+                ({unreadCount})
+              </AppText>
             </AppText>
           </Pressable>
         </View>
@@ -236,7 +247,7 @@ export default function NotificationsScreen() {
               className={`flex-row items-start gap-3 rounded-2xl border p-3.5 ${
                 item.read
                   ? 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/60'
-                  : 'border-blue-200 bg-blue-50/50 dark:border-blue-900/60 dark:bg-blue-950/20'
+                  : 'border-brand-200/60 bg-brand-50/40 dark:border-brand-900/40 dark:bg-brand-950/20'
               }`}
               onPress={() => handleNotificationPress(item)}
             >
@@ -266,7 +277,7 @@ export default function NotificationsScreen() {
 
               {/* Unread indicator dot */}
               {!item.read ? (
-                <View className="mt-1 h-2.5 w-2.5 rounded-full bg-blue-600" />
+                <View className="mt-1.5 h-2 w-2 rounded-full bg-brand-600 dark:bg-brand-400" />
               ) : null}
             </TouchableOpacity>
           );
