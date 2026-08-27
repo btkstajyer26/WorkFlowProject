@@ -28,10 +28,10 @@ describe('FileList', () => {
     ).toBeTruthy();
   });
 
-  it('dosyaları ve "Aç" butonunu doğru şekilde render eder', async () => {
+  it('dosyaları ve "Aç / Paylaş" butonunu doğru şekilde render eder', async () => {
     await render(<FileList files={mockFiles} />);
     expect(screen.getByText('sozlesme.pdf')).toBeTruthy();
-    expect(screen.getByText('Aç')).toBeTruthy();
+    expect(screen.getByText('Aç / Paylaş')).toBeTruthy();
   });
 
   it('canDelete true ve onDeleteFile verildiğinde silme butonunu gösterir ve tıklandığında çağırır', async () => {

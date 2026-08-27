@@ -1,5 +1,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
+import * as IntentLauncher from 'expo-intent-launcher';
 import * as Sharing from 'expo-sharing';
+import { Platform } from 'react-native';
 
 import {
   API_BASE_URL,
@@ -83,10 +85,32 @@ export interface ShareOptions {
   uti?: string;
 }
 
+async function openFileWithAndroidViewer(
+  fileUri: string,
+  mimeType?: string,
+): Promise<boolean> {
+  if (Platform.OS !== 'android') return false;
+
+  try {
+    const contentUri = await FileSystem.getContentUriAsync(fileUri);
+    await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+      data: contentUri,
+      flags: 1,
+      type: mimeType || 'application/octet-stream',
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export const openOrShareFile = async (
   fileUri: string,
   options?: ShareOptions,
 ): Promise<boolean> => {
+  const opened = await openFileWithAndroidViewer(fileUri, options?.mimeType);
+  if (opened) return true;
+
   const isAvailable = await Sharing.isAvailableAsync();
   if (!isAvailable) {
     return false;

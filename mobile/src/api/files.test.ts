@@ -1,5 +1,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
+import * as IntentLauncher from 'expo-intent-launcher';
 import * as Sharing from 'expo-sharing';
+import { Platform } from 'react-native';
 
 import {
   downloadAndOpenFile,
@@ -13,10 +15,15 @@ jest.mock('expo-sharing', () => ({
   shareAsync: jest.fn(),
 }));
 
+jest.mock('expo-intent-launcher', () => ({
+  startActivityAsync: jest.fn(),
+}));
+
 jest.mock('expo-file-system/legacy', () => ({
   cacheDirectory: 'file:///cache/',
   documentDirectory: 'file:///documents/',
   downloadAsync: jest.fn(),
+  getContentUriAsync: jest.fn(),
 }));
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -31,6 +38,7 @@ function jsonResponse(status: number, body: unknown): Response {
 }
 
 describe('file API', () => {
+  const originalPlatformOS = Platform.OS;
   const fetchMock = jest.fn();
   const uploadedFile: RecordFile = {
     fileSize: 1024,
@@ -46,6 +54,17 @@ describe('file API', () => {
     fetchMock.mockReset();
     jest.clearAllMocks();
     globalThis.fetch = fetchMock as typeof fetch;
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'ios',
+    });
+  });
+
+  afterAll(() => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: originalPlatformOS,
+    });
   });
 
   it('backendin dizi cevabından yüklenen dosyayı döndürür', async () => {
@@ -73,6 +92,55 @@ describe('file API', () => {
   });
 
   describe('openOrShareFile', () => {
+    it('Android cihazda dosyayı önce uygun görüntüleyiciyle açar', async () => {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        value: 'android',
+      });
+      (FileSystem.getContentUriAsync as jest.Mock).mockResolvedValue(
+        'content://documents/rapor.pdf',
+      );
+      (IntentLauncher.startActivityAsync as jest.Mock).mockResolvedValue({
+        resultCode: -1,
+      });
+
+      const result = await openOrShareFile('file:///documents/rapor.pdf', {
+        mimeType: 'application/pdf',
+      });
+
+      expect(result).toBe(true);
+      expect(IntentLauncher.startActivityAsync).toHaveBeenCalledWith(
+        'android.intent.action.VIEW',
+        {
+          data: 'content://documents/rapor.pdf',
+          flags: 1,
+          type: 'application/pdf',
+        },
+      );
+      expect(Sharing.shareAsync).not.toHaveBeenCalled();
+    });
+
+    it('Android görüntüleyicisi açılamazsa paylaşım menüsüne düşer', async () => {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        value: 'android',
+      });
+      (FileSystem.getContentUriAsync as jest.Mock).mockResolvedValue(
+        'content://documents/rapor.pdf',
+      );
+      (IntentLauncher.startActivityAsync as jest.Mock).mockRejectedValue(
+        new Error('Uygun görüntüleyici yok'),
+      );
+      (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(true);
+
+      const result = await openOrShareFile('file:///documents/rapor.pdf', {
+        mimeType: 'application/pdf',
+      });
+
+      expect(result).toBe(true);
+      expect(Sharing.shareAsync).toHaveBeenCalled();
+    });
+
     it('paylaşım desteklenmiyorsa false döndürür', async () => {
       (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(false);
 
