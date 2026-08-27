@@ -32,10 +32,17 @@ export const uploadRecordFile = async (
     type: file.mimeType || 'application/octet-stream',
   } as never);
 
-  return apiRequest<RecordFile>(`/api/records/${recordId}/files`, {
+  const uploadedFiles = await apiRequest<RecordFile[]>(`/api/records/${recordId}/files`, {
     method: 'POST',
     body: formData,
   });
+
+  const uploadedFile = uploadedFiles[0];
+  if (!uploadedFile) {
+    throw new Error('Sunucu yüklenen dosya bilgisini döndürmedi.');
+  }
+
+  return uploadedFile;
 };
 
 export const deleteRecordFile = async (fileId: string): Promise<void> => {
