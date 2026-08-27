@@ -66,6 +66,15 @@ export async function registerPushTokenWithBackend(): Promise<string | null> {
       return null;
     }
 
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'Genel Bildirimler',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#7137dc',
+      });
+    }
+
     // Android/iOS native push token (FCM / APNs)
     const tokenResult = await Notifications.getDevicePushTokenAsync();
     const token = tokenResult?.data;
@@ -84,9 +93,10 @@ export async function registerPushTokenWithBackend(): Promise<string | null> {
       token,
     });
 
+    console.log('[Push] Token başarıyla kaydedildi:', token);
     return token;
-  } catch {
-    // Push token alınamazsa veya ağ hatası olursa akışı kesme
+  } catch (error) {
+    console.warn('[Push] Push token kaydı tamamlanamadı:', error);
     return null;
   }
 }
