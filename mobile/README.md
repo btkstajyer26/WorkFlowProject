@@ -55,12 +55,12 @@ EAS build'lerinde aynı değişken build environment'ına **tam adıyla** verilm
 | Zorunlu parola değişimi ve şifre sıfırlama akışı | ✅ |
 | Kayıt listesi, detay ve işlem geçmişi | ✅ |
 | Kayıt oluşturma ve workflow aksiyonları (gönder / onayla / reddet / geri gönder) | ✅ |
-| Dosya seçme, sıralı yükleme kuyruğu ve doğrulama | 🟡 Altyapı hazır; kayıt detayına bağlanacak |
+| Dosya seçme, sıralı yükleme kuyruğu, doğrulama, indirme ve paylaşma (`expo-sharing`) | ✅ |
 | Profil | ✅ |
-| Bildirim merkezi | ❌ Ekran placeholder; MOB-13 kapsamında bağlanacak |
-| Offline / hata / boş durum bileşenleri | 🟡 Ortak bileşenler hazır; ekran entegrasyonları sürecek |
-| Push bildirimi (FCM) | ❌ Backend tarafı bağlanmadı; bkz. görev dağılımında M3 / MOB-12 |
-| Otomatik test paketi | 🟡 Auth ve API katmanında 10 Jest testi var; ekran testleri eklenecek |
+| Bildirim merkezi | ✅ Uygulama içi bildirim merkezi, okunmamış sayacı ve tab rozeti |
+| Global offline bildirimi ve bağlantı sonrası otomatik veri yenileme | ✅ |
+| Push bildirimi (FCM) | ✅ Firebase FCM entegrasyonu, cihaz token yaşam döngüsü ve deep-link |
+| Otomatik test paketi | ✅ Auth, API, dosya paylaşımı, bildirimler, offline banner ve workflow aksiyonlarında 61 Jest testi |
 
 Route yapısı `src/app/` altındadır:
 
@@ -100,9 +100,7 @@ npx expo-doctor
 
 ## Yayın öncesi bilinen açıklar
 
-- `app.json` içindeki Android paket adı hâlâ Expo şablonunun varsayılanı:
-  `com.anonymous.ebysmobile`. Gerçek yayın öncesi kurumsal bir paket adıyla
-  değiştirilmelidir.
+- `app.json` içindeki Android paket adı `com.anonymous.ebysmobile` Firebase Console'da tanımlıdır.
 - `LICENSE`, `AGENTS.md`, `CLAUDE.md` ve `scripts/reset-project.js` dosyaları
   `create-expo-app` şablonundan gelmiştir ve bu projeye ait değildir.
   Özellikle `LICENSE` Expo'nun (650 Industries, Inc.) telif satırını taşır;

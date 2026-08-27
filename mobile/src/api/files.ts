@@ -1,4 +1,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
+import * as IntentLauncher from 'expo-intent-launcher';
+import * as Sharing from 'expo-sharing';
+import { Platform } from 'react-native';
 
 import {
   API_BASE_URL,
@@ -22,7 +25,7 @@ export const getRecordFiles = async (recordId: string): Promise<RecordFile[]> =>
 
 export const uploadRecordFile = async (
   recordId: string,
-  file: { uri: string; name: string; mimeType?: string }
+  file: { uri: string; name: string; mimeType?: string },
 ): Promise<RecordFile> => {
   const formData = new FormData();
 
@@ -75,3 +78,62 @@ export const downloadFileToLocal = async (
 
   return downloadRes.uri;
 };
+
+export interface ShareOptions {
+  dialogTitle?: string;
+  mimeType?: string;
+  uti?: string;
+}
+
+async function openFileWithAndroidViewer(
+  fileUri: string,
+  mimeType?: string,
+): Promise<boolean> {
+  if (Platform.OS !== 'android') return false;
+
+  try {
+    const contentUri = await FileSystem.getContentUriAsync(fileUri);
+    await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+      data: contentUri,
+      flags: 1,
+      type: mimeType || 'application/octet-stream',
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export const openOrShareFile = async (
+  fileUri: string,
+  options?: ShareOptions,
+): Promise<boolean> => {
+  const opened = await openFileWithAndroidViewer(fileUri, options?.mimeType);
+  if (opened) return true;
+
+  const isAvailable = await Sharing.isAvailableAsync();
+  if (!isAvailable) {
+    return false;
+  }
+
+  await Sharing.shareAsync(fileUri, {
+    dialogTitle: options?.dialogTitle,
+    mimeType: options?.mimeType,
+    UTI: options?.uti,
+  });
+  return true;
+};
+
+export const downloadAndOpenFile = async (
+  fileId: string,
+  fileName: string,
+  mimeType?: string,
+): Promise<{ shared: boolean; uri: string }> => {
+  const localUri = await downloadFileToLocal(fileId, fileName);
+  const shared = await openOrShareFile(localUri, {
+    dialogTitle: fileName,
+    mimeType,
+  });
+  return { shared, uri: localUri };
+};
+

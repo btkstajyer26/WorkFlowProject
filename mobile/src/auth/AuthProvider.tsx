@@ -21,6 +21,11 @@ import {
   updatePassword,
 } from './sessionManager';
 
+import {
+  getCachedDeviceToken,
+  setCachedDeviceToken,
+} from '@/services/notifications/pushNotificationManager';
+
 type AuthContextValue = {
   changePassword: (request: ChangePasswordRequest) => Promise<void>;
   isAuthenticated: boolean;
@@ -64,7 +69,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [queryClient]);
 
   const signOut = useCallback(async (options?: EndSessionOptions) => {
-    await endSession(options);
+    const deviceToken =
+      options?.deviceToken || getCachedDeviceToken() || undefined;
+    await endSession({ ...options, deviceToken });
+    setCachedDeviceToken(null);
   }, []);
 
   const changePassword = useCallback(async (request: ChangePasswordRequest) => {

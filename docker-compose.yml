@@ -81,10 +81,8 @@ services:
       FCM_CLIENT_EMAIL: ${FCM_CLIENT_EMAIL:-}
       FCM_PRIVATE_KEY: ${FCM_PRIVATE_KEY:-}
     ports:
-      # Yalnız bu makineden erişilir. Sunucuya kurulduğunda 0.0.0.0'a bağlamak
-      # backend'i TLS'siz olarak internete açardı; dışarıya çıkan tek servis
-      # Caddy'dir (bkz. docker-compose.test.yml).
-      - "127.0.0.1:8080:8080"
+      # Yerel ağdan (mobil cihaz vb.) ve localhost'tan erişim
+      - "8080:8080"
     volumes:
       - uploads:/app/uploads
     healthcheck:
