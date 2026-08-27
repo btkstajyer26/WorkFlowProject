@@ -36,6 +36,11 @@ if (Notifications) {
 
 let cachedDeviceToken: string | null = null;
 
+function maskDeviceToken(token: string): string {
+  const visibleSuffix = token.slice(-6);
+  return `***${visibleSuffix}`;
+}
+
 export function getCachedDeviceToken(): string | null {
   return cachedDeviceToken;
 }
@@ -93,7 +98,7 @@ export async function registerPushTokenWithBackend(): Promise<string | null> {
       token,
     });
 
-    console.log('[Push] Token başarıyla kaydedildi:', token);
+    console.log('[Push] Token başarıyla kaydedildi:', maskDeviceToken(token));
     return token;
   } catch (error) {
     console.warn('[Push] Push token kaydı tamamlanamadı:', error);

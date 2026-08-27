@@ -51,6 +51,7 @@ describe('pushNotificationManager', () => {
   });
 
   it('izin verildiğinde tokenı alır ve backend e kaydeder', async () => {
+    const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
     mockIsDevice = true;
     (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: 'granted' });
     (Notifications.getDevicePushTokenAsync as jest.Mock).mockResolvedValue({
@@ -67,6 +68,15 @@ describe('pushNotificationManager', () => {
         token: 'fcm-mock-token-999',
       }),
     );
+    expect(consoleLogSpy).toHaveBeenCalledWith(
+      '[Push] Token başarıyla kaydedildi:',
+      '***en-999',
+    );
+    expect(consoleLogSpy).not.toHaveBeenCalledWith(
+      expect.anything(),
+      'fcm-mock-token-999',
+    );
+    consoleLogSpy.mockRestore();
   });
 
   it('bildirime tıklandığında recordId ile yönlendirme callback ini tetikler', () => {
