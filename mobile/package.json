@@ -44,6 +44,7 @@
   },
   "devDependencies": {
     "@react-native/jest-preset": "^0.86.3",
+    "@testing-library/react-native": "^14.0.1",
     "@types/jest": "29.5.14",
     "@types/react": "~19.2.2",
     "babel-preset-expo": "^57.0.7",
@@ -52,6 +53,7 @@
     "jest": "~29.7.0",
     "jest-expo": "~57.0.5",
     "prettier-plugin-tailwindcss": "^0.5.14",
+    "react-test-renderer": "^19.2.3",
     "tailwindcss": "^3.4.19",
     "typescript": "~6.0.3"
   },
@@ -67,7 +69,10 @@
   },
   "jest": {
     "moduleNameMapper": {
-      "^@/(.*)$": "<rootDir>/src/$1"
+      "^@/(.*)$": "<rootDir>/src/$1",
+      "^@react-native-async-storage/async-storage$": "@react-native-async-storage/async-storage/jest/async-storage-mock",
+      "^lucide-react-native(.*)$": "<rootDir>/src/test-utils/lucideMock.js",
+      "^nativewind(.*)$": "<rootDir>/src/test-utils/nativewindMock.js"
     },
     "preset": "jest-expo",
     "setupFiles": [
