@@ -46,11 +46,7 @@ export default function RootLayout() {
 
 function RootNavigator() {
   const router = useRouter();
-  const {
-    isAuthenticated,
-    isReady: isAuthReady,
-    mustChangePassword,
-  } = useAuth();
+  const { isAuthenticated, isReady: isAuthReady } = useAuth();
   const { colors, isReady, resolvedTheme } = useAppTheme();
   const isOffline = useNetworkStatus();
 
@@ -59,16 +55,6 @@ function RootNavigator() {
       void SplashScreen.hideAsync().catch(() => {});
     }
   }, [isAuthReady, isReady]);
-
-  useEffect(() => {
-    if (!isReady || !isAuthReady) return;
-
-    if (!isAuthenticated) {
-      router.replace('/(auth)/giris');
-    } else if (mustChangePassword) {
-      router.replace('/(password)/sifre-degistir');
-    }
-  }, [isAuthenticated, isAuthReady, isReady, mustChangePassword, router]);
 
   useEffect(() => {
     if (!isAuthenticated) return;

@@ -1,4 +1,4 @@
-import { Tabs } from "expo-router";
+import { Redirect, Tabs } from "expo-router";
 import Bell from "lucide-react-native/icons/bell";
 import CirclePlus from "lucide-react-native/icons/circle-plus";
 import Files from "lucide-react-native/icons/files";
@@ -7,6 +7,7 @@ import UserRound from "lucide-react-native/icons/user-round";
 import { StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useAuth } from "@/auth/AuthProvider";
 import { MobileHeader } from "@/components/navigation/MobileHeader";
 import { TabBarIcon } from "@/components/navigation/TabBarIcon";
 import { useCurrentUser } from "@/query/currentUser";
@@ -15,6 +16,7 @@ import { useAppTheme } from "@/theme/ThemeProvider";
 import { appTokens } from "@/theme/theme";
 
 export default function AppLayout() {
+  const { isAuthenticated, isReady: isAuthReady } = useAuth();
   const insets = useSafeAreaInsets();
   const { colors, resolvedTheme } = useAppTheme();
   const currentUser = useCurrentUser();
@@ -23,6 +25,10 @@ export default function AppLayout() {
   const canCreateRecord = currentUser.data?.roleName === "CALISAN";
   const activeTintColor =
     resolvedTheme === "dark" ? appTokens.brand[300] : appTokens.brand[600];
+
+  if (isAuthReady && !isAuthenticated) {
+    return <Redirect href="/(auth)/giris" />;
+  }
 
   return (
     <Tabs
