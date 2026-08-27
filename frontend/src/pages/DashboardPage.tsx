@@ -118,7 +118,6 @@ export function DashboardPage({ user }: { user: AuthUser }) {
         <div className="flex items-center justify-between border-b border-app-border-subtle px-4 py-4 sm:px-6">
           <div>
             <h2 className="font-bold text-app-text-strong">Son Kayıtlar</h2>
-            <p className="mt-0.5 text-xs text-app-text-subtle">Erişim kapsamınızdaki en güncel hareketler</p>
           </div>
           <Link
             to="/kayitlar"

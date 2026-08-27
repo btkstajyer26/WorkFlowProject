@@ -36,18 +36,18 @@ export function RecordListItem({
       onPress={onPress}
     >
       <View className="flex-row items-start justify-between gap-3">
-        <AppText className="min-w-0 flex-1" numberOfLines={2} variant="heading">
+        <AppText className="min-w-0 flex-1 text-lg" numberOfLines={2} variant="heading">
           {record.title}
         </AppText>
         <RecordStatusBadge status={record.status} />
       </View>
 
-      <AppText numberOfLines={2} tone="muted">
+      <AppText numberOfLines={2} tone="muted" className="text-sm">
         {record.description}
       </AppText>
 
       <View className="flex-row flex-wrap items-center gap-2">
-        <View className="rounded-app-pill bg-brand-50 px-2.5 py-1 dark:bg-brand-900/30">
+        <View className="rounded bg-brand-50 px-2.5 py-1 dark:bg-brand-900/30">
           <AppText tone="brand" variant="caption">
             {categoryName}
           </AppText>

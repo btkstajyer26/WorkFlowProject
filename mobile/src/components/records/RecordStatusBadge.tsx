@@ -49,7 +49,7 @@ export function RecordStatusBadge({ status }: { status: RecordStatus }) {
   return (
     <View
       accessibilityLabel={`Durum: ${meta.label}`}
-      className={`self-start rounded-app-pill px-2.5 py-1 ${meta.containerClassName}`}
+      className={`self-start rounded px-2.5 py-2 ${meta.containerClassName}`}
     >
       <AppText className={meta.textClassName} variant="caption">
         {meta.label}

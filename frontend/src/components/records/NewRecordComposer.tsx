@@ -560,9 +560,6 @@ export function NewRecordComposer({ open, requestId, onClose }: NewRecordCompose
               </div>
             </div>
 
-            <div className="rounded-xl border border-brand-100 dark:border-brand-800/60 bg-brand-50/70 dark:bg-brand-900/30 px-4 py-3 text-xs leading-5 text-brand-800 dark:text-brand-200">
-              Taslak ve ek dosyalar veritabanına kaydedilir; gönderimde hedef kullanıcıyı backend belirler.
-            </div>
             {recordMutationError ? (
               <p className="rounded-xl bg-rose-50 px-4 py-3 text-xs font-semibold leading-5 text-rose-800 dark:bg-rose-950/40 dark:text-rose-200" role="alert">
                 {recordMutationError instanceof Error ? recordMutationError.message : 'Taslak kaydedilemedi.'}
