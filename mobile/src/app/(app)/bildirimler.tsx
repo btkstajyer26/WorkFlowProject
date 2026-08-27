@@ -1,8 +1,8 @@
 import { useRouter } from 'expo-router';
-import CheckCircle2 from 'lucide-react-native/icons/check-circle-2';
+import CheckCircle2 from 'lucide-react-native/icons/circle-check-big';
 import RotateCcw from 'lucide-react-native/icons/rotate-ccw';
 import Send from 'lucide-react-native/icons/send';
-import XCircle from 'lucide-react-native/icons/x-circle';
+import XCircle from 'lucide-react-native/icons/circle-x';
 import { useCallback, useMemo, useState } from 'react';
 import {
   FlatList,
