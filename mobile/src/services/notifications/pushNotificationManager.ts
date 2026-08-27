@@ -1,3 +1,4 @@
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
@@ -25,7 +26,10 @@ export function setCachedDeviceToken(token: string | null): void {
 }
 
 export async function registerPushTokenWithBackend(): Promise<string | null> {
-  if (!Device.isDevice) {
+  const isExpoGo =
+    Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+  if (!Device.isDevice || isExpoGo) {
     return null;
   }
 
