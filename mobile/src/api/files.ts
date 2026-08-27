@@ -1,4 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 
 import {
   API_BASE_URL,
@@ -22,7 +23,7 @@ export const getRecordFiles = async (recordId: string): Promise<RecordFile[]> =>
 
 export const uploadRecordFile = async (
   recordId: string,
-  file: { uri: string; name: string; mimeType?: string }
+  file: { uri: string; name: string; mimeType?: string },
 ): Promise<RecordFile> => {
   const formData = new FormData();
 
@@ -75,3 +76,40 @@ export const downloadFileToLocal = async (
 
   return downloadRes.uri;
 };
+
+export interface ShareOptions {
+  dialogTitle?: string;
+  mimeType?: string;
+  uti?: string;
+}
+
+export const openOrShareFile = async (
+  fileUri: string,
+  options?: ShareOptions,
+): Promise<boolean> => {
+  const isAvailable = await Sharing.isAvailableAsync();
+  if (!isAvailable) {
+    return false;
+  }
+
+  await Sharing.shareAsync(fileUri, {
+    dialogTitle: options?.dialogTitle,
+    mimeType: options?.mimeType,
+    UTI: options?.uti,
+  });
+  return true;
+};
+
+export const downloadAndOpenFile = async (
+  fileId: string,
+  fileName: string,
+  mimeType?: string,
+): Promise<{ shared: boolean; uri: string }> => {
+  const localUri = await downloadFileToLocal(fileId, fileName);
+  const shared = await openOrShareFile(localUri, {
+    dialogTitle: fileName,
+    mimeType,
+  });
+  return { shared, uri: localUri };
+};
+

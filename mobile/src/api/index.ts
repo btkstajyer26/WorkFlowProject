@@ -29,10 +29,12 @@ export { ApiClientError } from './errors';
 export type { ApiErrorBody, ApiFieldError } from './errors';
 export {
   deleteRecordFile,
+  downloadAndOpenFile,
   downloadFileToLocal,
   getRecordFiles,
+  openOrShareFile,
   uploadRecordFile,
 } from './files';
-export type { RecordFile } from './files';
+export type { RecordFile, ShareOptions } from './files';
 export { getCurrentUser, userRoleSchema } from './users';
 export type { CurrentUser, UserRole } from './users';
