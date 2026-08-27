@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import Files from 'lucide-react-native/icons/files';
 import SlidersHorizontal from 'lucide-react-native/icons/sliders-horizontal';
 import {
@@ -21,6 +21,7 @@ import { AppButton } from '@/components/ui/AppButton';
 import { AppCard } from '@/components/ui/AppCard';
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
+import { getRecordListView } from '@/constants/recordListViews';
 import { useCategories } from '@/query/categories';
 import { useInfiniteRecords } from '@/query/records';
 import { useAppTheme } from '@/theme/ThemeProvider';
@@ -38,6 +39,10 @@ function countActiveFilters(filters: RecordListFilterValues) {
 
 export default function RecordsScreen() {
   const router = useRouter();
+  const { gorunum } = useLocalSearchParams<{
+    gorunum?: string | string[];
+  }>();
+  const viewConfig = getRecordListView(gorunum);
   const { colors } = useAppTheme();
   const [filtersVisible, setFiltersVisible] = useState(false);
   const [filters, setFilters] = useState(defaultRecordListFilters);
@@ -50,6 +55,7 @@ export default function RecordsScreen() {
     size: 15,
     sort: filters.sort,
     status: filters.status,
+    statuses: filters.status ? undefined : viewConfig?.statuses,
     to: dateRange.to,
   });
   const records = useMemo(
@@ -165,7 +171,7 @@ export default function RecordsScreen() {
             <View className="flex-row items-start justify-between gap-3">
               <View className="min-w-0 flex-1 gap-1">
                 <AppText accessibilityRole="header" variant="title">
-                  Kayıtlar
+                  {viewConfig?.title ?? 'Kayıtlar'}
                 </AppText>
                 <AppText tone="muted">
                   {totalElements} kayıt bulundu
@@ -206,6 +212,8 @@ export default function RecordsScreen() {
 
             {filtersVisible ? (
               <RecordFiltersPanel
+                allStatusesLabel={viewConfig ? 'İlgili durumlar' : undefined}
+                availableStatuses={viewConfig?.statuses}
                 categories={categoriesQuery.data ?? []}
                 initialValues={filters}
                 onApply={(nextFilters) => {

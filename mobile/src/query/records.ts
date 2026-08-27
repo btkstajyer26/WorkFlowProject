@@ -36,7 +36,62 @@ export const recordQueryKeys = {
   lists: () => [...recordQueryKeys.all, 'list'] as const,
 };
 
-export type InfiniteRecordFilters = Omit<RecordFilters, 'page'>;
+export type InfiniteRecordFilters = Omit<RecordFilters, 'page'> & {
+  statuses?: readonly RecordStatus[];
+};
+
+async function getInfiniteRecordsPage(
+  filters: InfiniteRecordFilters,
+  page: number,
+): Promise<RecordPage> {
+  const { statuses, ...recordFilters } = filters;
+  const requestedStatuses = recordFilters.status
+    ? [recordFilters.status]
+    : statuses?.length
+      ? [...new Set(statuses)]
+      : [undefined];
+
+  if (requestedStatuses.length === 1) {
+    return getRecords({
+      ...recordFilters,
+      page,
+      status: requestedStatuses[0],
+    });
+  }
+
+  const serverPageSize = (page + 1) * recordFilters.size;
+  const pages = await Promise.all(
+    requestedStatuses.map((status) =>
+      getRecords({
+        ...recordFilters,
+        page: 0,
+        size: serverPageSize,
+        status,
+      }),
+    ),
+  );
+  const sortAscending = recordFilters.sort === 'createdAt,asc';
+  const records = pages
+    .flatMap((result) => result.content)
+    .toSorted((left, right) =>
+      sortAscending
+        ? left.createdAt.localeCompare(right.createdAt)
+        : right.createdAt.localeCompare(left.createdAt),
+    );
+  const totalElements = pages.reduce(
+    (total, result) => total + result.totalElements,
+    0,
+  );
+  const pageStart = page * recordFilters.size;
+
+  return {
+    content: records.slice(pageStart, pageStart + recordFilters.size),
+    page,
+    size: recordFilters.size,
+    totalElements,
+    totalPages: Math.ceil(totalElements / recordFilters.size),
+  };
+}
 
 export function recordsQueryOptions(filters: RecordFilters) {
   return queryOptions({
@@ -78,7 +133,7 @@ export function useInfiniteRecords(
       return nextPage < lastPage.totalPages ? nextPage : undefined;
     },
     initialPageParam: 0,
-    queryFn: ({ pageParam }) => getRecords({ ...filters, page: pageParam }),
+    queryFn: ({ pageParam }) => getInfiniteRecordsPage(filters, pageParam),
     queryKey: recordQueryKeys.infiniteList(filters),
     staleTime: 30 * 1000,
   });
