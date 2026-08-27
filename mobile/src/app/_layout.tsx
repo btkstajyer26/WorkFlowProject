@@ -1,5 +1,11 @@
 import { Stack, useRouter } from 'expo-router';
-import { useFonts } from 'expo-font';
+import {
+  useFonts,
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -15,14 +21,14 @@ import {
 } from '@/services/notifications/pushNotificationManager';
 import { ThemeProvider, useAppTheme } from '@/theme/ThemeProvider';
 
-void SplashScreen.preventAutoHideAsync();
+void SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
-    Inter_400Regular: require('@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf'),
-    Inter_500Medium: require('@expo-google-fonts/inter/500Medium/Inter_500Medium.ttf'),
-    Inter_600SemiBold: require('@expo-google-fonts/inter/600SemiBold/Inter_600SemiBold.ttf'),
-    Inter_700Bold: require('@expo-google-fonts/inter/700Bold/Inter_700Bold.ttf'),
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
   });
 
   if (!fontsLoaded && !fontError) return null;
@@ -49,8 +55,20 @@ function RootNavigator() {
   const isOffline = useNetworkStatus();
 
   useEffect(() => {
-    if (isReady && isAuthReady) void SplashScreen.hideAsync();
+    if (isReady && isAuthReady) {
+      void SplashScreen.hideAsync().catch(() => {});
+    }
   }, [isAuthReady, isReady]);
+
+  useEffect(() => {
+    if (!isReady || !isAuthReady) return;
+
+    if (!isAuthenticated) {
+      router.replace('/(auth)/giris');
+    } else if (mustChangePassword) {
+      router.replace('/(password)/sifre-degistir');
+    }
+  }, [isAuthenticated, isAuthReady, isReady, mustChangePassword, router]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -77,15 +95,10 @@ function RootNavigator() {
           headerShown: false,
         }}
       >
-        <Stack.Protected guard={!isAuthenticated}>
-          <Stack.Screen name="(auth)" />
-        </Stack.Protected>
-        <Stack.Protected guard={isAuthenticated && !mustChangePassword}>
-          <Stack.Screen name="(app)" />
-        </Stack.Protected>
-        <Stack.Protected guard={isAuthenticated}>
-          <Stack.Screen name="(password)" />
-        </Stack.Protected>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(app)" />
+        <Stack.Screen name="(password)" />
       </Stack>
     </View>
   );

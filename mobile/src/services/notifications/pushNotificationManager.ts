@@ -1,6 +1,5 @@
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { registerDeviceToken, type DevicePlatform } from '@/api/deviceTokens';
@@ -8,7 +7,18 @@ import { registerDeviceToken, type DevicePlatform } from '@/api/deviceTokens';
 const isExpoGo =
   Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
-if (!isExpoGo) {
+function getNotificationsModule() {
+  if (isExpoGo) return null;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require('expo-notifications');
+  } catch {
+    return null;
+  }
+}
+
+const Notifications = getNotificationsModule();
+if (Notifications) {
   try {
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
@@ -39,6 +49,9 @@ export async function registerPushTokenWithBackend(): Promise<string | null> {
     return null;
   }
 
+  const Notifications = getNotificationsModule();
+  if (!Notifications) return null;
+
   try {
     const { status: existingStatus } =
       await Notifications.getPermissionsAsync();
@@ -55,7 +68,7 @@ export async function registerPushTokenWithBackend(): Promise<string | null> {
 
     // Android/iOS native push token (FCM / APNs)
     const tokenResult = await Notifications.getDevicePushTokenAsync();
-    const token = tokenResult.data;
+    const token = tokenResult?.data;
 
     if (!token) return null;
 
@@ -81,14 +94,15 @@ export async function registerPushTokenWithBackend(): Promise<string | null> {
 export function subscribeToNotificationResponses(
   onNavigateToRecord: (recordId: string) => void,
 ) {
-  if (isExpoGo) {
+  const Notifications = getNotificationsModule();
+  if (!Notifications) {
     return () => {};
   }
 
   try {
     const subscription =
-      Notifications.addNotificationResponseReceivedListener((response) => {
-        const data = response.notification.request.content.data;
+      Notifications.addNotificationResponseReceivedListener((response: any) => {
+        const data = response?.notification?.request?.content?.data;
         const recordId = data?.recordId;
         if (typeof recordId === 'string' && recordId.trim()) {
           onNavigateToRecord(recordId.trim());
@@ -104,9 +118,10 @@ export function subscribeToNotificationResponses(
 }
 
 export function subscribeToNotificationReceived(
-  onReceived: (notification: Notifications.Notification) => void,
+  onReceived: (notification: any) => void,
 ) {
-  if (isExpoGo) {
+  const Notifications = getNotificationsModule();
+  if (!Notifications) {
     return () => {};
   }
 
