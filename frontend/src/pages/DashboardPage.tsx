@@ -128,20 +128,21 @@ export function DashboardPage({ user }: { user: AuthUser }) {
         </div>
         <div className="divide-y divide-app-border-subtle">
           {recentRecords.map((record, index) => (
-            <div key={record.id} className="flex items-center gap-3 px-4 py-4 transition hover:bg-app-surface-muted/70 sm:px-6">
+            <Link
+              key={record.id}
+              to={`/kayitlar/${record.id}`}
+              className="group flex items-center gap-3 px-4 py-4 transition hover:bg-app-surface-muted/70 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand-500 sm:px-6"
+            >
               <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-app-surface-strong text-xs font-bold text-app-text-subtle">
                 {index + 1}
               </div>
               <div className="min-w-0 flex-1">
-                <Link
-                  to={`/kayitlar/${record.id}`}
-                  className="block truncate text-sm font-semibold text-app-text-strong transition hover:text-brand-700 dark:hover:text-brand-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
-                >
+                <span className="block truncate text-sm font-semibold text-app-text-strong transition group-hover:text-brand-700 dark:group-hover:text-brand-300">
                   {record.title}
-                </Link>
+                </span>
               </div>
               <span className="hidden sm:inline-flex"><RecordStatusBadge status={record.status} /></span>
-            </div>
+            </Link>
           ))}
           {!recentRecordsQuery.isPending && recentRecords.length === 0 ? (
             <p className="px-4 py-8 text-center text-sm text-app-text-subtle sm:px-6">Henüz görüntülenecek kayıt yok.</p>
