@@ -55,12 +55,12 @@ EAS build'lerinde aynı değişken build environment'ına **tam adıyla** verilm
 | Zorunlu parola değişimi ve şifre sıfırlama akışı | ✅ |
 | Kayıt listesi, detay ve işlem geçmişi | ✅ |
 | Kayıt oluşturma ve workflow aksiyonları (gönder / onayla / reddet / geri gönder) | ✅ |
-| Dosya seçme, sıralı yükleme kuyruğu ve doğrulama | 🟡 Altyapı hazır; kayıt detayına bağlanacak |
+| Dosya seçme, sıralı yükleme kuyruğu, doğrulama ve kayıt detayı entegrasyonu | ✅ |
 | Profil | ✅ |
 | Bildirim merkezi | ❌ Ekran placeholder; MOB-13 kapsamında bağlanacak |
-| Offline / hata / boş durum bileşenleri | 🟡 Ortak bileşenler hazır; ekran entegrasyonları sürecek |
+| Global offline bildirimi ve bağlantı sonrası otomatik veri yenileme | ✅ |
 | Push bildirimi (FCM) | ❌ Backend tarafı bağlanmadı; bkz. görev dağılımında M3 / MOB-12 |
-| Otomatik test paketi | 🟡 Auth ve API katmanında 10 Jest testi var; ekran testleri eklenecek |
+| Otomatik test paketi | 🟡 Auth, API, dosya doğrulama ve ağ durumu katmanlarında 31 Jest testi var; ekran testleri eklenecek |
 
 Route yapısı `src/app/` altındadır:
 
