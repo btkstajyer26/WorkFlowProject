@@ -1,7 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, Text, Alert } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
-import { validateFile } from '../../utils/fileValidators';
+import { ALLOWED_MIME_TYPES, validateFile } from '../../utils/fileValidators';
 import { SelectedFile } from '../../services/files/uploadQueue';
 
 interface FilePickerButtonProps {
@@ -18,6 +18,7 @@ export const FilePickerButton: React.FC<FilePickerButtonProps> = ({
   const handlePickDocument = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
+        type: [...ALLOWED_MIME_TYPES],
         multiple,
         copyToCacheDirectory: true,
       });

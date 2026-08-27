@@ -10,9 +10,6 @@ export function ProfilePage({ user }: { user: AuthUser }) {
     <div className="space-y-5">
       <header>
         <h1 className="text-2xl font-bold tracking-tight text-app-text sm:text-3xl">Profil</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-app-text-subtle">
-          Temel kullanıcı ve yetki bilgilerinizi görüntüleyin.
-        </p>
       </header>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(20rem,0.65fr)]">

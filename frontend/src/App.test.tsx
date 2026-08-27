@@ -47,6 +47,20 @@ describe('App authorization boundaries', () => {
     expect(screen.queryByRole('button', { name: 'Yeni Kayıt' })).not.toBeInTheDocument()
   })
 
+  it('dashboard son kayıt satırının tamamını detay bağlantısı yapar', async () => {
+    await seedAuthenticatedUser('CALISAN')
+    renderApp('/dashboard')
+
+    const recordLink = await screen.findByRole('link', {
+      name: /Sunucu alım talebi/i,
+    })
+
+    expect(recordLink).toHaveAttribute(
+      'href',
+      '/kayitlar/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+    )
+  })
+
   it('Başkanın kendi kapsamı dışındaki kaydını 403 ile sınırlar', async () => {
     await seedAuthenticatedUser('BASKAN')
     renderApp('/kayitlar/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1')

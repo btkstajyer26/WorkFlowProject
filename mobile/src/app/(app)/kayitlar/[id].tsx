@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import ArrowLeft from 'lucide-react-native/icons/arrow-left';
 import {
   ActivityIndicator,
@@ -23,6 +24,7 @@ import { Screen } from '@/components/ui/Screen';
 import { useRecordAuditLogs } from '@/query/auditLogs';
 import { useCategories } from '@/query/categories';
 import { useCurrentUser } from '@/query/currentUser';
+import { fileKeys } from '@/query/files';
 import { useDeleteRecord, useRecord, useUpdateRecord } from '@/query/records';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { appTokens } from '@/theme/theme';
@@ -36,6 +38,7 @@ function formatDate(value: string) {
 
 export default function RecordDetailScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { colors } = useAppTheme();
   const { id } = useLocalSearchParams<{ id?: string | string[] }>();
   const recordId = Array.isArray(id) ? id[0] : (id ?? '');
@@ -76,6 +79,7 @@ export default function RecordDetailScreen() {
       historyQuery.refetch(),
       categoriesQuery.refetch(),
       currentUserQuery.refetch(),
+      queryClient.invalidateQueries({ queryKey: fileKeys.byRecord(recordId) }),
     ]);
   };
 
@@ -241,7 +245,10 @@ export default function RecordDetailScreen() {
               record={record}
               user={currentUser}
             />
-            <RecordFilesIntegrationSlot recordId={record.id} />
+            <RecordFilesIntegrationSlot
+              canModify={canEdit}
+              recordId={record.id}
+            />
 
             {historyQuery.isPending ? (
               <AppCard className="items-center gap-3">
