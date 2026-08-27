@@ -1,5 +1,7 @@
 import {
+  type InfiniteData,
   queryOptions,
+  useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
@@ -20,6 +22,9 @@ export const notificationQueryKeys = {
   list: (query: NotificationListQuery) =>
     [...notificationQueryKeys.lists(), query.page ?? 0, query.size ?? 20] as const,
   lists: () => [...notificationQueryKeys.all, 'list'] as const,
+  infiniteList: (size: number) =>
+    [...notificationQueryKeys.infiniteLists(), size] as const,
+  infiniteLists: () => [...notificationQueryKeys.all, 'infinite'] as const,
   unreadCount: () => [...notificationQueryKeys.all, 'unreadCount'] as const,
   unreadList: () => [...notificationQueryKeys.all, 'unread'] as const,
 };
@@ -36,6 +41,26 @@ export function useNotifications(query: NotificationListQuery = {}, enabled = tr
   return useQuery({
     ...notificationsQueryOptions(query),
     enabled,
+  });
+}
+
+export function useInfiniteNotifications(size = 20, enabled = true) {
+  return useInfiniteQuery<
+    NotificationPage,
+    Error,
+    InfiniteData<NotificationPage>,
+    ReturnType<typeof notificationQueryKeys.infiniteList>,
+    number
+  >({
+    enabled,
+    getNextPageParam: (lastPage) => {
+      const nextPage = lastPage.page + 1;
+      return nextPage < lastPage.totalPages ? nextPage : undefined;
+    },
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) => getNotifications({ page: pageParam, size }),
+    queryKey: notificationQueryKeys.infiniteList(size),
+    staleTime: 30 * 1000,
   });
 }
 
@@ -79,6 +104,22 @@ export function useMarkNotificationAsRead() {
             content: oldData.content.map((item) =>
               item.id === notificationId ? { ...item, read: true } : item,
             ),
+          };
+        },
+      );
+
+      queryClient.setQueriesData<InfiniteData<NotificationPage>>(
+        { queryKey: notificationQueryKeys.infiniteLists() },
+        (oldData) => {
+          if (!oldData) return oldData;
+          return {
+            ...oldData,
+            pages: oldData.pages.map((page) => ({
+              ...page,
+              content: page.content.map((item) =>
+                item.id === notificationId ? { ...item, read: true } : item,
+              ),
+            })),
           };
         },
       );

@@ -5,6 +5,7 @@ import Send from 'lucide-react-native/icons/send';
 import XCircle from 'lucide-react-native/icons/circle-x';
 import { useCallback, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
@@ -19,8 +20,9 @@ import { LoadingState } from '@/components/states/LoadingState';
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
 import {
+  useInfiniteNotifications,
   useMarkNotificationAsRead,
-  useNotifications,
+  useUnreadNotifications,
 } from '@/query/notifications';
 import { appTokens } from '@/theme/theme';
 
@@ -86,25 +88,46 @@ function formatNotificationDate(dateString: string): string {
 export default function NotificationsScreen() {
   const router = useRouter();
   const [filter, setFilter] = useState<FilterType>('all');
-  const notificationsQuery = useNotifications({ page: 0, size: 50 });
+  const notificationsQuery = useInfiniteNotifications(20);
+  const unreadNotificationsQuery = useUnreadNotifications();
   const markAsReadMutation = useMarkNotificationAsRead();
 
   const allItems = useMemo(
-    () => notificationsQuery.data?.content ?? [],
-    [notificationsQuery.data?.content],
+    () => notificationsQuery.data?.pages.flatMap((page) => page.content) ?? [],
+    [notificationsQuery.data?.pages],
+  );
+
+  const unreadItems = useMemo(
+    () => unreadNotificationsQuery.data ?? [],
+    [unreadNotificationsQuery.data],
   );
 
   const items = useMemo(() => {
     if (filter === 'unread') {
-      return allItems.filter((item) => !item.read);
+      return unreadItems;
     }
     return allItems;
-  }, [allItems, filter]);
+  }, [allItems, filter, unreadItems]);
 
-  const unreadCount = useMemo(
-    () => allItems.filter((item) => !item.read).length,
-    [allItems],
-  );
+  const totalCount = notificationsQuery.data?.pages[0]?.totalElements ?? 0;
+  const unreadCount = unreadItems.length;
+
+  const handleLoadMore = useCallback(() => {
+    if (
+      filter === 'all' &&
+      notificationsQuery.hasNextPage &&
+      !notificationsQuery.isFetchingNextPage
+    ) {
+      void notificationsQuery.fetchNextPage();
+    }
+  }, [filter, notificationsQuery]);
+
+  const handleRefresh = useCallback(() => {
+    void Promise.all([
+      notificationsQuery.refetch(),
+      unreadNotificationsQuery.refetch(),
+    ]);
+  }, [notificationsQuery, unreadNotificationsQuery]);
 
   const handleNotificationPress = useCallback(
     (item: NotificationItem) => {
@@ -130,6 +153,22 @@ export default function NotificationsScreen() {
         <ErrorState
           message="Bildirimler alınamadı. Lütfen tekrar deneyin."
           onRetry={() => void notificationsQuery.refetch()}
+          title="Bir Hata Oluştu"
+        />
+      </Screen>
+    );
+  }
+
+  if (
+    filter === 'unread' &&
+    unreadNotificationsQuery.isError &&
+    !unreadNotificationsQuery.data
+  ) {
+    return (
+      <Screen>
+        <ErrorState
+          message="Okunmamış bildirimler alınamadı. Lütfen tekrar deneyin."
+          onRetry={() => void unreadNotificationsQuery.refetch()}
           title="Bir Hata Oluştu"
         />
       </Screen>
@@ -170,7 +209,7 @@ export default function NotificationsScreen() {
                     : 'text-slate-400 dark:text-slate-500'
                 }`}
               >
-                ({allItems.length})
+                ({totalCount})
               </AppText>
             </AppText>
           </Pressable>
@@ -226,11 +265,24 @@ export default function NotificationsScreen() {
             }
           />
         }
+        ListFooterComponent={
+          filter === 'all' && notificationsQuery.isFetchingNextPage ? (
+            <View className="items-center py-4">
+              <ActivityIndicator color={appTokens.brand[600]} size="small" />
+            </View>
+          ) : null
+        }
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.35}
         refreshControl={
           <RefreshControl
             colors={[appTokens.brand[600]]}
-            onRefresh={() => void notificationsQuery.refetch()}
-            refreshing={notificationsQuery.isRefetching}
+            onRefresh={handleRefresh}
+            refreshing={
+              (notificationsQuery.isRefetching &&
+                !notificationsQuery.isFetchingNextPage) ||
+              unreadNotificationsQuery.isRefetching
+            }
             tintColor={appTokens.brand[600]}
           />
         }
