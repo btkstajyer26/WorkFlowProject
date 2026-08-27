@@ -100,6 +100,7 @@ export default function AppLayout() {
                 ? "99+"
                 : unreadCount
               : undefined,
+          tabBarBadgeStyle: styles.notificationBadge,
           tabBarIcon: ({ color, focused }) => (
             <TabBarIcon color={color} focused={focused} icon={Bell} />
           ),
@@ -121,6 +122,25 @@ export default function AppLayout() {
 }
 
 const styles = StyleSheet.create({
+  notificationBadge: {
+    alignItems: "center",
+    backgroundColor: appTokens.brand[600],
+    borderRadius: 8,
+    color: "#ffffff",
+    fontFamily: "Inter_700Bold",
+    fontSize: 9,
+    fontWeight: "700",
+    height: 16,
+    includeFontPadding: false,
+    justifyContent: "center",
+    lineHeight: 11,
+    minWidth: 16,
+    paddingHorizontal: 3,
+    paddingVertical: 0,
+    textAlign: "center",
+    textAlignVertical: "center",
+    top: 2,
+  },
   tabBarLabel: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 11,
