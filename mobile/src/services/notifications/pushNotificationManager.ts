@@ -5,15 +5,24 @@ import { Platform } from 'react-native';
 
 import { registerDeviceToken, type DevicePlatform } from '@/api/deviceTokens';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowAlert: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+const isExpoGo =
+  Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+if (!isExpoGo) {
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        shouldShowAlert: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+  } catch {
+    // Ignore in unsupported environments
+  }
+}
 
 let cachedDeviceToken: string | null = null;
 
@@ -26,9 +35,6 @@ export function setCachedDeviceToken(token: string | null): void {
 }
 
 export async function registerPushTokenWithBackend(): Promise<string | null> {
-  const isExpoGo =
-    Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
-
   if (!Device.isDevice || isExpoGo) {
     return null;
   }
@@ -75,27 +81,43 @@ export async function registerPushTokenWithBackend(): Promise<string | null> {
 export function subscribeToNotificationResponses(
   onNavigateToRecord: (recordId: string) => void,
 ) {
-  const subscription =
-    Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data;
-      const recordId = data?.recordId;
-      if (typeof recordId === 'string' && recordId.trim()) {
-        onNavigateToRecord(recordId.trim());
-      }
-    });
+  if (isExpoGo) {
+    return () => {};
+  }
 
-  return () => {
-    subscription.remove();
-  };
+  try {
+    const subscription =
+      Notifications.addNotificationResponseReceivedListener((response) => {
+        const data = response.notification.request.content.data;
+        const recordId = data?.recordId;
+        if (typeof recordId === 'string' && recordId.trim()) {
+          onNavigateToRecord(recordId.trim());
+        }
+      });
+
+    return () => {
+      subscription.remove();
+    };
+  } catch {
+    return () => {};
+  }
 }
 
 export function subscribeToNotificationReceived(
   onReceived: (notification: Notifications.Notification) => void,
 ) {
-  const subscription =
-    Notifications.addNotificationReceivedListener(onReceived);
+  if (isExpoGo) {
+    return () => {};
+  }
 
-  return () => {
-    subscription.remove();
-  };
+  try {
+    const subscription =
+      Notifications.addNotificationReceivedListener(onReceived);
+
+    return () => {
+      subscription.remove();
+    };
+  } catch {
+    return () => {};
+  }
 }
