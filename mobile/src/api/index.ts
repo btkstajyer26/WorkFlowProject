@@ -36,5 +36,20 @@ export {
   uploadRecordFile,
 } from './files';
 export type { RecordFile, ShareOptions } from './files';
+export {
+  getNotifications,
+  getUnreadNotificationCount,
+  getUnreadNotifications,
+  markNotificationAsRead,
+  notificationItemSchema,
+  notificationPageSchema,
+  notificationTypeSchema,
+} from './notifications';
+export type {
+  NotificationItem,
+  NotificationListQuery,
+  NotificationPage,
+  NotificationType,
+} from './notifications';
 export { getCurrentUser, userRoleSchema } from './users';
 export type { CurrentUser, UserRole } from './users';

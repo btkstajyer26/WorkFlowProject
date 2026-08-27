@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MobileHeader } from "@/components/navigation/MobileHeader";
 import { TabBarIcon } from "@/components/navigation/TabBarIcon";
 import { useCurrentUser } from "@/query/currentUser";
+import { useUnreadNotificationCount } from "@/query/notifications";
 import { useAppTheme } from "@/theme/ThemeProvider";
 import { appTokens } from "@/theme/theme";
 
@@ -17,6 +18,8 @@ export default function AppLayout() {
   const insets = useSafeAreaInsets();
   const { colors, resolvedTheme } = useAppTheme();
   const currentUser = useCurrentUser();
+  const unreadCountQuery = useUnreadNotificationCount();
+  const unreadCount = unreadCountQuery.data ?? 0;
   const canCreateRecord = currentUser.data?.roleName === "CALISAN";
   const activeTintColor =
     resolvedTheme === "dark" ? appTokens.brand[300] : appTokens.brand[600];
@@ -91,6 +94,12 @@ export default function AppLayout() {
         name="bildirimler"
         options={{
           tabBarAccessibilityLabel: "Bildirimler sekmesi",
+          tabBarBadge:
+            unreadCount > 0
+              ? unreadCount > 99
+                ? "99+"
+                : unreadCount
+              : undefined,
           tabBarIcon: ({ color, focused }) => (
             <TabBarIcon color={color} focused={focused} icon={Bell} />
           ),
