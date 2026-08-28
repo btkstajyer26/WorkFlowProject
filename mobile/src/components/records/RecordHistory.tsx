@@ -8,8 +8,10 @@ const auditActionLabels: Record<string, string> = {
   BASKANA_ILET: 'Başkana iletildi',
   BASKAN_YARDIMCISINA_GERI_GONDER: 'Başkan yardımcısına geri gönderildi',
   CALISANA_GERI_GONDER: 'Çalışana geri gönderildi',
+  CREATED: 'Oluşturuldu',
   GONDER: 'İncelemeye gönderildi',
   ONAYLA: 'Onaylandı',
+  RECORD_CREATED: 'Oluşturuldu',
   REDDET: 'Reddedildi',
   TEKRAR_GONDER: 'Tekrar incelemeye gönderildi',
 };
@@ -50,7 +52,7 @@ export function RecordHistory({ logs }: { logs: AuditLog[] }) {
             </View>
             <AppCard className="mb-3 min-w-0 flex-1 gap-2">
               <AppText variant="label">
-                {auditActionLabels[log.action] ?? log.action}
+                {auditActionLabels[log.action.toUpperCase()] ?? log.action}
               </AppText>
               <AppText tone="muted" variant="caption">
                 {log.userFullName ?? 'Sistem'}
