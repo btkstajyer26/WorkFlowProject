@@ -298,8 +298,8 @@ export default function NotificationsScreen() {
               activeOpacity={0.7}
               className={`flex-row items-start gap-3 rounded-2xl border p-3.5 ${
                 item.read
-                  ? 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/60'
-                  : 'border-brand-200/60 bg-brand-50/40 dark:border-brand-900/40 dark:bg-brand-950/20'
+                  ? 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/30'
+                  : 'border-brand-200/60 bg-brand-50/40 dark:border-slate-500/20 dark:bg-slate-400/30'
               }`}
               onPress={() => handleNotificationPress(item)}
             >
