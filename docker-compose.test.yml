@@ -6,9 +6,10 @@
 #   1. Temel dosyanin host'a yayinladigi portlari tamamen kaldirir.
 #   2. Disariya bakan tek servis olarak Caddy'yi ekler (TLS sonlandirma).
 #
-# Temel dosyada portlar zaten 127.0.0.1'e bagli; buradaki !reset ikinci
-# katman. !reset Docker Compose >= 2.24 gerektirir. Surumun eskiyse portlar
-# birlestirilir ama loopback bagi korudugu icin disari acilmaz.
+# Temel dosyada db ve Mailpit portlari 127.0.0.1'e baglidir; backend ise mobil
+# LAN gelistirmesi icin 0.0.0.0:8080 yayinlar. Bu nedenle !reset TEST'in asil
+# port siniridir ve Docker Compose >= 2.24 zorunludur. Eski Compose surumunde
+# devam etmeyin; once surumu yukseltin.
 #
 # Gerekli .env anahtarlari: TEST_DOMAIN, MAILPIT_USER, MAILPIT_PASSWORD_HASH
 # (bkz. .env.example).

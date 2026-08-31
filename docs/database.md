@@ -2,10 +2,10 @@
 
 Bu belge PostgreSQL şemasını, tasarım kararlarını ve migration yönetimini tanımlar. Kaynağı `backend/src/main/resources/db/migration/` altındaki Flyway dosyalarıdır.
 
-> Son kod doğrulaması 19 Ağustos 2026 tarihinde `test` dalının `9e44125` commit'i üzerinde yapılmıştır. Şema değiştiğinde bu belge aynı değişiklik kapsamında güncellenmelidir.
+> Son kod doğrulaması 31 Ağustos 2026 tarihinde `test` dalının `4491a80` commit'i üzerinde yapılmıştır. Şema değiştiğinde bu belge aynı değişiklik kapsamında güncellenmelidir.
 
 - **Veritabanı:** PostgreSQL 15.18
-- **Migration:** Flyway (`V1`–`V9`)
+- **Migration:** Flyway (`V1`–`V11`; `V3` tarihsel olarak yoktur)
 - **ORM:** Spring Data JPA / Hibernate, `ddl-auto=validate`
 
 ## İçindekiler
@@ -48,9 +48,11 @@ erDiagram
     users ||--o{ user_audit_logs : "target_user_id"
     users ||--o{ password_reset_codes : "user_id"
     users ||--o{ device_tokens : "user_id"
+    users ||--o{ mail_action_tokens : "user_id"
     records ||--o{ files : "record_id"
     records ||--o{ audit_logs : "record_id"
     records ||--o{ notifications : "record_id"
+    records ||--o{ mail_action_tokens : "record_id"
     categories |o--o{ records : "snapshot_category_id"
 ```
 
@@ -237,6 +239,28 @@ gönderilirse satır güncellenir. `user_id` de güncellenir; aynı telefonda ba
 bir kullanıcı giriş yaptığında token yeni kullanıcıya geçmezse push **yanlış
 kişinin** evrağını bildirir.
 
+### `mail_action_tokens`
+
+`V11` ile eklendi. E-posta bildirimindeki hızlı işlem bağlantısının tek
+kullanımlık, süreli ve alıcıya bağlı yetki kanıtını taşır. Ham anahtar hiçbir
+zaman saklanmaz; yalnız SHA-256 özeti bulunur.
+
+| Kolon | Tip | Null | Açıklama |
+| --- | --- | --- | --- |
+| `id` | `UUID` | hayır | Birincil anahtar; `gen_random_uuid()` |
+| `token_hash` | `VARCHAR(64)` | hayır | **UNIQUE.** 256 bit rastgele anahtarın SHA-256 hex özeti |
+| `record_id` | `UUID` | hayır | Anahtarın bağlı olduğu evrak |
+| `user_id` | `UUID` | hayır | Aksiyonu yürütecek alıcı; tüketimde aktör bu alandan çözülür |
+| `action` | `VARCHAR(50)` | hayır | `WorkflowAction` enum adı |
+| `expires_at` | `TIMESTAMP` | hayır | Son geçerlilik anı |
+| `consumed_at` | `TIMESTAMP` | evet | Doluysa anahtar daha önce kullanılmıştır |
+| `created_at` | `TIMESTAMP` | hayır | Varsayılan `CURRENT_TIMESTAMP` |
+
+`preview` yalnız anahtarı ve güncel workflow uygunluğunu doğrular; mutasyon
+yapmaz. `consume`, satırı kilitleyip `consumed_at` değerini yazar ve gerçek
+durum makinesini yeniden çalıştırır. Evrak arada el değiştirdiyse tablo satırı
+tek başına yetki vermez.
+
 ## Foreign key silme politikaları
 
 Üç politika bilinçli olarak farklı yerlerde kullanılmıştır.
@@ -244,7 +268,7 @@ kişinin** evrağını bildirir.
 | Politika | Nerede | Gerekçe |
 | --- | --- | --- |
 | `RESTRICT` | `users.role_id`, `records.category_id`, `records.snapshot_category_id`, `records.created_by`, `files.uploaded_by`, `audit_logs.user_id`, `audit_logs.role_id`, `user_audit_logs.target_user_id`, `user_audit_logs.previous_role_id`, `user_audit_logs.new_role_id` | Geçmişi olan bir kullanıcı, rol veya kategori silinemez. Denetim izinin "kim, hangi rolle" bilgisi kaybolamaz |
-| `CASCADE` | `tokens.user_id`, `audit_logs.record_id`, `files.record_id`, `notifications.user_id`, `notifications.record_id`, `password_reset_codes.user_id`, `device_tokens.user_id` | Sahibi olmadan anlamı kalmayan yan veriler. Kayıtlar zaten soft delete edildiği için bu yol pratikte tetiklenmez |
+| `CASCADE` | `tokens.user_id`, `audit_logs.record_id`, `files.record_id`, `notifications.user_id`, `notifications.record_id`, `password_reset_codes.user_id`, `device_tokens.user_id`, `mail_action_tokens.user_id`, `mail_action_tokens.record_id` | Sahibi olmadan anlamı kalmayan yan veriler. Kayıtlar zaten soft delete edildiği için record yolu pratikte tetiklenmez |
 | `SET NULL` | `records.assigned_to`, `records.last_deputy_id`, `files.deleted_by`, `user_audit_logs.performed_by` | Referans kaybolabilir ama satırın kendisi anlamlı kalır |
 
 ## Kısıtlar
@@ -254,6 +278,7 @@ kişinin** evrağını bildirir.
 | `chk_records_status` | `records` | `status` yalnız altı geçerli durum adından biri olabilir. Yazım hatasının veritabanına yazılmasını engeller |
 | `UNIQUE (email)` | `users` | Aynı e-postayla ikinci hesap açılamaz; ihlali `409` döner |
 | `UNIQUE (token)` | `tokens` | |
+| `UNIQUE (token_hash)` | `mail_action_tokens` | Aynı hızlı işlem anahtarının ikinci satırda kullanılmasını engeller; aynı zamanda tüketim sorgusunun indeksidir |
 | `UNIQUE (stored_name)` | `files` | Diskte ad çakışması olamaz |
 | `UNIQUE (name)` | `roles`, `categories` | |
 
@@ -261,7 +286,7 @@ kişinin** evrağını bildirir.
 
 ## İndeksler
 
-Toplam 24 indeks; hepsi bir sorgu deseninden türetilmiştir.
+Toplam 26 açıkça tanımlanmış indeks; hepsi bir sorgu deseninden türetilmiştir.
 
 | İndeks | Tablo / kolonlar | Hangi sorgu için |
 | --- | --- | --- |
@@ -289,6 +314,8 @@ Toplam 24 indeks; hepsi bir sorgu deseninden türetilmiştir.
 | **`idx_password_reset_user_open`** | `password_reset_codes (user_id, created_at) WHERE consumed_at IS NULL` | `V8` — **kısmi + bileşik.** Kullanıcının açık kodunu bulmak en sık sorgudur; tüketilmiş satırlar indekse hiç girmez |
 | `idx_password_reset_expires_at` | `password_reset_codes (expires_at)` | `V8` — süresi dolmuş kodların temizlenmesi |
 | `idx_device_tokens_user_active` | `device_tokens (user_id, is_active)` | `V10` — **bileşik.** Push gönderimi "bu kullanıcının aktif cihazları" diye sorar |
+| `idx_mail_action_tokens_expires_at` | `mail_action_tokens (expires_at)` | `V11` — süresi geçmiş hızlı işlem anahtarlarının toplu temizliği |
+| **`idx_mail_action_tokens_open`** | `mail_action_tokens (record_id, user_id) WHERE consumed_at IS NULL` | `V11` — **kısmi + bileşik.** Aynı evrak/alıcı için önceki açık anahtarları geçersizleştirme |
 
 ## Başlangıç verisi
 
@@ -312,6 +339,7 @@ Kullanıcı tohumlanmaz. İlk Admin, `BOOTSTRAP_ADMIN_EMAIL` ve `BOOTSTRAP_ADMIN
 | `V8__password_reset_codes.sql` | `password_reset_codes` tablosu ve iki indeksi |
 | `V9__record_handoff_snapshot.sql` | `records`'a `snapshot_*` kolonları; mevcut `DUZENLEME_BEKLIYOR` kayıtları için geri doldurma |
 | `V10__device_tokens.sql` | `device_tokens` tablosu ve `(user_id, is_active)` bileşik indeksi |
+| `V11__mail_action_tokens.sql` | Süreli, tek kullanımlık e-posta hızlı işlem anahtarları; iki foreign key ve iki sorgu indeksi |
 
 ### Numaralandırmadaki boşluk
 
@@ -335,4 +363,5 @@ PostgreSQL parolası veri volume'ü **ilk oluşturulurken** sabitlenir. `.env` i
 
 - **Append-only kuralı veritabanında zorlanmıyor.** `audit_logs` ve `user_audit_logs` uygulama üzerinden güncellenemez veya silinemez, ancak bunu garanti eden bir trigger ya da rol kısıtı yoktur. Şartname §4.2 "silinemez tablo" diyor; garanti şu an yalnız uygulama seviyesinde.
 - **Bildirim geçmişi için bileşik indeks yok.** Mevcut `(user_id, is_read)` okunmamış sayacına hizmet ediyor; sayfalı geçmiş sorgusu `(user_id, created_at DESC)` indeksinden faydalanır. Veri büyüdükçe değerlendirilmelidir.
+- **Süresi dolmuş e-posta hızlı işlem anahtarları için temizlik işi yok.** `idx_mail_action_tokens_expires_at` hazırdır; ancak satırları zamanlanmış olarak fiziksel temizleyen job henüz yazılmamıştır.
 - **`records.version` yalnız workflow tarafında kullanılıyor.** Kayıt CRUD'u aynı korumayı almıyor.

@@ -21,7 +21,8 @@ export interface QueueUploadOptions {
 }
 
 /**
- * Backend tekli upload desteklediği için seçilen dosyaları sırayla (sequential) yükler.
+ * Dosya bazında ilerleme, hata ve yeniden deneme gösterebilmek için seçilen
+ * dosyaları sırayla yükler. Backend aynı istekte çoklu dosya da kabul eder.
  */
 export const processUploadQueue = async ({
   recordId,

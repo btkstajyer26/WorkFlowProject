@@ -15,7 +15,7 @@ sprint planı için [Mobil entegrasyon görev dağılımı](../docs/MOBIL_ENTEGR
 ## Çalıştırma
 
 ```powershell
-npm install
+npm ci
 npm start
 ```
 
@@ -59,8 +59,8 @@ EAS build'lerinde aynı değişken build environment'ına **tam adıyla** verilm
 | Profil | ✅ |
 | Bildirim merkezi | ✅ Uygulama içi bildirim merkezi, okunmamış sayacı ve tab rozeti |
 | Global offline bildirimi ve bağlantı sonrası otomatik veri yenileme | ✅ |
-| Push bildirimi (FCM) | ✅ Firebase FCM entegrasyonu, cihaz token yaşam döngüsü ve deep-link |
-| Otomatik test paketi | ✅ Auth, API, dosya paylaşımı, bildirimler, offline banner ve workflow aksiyonlarında 61 Jest testi |
+| Push bildirimi (FCM) | 🔄 `expo-notifications` ile native token kaydı ve sıcak bildirim yönlendirmesi hazır; token yenileme, soğuk açılış ve cihaz kanıtı açık |
+| Otomatik test paketi | ✅ Auth, API, dosya paylaşımı, bildirimler, offline banner ve workflow aksiyonlarında 13 dosya / 64 Jest testi; son tekil tur yeşil |
 
 Route yapısı `src/app/` altındadır:
 
@@ -82,7 +82,27 @@ kanonik route:
 | Dosya | `src/app/(app)/kayitlar/[id].tsx` |
 | Kaynak alan | Push `data.recordId` |
 
-Web'deki `/kayitlar/:recordId` ile bilerek aynıdır.
+Web'deki `/kayitlar/:recordId` ile bilerek aynıdır. Mevcut listener uygulama
+açıkken veya bellekteyken bildirim dokunuşunu işler. Tamamen kapalı uygulama
+için `getLastNotificationResponseAsync()` henüz bağlanmamıştır.
+
+## Push development build kurulumu
+
+Push için Expo Go yeterli değildir; `expo-notifications` içeren bir development
+veya preview build ile fiziksel cihaz kullanılmalıdır. Proje native FCM/APNs
+tokenını `getDevicePushTokenAsync()` ile alır ve backend'e kaydeder.
+
+Android kurulumu:
+
+1. Firebase Console'da `app.json` içindeki `android.package` ile aynı paket adına sahip uygulama oluşturun.
+2. İndirilen gerçek `google-services.json` dosyasını `mobile/google-services.json` olarak kaydedin. Dosya Git tarafından izlenmez.
+3. `google-services.json.example` yalnız alan biçimini gösteren sahte değerli örnektir; build kimlik bilgisi olarak kullanmayın.
+4. `EXPO_PUBLIC_API_BASE_URL` değerini build environment'ına verip development/preview build alın.
+
+`expo-notifications` paketi kurulu olsa da config plugin henüz `app.json`
+listesinde değildir; bildirim ikonu/rengi gibi build-time ayarlar eklenmeden
+release hazır sayılmaz. Token yenilenmesinde `addPushTokenListener` ile backend
+kaydının güncellenmesi de açık iştir.
 
 ## Kalite komutları
 
@@ -98,9 +118,17 @@ npx expo-doctor
 > testlerini çalıştırır. Cihaza özgü akışlar ayrıca fiziksel Android/iOS
 > cihazlarda doğrulanmalıdır.
 
+31 Ağustos 2026 yerel doğrulamasında `typecheck` ve son tekil Jest turu
+(13 dosya, 64/64) geçti. Önceki paralel turda `RecordWorkflowActions` zaman
+aşımına uğradı. Lint, kurulu ve
+manifestte bulunan bazı Expo/Testing Library modüllerini `import/no-unresolved`
+olarak raporladı; resolver yapılandırması ayrıca düzeltilmelidir.
+
 ## Yayın öncesi bilinen açıklar
 
-- `app.json` içindeki Android paket adı `com.anonymous.ebysmobile` Firebase Console'da tanımlıdır.
+- `app.json` içindeki `com.anonymous.ebysmobile` yer tutucu paket adı release öncesi kalıcı ada çevrilmeli; Firebase uygulaması ve `google-services.json` aynı adla yeniden eşleştirilmelidir.
+- `expo-notifications` config plugin'i, token yenileme dinleyicisi ve soğuk açılış bildirim yönlendirmesi eksiktir.
+- Gerçek cihazda push alımı ve doğru kayda yönlendirme henüz kanıtlanmamıştır.
 - `LICENSE`, `AGENTS.md`, `CLAUDE.md` ve `scripts/reset-project.js` dosyaları
   `create-expo-app` şablonundan gelmiştir ve bu projeye ait değildir.
   Özellikle `LICENSE` Expo'nun (650 Industries, Inc.) telif satırını taşır;
