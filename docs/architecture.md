@@ -2,7 +2,7 @@
 
 Bu belge İş Akışı ve Onay Yönetim Sistemi'nin **çalışan mimarisini** tanımlar. Hedef durumu değil, koda bakılarak doğrulanmış mevcut yapıyı anlatır.
 
-> Son kod doğrulaması 19 Ağustos 2026 tarihinde `test` dalının `9e44125` commit'i üzerinde yapılmıştır. Modül sınırları, katmanlama veya bağımlılık yönü değiştiğinde bu belge aynı değişiklik kapsamında güncellenmelidir.
+> Son kod doğrulaması 31 Ağustos 2026 tarihinde `test` dalının `4491a80` commit'i üzerinde yapılmıştır. Modül sınırları, katmanlama veya bağımlılık yönü değiştiğinde bu belge aynı değişiklik kapsamında güncellenmelidir.
 
 ## İçindekiler
 
@@ -20,14 +20,21 @@ Bu belge İş Akışı ve Onay Yönetim Sistemi'nin **çalışan mimarisini** ta
 
 ```mermaid
 flowchart TB
-    U[Kullanıcı] --> UI[React 19 + TypeScript istemcisi]
+    U[Kullanıcı] --> UI[React 19 + TypeScript web istemcisi]
+    U --> MOBILE[Expo SDK 57 mobil istemcisi]
     UI -->|REST/JSON + JWT| API[Spring Boot 4.1 REST API]
+    MOBILE -->|REST/JSON + JWT| API
     API --> DB[(PostgreSQL 15)]
     API --> FS[(Dosya sistemi - uploads)]
     API --> SMTP[Mailpit yerel / Outlook SMTP hedef]
+    API --> FCM[FCM HTTP v1]
 ```
 
-İstemci ile sunucu ayrı origin'lerde çalışır; erişim `CORS_ALLOWED_ORIGINS` ile açıkça listelenen origin'lere sınırlıdır (`common/config/CorsConfig`). Kimlik doğrulama JWT taşıyıcı token ile yapılır, oturum durumu sunucuda tutulmaz; yalnız refresh token'ları `tokens` tablosunda izlenir ve iptal edilebilir.
+Web istemcisi ile sunucu ayrı origin'lerde çalışır; erişim `CORS_ALLOWED_ORIGINS`
+ile açıkça listelenen origin'lere sınırlıdır (`common/config/CorsConfig`). Mobil
+istemci native HTTP kullanır. Kimlik doğrulama JWT taşıyıcı token ile yapılır,
+oturum durumu sunucuda tutulmaz; yalnız refresh token'ları `tokens` tablosunda
+izlenir ve iptal edilebilir.
 
 ## Backend modül sınırları
 
@@ -43,7 +50,7 @@ Ana paket `btk.staj.WorkFlowProject`. On modülün tamamı işlevseldir.
 | `attachment` | Dosya içerik doğrulama, saklama, erişim | `/api/records/{id}/files`, `/api/files/**` |
 | `audit` | Değiştirilemez işlem geçmişi (kayıt ve kullanıcı) | `/api/audit-logs/**`, `/api/user-audit-logs/**` |
 | `search` | Kriter tabanlı filtreleme, sayfalama, görünürlük kapsamı | `RecordSearchService`, `RecordSpecifications` |
-| `notification` | Uygulama içi bildirim ve e-posta | `/api/notifications/**` |
+| `notification` | Uygulama içi bildirim, cihaz tokenı, FCM push ve güvenli e-posta hızlı işlem | `/api/notifications/**`, `/api/device-tokens`, `/api/public/mail-actions/**` |
 | `common` | Ortak hata sözleşmesi, sayfalama DTO'su, CORS | `ApiError`, `GlobalExceptionHandler`, `PagedResponse` |
 
 İki sınır kararı ayrıca not edilmelidir:
@@ -134,6 +141,8 @@ Ayrıntı için [workflow.md](workflow.md).
 | Denetim izi | `AuditLogService`, workflow transaction'ı **içinde** | Geçiş geri alınırsa audit satırı da geri alınır |
 | Uygulama içi bildirim | `@EventListener`, transaction **içinde** | Geçişle birlikte yazılır veya hiç yazılmaz |
 | E-posta | `@TransactionalEventListener(AFTER_COMMIT)` + `@Async` | Geri alınabilir bir işlem için dışarıya e-posta çıkmasın diye commit sonrası; gönderim best-effort |
+| Push | Aynı `AFTER_COMMIT` listener içinde `PushNotificationService` | `recipientsOf` alıcı matrisi kullanılır; FCM yapılandırılmamışsa workflow push olmadan devam eder |
+| E-posta hızlı işlem | `mail_action_tokens` + `/api/public/mail-actions/preview` ve `/consume` | Anahtar süreli, tek kullanımlık ve alıcı/kayıt/aksiyona bağlıdır; preview mutasyon yapmaz |
 | Loglama | `logback-spring.xml` | Konsola düz metin, dosyaya ECS şemasında JSON (`StructuredLogEncoder`); `dev` profilinde DEBUG, diğerlerinde INFO |
 
 ## Veri ve dosya yönetimi
@@ -155,7 +164,7 @@ Docker Compose varsayılan olarak üç servis başlatır:
 | --- | --- | --- |
 | `db` | `db-data-pg15` volume | `5432` |
 | `mailpit` | Yerel SMTP yakalayıcı | `1025`, Web UI `8025` |
-| `backend` | Sağlıklı `db`, `uploads` volume | `8080` |
+| `backend` | Sağlıklı `db`, `uploads` volume | Temel dosyada `0.0.0.0:8080` (LAN + localhost); TEST overlay'inde host portu kaldırılır |
 
 Frontend servisi `frontend` profili arkasındadır ve `docker compose --profile frontend up` ile başlatılır. Uygulama `VITE_API_BASE_URL` üzerinden gerçek backend'e bağlanır; MSW yalnızca Vitest testlerinde kullanılır.
 
@@ -166,6 +175,7 @@ Aşağıdakiler uygulanmış davranışlardır:
 - Yeni kullanıcıları yalnız Admin oluşturur ve **her hesap daima Çalışan rolüyle başlar**; başlangıç rolü dışarıdan seçilemez (`UserService.createUser`).
 - Başkan Yardımcısı, Başkan ve Admin rolleri yalnız ayrı ve audit'lenen bir Admin işlemiyle (`changeRole`) atanır.
 - Bu üç rol **tekildir**: aynı anda yalnız bir aktif kullanıcı tutabilir.
+- Pasif tekil rol sahibi yeniden etkinleştirilirken de `ensureSingletonRoleAvailable` çalışır; aynı rolde başka aktif kullanıcı varsa yazma işlemi reddedilir.
 - Admin rolü tek başına iş akışı kayıtlarına erişim vermez; `RecordAccessPolicy` Admin için boş kapsam üretir.
 - Nihai onay ve ret yalnız Başkan tarafından, yalnız kendisine atanmış kayıtta yapılabilir.
 - Admin hesabı aktiflik ucundan pasifleştirilemez (`UserService.setActive`).
@@ -175,7 +185,9 @@ Aşağıdakiler uygulanmış davranışlardır:
 ## Bilinen mimari boşluklar
 
 - **Son Admin'in rolü korunmuyor.** `setActive` Admin hesabının pasifleştirilmesini engelliyor, ancak `changeRole` sistemdeki tek Admin'in rolünü başka bir role çevirmeyi engellemiyor. Tekil rol kontrolü yalnız bir role *girerken* çalışıyor, *çıkarken* değil. Sistem yönetimsiz kalabilir.
-- **Tekil rol invariant'ı yazma tarafında zorlanmıyor.** `setActive(..., true)` aynı rolde başka aktif kullanıcı olup olmadığına bakmıyor; iki aktif Başkan Yardımcısı oluşursa workflow hedefi tekilleştiremeyip `409` veriyor.
 - **Audit append-only kuralı veritabanında zorlanmıyor.** Uygulama güncelleme veya silme ucu sunmuyor, fakat DB trigger'ı ya da rol kısıtı yok.
 - **E-posta teslim garantisi yok.** Gönderim asenkron ve best-effort; retry, outbox veya DLQ bulunmuyor.
 - **Bu belgedeki kararların çoğu ADR olarak kaydedilmedi.** `decisions/` altında iki ADR var (modül bazlı paketleme, mobil istemci teknolojisi); ancak port/adapter sınırı, tekil rol modeli ve enum tabanlı durum kolonu kararları yalnız bu belgede anlatılıyor, ayrı birer ADR'leri yok.
+
+Dinamik workflow/rol kaynakları ve WebSocket bildirim kanalı bu çalışan mimarinin
+parçası değildir; gelecek çalışma olarak planlanmaktadır.

@@ -1,6 +1,8 @@
 # Frontend - Backend Entegrasyon Sözleşmesi
 
-Bu belge EBYS frontendinin kullandığı API sözleşmesini ve henüz tamamlanmamış entegrasyon ihtiyaçlarını tanımlar. Mevcut endpoint ve cevap modellerinde backend kodu ile Swagger/OpenAPI dokümanı esas alınır. Gelecekte eklenmesi beklenen işlemler ayrıca "backend bekleniyor" olarak işaretlenir.
+Bu belge EBYS frontendinin kullandığı API sözleşmesini ve henüz tamamlanmamış entegrasyon ihtiyaçlarını tanımlar. Mevcut endpoint ve cevap modellerinde backend kodu ile çalışan uygulamanın `/v3/api-docs` çıktısı esas alınır; `docs/openapi.json` bunun sürümlenmiş inceleme anlık görüntüsüdür. Gelecekte eklenmesi beklenen işlemler ayrıca "backend bekleniyor" olarak işaretlenir.
+
+> Son kod doğrulaması 31 Ağustos 2026 tarihinde `test` dalının `4491a80` commit'i üzerinde yapılmıştır.
 
 ## 1. Temel kararlar
 
@@ -460,7 +462,7 @@ Hesap açma isteği `firstName`, `lastName`, `email` ve `password` alanlarını 
 
 | Metot | Adres | Amaç |
 |---|---|---|
-| `POST` | `/api/records/{id}/files` | `multipart/form-data` ile dosya yükleme |
+| `POST` | `/api/records/{id}/files` | `multipart/form-data`; aynı `file` alanıyla bir veya daha çok dosya yükleme |
 | `GET` | `/api/records/{id}/files` | Yetki kapsamındaki kaydın eklerini listeleme |
 | `GET` | `/api/files/{id}/preview` | Yetki kontrolünden sonra önizleme |
 | `GET` | `/api/files/{id}/download` | Yetki kontrolünden sonra indirme |
@@ -488,7 +490,26 @@ isteğe bağlı değildir:** liste her zaman en yeniden eskiye döner ve gönder
 
 `PUT /api/notifications/read-all` ilk sürüm kapsamı dışındadır. Frontend “Tümü” ve “Okunmamış” görünümlerini sunar ancak bildirimleri yalnızca tek tek okundu yapar.
 
-Mevcut `NotificationResponse`; `id`, `recordId`, `message`, `notificationType`, `read` ve `createdAt` alanlarını taşır. Kullanıcı kimliği JWT'den belirlenir ve cevapta ayrıca gönderilmez. İlk sürüm REST/polling ile çalışabilir; SSE veya WebSocket sonraki sürüme bırakılabilir.
+Mevcut `NotificationResponse`; `id`, `recordId`, `message`, `notificationType`, `read` ve `createdAt` alanlarını taşır. Kullanıcı kimliği JWT'den belirlenir ve cevapta ayrıca gönderilmez. Mevcut sürüm REST/polling kullanır. WebSocket planlanan gelecek kanaldır; uygulanmış değildir.
+
+Push kanalı mobil istemciye özeldir. Backend aynı alıcı matrisi için FCM HTTP v1
+gönderimi yapar; bu kanal web REST bildirim sözleşmesini değiştirmez.
+
+### E-posta hızlı işlem
+
+E-posta bağlantısı `${FRONTEND_URL}/hizli-islem#token=...` sayfasını açar.
+`QuickActionPage` tokenı URL fragment'ından okur ve `history.replaceState` ile
+adres çubuğundan temizler; token query string'e veya backend erişim loglarına taşınmaz.
+
+| Metot | Adres | Gövde | Davranış |
+|---|---|---|---|
+| `POST` | `/api/public/mail-actions/preview` | `{ "token": "..." }` | Tokenı doğrular ve `recordId`, `recordTitle`, `recordStatus`, `action`, `recipientName`, `expiresAt` döner; durum değiştirmez |
+| `POST` | `/api/public/mail-actions/consume` | `{ "token": "..." }` | Kullanıcı açıkça onayladıktan sonra tek kullanımlık tokenı tüketir ve `{ "recordId": "uuid" }` döner |
+
+İki uç da JWT istemez; güvenlik, 256 bit süreli tokenın SHA-256 özeti ve
+kayıt/aksiyon/alıcı bağı üzerinden sağlanır. Preview hiçbir zaman otomatik
+consume çağrısına dönüşmez; posta güvenlik tarayıcılarının linki önceden açması
+workflow mutasyonu üretmez.
 
 ## 11. Standart hata cevabı
 

@@ -3,8 +3,10 @@
 **Kapsam:** M9 TEST ortamının topolojisi, bilinen sınırlamaları ve dağıtım
 öncesi/sonrası çalıştırılacak betikler.
 
-**Ortam ayakta:** `https://workflowproject-test.duckdns.org` — 21 Ağustos 2026,
-deploy SHA `4726d69`. Adres, hesaplar, veri özeti ve kabul kanıtı
+**Son kabul dağıtımı:** `https://workflowproject-test.duckdns.org` — 21 Ağustos
+2026, deploy SHA `4726d69`. **Son canlı sağlık kontrolü:** 31 Ağustos 2026
+12:37 TRT, `200 UP`. Health yanıtı commit SHA'sını yayınlamadığı için bu iki
+kanıt birbirinden ayrı tutulur. Adres, hesaplar, veri özeti ve kabul kanıtı
 [MOBIL_API_ENVANTERI.md](MOBIL_API_ENVANTERI.md#test-ortamı) içinde. Bu belge
 ortamın **nasıl** kurulduğunu ve nelere dikkat edilmesi gerektiğini anlatır;
 ortamın **ne olduğu** envanterdedir.
@@ -25,14 +27,18 @@ Dışarıya bakan tek servis Caddy'dir:
 
 | Yol | Hedef | Koruma |
 |---|---|---|
-| `/api/**`, `/actuator/health` | backend:8080 | JWT |
+| `/api/**` | backend:8080 | JWT; yalnız aşağıdaki iki mail-action ucu public |
+| `/api/public/mail-actions/preview`, `/consume` | backend:8080 | JWT yok; süreli tek kullanımlık token |
+| `/actuator/health` | backend:8080 | JWT yok; ayrıntı göstermez |
 | `/swagger-ui.html`, `/v3/api-docs` | backend:8080 | **yok** — aşağıya bakın |
 | `/mail*` | mailpit:8025 | Caddy basic auth |
 
-`db` (5432), `backend` (8080), `mailpit` (8025/1025) ve `frontend` (5173) host
-portu yayınlamaz. Temel dosyada portlar zaten `127.0.0.1`'e bağlı;
-`docker-compose.test.yml` bunları `!reset` ile tamamen kaldırır (Compose
-`>= 2.24` gerekir).
+Birleştirilmiş TEST yapılandırmasında `db` (5432), `backend` (8080), `mailpit`
+(8025/1025) ve `frontend` (5173) host portu yayınlamaz. Temel dosyada `db` ve
+Mailpit loopback'e bağlıdır; **backend ise mobil LAN geliştirmesi için
+`0.0.0.0:8080` yayınlar.** `docker-compose.test.yml` bütün bu portları `!reset`
+ile kaldırır; bu nedenle TEST sınırı için Docker Compose `>= 2.24` zorunludur.
+Eski Compose sürümünde temel dosyanın backend portu güvenli bir yedek değildir.
 
 ---
 
@@ -48,8 +54,8 @@ TEST'te gerçek bir web arayüzü yayınlanmadığı için bu değer boşta kal�
 > bulgu olarak raporlar.
 
 **Etkilenen akış:** e-posta üzerinden gelen derin bağlantılar (kayıt linki,
-parola sıfırlama linki). Bunlar TEST'te desteklenmez; kodları Mailpit
-arayüzünden (`/mail`) elle okunur.
+parola sıfırlama linki ve `/hizli-islem#token=...` hızlı işlem sayfası). Bunlar
+TEST'te desteklenmez; kodları Mailpit arayüzünden (`/mail`) elle okunur.
 
 **Etkilenmeyen akış:** mobil uygulama. `EXPO_PUBLIC_API_BASE_URL` ile doğrudan
 API'ye bağlanır, deep-link kullanmaz. M9 kabulü mobil üzerinden yapıldığı için

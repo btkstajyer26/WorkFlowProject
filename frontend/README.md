@@ -38,7 +38,7 @@ Backend `http://localhost:8080` üzerinde çalışırken:
 npm run api:generate
 ```
 
-Bu komut `src/api/generated/` altındaki dosyaları `/v3/api-docs` sözleşmesinden üretir ve Vite için yalnızca tip olan importları otomatik olarak normalize eder. Üretilen dosyalar elle değiştirilmez. Uygulamaya özel hata dönüşümü, token ekleme ve uyumluluk adapterleri `src/api/` altında ayrı tutulur.
+Bu komut `src/api/generated/` altındaki dosyaları canlı `/v3/api-docs` sözleşmesinden üretir ve Vite için yalnızca tip olan importları otomatik olarak normalize eder. [`docs/openapi.json`](../docs/openapi.json) kod inceleme için sürümlenmiş anlık görüntüdür; üretim girdisi değildir. Üretilen dosyalar elle değiştirilmez. Uygulamaya özel hata dönüşümü, token ekleme ve uyumluluk adapterleri `src/api/` altında ayrı tutulur.
 
 ## Kontroller
 

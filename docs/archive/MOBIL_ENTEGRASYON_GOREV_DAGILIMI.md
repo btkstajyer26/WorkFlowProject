@@ -1,6 +1,6 @@
 # Mobil Entegrasyon — Görev Dağılımı
 
-**Tarih:** 24 Ağustos 2026 (kod doğrulaması aynı gün)
+**Tarih:** 31 Ağustos 2026 (kod doğrulaması aynı gün)
 **Dal:** `test`'ten `feature/<konu>` açılır, PR `test`'e gider.
 
 Mobil, mevcut Spring Boot REST API'sini kullanır. İş kuralları mobilde yazılmaz.
@@ -16,16 +16,19 @@ olarak durur; tasarım gerekçeleri envanter ve mimari belgelerindedir.
 
 | # | Sahip | Modül | İş | Durum |
 |---|---|---|---|---|
-| M0-kalan | Entegrasyon | — | `docs/openapi.json` yeniden üretilmeli | 🔴 |
-| MOB-12 | Mobil | `mobile/` | Push (FCM) istemci tarafı | 🔴 |
+| M0-kalan | Entegrasyon | — | `docs/openapi.json` Springdoc çıktısından yeniden üretildi (30 yol, 35 şema) | ✅ |
+| MOB-12a | Mobil | `mobile/` | Token yenileme dinleyicisi (`addPushTokenListener`) | 🔴 |
+| MOB-12b | Mobil | `mobile/` | Soğuk açılış bildirim yönlendirmesi | 🔴 |
+| MOB-12c | Mobil | `mobile/` | Gerçek Android cihaz push kanıtı | 🔴 |
+| MOB-12d | Mobil | `mobile/` | `google-services.json` ve development build kurulumunun tamamlanması | 🟡 |
 | MOB-16 | Mobil | `mobile/` | iOS release / imza | 🟡 |
 
-> **En kritik madde MOB-12'dir.** Backend tarafı tamamen hazır: cihaz tokenı
-> sahiplik doğrulamasıyla yönetiliyor (M2), durum değişiminde push gönderiliyor
-> (M3) ve uçlar yetki matrisinde kapsanıyor (M8). Push'un uçtan uca çalıştığı
-> **hiç doğrulanmadı**, çünkü istemci ayağı hiç başlamadı.
+> **En kritik madde MOB-12'nin cihaz kanıtıdır.** Backend tarafı hazır; mobil
+> istemci `expo-notifications` ile native tokenı alıyor, `/api/device-tokens`
+> üzerinden kaydediyor ve açık uygulamada bildirime dokunulduğunda doğru kayıt
+> ekranına yönlendiriyor. Token yenileme, soğuk açılış ve gerçek cihaz turu eksik.
 
-> ⛔ **`feature/notification-service` entegre EDİLMEDİ.** Dalın 24 Ağustos'taki
+> ✅ **PR #43 merge edilmeden kapatıldı.** `feature/notification-service` dalının 24 Ağustos'taki
 > dört yeni commit'i e-posta üzerinden tek tıkla onay özelliği getiriyor, ancak
 > uç kimlik doğrulaması olmadan açılıyor ve kaydın atandığı kişi adına workflow
 > aksiyonu yürütüyor. Ayrıntı ve düzeltme koşulları aşağıda "Engellenen iş"
@@ -35,18 +38,19 @@ olarak durur; tasarım gerekçeleri envanter ve mimari belgelerindedir.
 
 ## Backend açık işleri
 
-### 👤 Entegrasyon — M0 kalanı: `openapi.json` bayat 🔴
+### 👤 Entegrasyon — M0 kalanı: `openapi.json` güncellemesi ✅
 
-[docs/openapi.json](openapi.json) 20 Ağustos'ta sabitlendi ve hâlâ **27 yol, 31
-şema** içeriyor. O tarihten sonra eklenen `/api/device-tokens` uçları dosyada
-**yok** (`grep device-tokens docs/openapi.json` → sıfır eşleşme).
+[docs/openapi.json](openapi.json), 31 Ağustos'ta PostgreSQL gerektirmeyen Spring
+test bağlamındaki gerçek `/v3/api-docs` yanıtından yeniden üretildi. Dosya **30
+yol, 35 şema** içerir; `/api/device-tokens` ve `/api/public/mail-actions/*`
+uçları ile çoklu `file` şeması doğrulandı.
 
-Mobil istemci kodu bu dosyadan üretildiği için cihaz token kaydı üretilmiş
-istemciyle yapılamaz. Backend ayaktayken `/v3/api-docs` çıktısı yeniden
-alınmalı; komut envanterde.
+Mobil istemci API katmanı el yazımıdır; frontend üretimi ise çalışan backend'in
+`/v3/api-docs` çıktısını kullanır. Depodaki dosya istemci üretim kaynağı değil,
+sürümlenmiş sözleşme anlık görüntüsüdür ve güncel Springdoc çıktısından alınmalıdır.
 
-25 Ağustos'ta eklenen `/api/public/mail-actions/preview` ve `/consume` uçları
-da dosyada yok; aynı yeniden üretimle gelecekler.
+Geçici üretim testi işlem sonunda kaldırıldı; çalışan test kodunda yalnız mevcut
+erişim doğrulaması kaldı.
 
 **Bitti sayılır:** `docs/openapi.json` içinde `/api/device-tokens` ve
 `/api/public/mail-actions/*` uçları var.
@@ -55,29 +59,32 @@ da dosyada yok; aynı yeniden üretimle gelecekler.
 
 ## Mobil açık işleri
 
-`mobile/` paketi Expo + React Native + TypeScript. `lint`, `typecheck` ve 10
-Jest testi temiz; CI'da `Mobile / quality` işi bunları her PR'da çalıştırır.
+`mobile/` paketi Expo + React Native + TypeScript. 31 Ağustos son tekil turunda
+`typecheck` geçti ve 13 dosyadaki 64 Jest testinin tamamı yeşil oldu; önceki
+paralel turda bir ekran testi zaman aşımına uğradı. Lint resolver'ı, kurulu ve manifestte bulunan bazı
+Expo/Testing Library bağımlılıklarını çözemedi. CI'da `Mobile / quality` işi aynı kontrolleri çalıştırır.
 
-### MOB-12 — Push (FCM) 🔴
+### MOB-12 — Push istemci temeli tamamlandı; cihaz kabulü açık 🔄
 
 **Bağımlılık:** M2 ve M3 — ikisi de kapandı, backend hazır.
 
-Bugün mobilde `firebase`, `messaging` veya `device-tokens` geçen **tek satır
-yok**; istemci tarafı hiç başlamadı. Push'un uçtan uca çalıştığı bu yüzden hiç
-doğrulanmadı.
+`pushNotificationManager.ts`, `expo-notifications` üzerinden izin ister,
+`getDevicePushTokenAsync()` ile native FCM/APNs tokenını alır ve oturum açan
+kullanıcı için `POST /api/device-tokens` çağrısı yapar. Bildirime dokunma
+dinleyicisi `recordId` içeren bildirimi `/(app)/kayitlar/{id}` rotasına taşır.
+Bu temel birim testleriyle kapsanmıştır; gerçek cihazda uçtan uca kanıt yoktur.
 
-Paketler: `@react-native-firebase/app`, `@react-native-firebase/messaging`
+Paket: `expo-notifications` (Expo SDK 57 development build; Expo Go yeterli değildir)
 
-1. Development build (Expo Go push için yetmez). `eas.json` içinde
-   `development` / `preview` / `production` profilleri hazır.
-2. Giriş sonrası `POST /api/device-tokens` — `platform` ve `deviceName` ile.
-3. **`onTokenRefresh` dinlenir.** FCM token'ı kendiliğinden yenilenebilir
+1. ✅ Giriş sonrası `POST /api/device-tokens` — `platform` ve `deviceName` ile.
+2. ✅ Foreground/background bildirim dokunuşunda kayıt detayına yönlendirme.
+3. **`addPushTokenListener` eklenmeli.** Native token kendiliğinden yenilenebilir
    (uygulama verisi silinmesi, yeniden kurulum, uzun süre kullanılmama). Yeni
    token anında `POST /api/device-tokens`'a yazılır; yazılmazsa cihaz sessizce
    bildirim almayı bırakır ve bu **hata olarak görünmez**.
-4. Foreground / background / kapalı — üçünde de aşağıdaki deep-link
-   sözleşmesindeki route'a yönlendir.
-5. Çıkışta token'ı ayrıca silme; `POST /api/auth/logout` gövdesine `deviceToken`
+4. `getLastNotificationResponseAsync()` ile kapalı uygulamadan açılış işlenmeli.
+5. `google-services.json` örnekten kurulmalı; temiz checkout development build'i belgelenmeli.
+6. Çıkışta token'ı ayrıca silme; `POST /api/auth/logout` gövdesine `deviceToken`
    koymak yeterli (M4, kapandı).
 
 **Bitti sayılır:** Gerçek cihazda push → doğru kayıt; uygulama verisi
@@ -192,7 +199,7 @@ frontend `QuickActionPage.test.tsx` (6).
 
 ### Push payload
 
-Backend'in gönderdiği payload. MOB-12 yönlendirmesi buna göre yazılır.
+Backend'in gönderdiği payload. Mevcut MOB-12 yönlendirmesi `recordId` alanını kullanır.
 
 ```json
 {
@@ -222,7 +229,7 @@ silmesi gerekmez:
 ### Deep-link
 
 Push'a dokunulduğunda açılacak route. Yukarıdaki payload'un `data.recordId`
-alanı ile MOB-12 yönlendirmesi bu sözleşmeye göre yazılır.
+alanı ile mevcut MOB-12 yönlendirmesi bu sözleşmeyi uygular.
 
 | | |
 |---|---|
@@ -270,9 +277,10 @@ o satırı hiç görmez (kural 1). Web'de bu hata yaşandı ve düzeltildi.
 
 ## Bağımlılıklar
 
-1. M0 kalanı (`openapi.json`) → MOB-12'nin üretilmiş istemciyle token kaydı
+1. M0 kalanı (`openapi.json`) → sürümlenmiş API sözleşmesi güncel kalır; mobil istemci el yazımıdır
 2. MOB-12 iOS ayağı → MOB-16 iOS release
-3. Backend PR'ları web akışını bozmaz
+3. MOB-12d development build kurulumu → MOB-12c gerçek cihaz kanıtı
+4. Backend PR'ları web akışını bozmaz
 
 M2 → M8 ve M2 + M3 → MOB-12 zincirlerindeki engeller 24 Ağustos'ta kalktı; M8 de
 aynı gün kapandı.
@@ -322,12 +330,13 @@ belgede eskiden "Kişi1 / Kişi2 / Kişi3 — henüz atanmadı" diye duran rolle
 | MOB-9 | Oluştur / düzenle / gönder (`targetUserId` gönderilmez) | `(app)/olustur.tsx`, `RecordForm.tsx` |
 | MOB-10 | Onay / red / geri gönder | `RecordWorkflowActions.tsx` |
 | MOB-11 | Dosya seç / yükleme kuyruğu / indir | `FilePickerButton.tsx`, `src/services/files/uploadQueue.ts` |
+| MOB-12 temel | `expo-notifications` ile izin, native token kaydı ve sıcak bildirim dokunuşunda kayıt yönlendirmesi | `pushNotificationManager.ts`, `deviceTokens.ts` ve testleri |
 | MOB-13 | Bildirim merkezi | `(app)/bildirimler.tsx` |
 | MOB-14 | Profil ve çıkış | `(app)/profil.tsx` |
 | MOB-15 | Hata / boş / offline UX | `components/states/`, `components/feedback/OfflineBanner.tsx` |
 
-**Not:** Ekran ve cihaz entegrasyon testleri yoktur; Jest kapsamı auth ve ortak
-API katmanıyla sınırlıdır.
+**Not:** Jest paketi API/auth dışında kayıt aksiyonları, durum rozeti, dosya listesi
+ve offline banner gibi ekran bileşenlerini de kapsar. Gerçek cihaz ve tam rota E2E testi yoktur.
 
 ---
 
@@ -339,5 +348,5 @@ API katmanıyla sınırlıdır.
 | Neden RN | Ekip zaten React/TS/TanStack Query/RHF/Zod biliyor; Flutter = sıfırdan Dart |
 | Web bileşenleri | Kopyalanmaz. `View` / `Text` / `Pressable` / `FlatList` kullanılır |
 | Roller (v1) | `CALISAN`, `BASKAN_YARDIMCISI`, `BASKAN` — **ADMIN yok** |
-| Push | Backend **FCM HTTP v1**. Mobil: `@react-native-firebase/app` + `messaging` |
+| Push | Backend **FCM HTTP v1**. Mobil: Expo SDK 57 `expo-notifications`; native FCM/APNs tokenı `getDevicePushTokenAsync()` ile alınır |
 | Push test | **Expo Go ile olmaz.** Development build + gerçek cihaz |

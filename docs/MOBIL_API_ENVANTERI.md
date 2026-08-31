@@ -1,8 +1,9 @@
 # Mobil API Envanteri
 
-**Durum:** Uç envanteri tamam; TEST ortamı kuruldu ve gerçek cihazdan doğrulandı (M0 · M9 ✅)
-**Son kod doğrulaması:** 20 Ağustos 2026, `test` dalı `0e4043a`
-**TEST ortamı doğrulaması:** 21 Ağustos 2026, `test` dalı `4726d69` — [TEST ortamı](#test-ortamı)
+**Durum:** Uç envanteri güncel; TEST ortamı daha önce gerçek cihazdan doğrulandı (M9 ✅)
+**Son kod doğrulaması:** 31 Ağustos 2026, `test` dalı `4491a80`
+**Son kabul dağıtımı:** 21 Ağustos 2026, `4726d69` — [TEST ortamı](#test-ortamı)
+**Canlı sağlık doğrulaması:** 31 Ağustos 2026 12:37 TRT — `200 UP`; çalışan commit SHA'sı health yanıtında yayınlanmıyor
 
 Mobil istemcinin kullanacağı uçların tam listesi. Her satır koda bakılarak
 doğrulandı; **tahminle bağlama yok.** Uç değişirse bu belge aynı PR'da güncellenir.
@@ -29,14 +30,11 @@ bağlanabilir; push bildiriminin (Sprint 4) önündeki ortam engeli kalktı.
 Ayrıntı, hesaplar ve kabul kanıtı: [TEST ortamı](#test-ortamı).
 Kurulum, topoloji ve bilinen sınırlamalar: [TEST_ORTAMI_NOTU.md](TEST_ORTAMI_NOTU.md).
 
-**2. ~~Sürüm sabitlenmiş `openapi.json` yok.~~ ✅ Sabitlendi:
-[docs/openapi.json](openapi.json)** — 20 Ağustos 2026, `0e4043a`.
-27 uç, 31 şema. Mobil istemci kodu bundan üretilir.
-
-> [!WARNING]
-> **Dosya bayat.** Sabitlendiği tarihten sonra eklenen `/api/device-tokens`
-> uçları (M2) dosyada yok. Cihaz token kaydı üretilmiş istemciyle yapılamaz;
-> aşağıdaki komutla yeniden üretilmesi gerekiyor.
+**2. ~~Sürüm sabitlenmiş `openapi.json` yok.~~ ✅ Sabitlendi ve 31 Ağustos'ta
+güncel Springdoc çıktısından yeniden üretildi: [docs/openapi.json](openapi.json).**
+Dosya `/api/device-tokens` ve `/api/public/mail-actions/*` uçlarını içerir.
+Mobil istemci API katmanı el yazımıdır; frontend üretimi çalışan backend'in
+`/v3/api-docs` çıktısını kullanır. Bu dosya inceleme için sürümlenmiş anlık görüntüdür.
 
 Yeniden üretmek için (backend ayaktayken):
 
@@ -47,16 +45,21 @@ curl -s http://localhost:8080/v3/api-docs   | python -c "import sys,json;print(j
 Biçimlendirme bilerek yapılıyor: springdoc tek satır JSON üretiyor ve o hâlde
 her değişiklik tek satırlık okunamaz bir diff'e dönüşüyor.
 
-> Dosyadaki `servers[0].url` `http://localhost:8080` — üretildiği ortamın
-> adresidir. Mobil base URL'i kendi yapılandırmasından alır, bu alanı kullanmaz.
+> Dosyadaki `servers[0].url` `http://localhost` — veritabanısız MockMvc üretim
+> bağlamının adresidir ve çalışma zamanı hedefi değildir. Mobil base URL'i kendi
+> yapılandırmasından alır, bu alanı kullanmaz.
 
 ---
 
 ## TEST ortamı
 
 **Base URL:** `https://workflowproject-test.duckdns.org`
-**Deploy SHA:** `4726d6974ae30f54120a7423d288acf18465da8c` (`4726d69`, `test` dalı)
-**Doğrulama tarihi:** 21 Ağustos 2026
+**Son kabul deploy SHA:** `4726d6974ae30f54120a7423d288acf18465da8c` (`4726d69`, `test` dalı)
+**Kabul tarihi:** 21 Ağustos 2026
+**Son canlı sağlık kontrolü:** 31 Ağustos 2026 12:37 TRT, `200 UP`
+
+Health yanıtı çalışan commit SHA'sını yayınlamaz. Bu nedenle canlı servisin son
+kabul dağıtımıyla aynı sürümde olduğu varsayılmaz; yeniden dağıtımda SHA ayrıca kaydedilmelidir.
 
 Mobil istemci base URL'i `EXPO_PUBLIC_API_BASE_URL` üzerinden alır; değişken
 zorunludur ve tanımsızsa uygulama açılışta durur
@@ -124,7 +127,8 @@ bağlantıları bu aşamada çalışmaz; ayrıntı ve gerekçe için
 
 **Kimlik.** Aşağıdaki uçlar dışında **her istek** `Authorization: Bearer <accessToken>`
 ister. Açık uçlar: `POST /api/auth/login`, `/refresh`, `/logout`,
-`/forgot-password`, `/verify-reset-code`, `/reset-password`.
+`/forgot-password`, `/verify-reset-code`, `/reset-password` ile tam yolları
+`POST /api/public/mail-actions/preview` ve `/consume` olan hızlı işlem uçlarıdır.
 
 **Kullanıcı kimliği gövdeden alınmaz.** Hiçbir uç `userId` kabul etmez; oturum
 JWT'den okunur. Gövdeye kullanıcı kimliği koymak sessizce yok sayılır.
@@ -514,14 +518,15 @@ yerde tutmayı gerektirir.
 
 | Metot | Adres | Yetki | Not |
 |---|---|---|---|
-| `POST` | `/api/records/{id}/files` | `CALISAN` | multipart, **tek dosya** |
+| `POST` | `/api/records/{id}/files` | `CALISAN` | multipart, aynı `file` alanında bir veya daha çok dosya |
 | `GET` | `/api/records/{id}/files` | Kaydı görebilen | |
 | `GET` | `/api/files/{id}/download` | Kaydı görebilen | |
 | `GET` | `/api/files/{id}/preview` | Kaydı görebilen | Inline |
 | `DELETE` | `/api/files/{id}` | `CALISAN` | Soft delete |
 
-**Yükleme `multipart/form-data`, alan adı `file`.** Uç **tek dosya** alır;
-çoklu seçimde mobil sırayla yükler (bkz. görev M6 — çoklu upload açık iş).
+**Yükleme `multipart/form-data`, alan adı `file`.** Backend `MultipartFile[]`
+kabul eder. Mobil, dosya bazında ilerleme, hata ve yeniden deneme gösterebilmek
+için seçilen dosyaları bilinçli olarak sırayla ve her istekte tek dosya gönderir.
 
 ```json
 {
@@ -603,16 +608,30 @@ elle kaldırma içindir. Normal çıkışta token `POST /api/auth/logout` gövde
 opsiyonel `deviceToken` alanı ile pasifleşir. Mobil, çıkışta ayrıca
 `DELETE /api/device-tokens` çağırmaz.
 
-> [!WARNING]
-> İki bilinen açık: (1) `DELETE` ucu tokenın oturumdaki kullanıcıya ait olup
-> olmadığını **doğrulamıyor**; (2) `openapi.json` bu uçları içermediği için
-> üretilmiş istemcide karşılıkları yok. Ayrıntı:
-> [MOBIL_ENTEGRASYON_GOREV_DAGILIMI.md](MOBIL_ENTEGRASYON_GOREV_DAGILIMI.md) M2.
+`DELETE`, `(token, user_id)` sahipliğini doğrular; başka kullanıcıya ait tokenı
+sessizce değiştirmez. `PushNotificationService`, workflow listener'ına bağlıdır
+ve geçiş sonrasında mevcut alıcı matrisi için push göndermeyi dener. FCM
+yapılandırılmamış ortamda workflow push olmadan çalışmaya devam eder.
 
-> [!NOTE]
-> Token kaydedilse bile **push şu an gönderilmiyor**: `PushNotificationService`
-> yazılmış ama workflow listener'ına bağlanmamış (M3). MOB-12 bu bağlantı
-> yapılmadan doğrulanamaz.
+Mobil istemci `expo-notifications` ile native cihaz tokenını alıp bu uca kaydeder.
+Eksikler token yenileme dinleyicisi, soğuk açılış yönlendirmesi ve gerçek cihaz
+uçtan uca push kanıtıdır.
+
+---
+
+## 10. E-posta hızlı işlem — `/api/public/mail-actions`
+
+Bu uçlar mobil v1 tarafından çağrılmaz; aynı backend sözleşmesinin oturumsuz web
+akışıdır. E-postadaki `/hizli-islem#token=...` sayfası anahtarı URL fragment'ından
+okur, adres çubuğundan temizler ve yalnız JSON gövdesinde taşır.
+
+| Metot | Adres | Gövde | Davranış |
+|---|---|---|---|
+| `POST` | `/api/public/mail-actions/preview` | `{ "token": "..." }` | Anahtarı doğrular; kayıt, aksiyon, alıcı ve son kullanma bilgisini döner; durum değiştirmez |
+| `POST` | `/api/public/mail-actions/consume` | `{ "token": "..." }` | Kullanıcı onayından sonra anahtarı tek kez tüketir ve `{ "recordId": "uuid" }` döner |
+
+Anahtar süreli, tek kullanımlık ve kayıt/aksiyon/alıcıya bağlıdır. Preview çağrısı
+mutasyon yapmaz; consume aynı anahtarla ikinci kez çalışmaz.
 
 ---
 

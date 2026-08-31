@@ -2,7 +2,7 @@
 
 Bu belge, İş Akışı ve Onay Yönetim Sistemi'nin çalışan backend kodundaki workflow davranışını tanımlar. Ürün hedefinden çok **mevcut uygulamayı** esas alır; planlanan ancak henüz uygulanmayan davranışlar “Bilinen boşluklar” bölümünde ayrıca belirtilir.
 
-> Son kod doğrulaması 22 Ağustos 2026 tarihinde `feature/m9-envanter` dalının `183517e` commit'i üzerinde yapılmıştır. Durum makinesi, API veya hata eşlemesi değiştirildiğinde bu belge aynı değişiklik kapsamında güncellenmelidir.
+> Son kod doğrulaması 31 Ağustos 2026 tarihinde `test` dalının `4491a80` commit'i üzerinde yapılmıştır. Durum makinesi, API veya hata eşlemesi değiştirildiğinde bu belge aynı değişiklik kapsamında güncellenmelidir.
 
 ## İçindekiler
 
@@ -64,6 +64,7 @@ flowchart LR
     AUDIT --> DB
     EVENT --> INAPP["Uygulama içi bildirim"]
     EVENT --> MAIL["Commit sonrası e-posta"]
+    EVENT --> PUSH["Commit sonrası FCM push"]
 ```
 
 Durum makinesi ve uygulama servisi doğrudan Spring, JPA veya HTTP'ye bağlı değildir. Spring bean bağlantıları `WorkflowConfiguration` içinde yapılır. Controller, saf uygulama servisini doğrudan değil, transaction açan `WorkflowActionService` üzerinden çağırır.
@@ -77,7 +78,7 @@ Durum makinesi ve uygulama servisi doğrudan Spring, JPA veya HTTP'ye bağlı de
 | `BASKAN` | Yalnız kendisine atanmış kaydı onaylar, reddeder veya geri gönderir. |
 | `ADMIN` | Workflow aktörü ve hedefi değildir. Her aksiyon denemesi `WORKFLOW_ROLE_NOT_ALLOWED` ile reddedilir. |
 
-Kullanıcı yönetiminde `ADMIN`, `BASKAN` ve `BASKAN_YARDIMCISI` tekil rol olarak tasarlanmıştır. `changeRole` ikinci aktif kullanıcıya tekil rol verilmesini engeller; ancak `setActive(..., true)` aynı singleton kontrolünü yapmadığından bu invariant bütün yazma yollarında henüz garanti edilmez.
+Kullanıcı yönetiminde `ADMIN`, `BASKAN` ve `BASKAN_YARDIMCISI` tekil rol olarak tasarlanmıştır. `changeRole` ikinci aktif kullanıcıya tekil rol verilmesini engeller; `setActive(..., true)` da yeniden etkinleştirmeden önce aynı `ensureSingletonRoleAvailable` kontrolünü çalıştırır.
 
 Başkan Yardımcısı koltuğu için ek kurallar:
 
@@ -269,6 +270,7 @@ sequenceDiagram
     participant E as Spring Event
     participant N as Uygulama içi bildirim
     participant M as E-posta
+    participant P as FCM push
 
     C->>W: POST workflow action
     W->>W: Transaction başlat
@@ -281,11 +283,13 @@ sequenceDiagram
     E->>N: Aynı transaction'da bildirimi yaz
     W->>W: Commit
     E-->>M: AFTER_COMMIT
+    E-->>P: AFTER_COMMIT
     M-->>M: @Async e-posta gönder
+    P-->>P: Yapılandırılmışsa push gönder
     W-->>C: WorkflowActionResponse
 ```
 
-Kayıt güncellemesi, workflow audit kaydı ve uygulama içi bildirim tek transaction içindedir. Bu işlemlerden biri başarısız olursa tamamı geri alınır. E-posta dış sistem yan etkisi olduğu için yalnız başarılı commit sonrasında ve asenkron gönderilir.
+Kayıt güncellemesi, workflow audit kaydı ve uygulama içi bildirim tek transaction içindedir. Bu işlemlerden biri başarısız olursa tamamı geri alınır. E-posta ve push dış sistem yan etkileri olduğu için yalnız başarılı commit sonrasında denenir; başarısızlıkları workflow transaction'ını geri almaz.
 
 ### Audit
 
@@ -308,10 +312,10 @@ Okuma öncesinde `RecordAccessPolicy.assertCanView` çalışır. `AuditLogRespon
 
 ### Bildirim alıcısı
 
-| Geçiş sonucu | Uygulama içi bildirim ve e-posta alıcısı |
+| Geçiş sonucu | Uygulama içi bildirim, e-posta ve push alıcısı |
 | --- | --- |
 | Bir kullanıcıya atanan kayıt | Yeni `assignedTo` kullanıcısı |
-| `ONAYLANDI` veya `REDDEDILDI` | Kaydı oluşturan kullanıcı |
+| `ONAYLANDI` veya `REDDEDILDI` | Kaydı oluşturan kullanıcı ve kaydı Başkana ileten son Başkan Yardımcısı; aynı kullanıcıysa tekilleştirilir |
 
 Uygulama içi mesaj 500 karaktere sığacak şekilde kısaltılır. Bildirim türü aksiyondan `RECORD_SUBMITTED`, `RECORD_FORWARDED`, `RECORD_RETURNED`, `RECORD_APPROVED` veya `RECORD_REJECTED` olarak türetilir.
 
@@ -326,11 +330,21 @@ Bildirim okuma uçları:
 
 Geçmiş listesinde istemcinin `sort` parametresi kullanılmaz; sıra daima backend tarafından en yeniden eskiye sabitlenir.
 
-### E-posta
+### E-posta, hızlı işlem ve push
 
-E-posta gövdesi `templates/mail/workflow-status.html` Thymeleaf şablonundan üretilir. Kullanıcıdan gelen başlık ve açıklama `th:text` ile HTML kaçışlı yazılır. Mesaj, kayıt detayına `${FRONTEND_URL}/records/{recordId}` biçiminde deep link içerir; gönderen adresi `MAIL_FROM` ile yapılandırılır.
+E-posta gövdesi `templates/mail/workflow-status.html` Thymeleaf şablonundan üretilir. Kullanıcıdan gelen başlık ve açıklama `th:text` ile HTML kaçışlı yazılır. Mesaj, kayıt detayına `${FRONTEND_URL}/records/{recordId}` biçiminde deep link içerir; frontend bunu kanonik `/kayitlar/{recordId}` rotasına taşır. Gönderen adresi `MAIL_FROM` ile yapılandırılır.
 
-SMTP veya şablon hatası loglanır, workflow transaction'ı geri alınmaz. Mevcut uygulamada retry, outbox veya dead-letter queue yoktur.
+Atama yapılan geçişlerde alıcı için uygun birincil aksiyon varsa `mail_action_tokens`
+tablosunda süreli ve tek kullanımlık anahtar üretilir. E-postadaki bağlantı
+`${FRONTEND_URL}/hizli-islem#token=...` biçimindedir. Frontend anahtarı fragment'tan
+okuyup adres çubuğundan temizler; `POST /api/public/mail-actions/preview` yalnız
+doğrulama yapar, açık kullanıcı onayından sonra `/consume` aksiyonu yürütür.
+
+`PushNotificationService`, aynı alıcı kümesi için FCM HTTP v1 üzerinden başlık,
+mesaj, `recordId` ve `notificationType` gönderir. FCM yapılandırılmamışsa servis
+opsiyoneldir ve workflow push olmadan çalışmaya devam eder.
+
+SMTP, şablon veya push hatası loglanır, workflow transaction'ı geri alınmaz. Mevcut uygulamada retry, outbox veya dead-letter queue yoktur.
 
 ## Hata sözleşmesi
 
@@ -401,7 +415,11 @@ Mevcut otomatik testler şu katmanları kapsar:
 - bildirim geçmişi, sahiplik ve sayfalama servisi;
 - Thymeleaf e-posta şablonu ve HTML escaping.
 
-Doğrulama tabanı olan commit üzerinde `workflow` paketindeki **164 test** ve backend `verify`'ın tamamı (**448 test**) temiz bir PostgreSQL 15 örneğinde hatasız geçmiştir.
+31 Ağustos 2026 yerel turunda backend toplam **481 test** keşfetti. DB
+gerektirmeyen 467 test geçti; dört entegrasyon sınıfındaki 14 test yerel
+PostgreSQL'in yapılandırılmış parolayı reddetmesiyle (`SQLSTATE 28P01`) hata
+verdi. Bu sonuç ürün davranışı hatası değil, yerel ortam eksikliğidir; CI temiz
+PostgreSQL 15 servisiyle tam `verify` çalıştırır.
 
 Bu testlerin 11'i (`WorkflowTransitionPersistenceIntegrationTest`) gerçek bir PostgreSQL bağlantısı ister; veritabanı ayakta değilse `ApplicationContext` hatasıyla düşerler. Yerelde `docker compose up -d db` gerekir.
 
@@ -415,7 +433,7 @@ Bu testlerin 11'i (`WorkflowTransitionPersistenceIntegrationTest`) gerçek bir P
 ## Bilinen boşluklar ve kararlar
 
 1. ~~**Optimistic-lock hata eşlemesi**~~ — **çözüldü.** `RecordPortAdapter` çatışmayı `WORKFLOW_VERSION_CONFLICT`'e çeviriyor, handler bu kodu `409`'a eşliyor ve workflow dışı yazmalar için `OptimisticLockingFailureException` → `409 VERSION_CONFLICT` emniyet ağı var. Uçtan uca doğrulama `WorkflowTransitionPersistenceIntegrationTest` içinde.
-2. ~~**Tekil Başkan Yardımcısı ve istek hedefi**~~ — **çözüldü (C1).** `GONDER`/`TEKRAR_GONDER` hedefini artık backend, `BASKANA_ILET` ile aynı yoldan tek aktif kullanıcıdan çözer; istemci hedef göndermez, gönderirse istek reddedilir. Geriye kalan tek risk aşağıdaki 10. maddededir: tekil rol invariant'ı veritabanı kısıtıyla değil okuma anında zorlanır.
+2. ~~**Tekil Başkan Yardımcısı ve istek hedefi**~~ — **çözüldü (C1).** `GONDER`/`TEKRAR_GONDER` hedefini artık backend, `BASKANA_ILET` ile aynı yoldan tek aktif kullanıcıdan çözer; istemci hedef göndermez, gönderirse istek reddedilir.
 3. ~~**Frontend entegrasyonu**~~ — **çözüldü.** `WorkflowContext` ve `transitionRecord` mock geçiş kolu frontend'den kaldırıldı; kayıt detayındaki aksiyon paneli yalnız gerçek API'yi (`useRecordWorkflowAction`) kullanıyor. Geçiş kuralı artık tek yerde, backend'de duruyor.
 4. ~~**İlk parola değişimi**~~ — **çözüldü.** `JwtAuthenticationFilter` parola değişimi bekleyen kullanıcıyı `403 PASSWORD_CHANGE_REQUIRED` ile durduruyor; workflow dahil bütün korumalı uçlar kapalı. Açık bırakılanlar yalnızca parola değiştirme, çıkış ve `GET /api/users/me`.
 5. **E-posta teslim garantisi:** Gönderim asenkron ve best-effort'tur; retry/outbox/DLQ yoktur.
@@ -423,13 +441,16 @@ Bu testlerin 11'i (`WorkflowTransitionPersistenceIntegrationTest`) gerçek bir P
 7. **Bildirim geçmişi indeksi:** Büyüyen veri için `(user_id, created_at DESC)` birleşik indeksi değerlendirilmelidir.
 8. ~~**Sözleşme drift'i (`BASKAN_ONAYINDA`)**~~ — **çözüldü.** İfade entegrasyon sözleşmesinde artık geçmiyor.
 9. ~~**Terminal ek silme ve dosya IDOR'u**~~ — **çözüldü.** `deleteFile` artık `RecordLockValidator.assertModifyAllowed` çağırıyor: soft-delete kontrolü, `created_by` sahiplik kontrolü ve yalnız `TASLAK`/`DUZENLEME_BEKLIYOR` durum kilidi. `downloadFile`, `previewFile` ve `listByRecord` ise `RecordAccessPolicy.assertCanView` üzerinden kayıt görünürlüğüyle sınırlı.
-10. **Tekil rolün yeniden etkinleştirilmesi:** `setActive(..., true)` aynı rolde başka aktif kullanıcı olup olmadığını kontrol etmez. İki aktif Başkan oluşursa `BASKANA_ILET`, iki aktif Başkan Yardımcısı oluşursa `GONDER`/`TEKRAR_GONDER` hedefi tekilleştiremediği için `409 WORKFLOW_ROLE_NOT_CONFIGURED` ile durur. C1 sonrası bu, Çalışanın en sık kullandığı aksiyonu da etkilediği için invariant'ın yazma tarafında (rol atama/aktifleştirme) zorlanması daha önemli hâle geldi.
+10. ~~**Tekil rolün yeniden etkinleştirilmesi**~~ — **çözüldü.** `setActive(..., true)` tekil rol için `ensureSingletonRoleAvailable` çağırır; başka aktif kullanıcı varsa yazma işlemi reddedilir. Çakışma ve başarılı yeniden etkinleştirme testlerle kapsanır.
 11. ~~**Koltuk devrinde `last_deputy_id` bayat kalıyor**~~ — **çözüldü (M5, 20 Ağustos 2026).** `RecordRepository.updateLastDeputyId` eklendi ve `UserService.kullaniciIsleriniDevret` içinde `devretBekleyenIsleri` ile **aynı transaction'da** çağrılıyor. Koltuk devrinden sonra `BASKAN_YARDIMCISINA_GERI_GONDER` yeni yardımcıyı çözüyor; devredilen kayıtlar yeni yardımcının görünürlük kapsamına da giriyor. `UserServiceTest` kapsıyor.
 
 Başlangıç şartnamesiyle bilinçli veya fiilî uygulama farkları da korunmalıdır:
 
 - Başkan geri gönderme hedefini serbestçe seçmez; Çalışana dönüş `createdBy`, Başkan Yardımcısına dönüş `lastDeputyId` ile sabittir.
-- Şartnamedeki “tüm ilgililer” ifadesine karşılık mevcut uygulama her olay için tek alıcı seçer: yeni atanan kullanıcı, terminal geçişte ise kaydı oluşturan kullanıcı.
+- Şartnamedeki “tüm ilgililer” ifadesine karşılık mevcut uygulama atamalı geçişte yeni atanan kullanıcıyı; terminal geçişte kaydı oluşturan ile son Başkan Yardımcısını seçer.
+
+Dinamik workflow/rol kaynağı ve WebSocket bildirim kanalı mevcut davranış değildir;
+gelecek çalışma olarak planlanmaktadır.
 
 ## Değişiklik kontrol listesi
 

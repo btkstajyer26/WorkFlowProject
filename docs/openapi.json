@@ -1,248 +1,216 @@
 {
-  "openapi": "3.1.0",
-  "info": {
-    "title": "EBYS - İş Akışı ve Onay Yönetim Sistemi API",
-    "description": "Uçların çoğu kimlik doğrulaması ister.\n\nKullanım: `/api/auth/login` ucundan e-posta ve şifreyle giriş yapın,\ndönen `accessToken` değerini sağ üstteki **Authorize** butonuna yapıştırın.\nBundan sonraki isteklere `Authorization: Bearer <token>` başlığı otomatik eklenir.\n",
-    "version": "v1"
+  "openapi" : "3.1.0",
+  "info" : {
+    "title" : "EBYS - İş Akışı ve Onay Yönetim Sistemi API",
+    "description" : "Uçların çoğu kimlik doğrulaması ister.\n\nKullanım: `/api/auth/login` ucundan e-posta ve şifreyle giriş yapın,\ndönen `accessToken` değerini sağ üstteki **Authorize** butonuna yapıştırın.\nBundan sonraki isteklere `Authorization: Bearer <token>` başlığı otomatik eklenir.\n",
+    "version" : "v1"
   },
-  "servers": [
-    {
-      "url": "http://localhost:8080",
-      "description": "Generated server url"
-    }
-  ],
-  "security": [
-    {
-      "bearerAuth": []
-    }
-  ],
-  "paths": {
-    "/api/records/{id}": {
-      "get": {
-        "tags": [
-          "record-controller"
-        ],
-        "operationId": "getRecordById",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
+  "servers" : [ {
+    "url" : "http://localhost",
+    "description" : "Generated server url"
+  } ],
+  "security" : [ {
+    "bearerAuth" : [ ]
+  } ],
+  "tags" : [ {
+    "name" : "Mail Actions",
+    "description" : "E-posta bildirimindeki tek tikla aksiyon baglantisi"
+  }, {
+    "name" : "Device Tokens",
+    "description" : "Mobil cihaz push bildirim token yönetim uçları"
+  } ],
+  "paths" : {
+    "/api/records/{id}" : {
+      "get" : {
+        "tags" : [ "record-controller" ],
+        "operationId" : "getRecordById",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
           }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/RecordResponse"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RecordResponse"
                 }
               }
             }
           }
         }
       },
-      "put": {
-        "tags": [
-          "record-controller"
-        ],
-        "operationId": "updateRecord",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
+      "put" : {
+        "tags" : [ "record-controller" ],
+        "operationId" : "updateRecord",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
           }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RecordUpdateRequest"
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RecordUpdateRequest"
               }
             }
           },
-          "required": true
+          "required" : true
         },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/RecordResponse"
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RecordResponse"
                 }
               }
             }
           }
         }
       },
-      "delete": {
-        "tags": [
-          "record-controller"
-        ],
-        "operationId": "deleteRecord",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
+      "delete" : {
+        "tags" : [ "record-controller" ],
+        "operationId" : "deleteRecord",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
           }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
           }
         }
       }
     },
-    "/api/notifications/{id}/read": {
-      "put": {
-        "tags": [
-          "notification-controller"
-        ],
-        "operationId": "markAsRead",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
+    "/api/notifications/{id}/read" : {
+      "put" : {
+        "tags" : [ "notification-controller" ],
+        "operationId" : "markAsRead",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
           }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
           }
         }
       }
     },
-    "/api/records": {
-      "get": {
-        "tags": [
-          "record-controller"
-        ],
-        "operationId": "getAllRecords",
-        "parameters": [
-          {
-            "name": "status",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "enum": [
-                "TASLAK",
-                "BSK_YRD_INCELEMESINDE",
-                "BASKAN_INCELEMESINDE",
-                "DUZENLEME_BEKLIYOR",
-                "ONAYLANDI",
-                "REDDEDILDI"
-              ]
-            }
-          },
-          {
-            "name": "categoryId",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          },
-          {
-            "name": "q",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "from",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "date-time"
-            }
-          },
-          {
-            "name": "to",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "date-time"
-            }
-          },
-          {
-            "name": "creator",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "pageable",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/Pageable"
-            }
+    "/api/records" : {
+      "get" : {
+        "tags" : [ "record-controller" ],
+        "operationId" : "getAllRecords",
+        "parameters" : [ {
+          "name" : "status",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "TASLAK", "BSK_YRD_INCELEMESINDE", "BASKAN_INCELEMESINDE", "DUZENLEME_BEKLIYOR", "ONAYLANDI", "REDDEDILDI" ]
           }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/PagedResponseRecordSearchResponse"
+        }, {
+          "name" : "categoryId",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "q",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "from",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }, {
+          "name" : "to",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }, {
+          "name" : "creator",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "pageable",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/Pageable"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PagedResponseRecordSearchResponse"
                 }
               }
             }
           }
         }
       },
-      "post": {
-        "tags": [
-          "record-controller"
-        ],
-        "operationId": "createRecord",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RecordCreateRequest"
+      "post" : {
+        "tags" : [ "record-controller" ],
+        "operationId" : "createRecord",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RecordCreateRequest"
               }
             }
           },
-          "required": true
+          "required" : true
         },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/RecordResponse"
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RecordResponse"
                 }
               }
             }
@@ -250,40 +218,36 @@
         }
       }
     },
-    "/api/records/{recordId}/workflow/actions": {
-      "post": {
-        "tags": [
-          "workflow-action-controller"
-        ],
-        "operationId": "performAction",
-        "parameters": [
-          {
-            "name": "recordId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
+    "/api/records/{recordId}/workflow/actions" : {
+      "post" : {
+        "tags" : [ "workflow-action-controller" ],
+        "operationId" : "performAction",
+        "parameters" : [ {
+          "name" : "recordId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
           }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/WorkflowActionRequest"
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/WorkflowActionRequest"
               }
             }
           },
-          "required": true
+          "required" : true
         },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/WorkflowActionResponse"
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WorkflowActionResponse"
                 }
               }
             }
@@ -291,32 +255,28 @@
         }
       }
     },
-    "/api/records/{id}/files": {
-      "get": {
-        "tags": [
-          "file-controller"
-        ],
-        "operationId": "listFiles",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
+    "/api/records/{id}/files" : {
+      "get" : {
+        "tags" : [ "file-controller" ],
+        "operationId" : "listFiles",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
           }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/FileResponseDto"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/FileResponseDto"
                   }
                 }
               }
@@ -324,47 +284,47 @@
           }
         }
       },
-      "post": {
-        "tags": [
-          "file-controller"
-        ],
-        "operationId": "uploadFile",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
+      "post" : {
+        "tags" : [ "file-controller" ],
+        "operationId" : "uploadFiles",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
           }
-        ],
-        "requestBody": {
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "file": {
-                    "type": "string",
-                    "format": "binary"
+        } ],
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "schema" : {
+                "type" : "object",
+                "properties" : {
+                  "file" : {
+                    "type" : "array",
+                    "items" : {
+                      "type" : "string",
+                      "format" : "binary"
+                    }
                   }
                 },
-                "required": [
-                  "file"
-                ]
+                "required" : [ "file" ]
               }
             }
           }
         },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/FileResponseDto"
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/FileResponseDto"
+                  }
                 }
               }
             }
@@ -372,29 +332,28 @@
         }
       }
     },
-    "/api/auth/verify-reset-code": {
-      "post": {
-        "tags": [
-          "auth-controller"
-        ],
-        "operationId": "verifyResetCode",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/VerifyResetCodeRequest"
+    "/api/public/mail-actions/preview" : {
+      "post" : {
+        "tags" : [ "Mail Actions" ],
+        "summary" : "Baglantiyi dogrula ve onay ekrani bilgisini getir (durum degistirmez)",
+        "operationId" : "preview",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/MailActionTokenRequest"
               }
             }
           },
-          "required": true
+          "required" : true
         },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/VerifyResetCodeResponse"
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MailActionPreview"
                 }
               }
             }
@@ -402,52 +361,32 @@
         }
       }
     },
-    "/api/auth/reset-password": {
-      "post": {
-        "tags": [
-          "auth-controller"
-        ],
-        "operationId": "resetPassword",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ResetPasswordRequest"
+    "/api/public/mail-actions/consume" : {
+      "post" : {
+        "tags" : [ "Mail Actions" ],
+        "summary" : "Baglantiyi tuket ve workflow aksiyonunu yurut",
+        "operationId" : "consume",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/MailActionTokenRequest"
               }
             }
           },
-          "required": true
+          "required" : true
         },
-        "responses": {
-          "204": {
-            "description": "No Content"
-          }
-        }
-      }
-    },
-    "/api/auth/refresh": {
-      "post": {
-        "tags": [
-          "auth-controller"
-        ],
-        "operationId": "refresh",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RefreshTokenRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/LoginResponse"
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object",
+                  "additionalProperties" : {
+                    "type" : "string",
+                    "format" : "uuid"
+                  }
                 }
               }
             }
@@ -455,29 +394,69 @@
         }
       }
     },
-    "/api/auth/logout": {
-      "post": {
-        "tags": [
-          "auth-controller"
-        ],
-        "operationId": "logout",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LogoutRequest"
+    "/api/device-tokens" : {
+      "post" : {
+        "tags" : [ "Device Tokens" ],
+        "summary" : "Cihaz token kaydı / güncelleme (Upsert)",
+        "operationId" : "registerToken",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DeviceTokenRequest"
               }
             }
           },
-          "required": true
+          "required" : true
         },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain;charset=UTF-8": {
-                "schema": {
-                  "type": "string"
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "Device Tokens" ],
+        "summary" : "Cihaz tokenını pasifleştir (Sahiplik doğrulamalı)",
+        "operationId" : "removeToken",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DeviceTokenDeleteRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        }
+      }
+    },
+    "/api/auth/verify-reset-code" : {
+      "post" : {
+        "tags" : [ "auth-controller" ],
+        "operationId" : "verifyResetCode",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/VerifyResetCodeRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VerifyResetCodeResponse"
                 }
               }
             }
@@ -485,29 +464,48 @@
         }
       }
     },
-    "/api/auth/login": {
-      "post": {
-        "tags": [
-          "auth-controller"
-        ],
-        "operationId": "login",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LoginRequest"
+    "/api/auth/reset-password" : {
+      "post" : {
+        "tags" : [ "auth-controller" ],
+        "operationId" : "resetPassword",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ResetPasswordRequest"
               }
             }
           },
-          "required": true
+          "required" : true
         },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/LoginResponse"
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/auth/refresh" : {
+      "post" : {
+        "tags" : [ "auth-controller" ],
+        "operationId" : "refresh",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RefreshTokenRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LoginResponse"
                 }
               }
             }
@@ -515,52 +513,27 @@
         }
       }
     },
-    "/api/auth/forgot-password": {
-      "post": {
-        "tags": [
-          "auth-controller"
-        ],
-        "operationId": "forgotPassword",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ForgotPasswordRequest"
+    "/api/auth/logout" : {
+      "post" : {
+        "tags" : [ "auth-controller" ],
+        "operationId" : "logout",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/LogoutRequest"
               }
             }
           },
-          "required": true
+          "required" : true
         },
-        "responses": {
-          "202": {
-            "description": "Accepted"
-          }
-        }
-      }
-    },
-    "/api/auth/change-password": {
-      "post": {
-        "tags": [
-          "auth-controller"
-        ],
-        "operationId": "changePassword",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ChangePasswordRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "type": "string"
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "text/plain;charset=UTF-8" : {
+                "schema" : {
+                  "type" : "string"
                 }
               }
             }
@@ -568,65 +541,135 @@
         }
       }
     },
-    "/api/admin/users": {
-      "get": {
-        "tags": [
-          "admin-controller"
-        ],
-        "operationId": "listUsers",
-        "parameters": [
-          {
-            "name": "criteria",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/AdminUserSearchCriteria"
+    "/api/auth/login" : {
+      "post" : {
+        "tags" : [ "auth-controller" ],
+        "operationId" : "login",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/LoginRequest"
+              }
             }
           },
-          {
-            "name": "pageable",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/Pageable"
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LoginResponse"
+                }
+              }
             }
           }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/PagedResponseUserResponse"
+        }
+      }
+    },
+    "/api/auth/forgot-password" : {
+      "post" : {
+        "tags" : [ "auth-controller" ],
+        "operationId" : "forgotPassword",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ForgotPasswordRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "202" : {
+            "description" : "Accepted"
+          }
+        }
+      }
+    },
+    "/api/auth/change-password" : {
+      "post" : {
+        "tags" : [ "auth-controller" ],
+        "operationId" : "changePassword",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChangePasswordRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/users" : {
+      "get" : {
+        "tags" : [ "admin-controller" ],
+        "operationId" : "listUsers",
+        "parameters" : [ {
+          "name" : "criteria",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/AdminUserSearchCriteria"
+          }
+        }, {
+          "name" : "pageable",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/Pageable"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PagedResponseUserResponse"
                 }
               }
             }
           }
         }
       },
-      "post": {
-        "tags": [
-          "admin-controller"
-        ],
-        "operationId": "createUser",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateUserRequest"
+      "post" : {
+        "tags" : [ "admin-controller" ],
+        "operationId" : "createUser",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateUserRequest"
               }
             }
           },
-          "required": true
+          "required" : true
         },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserResponse"
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserResponse"
                 }
               }
             }
@@ -634,40 +677,36 @@
         }
       }
     },
-    "/api/admin/users/{id}/role": {
-      "patch": {
-        "tags": [
-          "admin-controller"
-        ],
-        "operationId": "changeRole",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
+    "/api/admin/users/{id}/role" : {
+      "patch" : {
+        "tags" : [ "admin-controller" ],
+        "operationId" : "changeRole",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
           }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ChangeRoleRequest"
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChangeRoleRequest"
               }
             }
           },
-          "required": true
+          "required" : true
         },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserResponse"
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserResponse"
                 }
               }
             }
@@ -675,40 +714,36 @@
         }
       }
     },
-    "/api/admin/users/{id}/active": {
-      "patch": {
-        "tags": [
-          "admin-controller"
-        ],
-        "operationId": "setActive",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
+    "/api/admin/users/{id}/active" : {
+      "patch" : {
+        "tags" : [ "admin-controller" ],
+        "operationId" : "setActive",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
           }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SetActiveRequest"
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SetActiveRequest"
               }
             }
           },
-          "required": true
+          "required" : true
         },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserResponse"
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserResponse"
                 }
               }
             }
@@ -716,19 +751,17 @@
         }
       }
     },
-    "/api/users/me": {
-      "get": {
-        "tags": [
-          "user-controller"
-        ],
-        "operationId": "me",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserResponse"
+    "/api/users/me" : {
+      "get" : {
+        "tags" : [ "user-controller" ],
+        "operationId" : "me",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserResponse"
                 }
               }
             }
@@ -736,32 +769,28 @@
         }
       }
     },
-    "/api/user-audit-logs/{targetUserId}": {
-      "get": {
-        "tags": [
-          "user-audit-log-controller"
-        ],
-        "operationId": "getGecmis",
-        "parameters": [
-          {
-            "name": "targetUserId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
+    "/api/user-audit-logs/{targetUserId}" : {
+      "get" : {
+        "tags" : [ "user-audit-log-controller" ],
+        "operationId" : "getGecmis",
+        "parameters" : [ {
+          "name" : "targetUserId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
           }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/UserAuditLogResponse"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/UserAuditLogResponse"
                   }
                 }
               }
@@ -770,29 +799,25 @@
         }
       }
     },
-    "/api/notifications": {
-      "get": {
-        "tags": [
-          "notification-controller"
-        ],
-        "operationId": "getAll",
-        "parameters": [
-          {
-            "name": "pageable",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/Pageable"
-            }
+    "/api/notifications" : {
+      "get" : {
+        "tags" : [ "notification-controller" ],
+        "operationId" : "getAll",
+        "parameters" : [ {
+          "name" : "pageable",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/Pageable"
           }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/PagedResponseNotificationResponse"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PagedResponseNotificationResponse"
                 }
               }
             }
@@ -800,21 +825,19 @@
         }
       }
     },
-    "/api/notifications/unread": {
-      "get": {
-        "tags": [
-          "notification-controller"
-        ],
-        "operationId": "getUnread",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/NotificationResponse"
+    "/api/notifications/unread" : {
+      "get" : {
+        "tags" : [ "notification-controller" ],
+        "operationId" : "getUnread",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/NotificationResponse"
                   }
                 }
               }
@@ -823,20 +846,18 @@
         }
       }
     },
-    "/api/notifications/unread/count": {
-      "get": {
-        "tags": [
-          "notification-controller"
-        ],
-        "operationId": "countUnread",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "type": "integer",
-                  "format": "int64"
+    "/api/notifications/unread/count" : {
+      "get" : {
+        "tags" : [ "notification-controller" ],
+        "operationId" : "countUnread",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
                 }
               }
             }
@@ -844,31 +865,27 @@
         }
       }
     },
-    "/api/files/{id}/preview": {
-      "get": {
-        "tags": [
-          "file-controller"
-        ],
-        "operationId": "previewFile",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
+    "/api/files/{id}/preview" : {
+      "get" : {
+        "tags" : [ "file-controller" ],
+        "operationId" : "previewFile",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
           }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "type": "string",
-                  "format": "binary"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "string",
+                  "format" : "binary"
                 }
               }
             }
@@ -876,31 +893,27 @@
         }
       }
     },
-    "/api/files/{id}/download": {
-      "get": {
-        "tags": [
-          "file-controller"
-        ],
-        "operationId": "downloadFile",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
+    "/api/files/{id}/download" : {
+      "get" : {
+        "tags" : [ "file-controller" ],
+        "operationId" : "downloadFile",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
           }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "type": "string",
-                  "format": "binary"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "string",
+                  "format" : "binary"
                 }
               }
             }
@@ -908,21 +921,19 @@
         }
       }
     },
-    "/api/categories": {
-      "get": {
-        "tags": [
-          "category-controller"
-        ],
-        "operationId": "getAllCategories",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/CategoryResponse"
+    "/api/categories" : {
+      "get" : {
+        "tags" : [ "category-controller" ],
+        "operationId" : "getAllCategories",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/CategoryResponse"
                   }
                 }
               }
@@ -931,32 +942,28 @@
         }
       }
     },
-    "/api/audit-logs/record/{recordId}": {
-      "get": {
-        "tags": [
-          "audit-log-controller"
-        ],
-        "operationId": "getGecmis_1",
-        "parameters": [
-          {
-            "name": "recordId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
+    "/api/audit-logs/record/{recordId}" : {
+      "get" : {
+        "tags" : [ "audit-log-controller" ],
+        "operationId" : "getGecmis_1",
+        "parameters" : [ {
+          "name" : "recordId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
           }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/AuditLogResponse"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/AuditLogResponse"
                   }
                 }
               }
@@ -965,21 +972,19 @@
         }
       }
     },
-    "/api/admin/roles": {
-      "get": {
-        "tags": [
-          "admin-controller"
-        ],
-        "operationId": "listRoles",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/RoleResponse"
+    "/api/admin/roles" : {
+      "get" : {
+        "tags" : [ "admin-controller" ],
+        "operationId" : "listRoles",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/RoleResponse"
                   }
                 }
               }
@@ -988,38 +993,33 @@
         }
       }
     },
-    "/api/admin/audit-logs": {
-      "get": {
-        "tags": [
-          "admin-controller"
-        ],
-        "operationId": "listAuditLogs",
-        "parameters": [
-          {
-            "name": "type",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "USER"
-            }
-          },
-          {
-            "name": "pageable",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/Pageable"
-            }
+    "/api/admin/audit-logs" : {
+      "get" : {
+        "tags" : [ "admin-controller" ],
+        "operationId" : "listAuditLogs",
+        "parameters" : [ {
+          "name" : "type",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "default" : "USER"
           }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/PagedResponseObject"
+        }, {
+          "name" : "pageable",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/Pageable"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PagedResponseObject"
                 }
               }
             }
@@ -1027,832 +1027,807 @@
         }
       }
     },
-    "/api/files/{id}": {
-      "delete": {
-        "tags": [
-          "file-controller"
-        ],
-        "operationId": "deleteFile",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
+    "/api/files/{id}" : {
+      "delete" : {
+        "tags" : [ "file-controller" ],
+        "operationId" : "deleteFile",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
           }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
           }
         }
       }
     }
   },
-  "components": {
-    "schemas": {
-      "RecordUpdateRequest": {
-        "type": "object",
-        "properties": {
-          "title": {
-            "type": "string",
-            "minLength": 1
+  "components" : {
+    "schemas" : {
+      "RecordUpdateRequest" : {
+        "type" : "object",
+        "properties" : {
+          "title" : {
+            "type" : "string",
+            "minLength" : 1
           },
-          "description": {
-            "type": "string",
-            "minLength": 1
+          "description" : {
+            "type" : "string",
+            "minLength" : 1
           },
-          "categoryId": {
-            "type": "integer",
-            "format": "int32"
+          "categoryId" : {
+            "type" : "integer",
+            "format" : "int32"
           }
         },
-        "required": [
-          "categoryId",
-          "description",
-          "title"
-        ]
+        "required" : [ "categoryId", "description", "title" ]
       },
-      "RecordResponse": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
+      "RecordResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
           },
-          "title": {
-            "type": "string"
+          "title" : {
+            "type" : "string"
           },
-          "description": {
-            "type": "string"
+          "description" : {
+            "type" : "string"
           },
-          "categoryId": {
-            "type": "integer",
-            "format": "int32"
+          "categoryId" : {
+            "type" : "integer",
+            "format" : "int32"
           },
-          "status": {
-            "type": "string",
-            "enum": [
-              "TASLAK",
-              "BSK_YRD_INCELEMESINDE",
-              "BASKAN_INCELEMESINDE",
-              "DUZENLEME_BEKLIYOR",
-              "ONAYLANDI",
-              "REDDEDILDI"
-            ]
+          "status" : {
+            "type" : "string",
+            "enum" : [ "TASLAK", "BSK_YRD_INCELEMESINDE", "BASKAN_INCELEMESINDE", "DUZENLEME_BEKLIYOR", "ONAYLANDI", "REDDEDILDI" ]
           },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
           },
-          "createdBy": {
-            "type": "string",
-            "format": "uuid"
+          "createdBy" : {
+            "type" : "string",
+            "format" : "uuid"
           },
-          "createdByFullName": {
-            "type": "string"
+          "createdByFullName" : {
+            "type" : "string"
           }
         }
       },
-      "RecordCreateRequest": {
-        "type": "object",
-        "properties": {
-          "title": {
-            "type": "string",
-            "minLength": 1
+      "RecordCreateRequest" : {
+        "type" : "object",
+        "properties" : {
+          "title" : {
+            "type" : "string",
+            "minLength" : 1
           },
-          "description": {
-            "type": "string",
-            "minLength": 1
+          "description" : {
+            "type" : "string",
+            "minLength" : 1
           },
-          "categoryId": {
-            "type": "integer",
-            "format": "int32"
+          "categoryId" : {
+            "type" : "integer",
+            "format" : "int32"
           }
         },
-        "required": [
-          "categoryId",
-          "description",
-          "title"
-        ]
+        "required" : [ "categoryId", "description", "title" ]
       },
-      "WorkflowActionRequest": {
-        "type": "object",
-        "properties": {
-          "action": {
-            "type": "string",
-            "enum": [
-              "GONDER",
-              "TEKRAR_GONDER",
-              "BASKANA_ILET",
-              "CALISANA_GERI_GONDER",
-              "BASKAN_YARDIMCISINA_GERI_GONDER",
-              "ONAYLA",
-              "REDDET"
-            ]
+      "WorkflowActionRequest" : {
+        "type" : "object",
+        "properties" : {
+          "action" : {
+            "type" : "string",
+            "enum" : [ "GONDER", "TEKRAR_GONDER", "BASKANA_ILET", "CALISANA_GERI_GONDER", "BASKAN_YARDIMCISINA_GERI_GONDER", "ONAYLA", "REDDET" ]
           },
-          "targetUserId": {
-            "type": "string",
-            "format": "uuid"
+          "targetUserId" : {
+            "type" : "string",
+            "format" : "uuid"
           },
-          "comment": {
-            "type": "string",
-            "maxLength": 2000,
-            "minLength": 0
+          "comment" : {
+            "type" : "string",
+            "maxLength" : 2000,
+            "minLength" : 0
           }
         },
-        "required": [
-          "action"
-        ]
+        "required" : [ "action" ]
       },
-      "WorkflowActionResponse": {
-        "type": "object",
-        "properties": {
-          "recordId": {
-            "type": "string",
-            "format": "uuid"
+      "WorkflowActionResponse" : {
+        "type" : "object",
+        "properties" : {
+          "recordId" : {
+            "type" : "string",
+            "format" : "uuid"
           },
-          "action": {
-            "type": "string",
-            "enum": [
-              "GONDER",
-              "TEKRAR_GONDER",
-              "BASKANA_ILET",
-              "CALISANA_GERI_GONDER",
-              "BASKAN_YARDIMCISINA_GERI_GONDER",
-              "ONAYLA",
-              "REDDET"
-            ]
+          "action" : {
+            "type" : "string",
+            "enum" : [ "GONDER", "TEKRAR_GONDER", "BASKANA_ILET", "CALISANA_GERI_GONDER", "BASKAN_YARDIMCISINA_GERI_GONDER", "ONAYLA", "REDDET" ]
           },
-          "previousStatus": {
-            "type": "string",
-            "enum": [
-              "TASLAK",
-              "BSK_YRD_INCELEMESINDE",
-              "BASKAN_INCELEMESINDE",
-              "DUZENLEME_BEKLIYOR",
-              "ONAYLANDI",
-              "REDDEDILDI"
-            ]
+          "previousStatus" : {
+            "type" : "string",
+            "enum" : [ "TASLAK", "BSK_YRD_INCELEMESINDE", "BASKAN_INCELEMESINDE", "DUZENLEME_BEKLIYOR", "ONAYLANDI", "REDDEDILDI" ]
           },
-          "newStatus": {
-            "type": "string",
-            "enum": [
-              "TASLAK",
-              "BSK_YRD_INCELEMESINDE",
-              "BASKAN_INCELEMESINDE",
-              "DUZENLEME_BEKLIYOR",
-              "ONAYLANDI",
-              "REDDEDILDI"
-            ]
+          "newStatus" : {
+            "type" : "string",
+            "enum" : [ "TASLAK", "BSK_YRD_INCELEMESINDE", "BASKAN_INCELEMESINDE", "DUZENLEME_BEKLIYOR", "ONAYLANDI", "REDDEDILDI" ]
           },
-          "assignedTo": {
-            "type": "string",
-            "format": "uuid"
+          "assignedTo" : {
+            "type" : "string",
+            "format" : "uuid"
           },
-          "performedBy": {
-            "type": "string",
-            "format": "uuid"
+          "performedBy" : {
+            "type" : "string",
+            "format" : "uuid"
           },
-          "performedAt": {
-            "type": "string",
-            "format": "date-time"
+          "performedAt" : {
+            "type" : "string",
+            "format" : "date-time"
           }
         }
       },
-      "FileResponseDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
+      "FileResponseDto" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
           },
-          "recordId": {
-            "type": "string",
-            "format": "uuid"
+          "recordId" : {
+            "type" : "string",
+            "format" : "uuid"
           },
-          "originalName": {
-            "type": "string"
+          "originalName" : {
+            "type" : "string"
           },
-          "mimeType": {
-            "type": "string"
+          "mimeType" : {
+            "type" : "string"
           },
-          "fileSize": {
-            "type": "integer",
-            "format": "int32"
+          "fileSize" : {
+            "type" : "integer",
+            "format" : "int32"
           },
-          "uploadedBy": {
-            "type": "string",
-            "format": "uuid"
+          "uploadedBy" : {
+            "type" : "string",
+            "format" : "uuid"
           },
-          "uploadedAt": {
-            "type": "string",
-            "format": "date-time"
+          "uploadedAt" : {
+            "type" : "string",
+            "format" : "date-time"
           }
         }
       },
-      "VerifyResetCodeRequest": {
-        "type": "object",
-        "properties": {
-          "email": {
-            "type": "string",
-            "format": "email",
-            "minLength": 1
-          },
-          "code": {
-            "type": "string",
-            "minLength": 1,
-            "pattern": "^\\d{6}$"
+      "MailActionTokenRequest" : {
+        "type" : "object",
+        "properties" : {
+          "token" : {
+            "type" : "string",
+            "minLength" : 1
           }
         },
-        "required": [
-          "code",
-          "email"
-        ]
+        "required" : [ "token" ]
       },
-      "VerifyResetCodeResponse": {
-        "type": "object",
-        "properties": {
-          "resetToken": {
-            "type": "string"
+      "MailActionPreview" : {
+        "type" : "object",
+        "properties" : {
+          "recordId" : {
+            "type" : "string",
+            "format" : "uuid"
           },
-          "expiresInSeconds": {
-            "type": "integer",
-            "format": "int64"
+          "recordTitle" : {
+            "type" : "string"
+          },
+          "recordStatus" : {
+            "type" : "string"
+          },
+          "action" : {
+            "type" : "string"
+          },
+          "recipientName" : {
+            "type" : "string"
+          },
+          "expiresAt" : {
+            "type" : "string",
+            "format" : "date-time"
           }
         }
       },
-      "ResetPasswordRequest": {
-        "type": "object",
-        "properties": {
-          "token": {
-            "type": "string",
-            "minLength": 1
+      "DeviceTokenRequest" : {
+        "type" : "object",
+        "properties" : {
+          "token" : {
+            "type" : "string",
+            "minLength" : 1
           },
-          "newPassword": {
-            "type": "string",
-            "minLength": 1,
-            "pattern": "^(?=.*[A-Za-z])(?=.*\\d).{8,}$"
+          "platform" : {
+            "type" : "string",
+            "minLength" : 1,
+            "pattern" : "^(ANDROID|IOS)$"
+          },
+          "deviceName" : {
+            "type" : "string"
           }
         },
-        "required": [
-          "newPassword",
-          "token"
-        ]
+        "required" : [ "platform", "token" ]
       },
-      "RefreshTokenRequest": {
-        "type": "object",
-        "properties": {
-          "refreshToken": {
-            "type": "string",
-            "minLength": 1
+      "VerifyResetCodeRequest" : {
+        "type" : "object",
+        "properties" : {
+          "email" : {
+            "type" : "string",
+            "format" : "email",
+            "minLength" : 1
+          },
+          "code" : {
+            "type" : "string",
+            "minLength" : 1,
+            "pattern" : "^\\d{6}$"
           }
         },
-        "required": [
-          "refreshToken"
-        ]
+        "required" : [ "code", "email" ]
       },
-      "LoginResponse": {
-        "type": "object",
-        "properties": {
-          "accessToken": {
-            "type": "string"
+      "VerifyResetCodeResponse" : {
+        "type" : "object",
+        "properties" : {
+          "resetToken" : {
+            "type" : "string"
           },
-          "refreshToken": {
-            "type": "string"
-          },
-          "mustChangePassword": {
-            "type": "boolean"
+          "expiresInSeconds" : {
+            "type" : "integer",
+            "format" : "int64"
           }
         }
       },
-      "LogoutRequest": {
-        "type": "object",
-        "properties": {
-          "refreshToken": {
-            "type": "string",
-            "minLength": 1
+      "ResetPasswordRequest" : {
+        "type" : "object",
+        "properties" : {
+          "token" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "newPassword" : {
+            "type" : "string",
+            "minLength" : 1,
+            "pattern" : "^(?=.*[A-Za-z])(?=.*\\d).{8,}$"
           }
         },
-        "required": [
-          "refreshToken"
-        ]
+        "required" : [ "newPassword", "token" ]
       },
-      "LoginRequest": {
-        "type": "object",
-        "properties": {
-          "email": {
-            "type": "string",
-            "format": "email",
-            "minLength": 1
-          },
-          "password": {
-            "type": "string",
-            "minLength": 1
+      "RefreshTokenRequest" : {
+        "type" : "object",
+        "properties" : {
+          "refreshToken" : {
+            "type" : "string",
+            "minLength" : 1
           }
         },
-        "required": [
-          "email",
-          "password"
-        ]
+        "required" : [ "refreshToken" ]
       },
-      "ForgotPasswordRequest": {
-        "type": "object",
-        "properties": {
-          "email": {
-            "type": "string",
-            "format": "email",
-            "minLength": 1
-          }
-        },
-        "required": [
-          "email"
-        ]
-      },
-      "ChangePasswordRequest": {
-        "type": "object",
-        "properties": {
-          "currentPassword": {
-            "type": "string",
-            "minLength": 1
+      "LoginResponse" : {
+        "type" : "object",
+        "properties" : {
+          "accessToken" : {
+            "type" : "string"
           },
-          "newPassword": {
-            "type": "string",
-            "minLength": 1,
-            "pattern": "^(?=.*[A-Za-z])(?=.*\\d).{8,}$"
-          }
-        },
-        "required": [
-          "currentPassword",
-          "newPassword"
-        ]
-      },
-      "CreateUserRequest": {
-        "type": "object",
-        "properties": {
-          "firstName": {
-            "type": "string",
-            "minLength": 1
+          "refreshToken" : {
+            "type" : "string"
           },
-          "lastName": {
-            "type": "string",
-            "minLength": 1
-          },
-          "email": {
-            "type": "string",
-            "format": "email",
-            "minLength": 1
-          },
-          "password": {
-            "type": "string",
-            "maxLength": 2147483647,
-            "minLength": 6
-          }
-        },
-        "required": [
-          "email",
-          "firstName",
-          "lastName",
-          "password"
-        ]
-      },
-      "UserResponse": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "firstName": {
-            "type": "string"
-          },
-          "lastName": {
-            "type": "string"
-          },
-          "email": {
-            "type": "string"
-          },
-          "roleName": {
-            "type": "string"
-          },
-          "active": {
-            "type": "boolean"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
+          "mustChangePassword" : {
+            "type" : "boolean"
           }
         }
       },
-      "ChangeRoleRequest": {
-        "type": "object",
-        "properties": {
-          "replacementBaskanYardimcisiId": {
-            "type": "string",
-            "format": "uuid"
+      "LogoutRequest" : {
+        "type" : "object",
+        "properties" : {
+          "refreshToken" : {
+            "type" : "string",
+            "minLength" : 1
           },
-          "roleName": {
-            "type": "string",
-            "minLength": 1
+          "deviceToken" : {
+            "type" : "string"
           }
         },
-        "required": [
-          "roleName"
-        ]
+        "required" : [ "refreshToken" ]
       },
-      "SetActiveRequest": {
-        "type": "object",
-        "properties": {
-          "active": {
-            "type": "boolean"
+      "LoginRequest" : {
+        "type" : "object",
+        "properties" : {
+          "email" : {
+            "type" : "string",
+            "format" : "email",
+            "minLength" : 1
+          },
+          "password" : {
+            "type" : "string",
+            "minLength" : 1
           }
         },
-        "required": [
-          "active"
-        ]
+        "required" : [ "email", "password" ]
       },
-      "UserAuditLogResponse": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
+      "ForgotPasswordRequest" : {
+        "type" : "object",
+        "properties" : {
+          "email" : {
+            "type" : "string",
+            "format" : "email",
+            "minLength" : 1
+          }
+        },
+        "required" : [ "email" ]
+      },
+      "ChangePasswordRequest" : {
+        "type" : "object",
+        "properties" : {
+          "currentPassword" : {
+            "type" : "string",
+            "minLength" : 1
           },
-          "targetUserId": {
-            "type": "string",
-            "format": "uuid"
+          "newPassword" : {
+            "type" : "string",
+            "minLength" : 1,
+            "pattern" : "^(?=.*[A-Za-z])(?=.*\\d).{8,}$"
+          }
+        },
+        "required" : [ "currentPassword", "newPassword" ]
+      },
+      "CreateUserRequest" : {
+        "type" : "object",
+        "properties" : {
+          "firstName" : {
+            "type" : "string",
+            "minLength" : 1
           },
-          "targetUserFullName": {
-            "type": "string"
+          "lastName" : {
+            "type" : "string",
+            "minLength" : 1
           },
-          "performedBy": {
-            "type": "string",
-            "format": "uuid"
+          "email" : {
+            "type" : "string",
+            "format" : "email",
+            "minLength" : 1
           },
-          "performedByFullName": {
-            "type": "string"
+          "password" : {
+            "type" : "string",
+            "maxLength" : 2147483647,
+            "minLength" : 6
+          }
+        },
+        "required" : [ "email", "firstName", "lastName", "password" ]
+      },
+      "UserResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
           },
-          "action": {
-            "type": "string"
+          "firstName" : {
+            "type" : "string"
           },
-          "previousRoleId": {
-            "type": "integer",
-            "format": "int32"
+          "lastName" : {
+            "type" : "string"
           },
-          "previousRoleName": {
-            "type": "string"
+          "email" : {
+            "type" : "string"
           },
-          "newRoleId": {
-            "type": "integer",
-            "format": "int32"
+          "roleName" : {
+            "type" : "string"
           },
-          "newRoleName": {
-            "type": "string"
+          "active" : {
+            "type" : "boolean"
           },
-          "previousActive": {
-            "type": "boolean"
-          },
-          "newActive": {
-            "type": "boolean"
-          },
-          "comment": {
-            "type": "string"
-          },
-          "httpMethod": {
-            "type": "string"
-          },
-          "requestPath": {
-            "type": "string"
-          },
-          "httpStatus": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "errorCode": {
-            "type": "string"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
           }
         }
       },
-      "Pageable": {
-        "type": "object",
-        "properties": {
-          "page": {
-            "type": "integer",
-            "format": "int32",
-            "minimum": 0
+      "ChangeRoleRequest" : {
+        "type" : "object",
+        "properties" : {
+          "replacementBaskanYardimcisiId" : {
+            "type" : "string",
+            "format" : "uuid"
           },
-          "size": {
-            "type": "integer",
-            "format": "int32",
-            "minimum": 1
+          "roleName" : {
+            "type" : "string",
+            "minLength" : 1
+          }
+        },
+        "required" : [ "roleName" ]
+      },
+      "SetActiveRequest" : {
+        "type" : "object",
+        "properties" : {
+          "active" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "active" ]
+      },
+      "UserAuditLogResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
           },
-          "sort": {
-            "type": "array",
-            "items": {
-              "type": "string"
+          "targetUserId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "targetUserFullName" : {
+            "type" : "string"
+          },
+          "performedBy" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "performedByFullName" : {
+            "type" : "string"
+          },
+          "action" : {
+            "type" : "string"
+          },
+          "previousRoleId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "previousRoleName" : {
+            "type" : "string"
+          },
+          "newRoleId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "newRoleName" : {
+            "type" : "string"
+          },
+          "previousActive" : {
+            "type" : "boolean"
+          },
+          "newActive" : {
+            "type" : "boolean"
+          },
+          "comment" : {
+            "type" : "string"
+          },
+          "httpMethod" : {
+            "type" : "string"
+          },
+          "requestPath" : {
+            "type" : "string"
+          },
+          "httpStatus" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "errorCode" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "Pageable" : {
+        "type" : "object",
+        "properties" : {
+          "page" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 1
+          },
+          "sort" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
             }
           }
         }
       },
-      "PagedResponseRecordSearchResponse": {
-        "type": "object",
-        "properties": {
-          "content": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/RecordSearchResponse"
+      "PagedResponseRecordSearchResponse" : {
+        "type" : "object",
+        "properties" : {
+          "content" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/RecordSearchResponse"
             }
           },
-          "page": {
-            "type": "integer",
-            "format": "int32"
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
           },
-          "size": {
-            "type": "integer",
-            "format": "int32"
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
           },
-          "totalElements": {
-            "type": "integer",
-            "format": "int64"
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64"
           },
-          "totalPages": {
-            "type": "integer",
-            "format": "int32"
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32"
           }
         }
       },
-      "RecordSearchResponse": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
+      "RecordSearchResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
           },
-          "title": {
-            "type": "string"
+          "title" : {
+            "type" : "string"
           },
-          "description": {
-            "type": "string"
+          "description" : {
+            "type" : "string"
           },
-          "categoryId": {
-            "type": "integer",
-            "format": "int32"
+          "categoryId" : {
+            "type" : "integer",
+            "format" : "int32"
           },
-          "status": {
-            "type": "string",
-            "enum": [
-              "TASLAK",
-              "BSK_YRD_INCELEMESINDE",
-              "BASKAN_INCELEMESINDE",
-              "DUZENLEME_BEKLIYOR",
-              "ONAYLANDI",
-              "REDDEDILDI"
-            ]
+          "status" : {
+            "type" : "string",
+            "enum" : [ "TASLAK", "BSK_YRD_INCELEMESINDE", "BASKAN_INCELEMESINDE", "DUZENLEME_BEKLIYOR", "ONAYLANDI", "REDDEDILDI" ]
           },
-          "createdBy": {
-            "type": "string",
-            "format": "uuid"
+          "createdBy" : {
+            "type" : "string",
+            "format" : "uuid"
           },
-          "createdByFullName": {
-            "type": "string"
+          "createdByFullName" : {
+            "type" : "string"
           },
-          "assignedTo": {
-            "type": "string",
-            "format": "uuid"
+          "assignedTo" : {
+            "type" : "string",
+            "format" : "uuid"
           },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
           },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
           }
         }
       },
-      "NotificationResponse": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
+      "NotificationResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
           },
-          "recordId": {
-            "type": "string",
-            "format": "uuid"
+          "recordId" : {
+            "type" : "string",
+            "format" : "uuid"
           },
-          "message": {
-            "type": "string"
+          "message" : {
+            "type" : "string"
           },
-          "notificationType": {
-            "type": "string",
-            "enum": [
-              "RECORD_SUBMITTED",
-              "RECORD_FORWARDED",
-              "RECORD_APPROVED",
-              "RECORD_REJECTED",
-              "RECORD_RETURNED"
-            ]
+          "notificationType" : {
+            "type" : "string",
+            "enum" : [ "RECORD_SUBMITTED", "RECORD_FORWARDED", "RECORD_APPROVED", "RECORD_REJECTED", "RECORD_RETURNED" ]
           },
-          "read": {
-            "type": "boolean"
+          "read" : {
+            "type" : "boolean"
           },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
           }
         }
       },
-      "PagedResponseNotificationResponse": {
-        "type": "object",
-        "properties": {
-          "content": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/NotificationResponse"
+      "PagedResponseNotificationResponse" : {
+        "type" : "object",
+        "properties" : {
+          "content" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/NotificationResponse"
             }
           },
-          "page": {
-            "type": "integer",
-            "format": "int32"
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
           },
-          "size": {
-            "type": "integer",
-            "format": "int32"
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
           },
-          "totalElements": {
-            "type": "integer",
-            "format": "int64"
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64"
           },
-          "totalPages": {
-            "type": "integer",
-            "format": "int32"
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32"
           }
         }
       },
-      "CategoryResponse": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "integer",
-            "format": "int32"
+      "CategoryResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int32"
           },
-          "name": {
-            "type": "string"
+          "name" : {
+            "type" : "string"
           }
         }
       },
-      "AuditLogResponse": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
+      "AuditLogResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
           },
-          "recordId": {
-            "type": "string",
-            "format": "uuid"
+          "recordId" : {
+            "type" : "string",
+            "format" : "uuid"
           },
-          "userId": {
-            "type": "string",
-            "format": "uuid"
+          "userId" : {
+            "type" : "string",
+            "format" : "uuid"
           },
-          "userFullName": {
-            "type": "string"
+          "userFullName" : {
+            "type" : "string"
           },
-          "roleId": {
-            "type": "integer",
-            "format": "int32"
+          "roleId" : {
+            "type" : "integer",
+            "format" : "int32"
           },
-          "roleName": {
-            "type": "string"
+          "roleName" : {
+            "type" : "string"
           },
-          "action": {
-            "type": "string"
+          "action" : {
+            "type" : "string"
           },
-          "previousStatus": {
-            "type": "string"
+          "previousStatus" : {
+            "type" : "string"
           },
-          "newStatus": {
-            "type": "string"
+          "newStatus" : {
+            "type" : "string"
           },
-          "comment": {
-            "type": "string"
+          "comment" : {
+            "type" : "string"
           },
-          "httpMethod": {
-            "type": "string"
+          "httpMethod" : {
+            "type" : "string"
           },
-          "requestPath": {
-            "type": "string"
+          "requestPath" : {
+            "type" : "string"
           },
-          "httpStatus": {
-            "type": "integer",
-            "format": "int32"
+          "httpStatus" : {
+            "type" : "integer",
+            "format" : "int32"
           },
-          "errorCode": {
-            "type": "string"
+          "errorCode" : {
+            "type" : "string"
           },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
           }
         }
       },
-      "AdminUserSearchCriteria": {
-        "type": "object",
-        "properties": {
-          "q": {
-            "type": "string"
+      "AdminUserSearchCriteria" : {
+        "type" : "object",
+        "properties" : {
+          "q" : {
+            "type" : "string"
           },
-          "role": {
-            "type": "string"
+          "role" : {
+            "type" : "string"
           },
-          "active": {
-            "type": "boolean"
+          "active" : {
+            "type" : "boolean"
           }
         }
       },
-      "PagedResponseUserResponse": {
-        "type": "object",
-        "properties": {
-          "content": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/UserResponse"
+      "PagedResponseUserResponse" : {
+        "type" : "object",
+        "properties" : {
+          "content" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/UserResponse"
             }
           },
-          "page": {
-            "type": "integer",
-            "format": "int32"
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
           },
-          "size": {
-            "type": "integer",
-            "format": "int32"
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
           },
-          "totalElements": {
-            "type": "integer",
-            "format": "int64"
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64"
           },
-          "totalPages": {
-            "type": "integer",
-            "format": "int32"
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32"
           }
         }
       },
-      "RoleResponse": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "integer",
-            "format": "int32"
+      "RoleResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int32"
           },
-          "name": {
-            "type": "string"
+          "name" : {
+            "type" : "string"
           },
-          "description": {
-            "type": "string"
+          "description" : {
+            "type" : "string"
           }
         }
       },
-      "PagedResponseObject": {
-        "type": "object",
-        "properties": {
-          "content": {
-            "type": "array",
-            "items": {}
+      "PagedResponseObject" : {
+        "type" : "object",
+        "properties" : {
+          "content" : {
+            "type" : "array",
+            "items" : { }
           },
-          "page": {
-            "type": "integer",
-            "format": "int32"
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
           },
-          "size": {
-            "type": "integer",
-            "format": "int32"
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
           },
-          "totalElements": {
-            "type": "integer",
-            "format": "int64"
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64"
           },
-          "totalPages": {
-            "type": "integer",
-            "format": "int32"
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32"
           }
         }
+      },
+      "DeviceTokenDeleteRequest" : {
+        "type" : "object",
+        "properties" : {
+          "token" : {
+            "type" : "string",
+            "minLength" : 1
+          }
+        },
+        "required" : [ "token" ]
       }
     },
-    "securitySchemes": {
-      "bearerAuth": {
-        "type": "http",
-        "description": "Giriş sonrası dönen accessToken",
-        "scheme": "bearer",
-        "bearerFormat": "JWT"
+    "securitySchemes" : {
+      "bearerAuth" : {
+        "type" : "http",
+        "description" : "Giriş sonrası dönen accessToken",
+        "scheme" : "bearer",
+        "bearerFormat" : "JWT"
       }
     }
   }
