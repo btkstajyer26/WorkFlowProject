@@ -7,6 +7,8 @@ import btk.staj.WorkFlowProject.workflow.port.WorkflowRecordPort;
 import btk.staj.WorkFlowProject.workflow.port.WorkflowUserPort;
 import btk.staj.WorkFlowProject.workflow.service.TargetUserResolver;
 import btk.staj.WorkFlowProject.workflow.service.WorkflowApplicationService;
+import btk.staj.WorkFlowProject.workflow.statemachine.StaticTransitionRuleSource;
+import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRuleSource;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowTransitionValidator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -30,9 +32,19 @@ public class WorkflowConfiguration {
         return Clock.systemUTC();
     }
 
+    /**
+     * Gecis kurallarinin kaynagi. Su an merkezi statik tabloyu saran adapter;
+     * ilerideki iterasyonda yalnizca bu bean degistirilerek kurallar
+     * veritabanindan okunabilir.
+     */
     @Bean
-    public WorkflowTransitionValidator workflowTransitionValidator() {
-        return new WorkflowTransitionValidator();
+    public TransitionRuleSource transitionRuleSource() {
+        return new StaticTransitionRuleSource();
+    }
+
+    @Bean
+    public WorkflowTransitionValidator workflowTransitionValidator(TransitionRuleSource ruleSource) {
+        return new WorkflowTransitionValidator(ruleSource);
     }
 
     @Bean
