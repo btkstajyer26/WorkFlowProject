@@ -2,6 +2,7 @@ package btk.staj.WorkFlowProject.rbac.service;
 
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
+import btk.staj.WorkFlowProject.workflow.statemachine.StaticTransitionRuleSource;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -9,7 +10,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PermissionServiceTest {
 
-    private final PermissionService permissionService = new PermissionService();
+    private final PermissionService permissionService =
+            new PermissionService(new StaticTransitionRuleSource());
 
     @Test
     void calisanKayitOlusturabilmeli() {

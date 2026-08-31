@@ -2,6 +2,7 @@ package btk.staj.WorkFlowProject.rbac.service;
 
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
+import btk.staj.WorkFlowProject.workflow.statemachine.StaticTransitionRuleSource;
 import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRules;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
 import org.junit.jupiter.api.DisplayName;
@@ -23,7 +24,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("Yetki sorgusu durum makinesine delege edilir")
 class PermissionServiceDelegationTest {
 
-    private final PermissionService permissionService = new PermissionService();
+    private final PermissionService permissionService =
+            new PermissionService(new StaticTransitionRuleSource());
 
     private void tumMatrisiKarsilastir(WorkflowAction action, BiPredicate<RoleName, RecordStatus> metot) {
         for (RecordStatus status : RecordStatus.values()) {

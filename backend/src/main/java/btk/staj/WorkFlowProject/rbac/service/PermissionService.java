@@ -2,18 +2,21 @@ package btk.staj.WorkFlowProject.rbac.service;
 
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
-import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRules;
+import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRuleSource;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
 import org.springframework.stereotype.Component;
+
+import java.util.Objects;
 
 /**
  * Sartnamedeki rol bazli yetki matrisinin sorgulanabilir hali.
  *
  * <p>Bu sinif <b>kural tasimaz</b>. Hangi rolun hangi durumda hangi aksiyonu
- * yapabilecegi bilgisi tek bir yerde, durum makinesinin
- * {@link TransitionRules} tablosunda tutulur; buradaki metotlar o tabloya
- * sorar. Boylece yeni bir gecis eklendiginde iki ayri yerin guncellenmesi
- * gerekmez.
+ * yapabilecegi bilgisi tek bir yerde, durum makinesinin gecis tablosunda
+ * tutulur; buradaki metotlar o tabloya {@link TransitionRuleSource} portu
+ * uzerinden sorar. Boylece yeni bir gecis eklendiginde iki ayri yerin
+ * guncellenmesi gerekmez ve kurallarin kaynagi degistiginde (statik tablo,
+ * veritabani) bu sinif etkilenmez.
  *
  * <p><b>Kapsam:</b> Yalnizca "durum + aksiyon + rol" birlesiminin tabloda
  * tanimli olup olmadigini soyler. Aktorun kayitla kurmasi gereken iliski
@@ -24,6 +27,12 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class PermissionService {
+
+    private final TransitionRuleSource ruleSource;
+
+    public PermissionService(TransitionRuleSource ruleSource) {
+        this.ruleSource = Objects.requireNonNull(ruleSource, "ruleSource");
+    }
 
     // ---------- Gecis gerektiren yetkiler ----------
 
@@ -123,11 +132,11 @@ public class PermissionService {
     // ---------- Tabloya sorgu ----------
 
     private boolean isTransitionDefined(RecordStatus from, WorkflowAction action, RoleName role) {
-        return TransitionRules.find(from, action, role).isPresent();
+        return ruleSource.find(from, action, role).isPresent();
     }
 
     private boolean hasAnyTransition(WorkflowAction action, RoleName role) {
-        return TransitionRules.all().stream()
+        return ruleSource.all().stream()
                 .anyMatch(rule -> rule.action() == action && rule.actorRole() == role);
     }
 }
