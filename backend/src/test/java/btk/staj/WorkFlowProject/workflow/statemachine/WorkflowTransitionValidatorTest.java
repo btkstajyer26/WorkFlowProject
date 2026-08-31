@@ -20,7 +20,8 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 @DisplayName("WorkflowTransitionValidator")
 class WorkflowTransitionValidatorTest {
 
-    private final WorkflowTransitionValidator validator = new WorkflowTransitionValidator();
+    private final WorkflowTransitionValidator validator =
+            new WorkflowTransitionValidator(new StaticTransitionRuleSource());
 
     // ------------------------------------------------------------------
     // Pozitif gecisler - gecis matrisindeki sekiz satir

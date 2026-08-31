@@ -18,6 +18,7 @@ import btk.staj.WorkFlowProject.workflow.port.WorkflowEventPublisher;
 import btk.staj.WorkFlowProject.workflow.port.WorkflowRecordPort;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
+import btk.staj.WorkFlowProject.workflow.statemachine.StaticTransitionRuleSource;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowErrorCode;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowTransitionValidator;
@@ -84,7 +85,7 @@ class WorkflowApplicationServiceTest {
                 recordPort,
                 currentActorProvider,
                 targetUserResolver,
-                new WorkflowTransitionValidator(),
+                new WorkflowTransitionValidator(new StaticTransitionRuleSource()),
                 auditService,
                 eventPublisher,
                 FIXED_CLOCK);

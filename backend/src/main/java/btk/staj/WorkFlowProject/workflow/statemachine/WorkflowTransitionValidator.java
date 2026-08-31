@@ -1,5 +1,6 @@
 package btk.staj.WorkFlowProject.workflow.statemachine;
 
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -10,10 +11,20 @@ import java.util.Optional;
  * {@code new} ile orneklenip altyapi olmadan test edilebilir. Butun gecis
  * kurallari yalnizca burada uygulanir &ndash; servis katmaninda tekrar edilmemelidir.
  *
+ * <p>Gecis tablosuna dogrudan degil, {@link TransitionRuleSource} portu
+ * uzerinden erisir; kurallarin nereden geldigini (statik tablo, veritabani)
+ * bilmez.
+ *
  * <p>Kontrol sirasi bilerek sabittir: daha genel ve daha ucuz kontroller once
  * calisir, boylece dondurulen hata kodu her zaman en anlamli sebebi gosterir.
  */
 public class WorkflowTransitionValidator {
+
+    private final TransitionRuleSource ruleSource;
+
+    public WorkflowTransitionValidator(TransitionRuleSource ruleSource) {
+        this.ruleSource = Objects.requireNonNull(ruleSource, "ruleSource");
+    }
 
     /**
      * Verilen baglamdaki gecisi dogrular.
@@ -34,7 +45,7 @@ public class WorkflowTransitionValidator {
         }
 
         // 3. Durum + aksiyon + rol birlesimi tabloda tanimli mi?
-        Optional<TransitionRule> rule = TransitionRules.find(
+        Optional<TransitionRule> rule = ruleSource.find(
                 context.currentStatus(), context.action(), context.actorRole());
         if (rule.isEmpty()) {
             return TransitionDecision.rejected(WorkflowErrorCode.WORKFLOW_INVALID_TRANSITION);
