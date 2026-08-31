@@ -1,8 +1,6 @@
 # İş Akışı ve Durum Geçişleri
 
-Bu belge, İş Akışı ve Onay Yönetim Sistemi'nin çalışan backend kodundaki workflow davranışını tanımlar. Ürün hedefinden çok **mevcut uygulamayı** esas alır; planlanan ancak henüz uygulanmayan davranışlar “Bilinen boşluklar” bölümünde ayrıca belirtilir.
-
-> Son kod doğrulaması 31 Ağustos 2026 tarihinde `test` dalının `4491a80` commit'i üzerinde yapılmıştır. Durum makinesi, API veya hata eşlemesi değiştirildiğinde bu belge aynı değişiklik kapsamında güncellenmelidir.
+Bu belge, İş Akışı ve Onay Yönetim Sistemi'nin çalışan backend kodundaki workflow davranışını tanımlar. Ürün hedefinden çok **mevcut uygulamayı** esas alır; planlanan ancak henüz uygulanmayan davranışlar “Bilinen boşluklar” bölümünde ayrıca belirtilir. Durum makinesi, API veya hata eşlemesi değiştirildiğinde belge aynı değişiklik kapsamında güncellenir.
 
 ## İçindekiler
 
@@ -36,7 +34,9 @@ Kanonik uygulama kaynakları:
 | --- | --- |
 | Durumlar | [`RecordStatus`](../backend/src/main/java/btk/staj/WorkFlowProject/workflow/statemachine/RecordStatus.java) |
 | Aksiyon özellikleri | [`WorkflowAction`](../backend/src/main/java/btk/staj/WorkFlowProject/workflow/statemachine/WorkflowAction.java) |
-| İzinli geçişler | [`TransitionRules`](../backend/src/main/java/btk/staj/WorkFlowProject/workflow/statemachine/TransitionRules.java) |
+| Geçiş kuralı okuma sınırı | [`TransitionRuleSource`](../backend/src/main/java/btk/staj/WorkFlowProject/workflow/statemachine/TransitionRuleSource.java) |
+| Güncel kural adapteri | [`StaticTransitionRuleSource`](../backend/src/main/java/btk/staj/WorkFlowProject/workflow/statemachine/StaticTransitionRuleSource.java) |
+| Statik geçiş tanımları | [`TransitionRules`](../backend/src/main/java/btk/staj/WorkFlowProject/workflow/statemachine/TransitionRules.java) |
 | Doğrulama sırası | [`WorkflowTransitionValidator`](../backend/src/main/java/btk/staj/WorkFlowProject/workflow/statemachine/WorkflowTransitionValidator.java) |
 | Hedef çözümleme | [`TargetUserResolver`](../backend/src/main/java/btk/staj/WorkFlowProject/workflow/service/TargetUserResolver.java) |
 | Uygulama akışı | [`WorkflowApplicationService`](../backend/src/main/java/btk/staj/WorkFlowProject/workflow/service/WorkflowApplicationService.java) |
@@ -58,6 +58,10 @@ flowchart LR
     APP --> RECORD["WorkflowRecordPort"]
     APP --> TARGET["TargetUserResolver"]
     APP --> VALIDATOR["WorkflowTransitionValidator"]
+    VALIDATOR --> SOURCE["TransitionRuleSource"]
+    PERMISSION["PermissionService"] --> SOURCE
+    SOURCE -. "güncel adapter" .-> STATIC["StaticTransitionRuleSource"]
+    STATIC --> RULES["TransitionRules"]
     APP --> AUDIT["AuditService"]
     APP --> EVENT["WorkflowEventPublisher"]
     RECORD --> DB[(PostgreSQL)]
@@ -67,7 +71,7 @@ flowchart LR
     EVENT --> PUSH["Commit sonrası FCM push"]
 ```
 
-Durum makinesi ve uygulama servisi doğrudan Spring, JPA veya HTTP'ye bağlı değildir. Spring bean bağlantıları `WorkflowConfiguration` içinde yapılır. Controller, saf uygulama servisini doğrudan değil, transaction açan `WorkflowActionService` üzerinden çağırır.
+Durum makinesi ve uygulama servisi doğrudan Spring, JPA veya HTTP'ye bağlı değildir. `WorkflowTransitionValidator` ve `PermissionService` kuralları `TransitionRuleSource` üzerinden okur. `WorkflowConfiguration` bugün bu sınıra, `TransitionRules` tablosunu saran `StaticTransitionRuleSource` adapterini bağlar. Controller, saf uygulama servisini doğrudan değil, transaction açan `WorkflowActionService` üzerinden çağırır.
 
 ## Roller ve organizasyon kuralları
 
@@ -415,13 +419,7 @@ Mevcut otomatik testler şu katmanları kapsar:
 - bildirim geçmişi, sahiplik ve sayfalama servisi;
 - Thymeleaf e-posta şablonu ve HTML escaping.
 
-31 Ağustos 2026 yerel turunda backend toplam **481 test** keşfetti. DB
-gerektirmeyen 467 test geçti; dört entegrasyon sınıfındaki 14 test yerel
-PostgreSQL'in yapılandırılmış parolayı reddetmesiyle (`SQLSTATE 28P01`) hata
-verdi. Bu sonuç ürün davranışı hatası değil, yerel ortam eksikliğidir; CI temiz
-PostgreSQL 15 servisiyle tam `verify` çalıştırır.
-
-Bu testlerin 11'i (`WorkflowTransitionPersistenceIntegrationTest`) gerçek bir PostgreSQL bağlantısı ister; veritabanı ayakta değilse `ApplicationContext` hatasıyla düşerler. Yerelde `docker compose up -d db` gerekir.
+`WorkflowTransitionPersistenceIntegrationTest` gerçek bir PostgreSQL bağlantısı ister; veritabanı ayakta değilse `ApplicationContext` hatasıyla düşer. Yerelde `docker compose up -d db` gerekir.
 
 Önemli eksik testler:
 
@@ -432,36 +430,28 @@ Bu testlerin 11'i (`WorkflowTransitionPersistenceIntegrationTest`) gerçek bir P
 
 ## Bilinen boşluklar ve kararlar
 
-1. ~~**Optimistic-lock hata eşlemesi**~~ — **çözüldü.** `RecordPortAdapter` çatışmayı `WORKFLOW_VERSION_CONFLICT`'e çeviriyor, handler bu kodu `409`'a eşliyor ve workflow dışı yazmalar için `OptimisticLockingFailureException` → `409 VERSION_CONFLICT` emniyet ağı var. Uçtan uca doğrulama `WorkflowTransitionPersistenceIntegrationTest` içinde.
-2. ~~**Tekil Başkan Yardımcısı ve istek hedefi**~~ — **çözüldü (C1).** `GONDER`/`TEKRAR_GONDER` hedefini artık backend, `BASKANA_ILET` ile aynı yoldan tek aktif kullanıcıdan çözer; istemci hedef göndermez, gönderirse istek reddedilir.
-3. ~~**Frontend entegrasyonu**~~ — **çözüldü.** `WorkflowContext` ve `transitionRecord` mock geçiş kolu frontend'den kaldırıldı; kayıt detayındaki aksiyon paneli yalnız gerçek API'yi (`useRecordWorkflowAction`) kullanıyor. Geçiş kuralı artık tek yerde, backend'de duruyor.
-4. ~~**İlk parola değişimi**~~ — **çözüldü.** `JwtAuthenticationFilter` parola değişimi bekleyen kullanıcıyı `403 PASSWORD_CHANGE_REQUIRED` ile durduruyor; workflow dahil bütün korumalı uçlar kapalı. Açık bırakılanlar yalnızca parola değiştirme, çıkış ve `GET /api/users/me`.
-5. **E-posta teslim garantisi:** Gönderim asenkron ve best-effort'tur; retry/outbox/DLQ yoktur.
-6. **Audit değiştirilemezliği:** Uygulama yazma/silme ucu sunmaz, fakat veritabanı rolü veya trigger ile append-only kuralı zorlanmaz.
-7. **Bildirim geçmişi indeksi:** Büyüyen veri için `(user_id, created_at DESC)` birleşik indeksi değerlendirilmelidir.
-8. ~~**Sözleşme drift'i (`BASKAN_ONAYINDA`)**~~ — **çözüldü.** İfade entegrasyon sözleşmesinde artık geçmiyor.
-9. ~~**Terminal ek silme ve dosya IDOR'u**~~ — **çözüldü.** `deleteFile` artık `RecordLockValidator.assertModifyAllowed` çağırıyor: soft-delete kontrolü, `created_by` sahiplik kontrolü ve yalnız `TASLAK`/`DUZENLEME_BEKLIYOR` durum kilidi. `downloadFile`, `previewFile` ve `listByRecord` ise `RecordAccessPolicy.assertCanView` üzerinden kayıt görünürlüğüyle sınırlı.
-10. ~~**Tekil rolün yeniden etkinleştirilmesi**~~ — **çözüldü.** `setActive(..., true)` tekil rol için `ensureSingletonRoleAvailable` çağırır; başka aktif kullanıcı varsa yazma işlemi reddedilir. Çakışma ve başarılı yeniden etkinleştirme testlerle kapsanır.
-11. ~~**Koltuk devrinde `last_deputy_id` bayat kalıyor**~~ — **çözüldü (M5, 20 Ağustos 2026).** `RecordRepository.updateLastDeputyId` eklendi ve `UserService.kullaniciIsleriniDevret` içinde `devretBekleyenIsleri` ile **aynı transaction'da** çağrılıyor. Koltuk devrinden sonra `BASKAN_YARDIMCISINA_GERI_GONDER` yeni yardımcıyı çözüyor; devredilen kayıtlar yeni yardımcının görünürlük kapsamına da giriyor. `UserServiceTest` kapsıyor.
+1. **E-posta teslim garantisi:** Gönderim asenkron ve best-effort'tur; retry/outbox/DLQ yoktur.
+2. **Audit değiştirilemezliği:** Uygulama yazma/silme ucu sunmaz, fakat veritabanı rolü veya trigger ile append-only kuralı zorlanmaz.
+3. **Bildirim geçmişi indeksi:** Büyüyen veri için `(user_id, created_at DESC)` birleşik indeksi değerlendirilmelidir.
+4. **Dinamik kural kaynağı:** Okuma sınırı `TransitionRuleSource` ile ayrılmıştır; güncel adapter hâlâ `TransitionRules` içindeki statik tabloyu kullanır. Veritabanından yönetilen dinamik kural kaynağı uygulanmamıştır.
 
 Başlangıç şartnamesiyle bilinçli veya fiilî uygulama farkları da korunmalıdır:
 
 - Başkan geri gönderme hedefini serbestçe seçmez; Çalışana dönüş `createdBy`, Başkan Yardımcısına dönüş `lastDeputyId` ile sabittir.
 - Şartnamedeki “tüm ilgililer” ifadesine karşılık mevcut uygulama atamalı geçişte yeni atanan kullanıcıyı; terminal geçişte kaydı oluşturan ile son Başkan Yardımcısını seçer.
 
-Dinamik workflow/rol kaynağı ve WebSocket bildirim kanalı mevcut davranış değildir;
-gelecek çalışma olarak planlanmaktadır.
+Dinamik rol kaynağı ve WebSocket bildirim kanalı mevcut davranış değildir.
 
 ## Değişiklik kontrol listesi
 
 Yeni bir workflow durumu veya aksiyonu eklenirken en az şu işler aynı değişiklikte yapılmalıdır:
 
 1. `RecordStatus` veya `WorkflowAction` enum'unu güncelleyin.
-2. İzinli birleşimi yalnız `TransitionRules` içine ekleyin; controller/service içinde paralel kural yazmayın.
+2. Statik adapter kullanıldığı sürece izinli birleşimi yalnız `TransitionRules` içine ekleyin; tüketiciler kuralları `TransitionRuleSource` üzerinden okumalı, controller/service içinde paralel kural yazmamalıdır.
 3. Hedef, açıklama ve aktör ilişkisini `WorkflowAction`/validator modelinde tanımlayın.
 4. Hedef çözümleme gerekiyorsa `TargetUserResolver` ve port testlerini güncelleyin.
 5. Audit ve bildirim türü/alıcı davranışını belirleyin.
 6. `WorkflowErrorCode` ve gerçek HTTP eşlemesini birlikte ekleyin.
 7. Durum makinesi, uygulama servisi, controller ve entegrasyon testlerini güncelleyin.
 8. OpenAPI istemcisini yeniden üretin ve frontend mock/adapter katmanını eşleyin.
-9. Bu belgeyi, `README.md` özetini ve frontend–backend sözleşmesini aynı PR'da güncelleyin.
+9. Bu belgeyi, frontend–backend sözleşmesini ve gerekiyorsa OpenAPI anlık görüntüsünü aynı değişiklikte güncelleyin.

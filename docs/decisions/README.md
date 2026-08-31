@@ -7,7 +7,7 @@ Bu dizin, projeyi uzun vadede etkileyen kararları Architecture Decision Record 
 | ADR | Konu | Durum |
 | --- | --- | --- |
 | [0001](0001-modul-bazli-paketleme.md) | Backend'i modül (feature) bazlı paketleme | Kabul Edildi |
-| [0002](0002-mobil-istemci-teknolojisi.md) | Mobil istemci teknolojisi — React Native + Expo | Önerildi |
+| [0002](0002-mobil-istemci-teknolojisi.md) | Mobil istemci teknolojisi — React Native + Expo | Kabul Edildi |
 
 Bu dizinde her mimari karar için ADR yoktur ve olması da beklenmez. Mevcut
 mimarinin çoğu [architecture.md](../architecture.md),

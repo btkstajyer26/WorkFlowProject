@@ -1,621 +1,104 @@
 # İş Akışı ve Onay Yönetim Sistemi
 
-[![CI](https://github.com/btkstajyer26/WorkFlowProject/actions/workflows/ci.yml/badge.svg?branch=test)](https://github.com/btkstajyer26/WorkFlowProject/actions/workflows/ci.yml)
+Kurum içi kayıtların oluşturulması, rol bazlı inceleme/onay akışından geçirilmesi, dosyalanması ve denetlenmesi için geliştirilmiş web ve mobil uygulamadır. İş kuralları Spring Boot backend'inde uygulanır; React ve Expo istemcileri aynı REST sözleşmesini kullanır.
 
-Kurum içindeki belge, kayıt ve onay süreçlerini dijitalleştirmek için geliştirilen web tabanlı bir Elektronik Belge Yönetim Sistemi (EBYS) modülüdür.
+## Mimari görünüm
 
-Sistem; kayıt oluşturma, hiyerarşik onay akışı, rol bazlı erişim, dosya yönetimi, denetim izi, arama ve bildirim yeteneklerini tek uygulamada birleştirir.
-
-> Proje aktif geliştirme aşamasındadır ve henüz üretim ortamına hazır değildir. Güncel çalışma ağacı `test` ve `main` dallarında aynıdır; commit kimlikleri farklıdır. Frontend'in çalışma zamanı mock katmanı kaldırılmıştır, mock'lar yalnızca testlerde (MSW) kullanılır. İlk Admin kurulumu ve ilk girişte parola değiştirme akışı tamamlanmıştır; backend üretimli geçici parola ve davet e-postası henüz yoktur.
-
-## İçindekiler
-
-- [Yapılacaklar](#yapılacaklar)
-- [Roller ve iş akışı](#roller-ve-iş-akışı)
-- [Mimari](#mimari)
-- [Teknolojiler](#teknolojiler)
-- [Proje yapısı](#proje-yapısı)
-- [Hızlı başlangıç](#hızlı-başlangıç)
-- [Yerel geliştirme](#yerel-geliştirme)
-- [Ortam değişkenleri](#ortam-değişkenleri)
-- [API özeti](#api-özeti)
-- [Veritabanı ve migration yönetimi](#veritabanı-ve-migration-yönetimi)
-- [Testler](#testler)
-- [Branch ve katkı akışı](#branch-ve-katkı-akışı)
-- [Dokümantasyon](#dokümantasyon)
-
-## Yapılacaklar
-
-Son durum (31 Ağustos 2026): `test` (`4491a80`) ve `main` (`264afa4`) farklı
-commit kimliklerinde aynı çalışma ağacını taşır. Açık pull request yoktur. İki
-dalda da branch protection kapalıdır; aşağıdaki maddeler mevcut kod ağacında
-kalan açıklardır.
-
-24 Ağustos 2026'da kapananlar: M2 (cihaz token sahiplik doğrulaması, token log
-maskeleme), M3 (push servisinin `WorkflowStatusChangedListener`'a bağlanması),
-M8 (`/api/device-tokens` yetki matrisi testi), M1 (işlem geçmişi boyut ölçümü
-ve sayfalama kararı) ve tekil rol invariant'ının yeniden etkinleştirmede de
-zorlanması (`UserService.ensureSingletonRoleAvailable`).
-
-> [!NOTE]
-> E-posta üzerinden tek tıkla işlem özelliği **güvenli deseniyle yeniden
-> yazıldı.** `origin/feature/notification-service` dalındaki sürüm alınmadı:
-> ucu kimlik doğrulaması olmadan açıyor ve kaydın atandığı kişi adına aksiyon
-> yürütüyordu. Yerine tek kullanımlık, süreli, evrak/aksiyon/kişiye bağlı
-> anahtar üzerinden çalışan bir akış eklendi.
-> [Ayrıntı ve reddedilen sürümün sorunları](docs/MOBIL_ENTEGRASYON_GOREV_DAGILIMI.md#e-posta-hızlı-işlem--güvenli-sürüm-yazıldı).
-
-Doğrulama (31 Ağustos 2026, yerel PostgreSQL kimlik doğrulaması başarısız): backend 481 test
-koştu; 467 test geçti, 14 error aşağıda sayılan PostgreSQL bağımlı dört
-sınıftan geldi. Frontend `lint`, `typecheck:e2e` ve `build` temiz, 110/110
-Vitest yeşil. Mobil `typecheck` temiz ve tek başına son Jest turu 64/64 yeşil;
-daha önce paralel turda `RecordWorkflowActions` zaman aşımına uğradı. Mobil lint resolver'ı, kurulu ve
-manifestte bulunan bazı paketleri çözümleyemedi. Playwright E2E ve gerçek cihaz push turu çalıştırılmadı.
-
-### Ürün ve backend
-
-- E-postadaki "Hızlı İşlem" akışı **gerçek posta üzerinden uçtan uca denenmedi**; birim ve yetki testleri yeşil, ancak Mailpit/SMTP ile gerçek bir tur atılması Docker gerektirdiği için yapılamadı.
-- `mail_action_tokens` tablosunda süresi dolmuş satırların toplu temizliği için zamanlanmış iş yoktur; indeks hazır, iş tanımlanmadı.
-- Admin kullanıcı oluştururken parolayı istemciden almaktadır; backend üretimli geçici parola ve davet e-postası henüz uygulanmamıştır.
-- Audit değiştirilemezliği yalnızca uygulama seviyesinde sağlanır; veritabanı tarafında trigger veya rol kısıtı ile zorlanmaz.
-- Push gönderimi **gerçek cihazda hiç doğrulanmadı.** `PushNotificationService`, `WorkflowStatusChangedListener`'a bağlıdır; mobil istemci `expo-notifications` ile yerel FCM/APNs tokenını alıp `/api/device-tokens` üzerinden kaydeder. Kalan MOB-12 işleri gerçek cihaz kanıtı, token yenileme dinleyicisi ve soğuk açılış yönlendirmesidir.
-
-### Mobil
-
-- `mobile/` paketinde API, auth, query, bildirim, dosya ve temel ekran bileşenlerini kapsayan 13 Jest dosyasında 64 test bulunur. 31 Ağustos son tekil turu 64/64 yeşildir; aynı gün paralel kalite turunda bir ekran testi zaman aşımına uğramıştır.
-- MOB-12 istemci ayağı uygulanmıştır: izin istenir, native cihaz tokenı kaydedilir ve bildirime dokunulduğunda ilgili kayıt ekranına gidilir. Token yenileme aboneliği, uygulama kapalıyken son bildirim cevabının işlenmesi ve gerçek cihaz kanıtı henüz yoktur.
-- iOS release / imza (MOB-16) yapılmadı; Android tarafı EAS preview APK ile doğrulandı.
-
-### Test ve CI
-
-- Backend'de dört test sınıfı (toplam 14 test) geçerli bir PostgreSQL bağlantısı ister. 31 Ağustos turunda yerel servis `postgres` parolasını reddetti (`SQLSTATE 28P01`) ve bu sınıflar `ApplicationContext` hatasıyla düştü: `WorkflowTransitionPersistenceIntegrationTest` (11 test), `WorkFlowProjectApplicationTests`, `AuditLogRepositoryIntegrationTest`, `RecordRepositorySortingTest`. CI bunları `postgres:15-alpine` servisiyle çalıştırır; yerelde doğru volume/parola ile `docker compose up -d db` gerekir. Toplam 481 backend testinin kalan 467'si geçti.
-- Playwright E2E paketi yalnız `docker-compose.e2e.yml` ile ayağa kalkan izole backend'e karşı çalışır; Docker'sız bir geliştirici makinesinde hiç koşturulamaz. `Frontend / E2E` işi CI'da bu boşluğu kapatır, ancak yerel doğrulama zinciri Docker'a bağımlıdır.
-- E2E `global-setup.ts` yalnız `E2E_PROVISION_USER=true` ile hesap açar ve bu mod ortak/production veritabanına karşı çalıştırılırsa gerçek veri üretir; koruma yalnız belgelenmiş bir uyarıdır, kodda ortam kontrolü yoktur.
-- Vitest için açık bir `testTimeout`/havuz sınırı ayarlanmamıştır. 31 Ağustos son turu 21 dosyada 110/110 yeşil bitti; aynı gün daha önce `AdminUsersPage` testi zaman aşımına uğradı. Sonuç yük altında aralıklı davranabildiği için zaman aşımı ayrıca izlenmelidir.
-- `test` ve `main` dalları için branch protection kuralları etkin değildir (GitHub API `404` döner). Beş CI işi de merge için teknik olarak zorunlu değildir.
-
-### Dal hijyeni
-
-- `test` ve `main` çalışma ağaçları aynıdır; release farkı kaynak kod farkı değildir.
-- PR #43, güvenli e-posta hızlı işlem akışıyla çakıştığı için 31 Ağustos'ta merge edilmeden kapatıldı. Kaynak dal arşiv değeri için korunur.
-- Tüketilmiş ve yerel dalların temizliği ekibin görev takip listesinde izlenir.
-
-### Doküman durumu
-
-- `docs/decisions/` altında iki uygulanmış mimari karar kaydı vardır. Dinamik workflow ve WebSocket mevcut mimarinin parçası değil, kanonik yol haritasındaki gelecek işlerdir.
-
-## Roller ve iş akışı
-
-### Roller
-
-| Rol | Sorumluluk |
-| --- | --- |
-| `CALISAN` | Kayıt oluşturur, taslağını düzenler, dosya ekler ve onay akışına gönderir. |
-| `BASKAN_YARDIMCISI` | Kendisine atanan kaydı inceler; Başkana iletir veya açıklamayla Çalışana geri gönderir. |
-| `BASKAN` | Kaydı onaylar, reddeder ya da Çalışana/Başkan Yardımcısına geri gönderir. |
-| `ADMIN` | Kullanıcı ve rol yönetiminden sorumludur. Kendiliğinden workflow aktörü değildir ve yalnız Admin olduğu için kayıtlara erişemez. |
-
-`ADMIN`, `BASKAN` ve `BASKAN_YARDIMCISI` **tekil rollerdir**: her birini aynı anda yalnızca bir aktif kullanıcı tutabilir. Bu nedenle istemci hiçbir aksiyonda hedef kullanıcı seçmez; hedefi her zaman backend çözer. `GONDER` ve `TEKRAR_GONDER` sistemdeki tek aktif Başkan Yardımcısını, `BASKANA_ILET` ise tek aktif Başkanı hedefler.
-
-Başkan Yardımcısı koltuğu devredilirken (`PATCH /api/admin/users/{id}/role` isteğinde `replacementBaskanYardimcisiId` ile) eski yardımcının üzerindeki bekleyen kayıtlar aynı transaction içinde yeni yardımcıya aktarılır.
-
-### Durumlar
-
-```mermaid
-stateDiagram-v2
-    [*] --> TASLAK
-    TASLAK --> BSK_YRD_INCELEMESINDE: GONDER
-    DUZENLEME_BEKLIYOR --> BSK_YRD_INCELEMESINDE: TEKRAR_GONDER
-    BSK_YRD_INCELEMESINDE --> BASKAN_INCELEMESINDE: BASKANA_ILET
-    BSK_YRD_INCELEMESINDE --> DUZENLEME_BEKLIYOR: CALISANA_GERI_GONDER
-    BASKAN_INCELEMESINDE --> DUZENLEME_BEKLIYOR: CALISANA_GERI_GONDER
-    BASKAN_INCELEMESINDE --> BSK_YRD_INCELEMESINDE: BASKAN_YARDIMCISINA_GERI_GONDER
-    BASKAN_INCELEMESINDE --> ONAYLANDI: ONAYLA
-    BASKAN_INCELEMESINDE --> REDDEDILDI: REDDET
-    ONAYLANDI --> [*]
-    REDDEDILDI --> [*]
+```text
+React web ─┐
+           ├── REST / OpenAPI ── Spring Boot ── PostgreSQL
+Expo mobil ┘                         ├── dosya deposu
+                                    ├── SMTP / Mailpit
+                                    └── FCM push
 ```
-
-### Temel kurallar
-
-- İstemci hedef durumu doğrudan belirlemez; yalnızca aksiyonu gönderir, yeni durumu backend hesaplar.
-- İstemci hedef kullanıcıyı da belirlemez. `targetUserId` **hiçbir aksiyonda gönderilmez**; yine de gönderilirse istek `400 WORKFLOW_TARGET_NOT_ALLOWED` ile reddedilir.
-- `GONDER` ve `TEKRAR_GONDER` hedefini backend, sistemdeki tek aktif Başkan Yardımcısı olarak çözer; `BASKANA_ILET` hedefini tek aktif Başkan olarak çözer. Beklenen rolde sıfır veya birden fazla aktif kullanıcı bulunursa istek `409 WORKFLOW_ROLE_NOT_CONFIGURED` ile durur.
-- Kaydı Başkana ileten Başkan Yardımcısı `lastDeputyId` alanında tutulur. Başkan geri gönderdiğinde kayıt bu kullanıcıya döner.
-- Çalışana veya Başkan Yardımcısına geri gönderme ile nihai ret işlemlerinde açıklama zorunludur.
-- `ONAYLANDI` ve `REDDEDILDI` terminal durumlardır; kayıt içeriği, ekler ve workflow kilitlenir.
-- Pasif kullanıcı workflow hedefi olamaz.
-
-## Mimari
-
-```mermaid
-flowchart LR
-    UI[React + TypeScript] --> API[Spring Boot REST API]
-    MOBILE[Expo / React Native] --> API
-    API --> AUTH[Auth ve RBAC]
-    API --> RECORD[Record]
-    API --> FILE[Attachment]
-    API --> SEARCH[Search]
-    RECORD --> WORKFLOW[Workflow durum makinesi]
-    WORKFLOW --> AUDIT[Audit]
-    WORKFLOW --> NOTIFY[Notification]
-    AUTH --> DB[(PostgreSQL)]
-    RECORD --> DB
-    FILE --> DB
-    FILE --> STORAGE[(Dosya sistemi)]
-    AUDIT --> DB
-    NOTIFY --> DB
-    NOTIFY --> SMTP[Mailpit / Outlook SMTP]
-    NOTIFY --> PUSH[FCM HTTP v1]
-```
-
-Backend, modül sınırlarını paket seviyesinde ayırır. Workflow çekirdeği doğrudan Spring veya JPA'ya bağımlı değildir; dış sistemlere portlar üzerinden bağlanır. HTTP, güvenlik, kullanıcı, persistence ve event adaptörleri uygulama katmanında konumlanır.
-
-## Teknolojiler
 
 | Katman | Teknoloji |
 | --- | --- |
-| Backend | Java 21, Spring Boot 4.1.0, Spring Web MVC |
-| Güvenlik | Spring Security, JWT (`jjwt` 0.12.6) |
-| Persistence | Spring Data JPA, Hibernate, PostgreSQL 15 |
-| Migration | Flyway |
-| E-posta | Spring Mail, Mailpit, Outlook/SMTP uyumlu yapılandırma |
-| Dosya doğrulama | Apache Tika 2.9.2 |
-| API dokümantasyonu | Springdoc OpenAPI 3.1 |
-| Frontend | React 19, TypeScript 6, Vite 8, Tailwind CSS 4 |
-| Mobil | Expo SDK 57, React Native, Expo Router, `expo-notifications` |
-| Sunucu durumu | TanStack Query 5 |
-| Form ve doğrulama | React Hook Form, Zod |
-| Frontend test/kalite | Vitest, Testing Library, MSW, Oxlint |
-| Çalıştırma | Docker, Docker Compose |
+| Backend | Java 21, Spring Boot, Spring Security, JPA, Flyway |
+| Web | React, TypeScript, Vite, TanStack Query |
+| Mobil | React Native, Expo Router, TypeScript |
+| Veri ve yerel servisler | PostgreSQL 15, Docker Compose, Mailpit |
 
-## Proje yapısı
-
-```text
-WorkFlowProject/
-├── backend/
-│   ├── src/main/java/btk/staj/WorkFlowProject/
-│   │   ├── attachment/
-│   │   ├── audit/
-│   │   ├── auth/
-│   │   ├── common/
-│   │   ├── notification/
-│   │   ├── rbac/
-│   │   ├── record/
-│   │   ├── search/
-│   │   ├── user/
-│   │   └── workflow/
-│   ├── src/main/resources/
-│   │   ├── application.properties
-│   │   └── db/migration/
-│   ├── src/test/
-│   └── pom.xml
-├── frontend/
-│   ├── e2e/
-│   ├── public/
-│   ├── src/
-│   ├── package.json
-│   └── package-lock.json
-├── mobile/
-│   ├── src/
-│   │   ├── api/
-│   │   ├── app/
-│   │   ├── auth/
-│   │   ├── components/
-│   │   ├── query/
-│   │   ├── services/
-│   │   └── utils/
-│   ├── app.json
-│   └── package.json
-├── deploy/
-├── docs/
-├── .env.example
-├── docker-compose.yml
-├── docker-compose.test.yml
-├── docker-compose.e2e.yml
-└── README.md
-```
+Workflow geçişleri merkezi bir statik tablodan gelir. `StaticTransitionRuleSource`, bu tabloyu `TransitionRuleSource` sınırının arkasında hem doğrulayıcıya hem yetki servisine sunar. İstemciler hedef durumu hesaplamaz.
 
 ## Hızlı başlangıç
 
-### Gereksinimler
-
-- Git
-- Docker Desktop veya Docker Engine
-- Docker Compose
-
-Aktif geliştirme sürümünü kullanmak için:
-
-```bash
-git clone https://github.com/btkstajyer26/WorkFlowProject.git
-cd WorkFlowProject
-git switch test
-```
-
-Ortam dosyasını oluşturun:
-
-Windows PowerShell:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-Linux/macOS:
+Gereksinimler: Docker Compose 2.24 veya üzeri. Yerel geliştirme için ayrıca Java 21, Maven ve Node.js 22.13 veya üzeri gerekir.
 
 ```bash
 cp .env.example .env
-```
-
-PostgreSQL, Mailpit ve backend'i başlatın:
-
-```bash
 docker compose up --build -d
-docker compose ps
 ```
 
-Frontend'i Docker profiliyle birlikte başlatmak için:
+Servisler:
+
+- API: `http://localhost:8080`
+- Swagger UI: `http://localhost:8080/swagger-ui.html`
+- Mailpit: `http://localhost:8025`
+
+Web uygulamasını da Compose ile başlatmak için:
 
 ```bash
 docker compose --profile frontend up --build -d
 ```
 
-| Servis | Adres |
-| --- | --- |
-| Backend | `http://localhost:8080` |
-| Swagger UI | `http://localhost:8080/swagger-ui.html` |
-| OpenAPI JSON | `http://localhost:8080/v3/api-docs` |
-| Frontend | `http://localhost:5173` |
-| Mailpit | `http://localhost:8025` |
-| PostgreSQL | `localhost:5432` |
+Web arayüzü `http://localhost:5173` adresinde açılır. Ortam değişkenlerinin güncel listesi ve açıklamaları [`.env.example`](.env.example) dosyasındadır.
 
-Logları izlemek için:
+Paketleri ayrı ayrı çalıştırmak için ilgili rehberi kullanın:
 
-```bash
-docker compose logs -f backend
-```
+- [Frontend geliştirme](frontend/README.md)
+- [Mobil geliştirme](mobile/README.md)
+- [Frontend E2E kurulumu](frontend/e2e/README.md)
 
-Servisleri durdurmak için:
+## Kalite komutları
 
-```bash
-docker compose down
-```
-
-> [!WARNING]
-> `docker compose down -v` veritabanı ve yüklenen dosya volume'lerini kalıcı olarak siler.
-
-## Yerel geliştirme
-
-### Backend
-
-Gereksinimler:
-
-- JDK 21
-- Maven 3.9+
-- PostgreSQL 15
-
-Önce bağımlı servisleri başlatın:
-
-```bash
-docker compose up -d db mailpit
-```
-
-Backend'i çalıştırın:
-
-```bash
-cd backend
-mvn spring-boot:run
-```
-
-Maven Wrapper depoda yapılandırılmıştır; yerelde Maven kurulu olmasa da aynı komut `./mvnw spring-boot:run` veya Windows'ta `.\mvnw.cmd spring-boot:run` ile çalıştırılabilir. CI de wrapper'ı kullanır.
-
-### Frontend
-
-Gereksinimler:
-
-- Node.js 22
-- npm
-
-```bash
-cd frontend
-npm ci
-npm run dev
-```
-
-## Ortam değişkenleri
-
-### Backend
-
-| Değişken | Varsayılan | Açıklama |
-| --- | --- | --- |
-| `DB_HOST` | `localhost` | PostgreSQL sunucusu |
-| `DB_PORT` | `5432` | PostgreSQL portu |
-| `DB_NAME` | `workflowdb` | Veritabanı adı |
-| `DB_USER` | `postgres` | Veritabanı kullanıcısı |
-| `DB_PASSWORD` | `postgres` | Yalnız yerel geliştirme parolası |
-| `JWT_SECRET` | Yerel geliştirme değeri | En az 32 karakterlik JWT imzalama anahtarı |
-| `JWT_ACCESS_TOKEN_EXPIRATION` | `3600000` | Access token süresi, milisaniye |
-| `JWT_REFRESH_TOKEN_EXPIRATION` | `604800000` | Refresh token süresi, milisaniye |
-| `MAIL_HOST` | `localhost` | SMTP sunucusu |
-| `MAIL_PORT` | `1025` | SMTP portu |
-| `MAIL_USERNAME` | Boş | Gerçek SMTP kullanıcı adı |
-| `MAIL_PASSWORD` | Boş | Gerçek SMTP parolası |
-| `MAIL_AUTH` | `false` | SMTP kimlik doğrulaması |
-| `MAIL_STARTTLS` | `false` | STARTTLS kullanımı |
-| `MAIL_FROM` | `ebys@ornek.local` | Bildirim e-postalarının gönderen adresi |
-| `FRONTEND_URL` | `http://localhost:5173` | E-posta deep link tabanı |
-| `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | Virgülle ayrılmış izinli origin listesi |
-| `UPLOAD_DIR` | `./uploads` | Dosya saklama dizini |
-| `BOOTSTRAP_ADMIN_EMAIL` | Boş | İlk Admin e-postası; aşağıdaki nota bakınız |
-| `BOOTSTRAP_ADMIN_PASSWORD` | Boş | İlk Admin parolası; aşağıdaki nota bakınız |
-| `PASSWORD_RESET_CODE_TTL_MINUTES` | `10` | E-postayla gönderilen 6 haneli kodun geçerlilik süresi |
-| `PASSWORD_RESET_TOKEN_TTL_MINUTES` | `15` | Kod doğrulandıktan sonra verilen sıfırlama anahtarının süresi |
-| `PASSWORD_RESET_RESEND_COOLDOWN_SECONDS` | `60` | Yeni kod istemek için beklenmesi gereken süre |
-| `MAIL_ACTION_TOKEN_TTL_HOURS` | `72` | E-postadaki "Hızlı İşlem" bağlantısının ömrü; anahtar tek kullanımlık ve tek evrak/aksiyon/kişiye bağlıdır |
-
-> [!NOTE]
-> İlk Admin yalnızca **iki değişken de doludur** ve sistemde **aktif Admin yoktur** koşulunda oluşturulur. Hesap `mustChangePassword` işaretiyle açılır; ilk girişte parola değiştirilmeden diğer uçlara erişilemez.
-
-### Frontend
-
-| Değişken | Varsayılan | Açıklama |
-| --- | --- | --- |
-| `VITE_API_BASE_URL` | `http://localhost:8080` | Backend taban adresi. Yol öneki içermez; uçlar `/api/...` ile başlar. |
-
-> [!NOTE]
-> Çalışma zamanında mock modu **yoktur**. Arayüz geliştirmede de üretim build'inde de her zaman gerçek backend'e bağlanır; MSW yalnız Vitest test ortamında devreye girer.
-
-Gerçek parola, JWT anahtarı veya SMTP kimlik bilgilerini repository'ye eklemeyin. `.env` dosyası Git tarafından izlenmemelidir.
-
-## API özeti
-
-Tüm uçlar `/api` altındadır; sürüm öneki kullanılmaz.
-
-| Alan | Endpoint | Açıklama |
-| --- | --- | --- |
-| Auth | `POST /api/auth/login` | E-posta ve parola ile giriş |
-| Auth | `POST /api/auth/refresh` | Access token yenileme |
-| Auth | `POST /api/auth/logout` | Refresh token iptali |
-| Auth | `POST /api/auth/change-password` | Oturum açmış kullanıcının parola değiştirmesi |
-| Auth | `POST /api/auth/forgot-password` | Parola sıfırlama kodu ister. Adres kayıtlı olsun olmasın `202` döner |
-| Auth | `POST /api/auth/verify-reset-code` | E-postayla gelen 6 haneli kodu doğrular, tek kullanımlık sıfırlama anahtarı verir |
-| Auth | `POST /api/auth/reset-password` | Doğrulanmış anahtarla yeni parolayı kaydeder; oturum gerektirmez |
-| Kullanıcı | `GET /api/users/me` | Oturum açmış kullanıcının kendi bilgileri |
-| Admin | `POST /api/admin/users` | Kullanıcı oluşturma |
-| Admin | `GET /api/admin/users` | Kullanıcı listesi; arama, rol ve aktiflik filtreli, sayfalı |
-| Admin | `PATCH /api/admin/users/{id}/role` | Rol değiştirme; tekil rol devri bu uçtan yapılır |
-| Admin | `PATCH /api/admin/users/{id}/active` | Hesap etkinleştirme/pasifleştirme |
-| Admin | `GET /api/admin/roles` | Atanabilir rollerin listesi |
-| Admin | `GET /api/admin/audit-logs` | Sistem genelinde denetim izi |
-| Kayıt | `POST /api/records` | Kayıt oluşturma; yalnız Çalışan |
-| Kayıt | `GET /api/records/{id}` | Tekil kayıt; görünürlük kuralı uygulanır |
-| Kayıt | `GET /api/records` | Listeleme, arama ve filtreleme; aşağıdaki nota bakınız |
-| Kayıt | `PUT /api/records/{id}` | Kayıt düzenleme; yalnız oluşturan Çalışan |
-| Kayıt | `DELETE /api/records/{id}` | Kayıt silme (soft delete); yalnız oluşturan Çalışan |
-| Workflow | `POST /api/records/{recordId}/workflow/actions` | Tüm workflow aksiyonları için tek endpoint |
-| Dosya | `POST /api/records/{id}/files` | Aynı `file` alanıyla bir veya daha çok dosya ekleme; yalnız Çalışan |
-| Dosya | `GET /api/records/{id}/files` | Kaydın dosyalarını listeleme |
-| Dosya | `GET /api/files/{id}/download` | Dosya indirme |
-| Dosya | `GET /api/files/{id}/preview` | Tarayıcıda önizleme |
-| Dosya | `DELETE /api/files/{id}` | Dosya silme; yalnız Çalışan |
-| Kategori | `GET /api/categories` | Kategorileri listeleme |
-| Audit | `GET /api/audit-logs/record/{recordId}` | Yetkili kullanıcının kayıt geçmişini görmesi |
-| Audit | `GET /api/user-audit-logs/{targetUserId}` | Kullanıcı işlem geçmişi; yalnız Admin |
-| Bildirim | `GET /api/notifications` | Bildirim geçmişi (okunmuş + okunmamış), sayfalı |
-| Bildirim | `GET /api/notifications/unread` | Okunmamış bildirimler |
-| Bildirim | `GET /api/notifications/unread/count` | Okunmamış bildirim sayısı |
-| Bildirim | `PUT /api/notifications/{id}/read` | Bildirimi okundu işaretleme |
-| Hızlı işlem | `POST /api/public/mail-actions/preview` | E-posta bağlantısını doğrular, onay ekranı bilgisini döner; **oturum gerektirmez, durum değiştirmez** |
-| Hızlı işlem | `POST /api/public/mail-actions/consume` | Bağlantıyı tüketir ve workflow aksiyonunu yürütür; **oturum gerektirmez** |
-| Cihaz token | `POST /api/device-tokens` | Mobil FCM token kaydı/güncellemesi (upsert); kullanıcı JWT'den okunur |
-| Cihaz token | `DELETE /api/device-tokens` | Cihaz tokenını pasifleştirme; aşağıdaki nota bakınız |
-
-Arama için ayrı bir uç yoktur; filtreleme kayıt listesi ucu üzerinden yapılır:
-
-```text
-GET /api/records?page&size&status&categoryId&q&from&to&creator&sort
-```
-
-> [!NOTE]
-> `DELETE /api/device-tokens` sahiplik doğrular: token `(token, user_id)` çifti
-> üzerinden pasifleştirilir, oturumdaki kullanıcıya ait olmayan token sessizce
-> yok sayılır. Bu uç **normal çıkış akışı değildir** — normal çıkışta cihaz
-> tokenı `POST /api/auth/logout` gövdesindeki `deviceToken` ile pasifleşir.
-
-Admin uçlarının tamamı `@PreAuthorize` ile yalnızca `ADMIN` rolüne açıktır; kayıt oluşturma, düzenleme, silme ve dosya ekleme aynı biçimde yalnızca `CALISAN` rolüne açıktır. Workflow ucunda rol kontrolü bilinçli olarak controller'da değil durum makinesinde yapılır; yetkisiz rol denemesi `403 WORKFLOW_ROLE_NOT_ALLOWED` ile döner.
-
-İstek ve yanıt şemaları için uygulama çalışırken Swagger UI kullanılmalıdır. Canlı
-`/v3/api-docs` istemci üretiminin kaynağıdır; [docs/openapi.json](docs/openapi.json)
-ise kod inceleme ve değişiklik takibi için sürümlenmiş anlık görüntüdür.
-
-## Veritabanı ve migration yönetimi
-
-Flyway migrationları `backend/src/main/resources/db/migration` dizinindedir.
-
-| Migration | İçerik |
-| --- | --- |
-| `V1__init_database_schema.sql` | Roller, kullanıcılar, tokenlar, kayıtlar, dosyalar, audit ve bildirim tablolarını içeren kanonik başlangıç şeması |
-| `V2__create_record_notes.sql` | (Kullanılmıyor) Kayıt çalışma notları; `V6` ile geri alındı |
-| `V4__add_soft_delete_to_files.sql` | Dosyalara soft delete alanları ve indeks |
-| `V5__add_notification_type.sql` | Bildirim türü alanı ve indeksi |
-| `V6__drop_record_notes.sql` | Kullanılmayan `record_notes` tablosunun kaldırılması |
-| `V7__request_and_auth_audit_columns.sql` | Audit tablolarında evrak zorunluluğunun kaldırılması; HTTP istek kolonları |
-| `V8__password_reset_codes.sql` | Parola sıfırlama kodları tablosu (`password_reset_codes`) ve indeksleri |
-| `V9__record_handoff_snapshot.sql` | Kayıt Çalışana geri gönderildiğinde içeriğini donduran `snapshot_*` kolonları |
-| `V10__device_tokens.sql` | Mobil push için `device_tokens` tablosu ve `(user_id, is_active)` indeksi |
-| `V11__mail_action_tokens.sql` | E-posta bildirimindeki tek tıkla işlem bağlantısının tek kullanımlık anahtarları |
-
-`V1` hazırlanırken daha önce taslak olarak adlandırılan Admin ve workflow migrationları ortak veritabanına uygulanmadan birleştirilmiştir. Bu nedenle numaralandırmadaki boşluklar tarihsel tasarım kararının sonucudur.
-
-Kayıt durumu `records.status` alanında `RecordStatus` enum adı olarak saklanır; ayrı bir `statuses` tablosu yoktur.
-
-Kurallar:
-
-- Uygulanmış migration dosyalarını değiştirmeyin.
-- Her şema değişikliği için yeni ve sıralı bir migration oluşturun.
-- Entity uyumu Hibernate tarafından `ddl-auto=validate` ile doğrulanır; şema Hibernate tarafından üretilmez.
-- Eski veya dolu bir veritabanını taşımadan önce `flyway_schema_history` ve mevcut şema envanterini kontrol edin.
-
-## Testler
-
-### Backend
-
-Backend testleri JUnit 5, Mockito, Spring Test ve MockMvc kullanır. Tam doğrulama PostgreSQL gerektirir:
+Backend doğrulaması PostgreSQL gerektirir:
 
 ```bash
 docker compose up -d db
 cd backend
-mvn --batch-mode --no-transfer-progress verify
+mvn verify
 ```
 
-> [!WARNING]
-> PostgreSQL parolası veri volume'ü **ilk oluşturulurken** sabitlenir. `.env` içindeki `DB_PASSWORD` sonradan değiştirilirse konteyneri yeniden başlatmak yetmez; testler `password authentication failed for user "postgres"` ile düşer ve sorun koddaymış gibi görünür. Çözüm ya `docker compose down -v` (veritabanı verisi silinir) ya da parolayı veritabanında elle güncellemektir.
-
-### Frontend
+Frontend:
 
 ```bash
 cd frontend
 npm ci
 npm run lint
 npm run typecheck:e2e
-npm run test
 npm run build
+npm test
 ```
 
-`npm run test` Vitest birim/entegrasyon paketini çalıştırır (21 dosya, 110 test).
-Bu paket ağı MSW ile karşılar; backend gerektirmez.
-
-### Uçtan uca (E2E)
-
-Playwright paketi runtime mock kullanmaz: tarayıcı gerçek Spring Boot API'sine,
-backend de yalnız E2E için ayağa kalkan izole bir PostgreSQL'e bağlanır. Ortak
-geliştirme veritabanına karşı çalıştırılmamalıdır.
-
-```powershell
-docker compose -p workflow-e2e -f docker-compose.e2e.yml up -d --build --wait
-cd frontend
-$env:E2E_PROVISION_USER = "true"
-npm run test:e2e
-docker compose -p workflow-e2e -f docker-compose.e2e.yml down -v
-```
-
-Kapsanan akışlar, hesap hazırlama davranışı ve adres değişkenleri için
-[frontend/e2e/README.md](frontend/e2e/README.md) dosyasına bakınız.
-
-### Mobil
+Mobil:
 
 ```bash
 cd mobile
 npm ci
 npm run lint
 npm run typecheck
-npm test
+npm test -- --runInBand
+npx expo export --platform web
 ```
 
-31 Ağustos 2026 son tekil turunda 13 dosyadaki 64 testin tamamı geçti; önceki
-paralel turda `RecordWorkflowActions` 5 saniyelik zaman aşımına ulaştı. Lint ayrıca kurulu
-ve manifestte bulunan bazı Expo ve Testing Library modüllerini çözümsüz raporladı. Bunlar
-dokümantasyon çalışmasının dışında kalan kod/paketleme açıklarıdır.
+## Kanonik belgeler
 
-### Sürekli entegrasyon
-
-`.github/workflows/ci.yml`, `test`, `main` ve `integration/**` dallarına açılan pull requestlerde ve bu dallara yapılan push'larda beş job çalıştırır:
-
-| Job | İçerik |
+| Belge | Kapsam |
 | --- | --- |
-| `Backend / verify` | PostgreSQL 15 servis konteyneriyle `./mvnw verify`; Surefire raporlarını artefakt olarak yükler |
-| `Frontend / quality` | `npm ci`, `npm run lint`, `npm run typecheck:e2e`, `npm run test`, `npm run build` |
-| `Mobile / quality` | `npm ci`, `npm run lint`, `npm run typecheck`, `npm test -- --runInBand` |
-| `Frontend / E2E` | `docker-compose.e2e.yml` ile izole backend + PostgreSQL + Mailpit ayağa kaldırılır, Chromium kurulur, `npm run test:e2e` koşar; Playwright raporu ve servis logları artefakt olarak yüklenir |
-| `Deploy / compose + shell` | Birleşik `docker-compose.yml` + `docker-compose.test.yml` parse edilir; host portu yayınlayan tek servisin `caddy` olduğu, `frontend` servisinin TEST birleşiminde pasif kaldığı doğrulanır; `deploy/*.sh` betikleri exec biti, LF satır sonu, `bash -n` ve ShellCheck ile denetlenir |
+| [Sistem mimarisi](docs/architecture.md) | Modül sınırları, port/adapter yapısı ve topoloji |
+| [Workflow](docs/workflow.md) | Durumlar, geçişler, yetki, audit ve bildirim davranışı |
+| [Veritabanı](docs/database.md) | Şema ve Flyway yönetimi |
+| [Frontend–backend sözleşmesi](docs/FRONTEND_BACKEND_SOZLESMESI.md) | Web istemcisinin dayandığı alan ve hata sözleşmeleri |
+| [Mobil API envanteri](docs/MOBIL_API_ENVANTERI.md) | Mobil istemcinin kullandığı güncel REST sözleşmesi |
+| [OpenAPI anlık görüntüsü](docs/openapi.json) | Kod incelemesi için sürümlenmiş API şeması |
+| [TEST ortamı notu](docs/TEST_ORTAMI_NOTU.md) | Güncel topoloji, dağıtım ve operasyon yönergeleri |
+| [Mimari kararlar](docs/decisions/README.md) | ADR dizini |
 
-Aynı kontroller yerel olarak da çalıştırılabilir. Branch protection henüz etkin olmadığı için bu job'lar şu an merge için teknik olarak zorunlu değildir; ekip politikası olarak yeşil olmadan merge edilmemelidir.
-
-## Branch ve katkı akışı
-
-Hedef geliştirme akışı:
-
-```text
-feature/* veya bugfix/*
-          │
-          ▼
-        test
-          │
-          ▼
-        main
-```
-
-Yeni çalışma dalını güncel `test` üzerinden oluşturun:
-
-```bash
-git switch test
-git pull --ff-only origin test
-git switch -c feature/aciklayici-dal-adi
-```
-
-Önerilen süreç:
-
-1. Küçük ve tek amaçlı commitler oluşturun.
-2. Pull request hedefini `test` seçin.
-3. İlgili backend ve frontend testlerini çalıştırın.
-4. Code review ve CI kontrolleri tamamlanmadan merge etmeyin.
-5. Doğrulanmış `test` sürümünü release PR ile `main` dalına alın.
-
-Commit mesajlarında Conventional Commits benzeri bir biçim kullanılır:
-
-```text
-feat(workflow): iş akışı aksiyonunu ekle
-fix(auth): pasif kullanıcı girişini engelle
-test(record): görünürlük senaryolarını kapsa
-docs: README dosyasını güncelle
-ci: backend ve frontend kontrollerini ekle
-```
-
-Branch protection etkinleştirilene kadar doğrudan push yasağı teknik olarak GitHub tarafından uygulanmamaktadır; ekip politikası olarak PR akışına uyulmalıdır.
-
-## Dokümantasyon
-
-**Nereye bakmalı:** davranış sorusu için `workflow.md`, şema sorusu için `database.md`,
-"hangi uç ne döndürür" için `MOBIL_API_ENVANTERI.md`, modül sınırı sorusu için
-`architecture.md`.
-
-### Tasarım ve davranış
-
-| Belge | İçerik |
-| --- | --- |
-| [Sistem mimarisi](docs/architecture.md) | Modül sınırları, katmanlama, port/adapter, güvenlik sınırları |
-| [İş akışı ve durum geçişleri](docs/workflow.md) | Durum makinesi, geçiş matrisi, doğrulama sırası, hata sözleşmesi |
-| [Veritabanı tasarımı](docs/database.md) | Tablo sözlüğü, kısıtlar, indeksler, migration kuralları |
-| [Mimari karar kayıtları](docs/decisions/README.md) | ADR dizini |
-
-### İstemci sözleşmeleri
-
-| Belge | İçerik |
-| --- | --- |
-| [Mobil API envanteri](docs/MOBIL_API_ENVANTERI.md) | Uç uç istek/yanıt, hata kodları, TEST ortamı hesapları |
-| [Frontend–backend çalışma sözleşmesi](docs/FRONTEND_BACKEND_SOZLESMESI.md) | Web istemcisinin dayandığı backend kararları |
-| [Frontend API ve MSW test mimarisi](docs/FRONTEND_API_MOCK_MIMARISI.md) | Test sınırları ve mock kuralları |
-| [`docs/openapi.json`](docs/openapi.json) | Springdoc'dan üretilen sürümlenmiş API anlık görüntüsü; istemci üretiminin kaynağı canlı `/v3/api-docs` çıktısıdır |
-
-### Ortam ve planlama
-
-| Belge | İçerik |
-| --- | --- |
-| [TEST ortamı dağıtım notu](docs/TEST_ORTAMI_NOTU.md) | Topoloji, preflight, seed betiği, bilinen sınırlamalar |
-| [Mobil entegrasyon görev dağılımı](docs/MOBIL_ENTEGRASYON_GOREV_DAGILIMI.md) | Açık backend ve mobil işleri, sahipleriyle; kapanan işlerin kaydı |
-
-### Alt paket README'leri
-
-- [frontend/README.md](frontend/README.md)
-- [frontend/e2e/README.md](frontend/e2e/README.md) — gerçek backend E2E testlerinin çalıştırılması
-- [mobile/README.md](mobile/README.md)
-
-### Arşiv
-
-Aşağıdaki belgeler 19 Ağustos 2026'da kapatılmıştır; **tarihsel kayıttır, güncel
-durumu yansıtmaz.** Güncel durum bu README'nin "Yapılacaklar" bölümündedir.
+Tarihsel belgeler aktif gereksinim kaynağı değildir:
 
 - [Backend açık işler ve görev dağılımı](docs/archive/BACKEND_ACIK_ISLER_VE_GOREV_DAGILIMI.md)
-- [Eksik controller'lar ve kararlar](docs/archive/EKSIK_CONTROLLERLAR_VE_KARARLAR.md)
-- [Eksik sınıflar ve öncelikler](docs/archive/EKSIK_SINIFLAR_VE_ONCELIK.md)
-
-
+- [Eksik controllerlar ve kararlar](docs/archive/EKSIK_CONTROLLERLAR_VE_KARARLAR.md)
+- [Eksik sınıflar ve öncelik](docs/archive/EKSIK_SINIFLAR_VE_ONCELIK.md)
+- [Mobil entegrasyon görev dağılımı](docs/archive/MOBIL_ENTEGRASYON_GOREV_DAGILIMI.md)
+- [M9 TEST kabul kanıtı](docs/archive/M9_TEST_KABUL_KANITI.md)

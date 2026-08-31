@@ -1,8 +1,6 @@
 # Sistem Mimarisi
 
-Bu belge İş Akışı ve Onay Yönetim Sistemi'nin **çalışan mimarisini** tanımlar. Hedef durumu değil, koda bakılarak doğrulanmış mevcut yapıyı anlatır.
-
-> Son kod doğrulaması 31 Ağustos 2026 tarihinde `test` dalının `4491a80` commit'i üzerinde yapılmıştır. Modül sınırları, katmanlama veya bağımlılık yönü değiştiğinde bu belge aynı değişiklik kapsamında güncellenmelidir.
+Bu belge İş Akışı ve Onay Yönetim Sistemi'nin **çalışan mimarisini** tanımlar. Hedef durumu değil, koda bakılarak doğrulanmış mevcut yapıyı anlatır. Modül sınırları, katmanlama veya bağımlılık yönü değiştiğinde belge aynı değişiklik kapsamında güncellenir.
 
 ## İçindekiler
 
@@ -90,6 +88,7 @@ flowchart TB
         RES[TargetUserResolver]
         VAL[WorkflowTransitionValidator]
         RULES[TransitionRules - merkezî geçiş tablosu]
+        PERM[PermissionService]
     end
     subgraph Portlar["port/ — çekirdeğin tanımladığı arayüzler"]
         P1[WorkflowRecordPort]
@@ -97,6 +96,7 @@ flowchart TB
         P3[AuditService]
         P4[WorkflowEventPublisher]
         P5[CurrentActorProvider]
+        P6[TransitionRuleSource]
     end
     subgraph Adapterler["adapter/ — altyapı uygulamaları"]
         A1[RecordPortAdapter - JPA]
@@ -104,11 +104,14 @@ flowchart TB
         A3[AuditLogService - audit modülü]
         A4[SpringWorkflowEventPublisher]
         A5[SecurityCurrentActorProvider]
+        A6[StaticTransitionRuleSource]
     end
 
     C --> TX --> APP
     APP --> RES
-    APP --> VAL --> RULES
+    APP --> VAL --> P6
+    PERM --> P6
+    P6 -.-> A6 --> RULES
     APP --> P1 & P2 & P3 & P4 & P5
     P1 -.-> A1
     P2 -.-> A2
@@ -124,7 +127,7 @@ Yapının üç somut sonucu:
 | Karar | Sonuç |
 | --- | --- |
 | Çekirdek sınıfları `@Service` taşımaz | `new` ile örneklenip test edilir; bean tanımları `WorkflowConfiguration`'da dışarıdan yapılır |
-| Bütün geçişler `TransitionRules.RULES` listesinde | Yeni geçiş eklemek tek satır eklemektir; `if/else` zinciri yoktur |
+| Kural tüketicileri `TransitionRuleSource` kullanır | Validator ve yetki servisi somut statik tabloya bağlanmaz; güncel adapter `TransitionRules` listesini sunar |
 | Transaction sınırı ayrı bir sınıfta (`WorkflowActionService`) | Çekirdek Spring bilmediği için transaction'ı kendisi açamaz; kayıt güncellemesi ve audit yazımı ya birlikte olur ya hiç olmaz |
 
 Bir geçişin sırası: aktörü oku → kaydı bul → hedefi çöz → **validator'a sor** → kaydı güncelle → audit yaz → olay yayınla. Bütün kural kararları tek noktada, validator'da verilir; servis katmanında hiçbir geçiş kuralı tekrarlanmaz.
@@ -189,5 +192,5 @@ Aşağıdakiler uygulanmış davranışlardır:
 - **E-posta teslim garantisi yok.** Gönderim asenkron ve best-effort; retry, outbox veya DLQ bulunmuyor.
 - **Bu belgedeki kararların çoğu ADR olarak kaydedilmedi.** `decisions/` altında iki ADR var (modül bazlı paketleme, mobil istemci teknolojisi); ancak port/adapter sınırı, tekil rol modeli ve enum tabanlı durum kolonu kararları yalnız bu belgede anlatılıyor, ayrı birer ADR'leri yok.
 
-Dinamik workflow/rol kaynakları ve WebSocket bildirim kanalı bu çalışan mimarinin
-parçası değildir; gelecek çalışma olarak planlanmaktadır.
+- **Dinamik workflow kaynağı uygulanmadı.** `TransitionRuleSource` değiştirilebilir okuma sınırını sağlar, fakat güncel `StaticTransitionRuleSource` hâlâ `TransitionRules` tablosunu kullanır.
+- **Dinamik rol kaynağı ve WebSocket bildirim kanalı yoktur.** Bunlar çalışan mimarinin parçası değildir.

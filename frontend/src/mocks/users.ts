@@ -71,12 +71,3 @@ export function getDemoUserByRole(role: AuthUser['role']): AuthUser {
     mustChangePassword: account.mustChangePassword,
   }
 }
-
-export function getDemoUserById(userId: string) {
-  return demoAccounts.find((item) => item.id === userId)
-}
-
-export function getDemoUserName(userId: string) {
-  const user = getDemoUserById(userId)
-  return user ? `${user.firstName} ${user.lastName}` : 'Bilinmeyen kullanıcı'
-}

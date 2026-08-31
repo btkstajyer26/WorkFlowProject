@@ -4,8 +4,8 @@
 **Dal:** `test`'ten `feature/<konu>` açılır, PR `test`'e gider.
 
 Mobil, mevcut Spring Boot REST API'sini kullanır. İş kuralları mobilde yazılmaz.
-Sözleşme: [FRONTEND_BACKEND_SOZLESMESI.md](FRONTEND_BACKEND_SOZLESMESI.md) ·
-Uç envanteri: [MOBIL_API_ENVANTERI.md](MOBIL_API_ENVANTERI.md)
+Sözleşme: [FRONTEND_BACKEND_SOZLESMESI.md](../FRONTEND_BACKEND_SOZLESMESI.md) ·
+Uç envanteri: [MOBIL_API_ENVANTERI.md](../MOBIL_API_ENVANTERI.md)
 
 Bu belge **yalnız açık işleri** taşır. Kapanan işler en altta tek satırlık kayıt
 olarak durur; tasarım gerekçeleri envanter ve mimari belgelerindedir.
@@ -40,7 +40,7 @@ olarak durur; tasarım gerekçeleri envanter ve mimari belgelerindedir.
 
 ### 👤 Entegrasyon — M0 kalanı: `openapi.json` güncellemesi ✅
 
-[docs/openapi.json](openapi.json), 31 Ağustos'ta PostgreSQL gerektirmeyen Spring
+[docs/openapi.json](../openapi.json), 31 Ağustos'ta PostgreSQL gerektirmeyen Spring
 test bağlamındaki gerçek `/v3/api-docs` yanıtından yeniden üretildi. Dosya **30
 yol, 35 şema** içerir; `/api/device-tokens` ve `/api/public/mail-actions/*`
 uçları ile çoklu `file` şeması doğrulandı.
@@ -295,7 +295,7 @@ Aşağıdakiler koda karşı doğrulanmıştır; **yeniden açılmaz, yeniden ya
 
 | # | Sahip | İş | Kapanış |
 |---|---|---|---|
-| M0 | Entegrasyon | Uç envanteri ([MOBIL_API_ENVANTERI.md](MOBIL_API_ENVANTERI.md)) — hata kodları, sayfalama zarfı, `sort` tuzağı, tarih biçimi, görünürlük, dosya kuralları | 20 Ağu 2026 (`openapi.json` maddesi hariç) |
+| M0 | Entegrasyon | Uç envanteri ([MOBIL_API_ENVANTERI.md](../MOBIL_API_ENVANTERI.md)) — hata kodları, sayfalama zarfı, `sort` tuzağı, tarih biçimi, görünürlük, dosya kuralları | 20 Ağu 2026 (`openapi.json` maddesi hariç) |
 | M2 | Melih Kocaman | `device_tokens` tablosu, `POST`/`DELETE` uçları, upsert kuralı: `token` UNIQUE üzerinden eşleşir, `user_id` dahil **tüm** alanlar güncellenir (aynı telefonda başka kullanıcı giriş yaparsa push yanlış kişiye gitmesin diye) | 20 Ağu 2026 |
 | M1 | Ebrar Şeyma Karakuş | İşlem geçmişi ucunun mobil doğrulaması: kırpma kuralları ve her zaman `null` dönen HTTP alanları envanter §5'te yazılı; cevap boyutu ölçülüp **sayfalama eklenmeme kararı** gerekçesiyle kayıtlı (gerçekçi en kötü durum 20 geri gönderme turu = 106 satır = 44,5 KB) | 24 Ağu 2026 |
 | M8 | Hacer Bengü Ünal | `/api/device-tokens` yetki matrisi testi. `AuthorizationMatrixTest.DeviceTokenYonetimi`: auth'suz `POST` ve `DELETE` 401 döner; girişli kullanıcı kendi tokenını kaydedip silebilir. Kayıt testi principal olarak `AuthenticatedUser` kullanıyor — gerçek filtre davranışını yansıtıyor | 24 Ağu 2026 |
@@ -305,7 +305,7 @@ Aşağıdakiler koda karşı doğrulanmıştır; **yeniden açılmaz, yeniden ya
 | M5 | Alperen Kara · Fevzi Berke Urganioğlu · Nisan Tat · Sümeyye Baykan | Koltuk devrinde `last_deputy_id` güncelleme; `assigned_to` devriyle aynı transaction'da | 20 Ağu 2026 |
 | M6 | Ecesu Başak | Çoklu dosya upload — `@RequestPart("file") MultipartFile[]`, `List<FileResponseDto>` döner, tek dosyalı web çağrısı bozulmadı | 20 Ağu 2026 (`2c31c3a`) |
 | M7 | Ecesu Başak | Multipart mobil senaryo testleri — `FileServiceTest`'e 130 satır eklendi | 20 Ağu 2026 (`2c31c3a`) |
-| M9 | Burak Kaya | HTTPS TEST ortamı (`workflowproject-test.duckdns.org`), seed betiği, gerçek cihaz kabulü. Ayrıntı: [TEST_ORTAMI_NOTU.md](TEST_ORTAMI_NOTU.md) | 21 Ağu 2026 |
+| M9 | Burak Kaya | HTTPS TEST ortamı (`workflowproject-test.duckdns.org`), seed betiği, gerçek cihaz kabulü. Ayrıntı: [M9 TEST kabul kanıtı](M9_TEST_KABUL_KANITI.md) | 21 Ağu 2026 |
 
 Açık işi hiç olmayan modüller: `workflow` (Esra Öncü · Burak Kaya), `search`
 (Irmak Tanrıverdi), `common` hata formatı (Hacer Bengü Ünal). Alıcı matrisi
@@ -344,7 +344,7 @@ ve offline banner gibi ekran bileşenlerini de kapsar. Gerçek cihaz ve tam rota
 
 | Konu | Karar |
 |---|---|
-| Stack | **React Native + Expo + TypeScript** (`mobile/`) — şartnameden sapma. Gerekçe: [ADR 0002](decisions/0002-mobil-istemci-teknolojisi.md) |
+| Stack | **React Native + Expo + TypeScript** (`mobile/`) — şartnameden sapma. Gerekçe: [ADR 0002](../decisions/0002-mobil-istemci-teknolojisi.md) |
 | Neden RN | Ekip zaten React/TS/TanStack Query/RHF/Zod biliyor; Flutter = sıfırdan Dart |
 | Web bileşenleri | Kopyalanmaz. `View` / `Text` / `Pressable` / `FlatList` kullanılır |
 | Roller (v1) | `CALISAN`, `BASKAN_YARDIMCISI`, `BASKAN` — **ADMIN yok** |

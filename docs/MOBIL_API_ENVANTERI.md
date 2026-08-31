@@ -1,127 +1,14 @@
 # Mobil API Envanteri
 
-**Durum:** Uç envanteri güncel; TEST ortamı daha önce gerçek cihazdan doğrulandı (M9 ✅)
-**Son kod doğrulaması:** 31 Ağustos 2026, `test` dalı `4491a80`
-**Son kabul dağıtımı:** 21 Ağustos 2026, `4726d69` — [TEST ortamı](#test-ortamı)
-**Canlı sağlık doğrulaması:** 31 Ağustos 2026 12:37 TRT — `200 UP`; çalışan commit SHA'sı health yanıtında yayınlanmıyor
-
-Mobil istemcinin kullanacağı uçların tam listesi. Her satır koda bakılarak
-doğrulandı; **tahminle bağlama yok.** Uç değişirse bu belge aynı PR'da güncellenir.
+Mobil istemcinin kullandığı REST uçlarını, istek/yanıt biçimlerini ve hata
+davranışlarını tanımlar. Uç değiştiğinde bu belge aynı değişiklik kapsamında
+güncellenir.
 
 Kanonik kaynaklar: [FRONTEND_BACKEND_SOZLESMESI.md](FRONTEND_BACKEND_SOZLESMESI.md)
 (alan sözleşmesi) · [workflow.md](workflow.md) (durum geçişleri ve görünürlük) ·
-Swagger `/swagger-ui.html`, ham şema `/v3/api-docs`.
-
----
-
-## ✅ Sprint 0 boşlukları — kapandı
-
-**1. ~~TEST ortamı yok.~~ ✅ Kuruldu — Burak Kaya (M9).** Ekipçe erişilebilen
-HTTPS TEST ortamı 21 Ağustos 2026'da ayağa kaldırıldı ve gerçek fiziksel
-Android cihazdan doğrulandı. Mobil istemci artık `localhost` yerine bu adrese
-bağlanabilir; push bildiriminin (Sprint 4) önündeki ortam engeli kalktı.
-
-| | Adres | Örnek hesaplar | Veri |
-|---|---|---|---|
-| `DEV` | `http://localhost:8080` | Yerel bootstrap admin | Boş şema + Flyway |
-| `TEST` | `https://workflowproject-test.duckdns.org` | Çalışan ×2, Bşk. Yrd., Başkan, Admin — [aşağıda](#test-ortamı) | 7 kayıt, altı workflow durumu |
-| `PROD` | _(kapsam dışı)_ | — | — |
-
-Ayrıntı, hesaplar ve kabul kanıtı: [TEST ortamı](#test-ortamı).
-Kurulum, topoloji ve bilinen sınırlamalar: [TEST_ORTAMI_NOTU.md](TEST_ORTAMI_NOTU.md).
-
-**2. ~~Sürüm sabitlenmiş `openapi.json` yok.~~ ✅ Sabitlendi ve 31 Ağustos'ta
-güncel Springdoc çıktısından yeniden üretildi: [docs/openapi.json](openapi.json).**
-Dosya `/api/device-tokens` ve `/api/public/mail-actions/*` uçlarını içerir.
-Mobil istemci API katmanı el yazımıdır; frontend üretimi çalışan backend'in
-`/v3/api-docs` çıktısını kullanır. Bu dosya inceleme için sürümlenmiş anlık görüntüdür.
-
-Yeniden üretmek için (backend ayaktayken):
-
-```bash
-curl -s http://localhost:8080/v3/api-docs   | python -c "import sys,json;print(json.dumps(json.load(sys.stdin),ensure_ascii=False,indent=2))"   > docs/openapi.json
-```
-
-Biçimlendirme bilerek yapılıyor: springdoc tek satır JSON üretiyor ve o hâlde
-her değişiklik tek satırlık okunamaz bir diff'e dönüşüyor.
-
-> Dosyadaki `servers[0].url` `http://localhost` — veritabanısız MockMvc üretim
-> bağlamının adresidir ve çalışma zamanı hedefi değildir. Mobil base URL'i kendi
-> yapılandırmasından alır, bu alanı kullanmaz.
-
----
-
-## TEST ortamı
-
-**Base URL:** `https://workflowproject-test.duckdns.org`
-**Son kabul deploy SHA:** `4726d6974ae30f54120a7423d288acf18465da8c` (`4726d69`, `test` dalı)
-**Kabul tarihi:** 21 Ağustos 2026
-**Son canlı sağlık kontrolü:** 31 Ağustos 2026 12:37 TRT, `200 UP`
-
-Health yanıtı çalışan commit SHA'sını yayınlamaz. Bu nedenle canlı servisin son
-kabul dağıtımıyla aynı sürümde olduğu varsayılmaz; yeniden dağıtımda SHA ayrıca kaydedilmelidir.
-
-Mobil istemci base URL'i `EXPO_PUBLIC_API_BASE_URL` üzerinden alır; değişken
-zorunludur ve tanımsızsa uygulama açılışta durur
-([mobile/src/api/client.ts](../mobile/src/api/client.ts)). EAS build
-environment'ına tam adıyla verilmelidir — `eas.json` bu değeri kendiliğinden
-sağlamıyor.
-
-### Hesaplar
-
-Parolalar **bu belgeye yazılmaz**; güvenli ekip kanalından paylaşılır. Admin
-parolası ekip geneline paylaşılmaz.
-
-| E-posta | Rol | Görünür kayıt |
-|---|---|---:|
-| `calisan1@ebys-test.local` | `CALISAN` | 6 |
-| `calisan2@ebys-test.local` | `CALISAN` | 1 |
-| `bskyrd@ebys-test.local` | `BASKAN_YARDIMCISI` | 5 |
-| `baskan@ebys-test.local` | `BASKAN` | 3 |
-| `m9-admin@workflow.test` | `ADMIN` | — (mobil kapsam dışı) |
-
-Görünür kayıt sütunu görünürlük kapsamının kanıtıdır: `calisan1` yalnızca kendi
-altı kaydını görüyor, `calisan2`'nin taslağını görmüyor.
-
-### Veri
-
-Toplam 7 kayıt. `calisan1` altı workflow durumunun her birinden bir kayda
-sahip — `TASLAK`, `BSK_YRD_INCELEMESINDE`, `BASKAN_INCELEMESINDE`,
-`DUZENLEME_BEKLIYOR`, `ONAYLANDI`, `REDDEDILDI`. Yedinci kayıt `calisan2`'nin
-taslağıdır ve görünürlük kapsamının negatif tarafını test eder.
-
-Kayıtlar doğrudan SQL ile değil API üzerinden üretildi
-([deploy/seed-test-data.sh](../deploy/seed-test-data.sh)); böylece bcrypt
-parolalar, denetim satırları ve durum geçişleri tutarlı oluştu.
-
-### Kabul kanıtı
-
-| | |
-|---|---|
-| Cihaz | Samsung Galaxy A34 |
-| İşletim sistemi | Android 16 |
-| Ağ | Mobil veri |
-| Tarih | 21 Ağustos 2026, ~23:00 TRT |
-| Hesap | `calisan1@ebys-test.local` |
-| Mobil build | EAS Android preview, build `cdeede67-8124-4cd9-81ac-11296e380c7c` |
-| Backend SHA | `4726d69` |
-| Sonuç | Giriş başarılı; kayıt listesinde 6/6 kayıt görüldü |
-
-Cihazda görülen sayı, seed'in API üzerinden hesapladığı `calisan1` görünür
-kayıt sayısıyla birebir eşleşti.
-
-### Ortam yüzeyi
-
-Dışarıya açık tek servis Caddy'dir (`80`/`443`). `5432` (PostgreSQL), `8080`
-(backend), `8025`/`1025` (Mailpit) ve `5173` dış ağdan kapalıdır. `/mail`
-arayüzü basic auth ile korunur. TLS sertifikası Let's Encrypt'ten otomatik
-alınır ve yenilenir.
-
-TEST'te **ürün web frontend'i yayınlanmaz.** Bu nedenle e-posta derin
-bağlantıları bu aşamada çalışmaz; ayrıntı ve gerekçe için
-[TEST_ORTAMI_NOTU.md](TEST_ORTAMI_NOTU.md).
-
----
+Swagger `/swagger-ui.html`, ham şema `/v3/api-docs` ve inceleme amaçlı
+[OpenAPI anlık görüntüsü](openapi.json). Mobil base URL'i
+`EXPO_PUBLIC_API_BASE_URL` üzerinden alır; şemadaki `servers` alanını kullanmaz.
 
 ## Genel kurallar
 

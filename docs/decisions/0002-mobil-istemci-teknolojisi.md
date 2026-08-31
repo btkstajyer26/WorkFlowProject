@@ -1,8 +1,8 @@
 # ADR-0002: Mobil istemci teknolojisi — React Native + Expo
 
-- Durum: Önerildi
+- Durum: Kabul Edildi
 - Tarih: 2026-08-20
-- Karar sahipleri: Proje ekibi (danışman onayı bekliyor)
+- Karar sahipleri: Proje ekibi
 
 ## Bağlam
 
@@ -21,7 +21,7 @@ Ekibin mevcut durumu:
 
 Backend her iki durumda da aynı: iş kuralları mobilde yazılmayacak, mobil
 mevcut REST API'yi kullanacak. Yani bu karar **yalnız istemci tarafını**
-etkiliyor; [mobil görev dağılımındaki](../MOBIL_ENTEGRASYON_GOREV_DAGILIMI.md)
+etkiliyor; [tarihsel mobil görev dağılımındaki](../archive/MOBIL_ENTEGRASYON_GOREV_DAGILIMI.md)
 M0–M8 backend işleri her iki seçenekte de aynı.
 
 ## Değerlendirilen Seçenekler
@@ -66,5 +66,5 @@ ortamı sahibinin belirlenmesi.
 
 ## Bağlantılar
 
-- [Mobil entegrasyon görev dağılımı](../MOBIL_ENTEGRASYON_GOREV_DAGILIMI.md)
+- [Mobil entegrasyon görev dağılımı (arşiv)](../archive/MOBIL_ENTEGRASYON_GOREV_DAGILIMI.md)
 - [Frontend–backend çalışma sözleşmesi](../FRONTEND_BACKEND_SOZLESMESI.md)

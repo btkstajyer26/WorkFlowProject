@@ -130,23 +130,3 @@ export function subscribeToNotificationResponses(
     return () => {};
   }
 }
-
-export function subscribeToNotificationReceived(
-  onReceived: (notification: any) => void,
-) {
-  const Notifications = getNotificationsModule();
-  if (!Notifications) {
-    return () => {};
-  }
-
-  try {
-    const subscription =
-      Notifications.addNotificationReceivedListener(onReceived);
-
-    return () => {
-      subscription.remove();
-    };
-  } catch {
-    return () => {};
-  }
-}
