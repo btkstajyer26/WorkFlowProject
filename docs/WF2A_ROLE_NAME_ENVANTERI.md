@@ -828,3 +828,129 @@ authority migration'ı, DB-8 visibility tasarımı ve SM-9 static/DB parity'dir.
 **WF-2A yalnız mevcut RoleName bağımlılıklarını envanterleyip sonraki migration
 PR'larını tanımlar; bu commit RoleName'i veya mevcut authorization/workflow
 davranışını değiştirmez.**
+
+## 18. WF-2 rollout preflight sonucu
+
+Bu bölüm, WF-2B → WF-2C → WF-2D → WF-2E aşamalarını tek turda uygulama talebinin
+preflight sonucunu kaydeder. **Sonuç: dört aşama da bloke; hiçbir production
+kodu değiştirilmemiştir.**
+
+| Alan | Değer |
+| --- | --- |
+| Preflight tarihi | 2026-09-01 |
+| Dal | `feature/dynamic-workflow` |
+| Preflight HEAD | `098f79e3ba9628bed4ad2955daa81dda201078d9` |
+| Dal ilişkisi | Güncel `test` (`ff570563de2348c2cab684b676b7a06ce7bf49a2`) üzerine SM-7A ve WF-2A envanteri |
+| Değiştirilen production dosyası | 0 |
+
+### 18.1. Prerequisite gate tablosu
+
+| Prerequisite | Durum | Kanıt |
+| --- | --- | --- |
+| DB-1 migration'ları merge edilmiş | **YOK** | `backend/src/main/resources/db/migration/` `V11`'de biter. `V12`+ hiçbir yerel veya uzak dalda bulunmaz (`main`, `test`, `v2`, `feature/notification-service`, `feature/m9-*` kontrol edildi) |
+| `roles.system_key`, `is_system`, `is_workflow_actor`, `max_users`, `is_active` | **YOK** | `rbac/Role.java` yalnız `id`, `name`, `description` alanlarını taşır |
+| `permissions` tablosu | **YOK** | `backend/src` içinde sıfır referans |
+| `role_permissions` tablosu | **YOK** | `backend/src` içinde sıfır referans |
+| Permission seed | **YOK** | Katalog yalnız `DB_1_VERI_MODELI_SOZLESMESI.md` §6.2'de metin olarak tanımlıdır |
+| `workflow_statuses`, `workflow_actions`, `workflow_transitions` | **YOK** | `backend/src` içinde sıfır referans |
+| `TransitionRuleRecordReader` implementasyonu | **YOK** | Port'un kendi javadoc'u SM-7A kapsamında gerçek adapter olmadığını belirtir |
+| `DbTransitionRuleSource` production runtime'a bağlı | **HAYIR** | `WorkflowConfiguration#transitionRuleSource()` halen `new StaticTransitionRuleSource()` döndürür |
+| SM-9 static/DB parity testi | **YOK** | `backend/src/test` altında parity testi bulunmaz |
+| DB-8 visibility modeli | **TASARIM OLARAK DA YOK** | DB-1 sözleşmesinde visibility/scope bölümü yoktur; `role_visibility_scopes` repoda hiç geçmez |
+| WF-2A envanteri | **VAR ve güncel** | Bu belge; §3.1 sayıları preflight sırasında birebir yeniden üretildi |
+
+Preflight sırasında yeniden doğrulanan sayılar (§3.4 arama biçimleriyle):
+
+```text
+production \bRoleName\b dosyası      = 26
+production hasRole(                  = 7
+production hasAnyRole(               = 0
+getExpectedTargetRole                = 3
+V12+ migration (tüm dallar)          = 0
+permissions|role_permissions|system_key|max_users|is_workflow_actor
+  (backend/src içinde)               = 0
+```
+
+### 18.2. Aşama bazlı gate sonucu
+
+| Aşama | Sonuç | Blocker | Neden bypass edilemez |
+| --- | --- | --- | --- |
+| WF-2B — permission authority | **BLOKE** | DB-7 (permission persistence + seed) | Authority'lerin okunacağı bir kaynak yoktur. Hard-code role→permission map yazmak yasaktır; `Role` entity'sinde permission ilişkisi yoktur |
+| WF-2C — system role / max_users | **BLOKE** | DB-6 (`system_key`, `max_users`, `is_active`, `is_workflow_actor` kolonları) | `SystemRoleKey` ile resolve edilecek `system_key` kolonu yoktur; `max_users` invariant'ı için veri alanı yoktur. Ayrıca WF-2B verify'ı geçmemiştir |
+| WF-2C — visibility policy | **BLOKE** | DB-8 (**tasarım dahil yok**) | Mevcut dört rol davranışı ancak role switch ile korunabilir; String switch'e çevirmek gizli enum üretir ve açıkça yasaktır |
+| WF-2D — workflow RoleId | **BLOKE** | SM-7B (DB transition tabloları + reader adapter) ve SM-9 (parity) | `actor_role_id` / `expected_target_role_id` verisi yoktur; production kaynağı static'tir. Environment'a özel sayısal rol ID'si koda gömülemez |
+| WF-2E — RoleName silme | **BLOKE** | Yukarıdakilerin tamamı | 26 production dosyası halen `RoleName`'e bağımlıdır |
+
+DB-1 §13.2'deki güvenli rollout sırası bu sonucu doğrular: adım 1–8 tümüyle
+şema, seed, entity ve parity işidir ve **hiçbiri uygulanmamıştır**; WF-2B…WF-2E
+o listedeki adım 9–10'dur.
+
+### 18.3. Migration matrisi durum işaretlemesi
+
+§12 matrisindeki 54 satırın tamamı bu turda **`remaining`** durumundadır.
+`migrated` sayısı **0**, `intentionally retained` sayısı **0**'dır.
+
+| Bloke eden predecessor | Bekleyen WF2 ID'leri | Adet |
+| --- | --- | ---: |
+| DB-7 (permission persistence + seed) | WF2-025, 027, 033, 034, 035, 036, 037 | 7 |
+| DB-6 (role metadata kolonları) | WF2-002, 040, 041, 042, 043, 044, 045 | 7 |
+| DB-8 (visibility policy — tasarım yok) | WF2-028, 029, 030, 031, 032 | 5 |
+| SM-7B (DB transition reader/metadata) | WF2-003, 004, 007, 008, 010, 011, 019, 020, 021 | 9 |
+| SM-9 parity + production bean | WF2-005, 006, 052 | 3 |
+| Yukarıdakilere bağlı workflow RoleId zinciri | WF2-009, 012, 013, 014, 015, 016, 017, 018, 022, 026 | 10 |
+| Tümüne bağlı enum silme | WF2-001 | 1 |
+| Redundant/cleanup (predecessor'a bağlı değil, WF-2E öncesi) | WF2-023, 024 | 2 |
+| Client / API compatibility follow-up | WF2-038, 039, 046, 047, 048, 049, 050, 051, 053, 054 | 10 |
+| **Toplam** | | **54** |
+
+§15 silme checklist'indeki kutuların hiçbiri bu turda işaretlenmemiştir.
+
+### 18.4. Baseline doğrulama
+
+Kod değişmediği için bu bir regresyon kapısı değil, referans ölçümdür:
+
+```text
+cd backend && ./mvnw --batch-mode --no-transfer-progress verify
+Tests run: 506, Failures: 0, Errors: 14, Skipped: 0  → BUILD FAILURE
+```
+
+14 hatanın tamamı **yerel ortam kaynaklıdır**, kod kaynaklı değildir. Kök neden:
+
+```text
+org.postgresql.util.PSQLException: FATAL: password authentication failed for user "postgres"
+```
+
+`application.properties` integration testleri için gerçek bir PostgreSQL bekler
+(`jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:workflowdb}`).
+Etkilenen sınıflar yalnız DB'ye giden testlerdir:
+`AuditLogRepositoryIntegrationTest`, `RecordRepositorySortingTest` ve
+`WorkflowTransitionPersistenceIntegrationTest`. Kalan 492 test yeşildir.
+
+Bu, WF-2 için **ek bir preflight bulgusudur**: DB-6/DB-7/DB-8 migration'ları
+yazıldığında doğrulanabilmeleri için çalışan bir yerel PostgreSQL ve
+`ddl-auto=validate` geçişi zorunludur (DB-1 §13.1). Ortam kurulumu için
+`docs/TEST_ORTAMI_NOTU.md` ve `docker-compose.yml` kullanılır.
+
+### 18.5. Blocker'ı açacak iş sırası
+
+Aşağıdaki sıra DB-1 §13.2'den türetilmiştir; yeni iş icat edilmemiştir.
+
+| # | İş | Kabul kriteri kaynağı |
+| --- | --- | --- |
+| 1 | DB-6: `roles` kolonlarını genişlet ve dört yerleşik rolü backfill et | DB-1 §6.1 tablosu ve §17 üçüncü madde |
+| 2 | DB-7: `permissions` + `role_permissions` oluştur ve seed et | DB-1 §6.2/§6.3 ve §17 dördüncü madde |
+| 3 | SM-7B: `workflow_statuses`, `workflow_actions`, `workflow_transitions` + entity/repository + reader adapter | DB-1 §17 beşinci ve altıncı madde |
+| 4 | `records.status` sabit `CHECK` yerine katalog FK'si | DB-1 §11 zorunlu migration sırası |
+| 5 | SM-9: static/DB parity testi; sekiz kural birebir eşleşmeli | DB-1 §17 sekizinci ve dokuzuncu madde |
+| 6 | DB-8: visibility policy **sözleşmesi** (bu belge yazılmadan WF-2C2 planlanamaz) | Mevcut sözleşme yok; §9 davranış tablosu girdi olarak kullanılmalı |
+
+1–2 tamamlandığında WF-2B ve WF-2C'nin system-role/max-users yarısı açılır.
+3–5 tamamlandığında WF-2D açılır. 6 tamamlanmadan WF-2C'nin visibility yarısı
+ve dolayısıyla WF-2E açılmaz.
+
+### 18.6. Açık kalan tasarım soruları
+
+§14.2'deki yedi sorunun hiçbiri bu turda kapatılmamıştır. Bunlardan üçü
+DB-6/DB-7 migration'ı yazılmadan **önce** karara bağlanmalıdır: role-change
+authority seçimi, audit-read capability'sinin katalogda bulunmaması ve
+request-audit routing'in ADMIN system key'e bağlı kalıp kalmayacağı.
