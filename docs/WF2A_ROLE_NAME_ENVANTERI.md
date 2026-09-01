@@ -35,25 +35,34 @@ seviyesinde ayrılmıştır; her satır yalnız bir kategoriye atanmıştır.
 
 ## 2. Repo snapshot
 
-Snapshot tarihi: **2026-09-01**.
+Snapshot tarihi: **2026-09-01**. Bu bölümdeki sayılar ve davranış tabloları aynı
+tarihte repo üzerinde ikinci kez, bağımsız olarak yeniden doğrulanmıştır; sapma
+bulunmamıştır (bkz. §3.4).
 
 | Kontrol | Sonuç |
 | --- | --- |
 | Çalışılan dal | `feature/dynamic-workflow` |
-| HEAD | `7652431406059cbcf012156557ac222e9412625a` |
-| HEAD özeti | `feat(workflow): DB geçiş kuralı kaynağı iskeleti eklendi` |
+| HEAD | `098f79e3ba9628bed4ad2955daa81dda201078d9` |
+| HEAD özeti | `docs(workflow): RoleName migration envanteri eklendi` |
+| Önceki commit | `7652431406059cbcf012156557ac222e9412625a` &mdash; `feat(workflow): DB geçiş kuralı kaynağı iskeleti eklendi` (SM-7A) |
 | Yerel `test` | `ff570563de2348c2cab684b676b7a06ce7bf49a2` |
 | `origin/test` | `ff570563de2348c2cab684b676b7a06ce7bf49a2` |
 | Uzak `refs/heads/test` | `ff570563de2348c2cab684b676b7a06ce7bf49a2` (`git ls-remote` ile doğrulandı) |
 | Başlangıç working tree | Temiz |
-| Dal ilişkisi | Mevcut HEAD, güncel `test` üzerine tek SM-7A commit'idir |
+| Dal ilişkisi | Mevcut HEAD, güncel `test` üzerine iki commit'tir: SM-7A iskeleti ve bu envanter commit'i |
 | `RoleName.java` | Mevcut: `backend/src/main/java/btk/staj/WorkFlowProject/workflow/statemachine/RoleName.java` |
 | `StaticTransitionRuleSource` | Mevcut ve production bean olarak aktif |
 | `DbTransitionRuleSource` | Mevcut SM-7A iskeleti; anotasyonsuz, bean değil |
 | DB-1 sözleşmesi | Mevcut dalda var; saf `test` ref'inde yok |
 
-`test...HEAD` farkı yalnız SM-7A kapsamındaki beş Java/test dosyası ile DB-1
-sözleşmesidir. `DbTransitionRuleSource` ve testi saf `test` ref'inde yoktur.
+`test...HEAD` farkı yalnız SM-7A kapsamındaki beş Java/test dosyası, DB-1
+sözleşmesi ve bu envanter belgesidir. `DbTransitionRuleSource` ve testi saf `test`
+ref'inde yoktur.
+
+Envanter bilerek `test` yerine bu dal üzerinden çıkarılmıştır: bağlayıcı kaynak olan
+`docs/DB_1_VERI_MODELI_SOZLESMESI.md` saf `test` ref'inde bulunmaz. Production Java
+kaynağı açısından iki ref arasındaki tek fark SM-7A dosyalarıdır; §3.1 bu farkı ayrıca
+sayısallaştırır.
 
 Güncel `TransitionRuleSource` imzası:
 
@@ -139,9 +148,22 @@ rg -l --glob '*.{ts,tsx,js,jsx}' '["''](CALISAN|BASKAN_YARDIMCISI|BASKAN|ADMIN)[
 
 Generated dosyalar ve docs production Java sayımlarına katılmamıştır.
 
+`rg` varsayılan olarak `.gitignore` kurallarına uyar. Client sayımı bu nedenle
+git-tracked kaynağı ölçer. Ignore kurallarını uygulamayan düz bir `grep -r` çağrısı
+aynı pattern için mobile'da 7 yerine 8, toplamda 48 yerine 49 dosya döndürür; fark
+yalnız git-ignored Expo web bundle'ı
+`mobile/dist/_expo/static/js/web/entry-<hash>.js` dosyasıdır. Bu dosya derleme
+çıktısıdır ve rol bağımlılığı envanterine ait değildir; sayıyı tekrar üretirken
+ignore kuralları uygulanmalı veya bu yol açıkça dışlanmalıdır.
+
 ## 4. Mevcut RoleName dependency graph
 
 ```text
+roles.id
+   │
+   └─ AuthenticatedUser.getRoleId()          ← ilişkisel kimlik bugün de mevcut
+        └─ RequestAuditFilter ── audit_logs.role_id
+
 roles.name
    │
    ├─ AuthenticatedUser.getRoleName()
@@ -170,6 +192,10 @@ Kırılma nedeni tek değildir. `RoleName` aynı anda authorization etiketi,
 workflow FK yerine geçen kimlik, built-in semantik, visibility strategy seçici
 ve API presentation değeri olarak kullanılıyor. Toplu bir enum-to-string veya
 enum-to-SystemRoleKey dönüşümü bu anlamları tekrar birbirine bağlar.
+
+Grafikteki iki kol aynı principal'dan çıkar: `AuthenticatedUser` hem `getRoleName()`
+hem `getRoleId()` sunar, fakat workflow ve rbac zinciri yalnız ad kolunu kullanır.
+Ayrıntı §10.2'dedir.
 
 ## 5. Production kullanım envanteri
 
@@ -457,7 +483,41 @@ JWT subject=email
   `JwtAuthenticationFilter` ve `MailActionTokenService` tarafından çağrılır.
   E-posta aksiyonu da aynı permission authority snapshot'ını üretmelidir.
 
-### 10.2. JWT role claim
+### 10.2. Principal'da hazır RoleId
+
+İlişkisel rol kimliği bugün de principal üzerinde mevcuttur ve production'da zaten
+akmaktadır; workflow ve rbac zinciri onu kullanmayıp ad üzerinden yeniden türetir.
+
+| Nokta | Bugünkü davranış |
+| --- | --- |
+| `auth/security/AuthenticatedUser.java:31` | `getRoleId()` &rarr; `user.getRole().getId()`; `getRoleName()` ile yan yana durur |
+| `audit/RequestAuditFilter.java:97` | `getRoleId()` production'da **zaten** tüketilir; `audit_logs.role_id` buradan yazılır |
+| `workflow/adapter/SecurityCurrentActorProvider.java` | `readRole()` elinin altındaki ID'yi kullanmaz; `getRoleName()` okuyup `RoleName.valueOf(...)` yapar |
+| `audit/service/AuditLogService.java:226` | `resolveRoleId(RoleName)` her workflow audit yazımında `roleRepository.findByName(role.name())` ile DB'ye geri gider |
+
+Sonuç, `id → name → enum → name → id` biçiminde kapanan gereksiz bir sapaktır. Aynı
+değer request başına `RequestAuditFilter` yolunda ID olarak taşınırken, workflow
+yolunda ada çevrilip audit yazımında repository sorgusuyla tekrar ID'ye döndürülür.
+
+Bunun envanter açısından üç sonucu vardır:
+
+1. **WF-2D2 sanıldığından ucuzdur.** `CurrentActor`'ı RoleId'ye taşımak yeni bir auth
+   plumbing'i, yeni projection veya yeni principal alanı gerektirmez; accessor hazırdır.
+   İş, `SecurityCurrentActorProvider#readRole` içindeki `valueOf` sapağını kaldırmak ve
+   `CurrentActor` imzasını taşımaktır (WF2-014/WF2-015).
+2. **Ölçülebilir bir kazanç vardır.** `AuditLogService#resolveRoleId` her audit yazımında
+   bir `roles` sorgusu üretir. Actor RoleId doğrudan taşındığında bu lookup ve onun
+   `IllegalStateException` yolu tümüyle kalkar (WF2-022).
+3. **Bu, WF-2B1'in yerine geçmez.** Hazır RoleId yalnız §1'deki B kategorisini, yani
+   workflow rol kimliğini çözer. Permission authority loading ayrı bir eksendir ve DB-7'ye
+   bağlıdır; `getRoleId()`'nin mevcut olması `hasRole` &rarr; `hasAuthority` dönüşümünü
+   kolaylaştırmaz. İki kavram bu belgede ayrı tutulmuştur.
+
+`getRoleId()`'nin bugün var olması RoleName'i silinebilir yapmaz: `CurrentActor`,
+`TransitionContext`, `TransitionRule` ve `TransitionRuleSource` halen enum taşıdığı için
+WF-2D2 bloker listesi (§14.1) değişmez.
+
+### 10.3. JWT role claim
 
 `JwtUtil` access token'a `claim("role", roleName)` yazar. Backend'de
 `extractRole` yoktur ve `JwtAuthenticationFilter` bu claim'i okumaz; server
@@ -469,7 +529,7 @@ Bu nedenle claim mevcut authorization'ın doğruluk kaynağı değildir. Yine de
 harici tüketici olup olmadığı doğrulanmadan aynı WF-2B PR'ında silinmemeli;
 category E compatibility olarak deprecate edilmelidir.
 
-### 10.3. Authority migration test etkisi
+### 10.4. Authority migration test etkisi
 
 Özellikle aşağıdakiler güncellenmeli/eklenmelidir:
 
@@ -576,14 +636,14 @@ Sayısal toplam, `rg -l` ile bulunan 24 frontend + 1 mobile dosyadır.
 | WF2-012 | `WorkflowTransitionValidator` lookup/target | Enum identity comparison | B | RoleId comparison | WF2-003/009/010 | WF-2D2 |
 | WF2-013 | Validator actor eligibility | `isWorkflowActor()` | D | Saf eligibility snapshot | DB-6, open design | WF-2D2 |
 | WF2-014 | `CurrentActor#role` | RoleName | B | RoleId | Principal role ID | WF-2D2 |
-| WF2-015 | `SecurityCurrentActorProvider` | `getRoleName/valueOf` | B | Principal RoleId | WF2-014 | WF-2D2 |
+| WF2-015 | `SecurityCurrentActorProvider` | `getRoleName/valueOf`; principal'daki `getRoleId()` kullanılmıyor | B | Principal RoleId; yeni auth plumbing gerekmez (§10.2) | WF2-014 | WF-2D2 |
 | WF2-016 | `WorkflowUserSnapshot#role` | RoleName | B | RoleId | User projection | WF-2D2 |
 | WF2-017 | `WorkflowUserPort#findActiveByRole` | RoleName query | B | RoleId query | DB transition target | WF-2D2 |
 | WF2-018 | `UserPortAdapter` | role name query/converter | B | RoleId projection/query | WF2-017 | WF-2D2 |
 | WF2-019 | `TargetResolution.RoleNotConfigured` | RoleName payload | B | RoleId/target descriptor | Resolver migration | WF-2D1 |
 | WF2-020 | `TargetUserResolver` | Action switch + built-in roles | B | Transition `target_strategy` | SM-7B | WF-2D1 |
 | WF2-021 | `WorkflowApplicationService` target flow | Action `requiresTargetUser` | B | Transition routing metadata | WF2-010/020 | WF-2D1 |
-| WF2-022 | `WorkflowTransitionAudit/AuditLogService` | RoleName → name lookup → role ID | B | Actor RoleId doğrudan | WF2-014 | WF-2D2 |
+| WF2-022 | `WorkflowTransitionAudit/AuditLogService` | RoleName → name lookup → role ID; audit yazımı başına bir `roles` sorgusu | B | Actor RoleId doğrudan; `resolveRoleId` lookup'ı tümüyle kalkar (§10.2) | WF2-014 | WF-2D2 |
 | WF2-023 | `WorkflowStatusChangedEvent#actorRole` | Tüketilmeyen RoleName | F | Alanı kaldır | Listener/test doğrulaması | WF-2D2 |
 | WF2-024 | `PermissionService` transition helpers | Test-only RoleName convenience API | F | Kullanılmıyorsa kaldır | UI consumer teyidi | WF-2E öncesi cleanup |
 | WF2-025 | `PermissionService` create/edit | RoleName capability | A | `RECORD_CREATE/RECORD_EDIT` | DB-7 | WF-2B2 |
@@ -615,7 +675,7 @@ Sayısal toplam, `rg -l` ile bulunan 24 frontend + 1 mobile dosyadır.
 | WF2-051 | Arşiv docs/test seed script | Eski anlatım ve teknik roller | F | Arşivle/güncelle; runtime sayımından ayrı | İlgili rollout | WF-2E/docs follow-up |
 | WF2-052 | `WorkflowConfiguration` source bean | Static source aktif | B | DB source production wiring | SM-7B/SM-9 | WF-2D2 |
 | WF2-053 | `AuditLogResponse` ve audit roleName snapshot'ları | Tarihsel/gösterim rol adı | E | Display snapshot kalabilir; authorization identity olamaz | Audit API compatibility | WF-2E/client follow-up |
-| WF2-054 | `AuthenticatedUser#getRoleName` | Security, audit ve enum converter bridge'i | E | RoleId ve display name ayrı accessor/model | WF2-014/034 ve API compatibility | WF-2D2/WF-2E |
+| WF2-054 | `AuthenticatedUser#getRoleName` | Security, audit ve enum converter bridge'i; `getRoleId()` ile yan yana durur | E | Ayrışma yeni accessor eklemeyi değil, çağrı yerlerini hazır `getRoleId()`'ye taşımayı gerektirir; display name presentation'da kalır | WF2-014/034 ve API compatibility | WF-2D2/WF-2E |
 
 ## 13. Önerilen WF-2 PR sırası
 
