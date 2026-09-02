@@ -433,14 +433,14 @@ Mevcut otomatik testler şu katmanları kapsar:
 1. **E-posta teslim garantisi:** Gönderim asenkron ve best-effort'tur; retry/outbox/DLQ yoktur.
 2. **Audit değiştirilemezliği:** Uygulama yazma/silme ucu sunmaz, fakat veritabanı rolü veya trigger ile append-only kuralı zorlanmaz.
 3. **Bildirim geçmişi indeksi:** Büyüyen veri için `(user_id, created_at DESC)` birleşik indeksi değerlendirilmelidir.
-4. **Dinamik kural kaynağı:** Okuma sınırı `TransitionRuleSource` ile ayrılmıştır; güncel adapter hâlâ `TransitionRules` içindeki statik tabloyu kullanır. Veritabanından yönetilen dinamik kural kaynağı uygulanmamıştır.
+4. **Kural kaynağının yönetilebilirliği:** Geçiş kuralları `workflow_transitions` tablosundan okunur, fakat tablo yalnız Flyway seed'i ile değişir; kuralları arayüzden düzenleyen bir yol yoktur. Kurallar ayrıca açılışta bir kez okunup belleğe alınır, canlı yeniden yükleme yoktur.
 
 Başlangıç şartnamesiyle bilinçli veya fiilî uygulama farkları da korunmalıdır:
 
 - Başkan geri gönderme hedefini serbestçe seçmez; Çalışana dönüş `createdBy`, Başkan Yardımcısına dönüş `lastDeputyId` ile sabittir.
 - Şartnamedeki “tüm ilgililer” ifadesine karşılık mevcut uygulama atamalı geçişte yeni atanan kullanıcıyı; terminal geçişte kaydı oluşturan ile son Başkan Yardımcısını seçer.
 
-Dinamik rol kaynağı ve WebSocket bildirim kanalı mevcut davranış değildir.
+Geçiş kuralları veritabanından okunur; `TransitionRules` statik tablosu yalnız parity testinin referansı olarak durur. Dinamik rol kaynağı ve WebSocket bildirim kanalı mevcut davranış değildir.
 
 ## Değişiklik kontrol listesi
 

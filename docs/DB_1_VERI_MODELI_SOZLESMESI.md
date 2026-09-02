@@ -4,7 +4,8 @@
 - **Karar tarihi:** 1 Eylül 2026
 - **Kapsam:** DB-1
 - **Mevcut şema tabanı:** Flyway `V1`–`V11` (`V3` tarihsel olarak yoktur)
-- **Uygulama durumu:** Bu belge hedef modeli tanımlar; tabloların var olduğu anlamına gelmez
+- **Uygulama durumu:** Uygulandı — `V12`–`V16` migration'ları ve `DbTransitionRuleSource`
+  devrede; §17 kabul kriterlerinin tamamı doğrulandı (2 Eylül 2026)
 
 ## 1. Amaç
 
@@ -660,26 +661,26 @@ Bu sözleşme aşağıdakilerin hemen uygulanmasını istemez:
 DB-1'in uygulama işleri ancak aşağıdaki koşullar sağlandığında tamamlanmış
 sayılır:
 
-- [ ] Yeni tablolar ve kolonlar bu sözleşmedeki nullability, FK, unique, check
+- [x] Yeni tablolar ve kolonlar bu sözleşmedeki nullability, FK, unique, check
       ve indeks kurallarına uyar.
-- [ ] `V1`–`V11` dosyalarının checksum'ı değişmemiştir.
-- [ ] Dört yerleşik rol doğru `system_key` ve davranış alanlarıyla backfill
+- [x] `V1`–`V11` dosyalarının checksum'ı değişmemiştir.
+- [x] Dört yerleşik rol doğru `system_key` ve davranış alanlarıyla backfill
       edilmiştir.
-- [ ] Permission kataloğu ve başlangıç role-permission eşlemeleri seed edilmiştir.
-- [ ] Altı status, yedi action ve sekiz transition eksiksiz seed edilmiştir.
-- [ ] Sekiz aktif transition'ın `required_permission_id` değeri doludur.
-- [ ] `records.status` verisi korunmuş; sabit `CHECK` yerine katalog FK'si
+- [x] Permission kataloğu ve başlangıç role-permission eşlemeleri seed edilmiştir.
+- [x] Altı status, yedi action ve sekiz transition eksiksiz seed edilmiştir.
+- [x] Sekiz aktif transition'ın `required_permission_id` değeri doludur.
+- [x] `records.status` verisi korunmuş; sabit `CHECK` yerine katalog FK'si
       çalışmaktadır.
-- [ ] Static kaynak ile DB kaynağı aynı sekiz kuralı üretir.
-- [ ] Eksik, fazla veya farklı tek bir DB geçişi parity testini düşürür.
-- [ ] Validator repository/JPA/Spring bağımlılığı almamıştır.
-- [ ] Mevcut workflow regresyon testleri davranış değişmeden geçer.
-- [ ] `GONDER`, `TEKRAR_GONDER` ve `BASKANA_ILET` hedefi backend tarafından
+- [x] Static kaynak ile DB kaynağı aynı sekiz kuralı üretir.
+- [x] Eksik, fazla veya farklı tek bir DB geçişi parity testini düşürür.
+- [x] Validator repository/JPA/Spring bağımlılığı almamıştır.
+- [x] Mevcut workflow regresyon testleri davranış değişmeden geçer.
+- [x] `GONDER`, `TEKRAR_GONDER` ve `BASKANA_ILET` hedefi backend tarafından
       çözülmeye devam eder; istemciden hedef kabul edilmez.
-- [ ] `ONAYLA` ve `REDDET` sonunda `assigned_to = NULL` kalır.
-- [ ] Başkanın yardımcıya geri gönderme hedefi mevcut `last_deputy_id`
+- [x] `ONAYLA` ve `REDDET` sonunda `assigned_to = NULL` kalır.
+- [x] Başkanın yardımcıya geri gönderme hedefi mevcut `last_deputy_id`
       semantiğini korur.
-- [ ] `docs/database.md` ve `docs/workflow.md`, uygulama değişikliğiyle aynı
+- [x] `docs/database.md` ve `docs/workflow.md`, uygulama değişikliğiyle aynı
       kapsamda güncellenir.
 
 ## 18. İnceleme sırasında netleştirilen noktalar

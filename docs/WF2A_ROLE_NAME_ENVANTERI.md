@@ -835,6 +835,10 @@ Bu bölüm, WF-2B → WF-2C → WF-2D → WF-2E aşamalarını tek turda uygulam
 preflight sonucunu kaydeder. **Sonuç: dört aşama da bloke; hiçbir production
 kodu değiştirilmemiştir.**
 
+> ⚠️ Aşağıdaki §18.1–§18.5 tabloları **1 Eylül 2026 durumudur.** DB-1
+> migration'ları ve SM-7B/SM-9 o tarihten sonra tamamlandı; güncel gate durumu
+> için [§18.7](#187-gate-güncellemesi--2-eylül-2026)'ye bakınız.
+
 | Alan | Değer |
 | --- | --- |
 | Preflight tarihi | 2026-09-01 |
@@ -954,3 +958,39 @@ ve dolayısıyla WF-2E açılmaz.
 DB-6/DB-7 migration'ı yazılmadan **önce** karara bağlanmalıdır: role-change
 authority seçimi, audit-read capability'sinin katalogda bulunmaması ve
 request-audit routing'in ADMIN system key'e bağlı kalıp kalmayacağı.
+
+### 18.7. Gate güncellemesi — 2 Eylül 2026
+
+§18.1 ve §18.2 tabloları **1 Eylül 2026 durumunu** kaydeder ve artık kısmen
+geçersizdir. Aradan geçen iki iş turu blocker'ın büyük bölümünü kaldırdı.
+
+| Prerequisite | 1 Eylül | 2 Eylül | Kanıt |
+| --- | --- | --- | --- |
+| DB-1 migration'ları | YOK | **VAR** | `V12`–`V16`; DB-1 §17'nin on beş kabul kriteri de doğrulandı |
+| `roles` metadata kolonları (DB-6) | YOK | **VAR** | `V12`; dört yerleşik rol `system_key`/`max_users`/`is_workflow_actor` ile backfill edildi |
+| `permissions` + `role_permissions` (DB-7) | YOK | **VAR** | `V13`; 16 permission, 20 rol-permission eşlemesi |
+| Workflow katalog tabloları (SM-7B) | YOK | **VAR** | `V14`/`V15`; 6 status, 7 action, 8 geçiş |
+| `TransitionRuleRecordReader` implementasyonu | YOK | **VAR** | `JpaTransitionRuleRecordReader` |
+| `DbTransitionRuleSource` production'a bağlı | HAYIR | **EVET** | `WorkflowConfiguration#transitionRuleSource` |
+| SM-9 static/DB parity testi | YOK | **VAR** | `TransitionRuleSourceParityTest`; 168 kombinasyon + katalog bayrakları |
+| DB-8 visibility modeli | TASARIM OLARAK DA YOK | **HÂLÂ YOK** | DB-1'de visibility bölümü yok; §9.2 bu tasarımı şart koşuyor |
+
+Aşama bazlı sonuç:
+
+| Aşama | Yeni durum |
+| --- | --- |
+| WF-2B — permission authority | **AÇIK.** DB-7 tabloları ve seed'i mevcut |
+| WF-2C — system role / max_users | **AÇIK.** DB-6 kolonları mevcut; WF-2B verify'ından sonra |
+| WF-2C — visibility policy | **BLOKE.** Tek kalan blocker DB-8 ve tasarımı hâlâ yazılmadı |
+| WF-2D — workflow RoleId | **AÇIK.** SM-7B ve SM-9 tamamlandı |
+| WF-2E — RoleName silme | **BLOKE.** WF-2C visibility yarısına bağlı |
+
+§18.5'teki iş sırasının 1–5. maddeleri kapandı; açık kalan tek madde 6'dır
+(DB-8 visibility sözleşmesi). Bu, WF-2E'nin önündeki **tek** engeldir ve
+kod değil, tasarım işidir.
+
+Baseline ölçümü de değişti: §18.4'teki `506 test / 14 error` ölçümü, yerel
+PostgreSQL'in kapalı olmasından kaynaklanıyordu. Veritabanı ayaktayken güncel
+ölçüm **522 test / 0 failure / 0 error**'dur. Ölçüm alınırken `DB_PORT`
+değerinin `.env` ile aynı olması gerekir; `application.properties` varsayılanı
+`5432`, projenin compose dosyası ise `5433` yayınlar.

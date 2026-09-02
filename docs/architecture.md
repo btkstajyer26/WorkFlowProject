@@ -87,7 +87,6 @@ flowchart TB
         APP[WorkflowApplicationService]
         RES[TargetUserResolver]
         VAL[WorkflowTransitionValidator]
-        RULES[TransitionRules - merkezî geçiş tablosu]
         PERM[PermissionService]
     end
     subgraph Portlar["port/ — çekirdeğin tanımladığı arayüzler"]
@@ -104,14 +103,14 @@ flowchart TB
         A3[AuditLogService - audit modülü]
         A4[SpringWorkflowEventPublisher]
         A5[SecurityCurrentActorProvider]
-        A6[StaticTransitionRuleSource]
+        A6[DbTransitionRuleSource - JPA]
     end
 
     C --> TX --> APP
     APP --> RES
     APP --> VAL --> P6
     PERM --> P6
-    P6 -.-> A6 --> RULES
+    P6 -.-> A6 --> DBRULES[(workflow_transitions)]
     APP --> P1 & P2 & P3 & P4 & P5
     P1 -.-> A1
     P2 -.-> A2
@@ -127,7 +126,7 @@ Yapının üç somut sonucu:
 | Karar | Sonuç |
 | --- | --- |
 | Çekirdek sınıfları `@Service` taşımaz | `new` ile örneklenip test edilir; bean tanımları `WorkflowConfiguration`'da dışarıdan yapılır |
-| Kural tüketicileri `TransitionRuleSource` kullanır | Validator ve yetki servisi somut statik tabloya bağlanmaz; güncel adapter `TransitionRules` listesini sunar |
+| Kural tüketicileri `TransitionRuleSource` kullanır | Validator ve yetki servisi kural kaynağına doğrudan bağlanmaz; güncel adapter kuralları `workflow_transitions` tablosundan okur |
 | Transaction sınırı ayrı bir sınıfta (`WorkflowActionService`) | Çekirdek Spring bilmediği için transaction'ı kendisi açamaz; kayıt güncellemesi ve audit yazımı ya birlikte olur ya hiç olmaz |
 
 Bir geçişin sırası: aktörü oku → kaydı bul → hedefi çöz → **validator'a sor** → kaydı güncelle → audit yaz → olay yayınla. Bütün kural kararları tek noktada, validator'da verilir; servis katmanında hiçbir geçiş kuralı tekrarlanmaz.
@@ -192,5 +191,5 @@ Aşağıdakiler uygulanmış davranışlardır:
 - **E-posta teslim garantisi yok.** Gönderim asenkron ve best-effort; retry, outbox veya DLQ bulunmuyor.
 - **Bu belgedeki kararların çoğu ADR olarak kaydedilmedi.** `decisions/` altında iki ADR var (modül bazlı paketleme, mobil istemci teknolojisi); ancak port/adapter sınırı, tekil rol modeli ve enum tabanlı durum kolonu kararları yalnız bu belgede anlatılıyor, ayrı birer ADR'leri yok.
 
-- **Dinamik workflow kaynağı uygulanmadı.** `TransitionRuleSource` değiştirilebilir okuma sınırını sağlar, fakat güncel `StaticTransitionRuleSource` hâlâ `TransitionRules` tablosunu kullanır.
+- **Geçiş kuralları veritabanından okunur.** `DbTransitionRuleSource`, `TransitionRuleRecordReader` portu üzerinden `workflow_transitions` satırlarını açılışta bir kez okur. `StaticTransitionRuleSource` kaldırılmadı; parity testinin karşılaştırdığı referanstır. Kuralları arayüzden düzenleme ve canlı yeniden yükleme yoktur.
 - **Dinamik rol kaynağı ve WebSocket bildirim kanalı yoktur.** Bunlar çalışan mimarinin parçası değildir.
