@@ -190,6 +190,33 @@ class TransitionRuleSourceParityTest {
     }
 
     /**
+     * Hedef metadata'si {@code TransitionRule}'un parcasi oldugu icin yukaridaki kume
+     * karsilastirmalari onu zaten kapsiyor. Bu test ayrismanin <em>hangi alanda</em>
+     * oldugunu okunur kilar: strateji ya da beklenen rol kaydigi anda mesaj dogrudan o
+     * gecisi ve o alani gosterir.
+     */
+    @Test
+    @DisplayName("hedef stratejisi ve beklenen hedef rol iki kaynakta aynidir")
+    void targetMetadataMatchesBetweenSources() {
+        TransitionRuleSource databaseSource = databaseSource();
+
+        for (TransitionRule staticRule : staticSource.all()) {
+            Optional<TransitionRule> fromDatabase = databaseSource.find(
+                    staticRule.from(), staticRule.action(), staticRule.actorRole());
+
+            assertThat(fromDatabase)
+                    .as("kural: %s + %s + %s", staticRule.from(), staticRule.action(), staticRule.actorRole())
+                    .isPresent();
+            assertThat(fromDatabase.get().targetStrategy())
+                    .as("%s + %s + %s hedef stratejisi", staticRule.from(), staticRule.action(), staticRule.actorRole())
+                    .isEqualTo(staticRule.targetStrategy());
+            assertThat(fromDatabase.get().expectedTargetRole())
+                    .as("%s + %s + %s beklenen hedef rolu", staticRule.from(), staticRule.action(), staticRule.actorRole())
+                    .isEqualTo(staticRule.expectedTargetRole());
+        }
+    }
+
+    /**
      * Her testte yeniden kurulur: {@link DbTransitionRuleSource} veriyi
      * constructor'da okuyup dondurur, dolayisiyla ornek olusturmak "su anki
      * veritabani durumunu oku" demektir.

@@ -270,8 +270,66 @@ class TargetUserResolverTest {
                 .withMessage("expectedTargetRole");
     }
 
+    @Test
+    void currentAssigneeStrategyResolvesTheRecordAssignee() {
+        WorkflowUserSnapshot assignee = user(ASSIGNEE_ID, RoleName.BASKAN_YARDIMCISI, true);
+        when(userPort.findById(ASSIGNEE_ID)).thenReturn(Optional.of(assignee));
+
+        TargetResolution result = resolver.resolve(
+                TargetStrategy.CURRENT_ASSIGNEE, null, REQUESTED_TARGET_ID, record(LAST_DEPUTY_ID));
+
+        assertThat(result).isEqualTo(new TargetResolution.Resolved(assignee));
+        verify(userPort).findById(ASSIGNEE_ID);
+        verifyNoMoreInteractions(userPort);
+    }
+
+    @Test
+    void currentAssigneeStrategyReportsMissingAssignee() {
+        TargetResolution result = resolver.resolve(
+                TargetStrategy.CURRENT_ASSIGNEE, null, null, recordWithoutAssignee());
+
+        assertThat(result).isEqualTo(new TargetResolution.DataIntegrityFailure(
+                TargetResolution.DataIntegrityReason.CURRENT_ASSIGNEE_MISSING, null));
+        verifyNoInteractions(userPort);
+    }
+
+    @Test
+    void currentAssigneeStrategyReportsUnknownAssignee() {
+        when(userPort.findById(ASSIGNEE_ID)).thenReturn(Optional.empty());
+
+        TargetResolution result = resolver.resolve(
+                TargetStrategy.CURRENT_ASSIGNEE, null, null, record(LAST_DEPUTY_ID));
+
+        assertThat(result).isEqualTo(new TargetResolution.DataIntegrityFailure(
+                TargetResolution.DataIntegrityReason.CURRENT_ASSIGNEE_USER_NOT_FOUND, ASSIGNEE_ID));
+    }
+
+    /**
+     * Ayni aksiyonun farkli gecislerde farkli hedefe gidebilmesi, bu refactor'un asil
+     * sebebi. Resolver artik aksiyonu hic gormedigi icin ayni cagri farkli stratejilerle
+     * farkli sonuc uretir.
+     */
+    @Test
+    void sameActionCanResolveDifferentTargetsUnderDifferentStrategies() {
+        WorkflowUserSnapshot creator = user(CREATOR_ID, RoleName.CALISAN, true);
+        WorkflowUserSnapshot deputy = user(LAST_DEPUTY_ID, RoleName.BASKAN_YARDIMCISI, true);
+        when(userPort.findById(CREATOR_ID)).thenReturn(Optional.of(creator));
+        when(userPort.findById(LAST_DEPUTY_ID)).thenReturn(Optional.of(deputy));
+
+        assertThat(resolver.resolve(TargetStrategy.CREATOR, RoleName.CALISAN, null, record(LAST_DEPUTY_ID)))
+                .isEqualTo(new TargetResolution.Resolved(creator));
+        assertThat(resolver.resolve(
+                TargetStrategy.PREVIOUS_ACTOR, RoleName.BASKAN_YARDIMCISI, null, record(LAST_DEPUTY_ID)))
+                .isEqualTo(new TargetResolution.Resolved(deputy));
+    }
+
     private static WorkflowUserSnapshot user(UUID id, RoleName role, boolean active) {
         return new WorkflowUserSnapshot(id, role, active);
+    }
+
+    private static WorkflowRecordSnapshot recordWithoutAssignee() {
+        return new WorkflowRecordSnapshot(
+                RECORD_ID, RecordStatus.TASLAK, CREATOR_ID, null, LAST_DEPUTY_ID, null, 3);
     }
 
     private static WorkflowRecordSnapshot record(UUID lastDeputyId) {

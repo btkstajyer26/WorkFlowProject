@@ -68,4 +68,33 @@ class TransitionRulesTest {
                 .extracting(TransitionRule::to)
                 .isEqualTo(RecordStatus.BSK_YRD_INCELEMESINDE);
     }
+
+    @Test
+    @DisplayName("her kural hedef stratejisi tasir ve strateji ile hedef rol tutarlidir")
+    void everyRuleCarriesConsistentTargetMetadata() {
+        for (TransitionRule rule : TransitionRules.all()) {
+            assertThat(rule.targetStrategy())
+                    .as("%s + %s + %s icin hedef stratejisi", rule.from(), rule.action(), rule.actorRole())
+                    .isNotNull();
+
+            // TransitionRule'un invariantinin statik tabloda da tuttugunu dogrular:
+            // hedef gerektiren gecis beklenen rolu tasir, gerektirmeyen tasimaz.
+            if (rule.targetStrategy() == TargetStrategy.NONE) {
+                assertThat(rule.expectedTargetRole()).isNull();
+            } else {
+                assertThat(rule.expectedTargetRole()).isNotNull();
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("ayni aksiyon farkli gecislerde ayni hedefe gitmek zorunda degil")
+    void sameActionCanCarryDifferentTargetsAcrossTransitions() {
+        // CALISANA_GERI_GONDER iki ayri satirda kullaniliyor. Hedef bilgisi aksiyonda
+        // tutulsaydi bu iki satir ayrisamazdi; testin varlik sebebi bunu sabitlemek.
+        assertThat(TransitionRules.all())
+                .filteredOn(rule -> rule.action() == WorkflowAction.CALISANA_GERI_GONDER)
+                .hasSize(2)
+                .allSatisfy(rule -> assertThat(rule.targetStrategy()).isEqualTo(TargetStrategy.CREATOR));
+    }
 }

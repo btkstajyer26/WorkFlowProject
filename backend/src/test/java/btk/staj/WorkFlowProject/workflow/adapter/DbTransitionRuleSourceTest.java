@@ -263,6 +263,75 @@ class DbTransitionRuleSourceTest {
                         new TransitionRuleRecord("TASLAK", "GONDER", "CALISAN", "CREATOR", " ", "ROLE", "BASKAN_YARDIMCISI")));
     }
 
+    @Test
+    @DisplayName("hedefsiz gecis beklenen hedef rol tasiyorsa satir numarasiyla reddedilir")
+    void rejectsNoneStrategyCarryingExpectedTargetRole() {
+        TransitionRuleRecord inconsistent = new TransitionRuleRecord(
+                "BASKAN_INCELEMESINDE", "ONAYLA", "BASKAN", "ASSIGNEE", "ONAYLANDI",
+                "NONE", "CALISAN");
+
+        assertThatThrownBy(() -> source(List.of(inconsistent)))
+                .isInstanceOf(TransitionRuleConfigurationException.class)
+                .hasMessageContaining("row 1")
+                .hasMessageContaining("NONE");
+    }
+
+    @Test
+    @DisplayName("hedef gerektiren gecis beklenen hedef rolsuz kalirsa reddedilir")
+    void rejectsTargetStrategyWithoutExpectedTargetRole() {
+        // Bu kombinasyon veritabani CHECK'ini gecerdi (CHECK yalniz ROLE icin rolu zorunlu
+        // kilar) ama servisin sentinel protokolunu sessizce kirardi.
+        TransitionRuleRecord inconsistent = new TransitionRuleRecord(
+                "BSK_YRD_INCELEMESINDE", "CALISANA_GERI_GONDER", "BASKAN_YARDIMCISI",
+                "ASSIGNEE", "DUZENLEME_BEKLIYOR", "CREATOR", null);
+
+        assertThatThrownBy(() -> source(List.of(inconsistent)))
+                .isInstanceOf(TransitionRuleConfigurationException.class)
+                .hasMessageContaining("row 1")
+                .hasMessageContaining("CREATOR");
+    }
+
+    @Test
+    @DisplayName("bilinmeyen hedef stratejisini reddeder")
+    void rejectsUnknownTargetStrategy() {
+        TransitionRuleRecord unknown = new TransitionRuleRecord(
+                "TASLAK", "GONDER", "CALISAN", "CREATOR", "BSK_YRD_INCELEMESINDE",
+                "DEPARTMENT", "BASKAN_YARDIMCISI");
+
+        assertThatThrownBy(() -> source(List.of(unknown)))
+                .isInstanceOf(TransitionRuleConfigurationException.class)
+                .hasMessageContaining("targetStrategy")
+                .hasMessageContaining("DEPARTMENT");
+    }
+
+    @Test
+    @DisplayName("hedef stratejisi bos gelirse reddeder")
+    void rejectsMissingTargetStrategy() {
+        TransitionRuleRecord missing = new TransitionRuleRecord(
+                "TASLAK", "GONDER", "CALISAN", "CREATOR", "BSK_YRD_INCELEMESINDE",
+                null, "BASKAN_YARDIMCISI");
+
+        assertThatThrownBy(() -> source(List.of(missing)))
+                .isInstanceOf(TransitionRuleConfigurationException.class)
+                .hasMessageContaining("targetStrategy");
+    }
+
+    @Test
+    @DisplayName("bes hedef stratejisinin tamamini cozer")
+    void mapsEveryTargetStrategy() {
+        assertThat(TargetStrategy.values()).hasSize(5);
+        for (TargetStrategy strategy : TargetStrategy.values()) {
+            String role = strategy == TargetStrategy.NONE ? null : "CALISAN";
+            DbTransitionRuleSource source = source(List.of(new TransitionRuleRecord(
+                    "TASLAK", "GONDER", "CALISAN", "CREATOR", "BSK_YRD_INCELEMESINDE",
+                    strategy.name(), role)));
+
+            assertThat(source.all()).singleElement()
+                    .extracting(TransitionRule::targetStrategy)
+                    .isEqualTo(strategy);
+        }
+    }
+
     private static DbTransitionRuleSource source(List<TransitionRuleRecord> records) {
         return new DbTransitionRuleSource(() -> records);
     }

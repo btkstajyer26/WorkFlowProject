@@ -129,6 +129,45 @@ class JpaTransitionRuleRecordReaderTest {
                 .withMessageContaining("transitionRepository");
     }
 
+    @Test
+    @DisplayName("beklenen hedef rolu de system_key'den okur")
+    void readsExpectedTargetRoleFromSystemKey() {
+        List<TransitionRuleRecord> records = readerReturning(
+                targetedRow("TASLAK", "GONDER", "CALISAN", "Calisan", ActorRequirement.CREATOR,
+                        "BSK_YRD_INCELEMESINDE", "ROLE", 2, "BASKAN_YARDIMCISI"))
+                .findAllActive();
+
+        assertThat(records).singleElement()
+                .extracting(TransitionRuleRecord::expectedTargetRole)
+                .isEqualTo("BASKAN_YARDIMCISI");
+    }
+
+    @Test
+    @DisplayName("hedef rol FK'si bos ise beklenen hedef rol bos gelir")
+    void leavesExpectedTargetRoleEmptyWhenForeignKeyIsNull() {
+        List<TransitionRuleRecord> records = readerReturning(
+                terminalRow("BASKAN_INCELEMESINDE", "ONAYLA", "BASKAN", "Baskan",
+                        ActorRequirement.ASSIGNEE, "ONAYLANDI"))
+                .findAllActive();
+
+        assertThat(records).singleElement()
+                .extracting(TransitionRuleRecord::expectedTargetRole)
+                .isNull();
+    }
+
+    @Test
+    @DisplayName("hedef rol dinamikse (FK dolu, system_key bos) acik hata verir")
+    void rejectsDynamicExpectedTargetRole() {
+        assertThatThrownBy(() -> readerReturning(
+                targetedRow("TASLAK", "GONDER", "CALISAN", "Calisan", ActorRequirement.CREATOR,
+                        "BSK_YRD_INCELEMESINDE", "ROLE", 7, null))
+                .findAllActive())
+                .isInstanceOf(TransitionRuleConfigurationException.class)
+                .hasMessageContaining("row 1")
+                .hasMessageContaining("system_key")
+                .hasMessageContaining("7");
+    }
+
     private static JpaTransitionRuleRecordReader readerReturning(TransitionRuleRow... rows) {
         WorkflowTransitionRepository repository = mock(WorkflowTransitionRepository.class);
         when(repository.findActiveRuleRows()).thenReturn(Arrays.asList(rows));
