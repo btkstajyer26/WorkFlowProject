@@ -381,7 +381,7 @@ class WorkflowTransitionValidatorTest {
                                 .creator()
                                 .assignee()
                                 .comment("aciklama")
-                                .resolvedTarget(action.getExpectedTargetRole())
+                                .resolvedTarget(expectedTargetRoleOf(status, action, role))
                                 .build();
 
                         TransitionDecision decision = validator.validate(context);
@@ -410,7 +410,7 @@ class WorkflowTransitionValidatorTest {
                             .creator()
                             .assignee()
                             .comment("aciklama")
-                            .resolvedTarget(action.getExpectedTargetRole())
+                            .resolvedTarget(expectedTargetRoleOf(status, action, RoleName.ADMIN))
                             .build();
 
                     TransitionDecision decision = validator.validate(context);
@@ -544,6 +544,17 @@ class WorkflowTransitionValidatorTest {
     }
 
     /** Testlerde okunabilir baglam olusturmak icin kucuk yardimci. */
+    /**
+     * Beklenen hedef rol artik aksiyonun degil GECISIN ozelligi; testler de onu kuraldan
+     * okumali. Tanimsiz birlesimlerde {@code null} doner &mdash; zaten hedef kontrolune
+     * gelinmeden once reddedilirler.
+     */
+    private static RoleName expectedTargetRoleOf(RecordStatus status, WorkflowAction action, RoleName role) {
+        return TransitionRules.find(status, action, role)
+                .map(TransitionRule::expectedTargetRole)
+                .orElse(null);
+    }
+
     private static final class Ctx {
 
         private final RecordStatus status;

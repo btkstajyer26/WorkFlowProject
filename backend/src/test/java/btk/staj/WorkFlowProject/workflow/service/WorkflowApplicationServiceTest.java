@@ -19,6 +19,8 @@ import btk.staj.WorkFlowProject.workflow.port.WorkflowRecordPort;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import btk.staj.WorkFlowProject.workflow.statemachine.StaticTransitionRuleSource;
+import btk.staj.WorkFlowProject.workflow.statemachine.TargetStrategy;
+import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRuleSource;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowErrorCode;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowTransitionValidator;
@@ -42,6 +44,7 @@ import java.util.stream.Stream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -81,11 +84,16 @@ class WorkflowApplicationServiceTest {
 
     @BeforeEach
     void setUp() {
+        // Validator ve servis AYNI kaynagi gorur; aksi halde ikisi farkli kural kumesine
+        // bakar ve servisin "validator izin verdigi gecisi kaynak tanimiyor" korumasi
+        // yanlis yere tetiklenirdi.
+        TransitionRuleSource ruleSource = new StaticTransitionRuleSource();
         service = new WorkflowApplicationService(
                 recordPort,
                 currentActorProvider,
                 targetUserResolver,
-                new WorkflowTransitionValidator(new StaticTransitionRuleSource()),
+                new WorkflowTransitionValidator(ruleSource),
+                ruleSource,
                 auditService,
                 eventPublisher,
                 FIXED_CLOCK);
@@ -98,7 +106,7 @@ class WorkflowApplicationServiceTest {
         WorkflowRecordSnapshot record = scenario.record();
         WorkflowActionRequest request = scenario.request();
         arrange(record, scenario.actorRole());
-        when(targetUserResolver.resolve(scenario.action(), request.targetUserId(), record))
+        when(targetUserResolver.resolve(any(), any(), eq(request.targetUserId()), eq(record)))
                 .thenReturn(scenario.resolution());
 
         WorkflowActionResponse response = service.performAction(RECORD_ID, request);
@@ -275,7 +283,7 @@ class WorkflowApplicationServiceTest {
         WorkflowActionRequest request = new WorkflowActionRequest(
                 WorkflowAction.GONDER, null, null);
         arrange(record, RoleName.CALISAN);
-        when(targetUserResolver.resolve(WorkflowAction.GONDER, null, record))
+        when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
                 .thenReturn(new TargetResolution.RequestTargetNotFound(SUPPLIED_TARGET_ID));
 
         WorkflowApplicationException exception = assertThrows(
@@ -294,7 +302,7 @@ class WorkflowApplicationServiceTest {
         WorkflowActionRequest request = new WorkflowActionRequest(
                 WorkflowAction.GONDER, null, null);
         arrange(record, RoleName.CALISAN);
-        when(targetUserResolver.resolve(WorkflowAction.GONDER, null, record))
+        when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
                 .thenReturn(new TargetResolution.Resolved(
                         new WorkflowUserSnapshot(TARGET_ID, RoleName.BASKAN_YARDIMCISI, false)));
 
@@ -314,7 +322,7 @@ class WorkflowApplicationServiceTest {
         WorkflowActionRequest request = new WorkflowActionRequest(
                 WorkflowAction.GONDER, null, null);
         arrange(record, RoleName.CALISAN);
-        when(targetUserResolver.resolve(WorkflowAction.GONDER, null, record))
+        when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
                 .thenReturn(new TargetResolution.Resolved(
                         new WorkflowUserSnapshot(TARGET_ID, RoleName.ADMIN, true)));
 
@@ -334,7 +342,7 @@ class WorkflowApplicationServiceTest {
         WorkflowActionRequest request = new WorkflowActionRequest(
                 WorkflowAction.GONDER, null, null);
         arrange(record, RoleName.CALISAN);
-        when(targetUserResolver.resolve(WorkflowAction.GONDER, null, record))
+        when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
                 .thenReturn(new TargetResolution.RoleNotConfigured(RoleName.BASKAN_YARDIMCISI, 0));
 
         WorkflowApplicationException exception = assertThrows(
@@ -353,7 +361,7 @@ class WorkflowApplicationServiceTest {
         WorkflowActionRequest request = new WorkflowActionRequest(
                 WorkflowAction.BASKANA_ILET, null, null);
         arrange(record, RoleName.BASKAN_YARDIMCISI);
-        when(targetUserResolver.resolve(WorkflowAction.BASKANA_ILET, null, record))
+        when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
                 .thenReturn(new TargetResolution.RoleNotConfigured(RoleName.BASKAN, 0));
 
         WorkflowApplicationException exception = assertThrows(
@@ -375,8 +383,7 @@ class WorkflowApplicationServiceTest {
                 TargetResolution.DataIntegrityReason.LAST_DEPUTY_ID_MISSING,
                 null);
         arrange(record, RoleName.BASKAN);
-        when(targetUserResolver.resolve(
-                WorkflowAction.BASKAN_YARDIMCISINA_GERI_GONDER, null, record))
+        when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
                 .thenReturn(failure);
 
         WorkflowDataIntegrityException exception = assertThrows(
@@ -437,7 +444,7 @@ class WorkflowApplicationServiceTest {
         WorkflowActionRequest request = new WorkflowActionRequest(
                 WorkflowAction.BASKANA_ILET, null, null);
         arrange(record, RoleName.BASKAN_YARDIMCISI);
-        when(targetUserResolver.resolve(WorkflowAction.BASKANA_ILET, null, record))
+        when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
                 .thenReturn(new TargetResolution.Resolved(
                         new WorkflowUserSnapshot(TARGET_ID, RoleName.BASKAN, true)));
 
@@ -460,7 +467,7 @@ class WorkflowApplicationServiceTest {
         WorkflowActionRequest request = new WorkflowActionRequest(
                 WorkflowAction.ONAYLA, null, null);
         arrange(record, RoleName.BASKAN);
-        when(targetUserResolver.resolve(WorkflowAction.ONAYLA, null, record))
+        when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
                 .thenReturn(new TargetResolution.NotProvided());
 
         service.performAction(RECORD_ID, request);
@@ -480,7 +487,7 @@ class WorkflowApplicationServiceTest {
         WorkflowActionRequest request = new WorkflowActionRequest(
                 WorkflowAction.ONAYLA, null, null);
         arrange(record, RoleName.BASKAN);
-        when(targetUserResolver.resolve(WorkflowAction.ONAYLA, null, record))
+        when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
                 .thenReturn(new TargetResolution.NotProvided());
         doThrow(new IllegalStateException("optimistic lock"))
                 .when(recordPort).update(any(WorkflowRecordUpdate.class));
@@ -500,7 +507,7 @@ class WorkflowApplicationServiceTest {
         WorkflowActionRequest request = new WorkflowActionRequest(
                 WorkflowAction.ONAYLA, null, null);
         arrange(record, RoleName.BASKAN);
-        when(targetUserResolver.resolve(WorkflowAction.ONAYLA, null, record))
+        when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
                 .thenReturn(new TargetResolution.NotProvided());
         doThrow(new WorkflowApplicationException(WorkflowErrorCode.WORKFLOW_VERSION_CONFLICT))
                 .when(recordPort).update(any(WorkflowRecordUpdate.class));
@@ -525,7 +532,7 @@ class WorkflowApplicationServiceTest {
         WorkflowActionRequest request = new WorkflowActionRequest(
                 WorkflowAction.ONAYLA, null, null);
         arrange(record, RoleName.BASKAN);
-        when(targetUserResolver.resolve(WorkflowAction.ONAYLA, null, record))
+        when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
                 .thenReturn(new TargetResolution.NotProvided());
         doThrow(new WorkflowApplicationException(WorkflowErrorCode.WORKFLOW_VERSION_CONFLICT))
                 .when(recordPort).update(any(WorkflowRecordUpdate.class));
@@ -537,7 +544,8 @@ class WorkflowApplicationServiceTest {
         // Gecis kurallari acisindan istek gecerliydi: dogrulama asamasi
         // gecilmis, hedef cozulmus ve update komutu kaydin okundugu surumle
         // birlikte porta ulasmistir. Catisma yalnizca yazma aninda ortaya cikar.
-        verify(targetUserResolver).resolve(WorkflowAction.ONAYLA, null, record);
+        // ONAYLA gecisinin stratejisi NONE; servis bunu kuraldan okuyup resolver'a gecirir.
+        verify(targetUserResolver).resolve(TargetStrategy.NONE, null, null, record);
         verify(recordPort).update(new WorkflowRecordUpdate(
                 RECORD_ID,
                 RecordStatus.ONAYLANDI,
@@ -555,7 +563,7 @@ class WorkflowApplicationServiceTest {
         WorkflowActionRequest request = new WorkflowActionRequest(
                 WorkflowAction.ONAYLA, null, null);
         arrange(record, RoleName.BASKAN);
-        when(targetUserResolver.resolve(WorkflowAction.ONAYLA, null, record))
+        when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
                 .thenReturn(new TargetResolution.NotProvided());
         doThrow(new IllegalStateException("audit unavailable"))
                 .when(auditService).record(any(WorkflowTransitionAudit.class));
@@ -576,7 +584,7 @@ class WorkflowApplicationServiceTest {
         WorkflowActionRequest request = new WorkflowActionRequest(
                 WorkflowAction.ONAYLA, null, null);
         arrange(record, RoleName.BASKAN);
-        when(targetUserResolver.resolve(WorkflowAction.ONAYLA, null, record))
+        when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
                 .thenReturn(new TargetResolution.NotProvided());
         doThrow(new IllegalStateException("event unavailable"))
                 .when(eventPublisher).publish(any(WorkflowStatusChangedEvent.class));

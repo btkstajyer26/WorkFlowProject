@@ -67,6 +67,7 @@ public class WorkflowConfiguration {
             CurrentActorProvider currentActorProvider,
             TargetUserResolver targetUserResolver,
             WorkflowTransitionValidator validator,
+            TransitionRuleSource ruleSource,
             AuditService auditService,
             WorkflowEventPublisher eventPublisher,
             Clock workflowClock) {
@@ -76,6 +77,7 @@ public class WorkflowConfiguration {
                 currentActorProvider,
                 targetUserResolver,
                 validator,
+                ruleSource,
                 auditService,
                 eventPublisher,
                 workflowClock);
