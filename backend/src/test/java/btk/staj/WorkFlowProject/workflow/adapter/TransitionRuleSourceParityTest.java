@@ -53,6 +53,9 @@ class TransitionRuleSourceParityTest {
     private TransitionRuleRecordReader reader;
 
     @Autowired
+    private TransitionRuleSource injectedRuleSource;
+
+    @Autowired
     private WorkflowStatusRepository statusRepository;
 
     @Autowired
@@ -172,6 +175,18 @@ class TransitionRuleSourceParityTest {
         assertThat(staticSource.all())
                 .as("pasiflestirilen kural artik DB kumesinde bulunmamali")
                 .anyMatch(rule -> !databaseRules.contains(rule));
+    }
+
+    @Test
+    @DisplayName("production bean gecis kurallarini veritabanindan okur")
+    void productionBeanUsesDatabaseSource() {
+        assertThat(injectedRuleSource)
+                .as("WorkflowConfiguration#transitionRuleSource bean'i")
+                .isInstanceOf(DbTransitionRuleSource.class);
+
+        assertThat(injectedRuleSource.all())
+                .as("production bean'in urettigi kural kumesi")
+                .containsExactlyInAnyOrderElementsOf(staticSource.all());
     }
 
     /**

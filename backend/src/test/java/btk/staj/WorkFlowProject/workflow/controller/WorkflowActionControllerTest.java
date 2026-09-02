@@ -19,6 +19,8 @@ import btk.staj.WorkFlowProject.user.repository.TokenRepository;
 import btk.staj.WorkFlowProject.user.repository.UserRepository;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
+import btk.staj.WorkFlowProject.workflow.StaticTransitionRuleReaderConfiguration;
+import btk.staj.WorkFlowProject.workflow.repository.WorkflowTransitionRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -26,6 +28,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -65,6 +68,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 @AutoConfigureMockMvc
 @DisplayName("Onay akisi ucu")
+@Import(StaticTransitionRuleReaderConfiguration.class)
 class WorkflowActionControllerTest {
 
     private static final String ACTION_URL = "/api/records/{recordId}/workflow/actions";
@@ -85,6 +89,7 @@ class WorkflowActionControllerTest {
     @MockitoBean private NotificationRepository notificationRepository;
     @MockitoBean private DeviceTokenRepository deviceTokenRepository;
     @MockitoBean private MailActionTokenRepository mailActionTokenRepository;
+    @MockitoBean private WorkflowTransitionRepository workflowTransitionRepository;
 
     @TestConfiguration
     static class NoOpTransactionConfig {
