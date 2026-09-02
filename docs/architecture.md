@@ -129,7 +129,7 @@ Yapının üç somut sonucu:
 | Kural tüketicileri `TransitionRuleSource` kullanır | Validator ve yetki servisi kural kaynağına doğrudan bağlanmaz; güncel adapter kuralları `workflow_transitions` tablosundan okur |
 | Transaction sınırı ayrı bir sınıfta (`WorkflowActionService`) | Çekirdek Spring bilmediği için transaction'ı kendisi açamaz; kayıt güncellemesi ve audit yazımı ya birlikte olur ya hiç olmaz |
 
-Bir geçişin sırası: aktörü oku → kaydı bul → hedefi çöz → **validator'a sor** → kaydı güncelle → audit yaz → olay yayınla. Bütün kural kararları tek noktada, validator'da verilir; servis katmanında hiçbir geçiş kuralı tekrarlanmaz.
+Bir geçişin sırası: aktörü oku → kaydı bul → **ön doğrulama** → geçiş kuralını bul → hedefi çöz → **nihai doğrulama** → kaydı güncelle → audit yaz → olay yayınla. Doğrulama bilerek iki aşamalıdır: yetkisiz bir istek, hedef için veritabanına hiç gidilmeden elenir. Bütün kural kararları validator'da verilir; servis kuraldan yalnız hedef çözüm stratejisini okur, geçiş kuralı tekrarlamaz.
 
 Ayrıntı için [workflow.md](workflow.md).
 
@@ -191,5 +191,5 @@ Aşağıdakiler uygulanmış davranışlardır:
 - **E-posta teslim garantisi yok.** Gönderim asenkron ve best-effort; retry, outbox veya DLQ bulunmuyor.
 - **Bu belgedeki kararların çoğu ADR olarak kaydedilmedi.** `decisions/` altında iki ADR var (modül bazlı paketleme, mobil istemci teknolojisi); ancak port/adapter sınırı, tekil rol modeli ve enum tabanlı durum kolonu kararları yalnız bu belgede anlatılıyor, ayrı birer ADR'leri yok.
 
-- **Geçiş kuralları veritabanından okunur.** `DbTransitionRuleSource`, `TransitionRuleRecordReader` portu üzerinden `workflow_transitions` satırlarını açılışta bir kez okur. `StaticTransitionRuleSource` kaldırılmadı; parity testinin karşılaştırdığı referanstır. Kuralları arayüzden düzenleme ve canlı yeniden yükleme yoktur.
+- **Geçiş kuralları ve hedef çözüm stratejisi veritabanından okunur.** `DbTransitionRuleSource`, `TransitionRuleRecordReader` portu üzerinden `workflow_transitions` satırlarını açılışta bir kez okur; `target_strategy` ve `expected_target_role_id` de bu yoldan gelir. `StaticTransitionRuleSource` kaldırılmadı; parity testinin karşılaştırdığı referanstır. Kuralları arayüzden düzenleme ve canlı yeniden yükleme yoktur.
 - **Dinamik rol kaynağı ve WebSocket bildirim kanalı yoktur.** Bunlar çalışan mimarinin parçası değildir.

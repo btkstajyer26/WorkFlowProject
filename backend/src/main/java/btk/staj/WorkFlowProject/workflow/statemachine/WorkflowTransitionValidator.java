@@ -70,8 +70,12 @@ public class WorkflowTransitionValidator {
             return TransitionDecision.rejected(WorkflowErrorCode.WORKFLOW_TARGET_NOT_ALLOWED);
         }
 
-        // 8-9. Hedef kullanici gerektiren aksiyonlarda hedefin rolu ve aktifligi.
-        RoleName expectedTargetRole = context.action().getExpectedTargetRole();
+        // 8-9. Hedef kullanici gerektiren gecislerde hedefin rolu ve aktifligi.
+        //
+        // Beklenen rol aksiyonun degil GECISIN ozelligidir: ayni aksiyon farkli gecislerde
+        // farkli hedefe gidebilir (DB-1 SS6.5). Ornegin CALISANA_GERI_GONDER hem Baskan
+        // Yardimcisinin hem Baskanin kullandigi iki ayri satirda bulunur.
+        RoleName expectedTargetRole = rule.get().expectedTargetRole();
         if (expectedTargetRole != null) {
             // ADMIN veya yanlis roldeki hedef burada elenir. Hedef cozulememisse
             // (null) yine gecersiz sayilir; servis bu durumu zaten daha once

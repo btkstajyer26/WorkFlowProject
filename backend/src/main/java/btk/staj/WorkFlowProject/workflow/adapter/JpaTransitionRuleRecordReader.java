@@ -71,7 +71,9 @@ public final class JpaTransitionRuleRecordReader implements TransitionRuleRecord
                 row.action(),
                 actorKeyOf(row, rowNumber),
                 requirementOf(row, rowNumber),
-                row.toStatus());
+                row.toStatus(),
+                row.targetStrategy(),
+                expectedTargetKeyOf(row, rowNumber));
     }
 
     /**
@@ -91,6 +93,36 @@ public final class JpaTransitionRuleRecordReader implements TransitionRuleRecord
                             + " workflow actor roles move to RoleId (WF-2D)");
         }
         return actorSystemKey;
+    }
+
+    /**
+     * Beklenen hedef rolun degismez anahtarini dondurur; hedef yoksa {@code null}.
+     *
+     * <p>Bos {@code system_key}'in iki farkli sebebi olabilir ve ikisi ayirt edilmelidir:
+     *
+     * <ul>
+     *   <li>FK hic dolu degil &rarr; gecis hedef gerektirmiyor, {@code null} dogru cevap;</li>
+     *   <li>FK dolu ama {@code system_key} bos &rarr; hedef <strong>dinamik</strong> bir rol.
+     *       Sessizce {@code null} donmek olurdu; o zaman validator hedefin rolunu
+     *       {@code null} ile karsilastirir ve gecis her zaman reddedilirdi. Bu yuzden
+     *       acikca hata verilir.</li>
+     * </ul>
+     */
+    private static String expectedTargetKeyOf(TransitionRuleRow row, int rowNumber) {
+        if (row.expectedTargetRoleId() == null) {
+            return null;
+        }
+
+        String systemKey = row.expectedTargetRoleSystemKey();
+        if (systemKey == null || systemKey.isBlank()) {
+            throw new TransitionRuleConfigurationException(
+                    "Transition configuration row " + rowNumber
+                            + " expects a target role without system_key"
+                            + " (role id: " + row.expectedTargetRoleId() + ")."
+                            + " Dynamic roles cannot be a transition target until"
+                            + " workflow roles move to RoleId (WF-2D2)");
+        }
+        return systemKey;
     }
 
     /** {@code actor_requirement} DB'de {@code NOT NULL}; kontrol savunma amaclidir. */

@@ -6,54 +6,46 @@ package btk.staj.WorkFlowProject.workflow.statemachine;
  * <p>Istemci hedef durumu dogrudan gondermez; yalnizca aksiyonu gonderir, yeni
  * durumu backend hesaplar.
  *
- * <p>Her aksiyon iki farkli hedef bilgisi tasir:
- * <ul>
- *   <li>{@link #isTargetUserIdRequiredInRequest()} &ndash; istemcinin istekte
- *       {@code targetUserId} gondermesi gerekip gerekmedigi;</li>
- *   <li>{@link #getExpectedTargetRole()} &ndash; servis tarafindan cozulen hedef
- *       kullanicinin hangi rolde olmasi gerektigi.</li>
- * </ul>
- * Ikisi ayni sey degildir: ornegin {@code BASKANA_ILET} icin istemci hedef
- * gondermez (sistemde tek Baskan vardir, backend bulur) ama cozulen hedefin
- * {@code BASKAN} rolunde ve aktif olmasi dogrulanir.
+ * <p>Aksiyon yalnizca <strong>istekle ilgili</strong> bilgiyi tasir: istemcinin
+ * {@code targetUserId} gondermesi gerekip gerekmedigi ve aciklamanin zorunlu olup
+ * olmadigi. Su an hicbir aksiyon istemciden hedef beklemiyor; bayrak yine de
+ * tasiniyor, cunku istemci yine de gonderirse istek bu bayrak uzerinden reddedilir.
  *
- * <p>Su an <strong>hicbir</strong> aksiyon istemciden hedef beklemiyor: hedefi
- * her zaman backend cozer. Ilk bayrak yine de tasiniyor, cunku istemci yine de
- * {@code targetUserId} gonderirse istek bu bayrak uzerinden reddedilir.
+ * <p><strong>Hedefin kim olacagi burada tutulmaz.</strong> Beklenen hedef rol ve hedef
+ * cozum stratejisi gecisin ozelligidir; {@code TransitionRule} uzerinden
+ * {@code workflow_transitions} satirindan okunur (DB-1 SS6.5). Ayni aksiyon farkli
+ * gecislerde farkli hedefe gidebilir: {@code CALISANA_GERI_GONDER} hem Baskan
+ * Yardimcisinin hem Baskanin kullandigi iki ayri satirda bulunur.
  */
 public enum WorkflowAction {
 
-    /** Calisanin taslak kaydi Baskan Yardimcisina gondermesi. Hedef: sistemdeki tek yardimci. */
-    GONDER(false, false, RoleName.BASKAN_YARDIMCISI),
+    /** Calisanin taslak kaydi onaya gondermesi. */
+    GONDER(false, false),
 
-    /** Calisanin duzelttigi kaydi yeniden gondermesi. Hedef: sistemdeki tek yardimci. */
-    TEKRAR_GONDER(false, false, RoleName.BASKAN_YARDIMCISI),
+    /** Calisanin duzelttigi kaydi yeniden gondermesi. */
+    TEKRAR_GONDER(false, false),
 
-    /** Baskan Yardimcisinin kaydi Baskana iletmesi. Hedef: sistemdeki tek Baskan. */
-    BASKANA_ILET(false, false, RoleName.BASKAN),
+    /** Baskan Yardimcisinin kaydi Baskana iletmesi. */
+    BASKANA_ILET(false, false),
 
-    /** Kaydin olusturan Calisana geri gonderilmesi. Hedef: {@code records.created_by}. */
-    CALISANA_GERI_GONDER(false, true, RoleName.CALISAN),
+    /** Kaydin duzeltilmek uzere Calisana geri gonderilmesi. */
+    CALISANA_GERI_GONDER(false, true),
 
-    /** Baskanin kaydi ileten yardimciya geri gondermesi. Hedef: {@code records.last_deputy_id}. */
-    BASKAN_YARDIMCISINA_GERI_GONDER(false, true, RoleName.BASKAN_YARDIMCISI),
+    /** Baskanin kaydi bir onceki adima, Baskan Yardimcisina geri gondermesi. */
+    BASKAN_YARDIMCISINA_GERI_GONDER(false, true),
 
     /** Baskanin kayda nihai onay vermesi. */
-    ONAYLA(false, false, null),
+    ONAYLA(false, false),
 
     /** Baskanin kaydi nihai olarak reddetmesi. */
-    REDDET(false, true, null);
+    REDDET(false, true);
 
     private final boolean targetUserIdRequiredInRequest;
     private final boolean commentRequired;
-    private final RoleName expectedTargetRole;
 
-    WorkflowAction(boolean targetUserIdRequiredInRequest,
-                   boolean commentRequired,
-                   RoleName expectedTargetRole) {
+    WorkflowAction(boolean targetUserIdRequiredInRequest, boolean commentRequired) {
         this.targetUserIdRequiredInRequest = targetUserIdRequiredInRequest;
         this.commentRequired = commentRequired;
-        this.expectedTargetRole = expectedTargetRole;
     }
 
     /**
@@ -71,16 +63,4 @@ public enum WorkflowAction {
         return commentRequired;
     }
 
-    /**
-     * Cozulen hedef kullanicinin tasimasi gereken rol. Hedef kullanici
-     * gerektirmeyen aksiyonlarda ({@code ONAYLA}, {@code REDDET}) {@code null} doner.
-     */
-    public RoleName getExpectedTargetRole() {
-        return expectedTargetRole;
-    }
-
-    /** Bu aksiyonun bir hedef kullaniciya ihtiyac duyup duymadigi. */
-    public boolean requiresTargetUser() {
-        return expectedTargetRole != null;
-    }
 }

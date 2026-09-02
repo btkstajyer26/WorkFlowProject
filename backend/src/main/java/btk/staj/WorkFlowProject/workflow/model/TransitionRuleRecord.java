@@ -6,11 +6,17 @@ package btk.staj.WorkFlowProject.workflow.model;
  *
  * <p>Alanlar bilerek {@code String} olarak tasinir. Mevcut domain enumlarina
  * donusum {@code DbTransitionRuleSource} sinirinda yapilir.
+ *
+ * <p>{@code expectedTargetRole} tek nullable alandir: hedef kullanici gerektirmeyen
+ * gecislerde ({@code targetStrategy = NONE}) bos gelir. Diger alanlarin bos gelmesi
+ * yapilandirma hatasidir.
  */
 public record TransitionRuleRecord(
         String fromStatus,
         String action,
         String actorRole,
         String actorRequirement,
-        String toStatus) {
+        String toStatus,
+        String targetStrategy,
+        String expectedTargetRole) {
 }

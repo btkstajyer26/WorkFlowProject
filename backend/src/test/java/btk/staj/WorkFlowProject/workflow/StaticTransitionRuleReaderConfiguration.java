@@ -50,6 +50,8 @@ public class StaticTransitionRuleReaderConfiguration {
                 rule.action().name(),
                 rule.actorRole().name(),
                 rule.actorRequirement().name(),
-                rule.to().name());
+                rule.to().name(),
+                rule.targetStrategy().name(),
+                rule.expectedTargetRole() == null ? null : rule.expectedTargetRole().name());
     }
 }

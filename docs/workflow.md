@@ -248,17 +248,30 @@ Uygulama servisi hedef gerektiren aksiyonlarda iki aşamalı doğrulama yapar: �
 
 ## Hedef çözümleme ve atama
 
-| Aksiyon | Hedefin kaynağı | Başarısızlık davranışı |
-| --- | --- | --- |
-| `GONDER` | Aktif `BASKAN_YARDIMCISI` rolündeki kullanıcılar | Tam olarak bir aktif Başkan Yardımcısı yoksa `WORKFLOW_ROLE_NOT_CONFIGURED` |
-| `TEKRAR_GONDER` | Aktif `BASKAN_YARDIMCISI` rolündeki kullanıcılar | Tam olarak bir aktif Başkan Yardımcısı yoksa `WORKFLOW_ROLE_NOT_CONFIGURED` |
-| `BASKANA_ILET` | Aktif `BASKAN` rolündeki kullanıcılar | Tam olarak bir aktif Başkan yoksa `WORKFLOW_ROLE_NOT_CONFIGURED` |
-| `CALISANA_GERI_GONDER` | `record.createdBy` | Referans kullanıcı yoksa veri bütünlüğü hatası; rolü/aktifliği yanlışsa hedef doğrulama hatası |
-| `BASKAN_YARDIMCISINA_GERI_GONDER` | `record.lastDeputyId` | Alan boşsa veya kullanıcı yoksa veri bütünlüğü hatası; rolü/aktifliği yanlışsa hedef doğrulama hatası |
-| `ONAYLA` | Hedef yok | `assignedTo=null` |
-| `REDDET` | Hedef yok | `assignedTo=null` |
+Hedefin nasıl çözüleceği **aksiyonun değil geçişin** özelliğidir:
+`workflow_transitions.target_strategy` ve `expected_target_role_id` kolonlarından okunur.
+Aynı aksiyon farklı geçişlerde farklı hedefe gidebilir — `CALISANA_GERI_GONDER` hem Başkan
+Yardımcısının hem Başkanın kullandığı iki ayrı satırda bulunur.
 
-Başkan Yardımcısı kaydı Başkana ilettiğinde aktör kimliği `lastDeputyId` alanına yazılır. Başkanın `BASKAN_YARDIMCISINA_GERI_GONDER` aksiyonu bu alanı kullanır; rastgele veya o anki başka bir kullanıcıya yönlendirme yapmaz.
+| Strateji | Hedefin kaynağı | Başarısızlık davranışı |
+| --- | --- | --- |
+| `ROLE` | `expected_target_role_id` rolündeki tek aktif kullanıcı | Tam olarak bir aktif kullanıcı yoksa `WORKFLOW_ROLE_NOT_CONFIGURED` |
+| `CREATOR` | `record.createdBy` | Referans kullanıcı yoksa veri bütünlüğü hatası; rolü/aktifliği yanlışsa hedef doğrulama hatası |
+| `CURRENT_ASSIGNEE` | `record.assignedTo` | Alan boşsa veya kullanıcı yoksa veri bütünlüğü hatası |
+| `PREVIOUS_ACTOR` | `record.lastDeputyId` | Alan boşsa veya kullanıcı yoksa veri bütünlüğü hatası; rolü/aktifliği yanlışsa hedef doğrulama hatası |
+| `NONE` | Hedef yok | `assignedTo=null` |
+
+Seed edilmiş sekiz geçişin dağılımı: `GONDER`, `TEKRAR_GONDER` ve `BASKANA_ILET` → `ROLE`;
+her iki `CALISANA_GERI_GONDER` → `CREATOR`; `BASKAN_YARDIMCISINA_GERI_GONDER` →
+`PREVIOUS_ACTOR`; `ONAYLA` ve `REDDET` → `NONE`. `CURRENT_ASSIGNEE` şu an hiçbir geçişte
+kullanılmıyor ama sözleşmede tanımlı olduğu için desteklenir.
+
+Kod tarafında ek bir kural vardır: hedef gerektiren bir geçiş beklenen hedef rolü de taşımak
+zorundadır (`target_strategy = NONE` ⇔ `expected_target_role_id` boş). Bu, veritabanı
+CHECK'inden daha katıdır — CHECK yalnız `ROLE` için rolü zorunlu kılar — ve iki aşamalı
+doğrulamanın çalışması için gereklidir. İhlal, isteği değil **açılışı** düşürür.
+
+Başkan Yardımcısı kaydı Başkana ilettiğinde aktör kimliği `lastDeputyId` alanına yazılır. `PREVIOUS_ACTOR` stratejisi bu alanı kullanır; rastgele veya o anki başka bir kullanıcıya yönlendirme yapmaz. Bu primitive genel bir audit geçmişi taraması değildir.
 
 ## Transaction, audit ve bildirimler
 
@@ -433,7 +446,11 @@ Mevcut otomatik testler şu katmanları kapsar:
 1. **E-posta teslim garantisi:** Gönderim asenkron ve best-effort'tur; retry/outbox/DLQ yoktur.
 2. **Audit değiştirilemezliği:** Uygulama yazma/silme ucu sunmaz, fakat veritabanı rolü veya trigger ile append-only kuralı zorlanmaz.
 3. **Bildirim geçmişi indeksi:** Büyüyen veri için `(user_id, created_at DESC)` birleşik indeksi değerlendirilmelidir.
-4. **Kural kaynağının yönetilebilirliği:** Geçiş kuralları `workflow_transitions` tablosundan okunur, fakat tablo yalnız Flyway seed'i ile değişir; kuralları arayüzden düzenleyen bir yol yoktur. Kurallar ayrıca açılışta bir kez okunup belleğe alınır, canlı yeniden yükleme yoktur.
+4. **Aksiyon metadata'sı hâlâ enum'da:** Açıklama zorunluluğu (`comment_required`) ve
+   istemcinin hedef gönderip gönderemeyeceği `WorkflowAction` enum'unda tutulur. `workflow_actions`
+   tablosunda karşılıkları seed'li ve parity testi ayrışmalarını engelliyor, ama kod henüz
+   tabloyu okumuyor.
+5. **Kural kaynağının yönetilebilirliği:** Geçiş kuralları `workflow_transitions` tablosundan okunur, fakat tablo yalnız Flyway seed'i ile değişir; kuralları arayüzden düzenleyen bir yol yoktur. Kurallar ayrıca açılışta bir kez okunup belleğe alınır, canlı yeniden yükleme yoktur.
 
 Başlangıç şartnamesiyle bilinçli veya fiilî uygulama farkları da korunmalıdır:
 

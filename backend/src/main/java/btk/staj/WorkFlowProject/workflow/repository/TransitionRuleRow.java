@@ -22,6 +22,16 @@ import btk.staj.WorkFlowProject.workflow.statemachine.ActorRequirement;
  *                         kilmak icin tasinir, esleme kararinda kullanilmaz
  * @param actorRequirement aktorun kayitla kurmasi gereken iliski
  * @param toStatus         hedef {@code workflow_statuses.name}
+ * @param targetStrategy   {@code workflow_transitions.target_strategy}
+ * @param expectedTargetRoleId
+ *        {@code workflow_transitions.expected_target_role_id}. Bos olabilir; hedef
+ *        gerektirmeyen gecislerde bos olmasi beklenir
+ * @param expectedTargetRoleSystemKey
+ *        beklenen hedef rolun {@code roles.system_key} degeri. Bos gelmesinin
+ *        <strong>iki farkli</strong> anlami vardir ve ayirt edilmeleri gerekir:
+ *        FK hic dolu degilse hedef yoktur (mesru); FK doluyken bos geliyorsa hedef
+ *        dinamik bir roldur ve bu compatibility seam ile temsil edilemez.
+ *        {@code expectedTargetRoleId} tam da bu ayrimi yapabilmek icin tasinir
  */
 public record TransitionRuleRow(
         String fromStatus,
@@ -29,5 +39,8 @@ public record TransitionRuleRow(
         String actorSystemKey,
         String actorRoleName,
         ActorRequirement actorRequirement,
-        String toStatus) {
+        String toStatus,
+        String targetStrategy,
+        Integer expectedTargetRoleId,
+        String expectedTargetRoleSystemKey) {
 }

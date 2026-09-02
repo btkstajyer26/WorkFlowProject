@@ -16,8 +16,13 @@ import btk.staj.WorkFlowProject.workflow.port.AuditService;
 import btk.staj.WorkFlowProject.workflow.port.CurrentActorProvider;
 import btk.staj.WorkFlowProject.workflow.port.WorkflowEventPublisher;
 import btk.staj.WorkFlowProject.workflow.port.WorkflowRecordPort;
+import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
+import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
+import btk.staj.WorkFlowProject.workflow.statemachine.TargetStrategy;
 import btk.staj.WorkFlowProject.workflow.statemachine.TransitionContext;
 import btk.staj.WorkFlowProject.workflow.statemachine.TransitionDecision;
+import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRule;
+import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRuleSource;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowErrorCode;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowTransitionValidator;
@@ -49,6 +54,9 @@ public final class WorkflowApplicationService {
     private final CurrentActorProvider currentActorProvider;
     private final TargetUserResolver targetUserResolver;
     private final WorkflowTransitionValidator validator;
+    // Validator kurali kendi icinde okur ve disari sizdirmaz; servis ise hedefi cozmek icin
+    // gecisin target_strategy degerine ihtiyac duyar. Bu yuzden ayni portu o da tutar.
+    private final TransitionRuleSource ruleSource;
     private final AuditService auditService;
     private final WorkflowEventPublisher eventPublisher;
     private final Clock clock;
@@ -58,6 +66,7 @@ public final class WorkflowApplicationService {
             CurrentActorProvider currentActorProvider,
             TargetUserResolver targetUserResolver,
             WorkflowTransitionValidator validator,
+            TransitionRuleSource ruleSource,
             AuditService auditService,
             WorkflowEventPublisher eventPublisher,
             Clock clock) {
@@ -65,6 +74,7 @@ public final class WorkflowApplicationService {
         this.currentActorProvider = Objects.requireNonNull(currentActorProvider, "currentActorProvider");
         this.targetUserResolver = Objects.requireNonNull(targetUserResolver, "targetUserResolver");
         this.validator = Objects.requireNonNull(validator, "validator");
+        this.ruleSource = Objects.requireNonNull(ruleSource, "ruleSource");
         this.auditService = Objects.requireNonNull(auditService, "auditService");
         this.eventPublisher = Objects.requireNonNull(eventPublisher, "eventPublisher");
         this.clock = Objects.requireNonNull(clock, "clock");
@@ -92,12 +102,20 @@ public final class WorkflowApplicationService {
                 null,
                 false));
 
-        validatePreliminaryDecision(action, preliminaryDecision);
+        // Kural, on dogrulamadan SONRA aranir: gecis tanimli degilse on dogrulama zaten
+        // WORKFLOW_INVALID_TRANSITION ile reddetmistir ve asagidaki kontrol onu firlatir.
+        TransitionRule rule = requireRule(record.status(), action, actor.role(), preliminaryDecision);
+
+        validatePreliminaryDecision(rule, preliminaryDecision);
 
         TargetResolution resolution = Objects.requireNonNull(
-                targetUserResolver.resolve(action, request.targetUserId(), record),
+                targetUserResolver.resolve(
+                        rule.targetStrategy(),
+                        rule.expectedTargetRole(),
+                        request.targetUserId(),
+                        record),
                 "targetUserResolver.resolve(...)");
-        WorkflowUserSnapshot target = resolvedTarget(action, resolution);
+        WorkflowUserSnapshot target = resolvedTarget(rule, resolution);
 
         TransitionDecision finalDecision = target == null
                 ? preliminaryDecision
@@ -172,10 +190,36 @@ public final class WorkflowApplicationService {
         return record;
     }
 
-    private static void validatePreliminaryDecision(
+    /**
+     * On dogrulamanin sonucuna gore gecis kuralini dondurur.
+     *
+     * <p>Kural bulunamamasinin tek mesru sebebi, gecisin hic tanimli olmamasidir; o durumda
+     * on dogrulama {@code WORKFLOW_INVALID_TRANSITION} ile reddetmis olmalidir. Reddetmemisse
+     * validator ile bu servis ayni kural kaynagini farkli goruyor demektir ve bu sessizce
+     * gecilmemesi gereken bir tutarsizliktir.
+     */
+    private TransitionRule requireRule(
+            RecordStatus currentStatus,
             WorkflowAction action,
+            RoleName actorRole,
+            TransitionDecision preliminaryDecision) {
+
+        Optional<TransitionRule> rule = ruleSource.find(currentStatus, action, actorRole);
+        if (rule.isPresent()) {
+            return rule.get();
+        }
+        if (preliminaryDecision instanceof TransitionDecision.Rejected rejected) {
+            throw new WorkflowApplicationException(rejected.errorCode());
+        }
+        throw new IllegalStateException(
+                "Validator allowed a transition the rule source does not define: "
+                        + currentStatus + ", " + action + ", " + actorRole);
+    }
+
+    private static void validatePreliminaryDecision(
+            TransitionRule rule,
             TransitionDecision decision) {
-        if (action.requiresTargetUser()) {
+        if (requiresTargetUser(rule)) {
             if (decision instanceof TransitionDecision.Rejected rejected
                     && rejected.errorCode() == UNRESOLVED_TARGET_SENTINEL) {
                 return;
@@ -184,7 +228,8 @@ public final class WorkflowApplicationService {
                 throw new WorkflowApplicationException(rejected.errorCode());
             }
             throw new IllegalStateException(
-                    "Target-requiring action passed validation before its target was resolved: " + action);
+                    "Target-requiring transition passed validation before its target was resolved: "
+                            + rule);
         }
 
         if (decision instanceof TransitionDecision.Rejected rejected) {
@@ -192,18 +237,24 @@ public final class WorkflowApplicationService {
         }
     }
 
+    /** Gecis bir hedef kullaniciya ihtiyac duyuyor mu. */
+    private static boolean requiresTargetUser(TransitionRule rule) {
+        return rule.targetStrategy() != TargetStrategy.NONE;
+    }
+
     private static WorkflowUserSnapshot resolvedTarget(
-            WorkflowAction action,
+            TransitionRule rule,
             TargetResolution resolution) {
         if (resolution instanceof TargetResolution.Resolved resolved) {
-            if (!action.requiresTargetUser()) {
-                throw new IllegalStateException("Unexpected target resolved for action: " + action);
+            if (!requiresTargetUser(rule)) {
+                throw new IllegalStateException("Unexpected target resolved for transition: " + rule);
             }
             return resolved.user();
         }
         if (resolution instanceof TargetResolution.NotProvided) {
-            if (action.requiresTargetUser()) {
-                throw new IllegalStateException("Target resolver returned NotProvided for action: " + action);
+            if (requiresTargetUser(rule)) {
+                throw new IllegalStateException(
+                        "Target resolver returned NotProvided for transition: " + rule);
             }
             return null;
         }

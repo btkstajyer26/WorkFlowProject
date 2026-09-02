@@ -982,8 +982,11 @@ Aşama bazlı sonuç:
 | WF-2B — permission authority | **AÇIK.** DB-7 tabloları ve seed'i mevcut |
 | WF-2C — system role / max_users | **AÇIK.** DB-6 kolonları mevcut; WF-2B verify'ından sonra |
 | WF-2C — visibility policy | **BLOKE.** Tek kalan blocker DB-8 ve tasarımı hâlâ yazılmadı |
-| WF-2D — workflow RoleId | **AÇIK.** SM-7B ve SM-9 tamamlandı |
+| WF-2D1 — geçişin hedef metadata'sı | **BİTTİ.** `WorkflowAction.getExpectedTargetRole()` kaldırıldı; hedef `target_strategy`'den çözülüyor |
+| WF-2D2 — workflow RoleId | **AÇIK.** Aktör ve hedef rol hâlâ `RoleName`; `system_key` üzerinden compatibility seam ile taşınıyor |
 | WF-2E — RoleName silme | **BLOKE.** WF-2C visibility yarısına bağlı |
+
+`WF-2D1` ile birlikte `RoleName` döndüren production noktası üçten ikiye indi: `WorkflowAction` artık `RoleName`'e hiç dokunmuyor. Kalanlar `TransitionRule.actorRole` / `expectedTargetRole` (WF-2D2) ve visibility policy (WF-2C2).
 
 §18.5'teki iş sırasının 1–5. maddeleri kapandı; açık kalan tek madde 6'dır
 (DB-8 visibility sözleşmesi). Bu, WF-2E'nin önündeki **tek** engeldir ve
