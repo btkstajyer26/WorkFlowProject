@@ -26,26 +26,30 @@ import static btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction.REDD
 import static btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction.TEKRAR_GONDER;
 
 /**
- * Durum makinesinin merkezi gecis tablosu.
+ * Gecis tablosunun statik kopyasi.
  *
- * <p>Butun izinli gecisler yalnizca burada tanimlidir. Yeni bir gecis eklemek
- * icin {@link #RULES} listesine bir satir eklemek yeterlidir; kod akisinda
- * degisiklik gerekmez.
+ * <p><strong>Bu tablo artik production kaynagi degildir.</strong> Kurallar
+ * {@code workflow_transitions} tablosundan okunur ({@code DbTransitionRuleSource}); burasi
+ * yalnizca parity testinin karsilastirdigi referans ve gerekirse geri donulecek yoldur.
+ *
+ * <p>Dolayisiyla satirlar {@code V15} seed'iyle <strong>birebir ayni</strong> olmak
+ * zorundadir; ayrisirlarsa {@code TransitionRuleSourceParityTest} kirmizi yanar ve bu
+ * dogru davranistir. Yeni bir gecis eklerken once migration, sonra bu tablo guncellenir.
  *
  * <p>Tabloda bulunmayan her durum&ndash;aksiyon&ndash;rol birlesimi gecersizdir.
  */
 public final class TransitionRules {
 
     private static final List<TransitionRule> RULES = List.of(
-            //                 mevcut durum          aksiyon                          yetkili rol         kayit iliskisi         hedef durum
-            new TransitionRule(TASLAK,               GONDER,                          CALISAN,            CREATOR,               BSK_YRD_INCELEMESINDE),
-            new TransitionRule(DUZENLEME_BEKLIYOR,   TEKRAR_GONDER,                   CALISAN,            CREATOR_AND_ASSIGNEE,  BSK_YRD_INCELEMESINDE),
-            new TransitionRule(BSK_YRD_INCELEMESINDE, BASKANA_ILET,                   BASKAN_YARDIMCISI,  ASSIGNEE,              BASKAN_INCELEMESINDE),
-            new TransitionRule(BSK_YRD_INCELEMESINDE, CALISANA_GERI_GONDER,           BASKAN_YARDIMCISI,  ASSIGNEE,              DUZENLEME_BEKLIYOR),
-            new TransitionRule(BASKAN_INCELEMESINDE, ONAYLA,                          BASKAN,             ASSIGNEE,              ONAYLANDI),
-            new TransitionRule(BASKAN_INCELEMESINDE, REDDET,                          BASKAN,             ASSIGNEE,              REDDEDILDI),
-            new TransitionRule(BASKAN_INCELEMESINDE, CALISANA_GERI_GONDER,            BASKAN,             ASSIGNEE,              DUZENLEME_BEKLIYOR),
-            new TransitionRule(BASKAN_INCELEMESINDE, BASKAN_YARDIMCISINA_GERI_GONDER, BASKAN,             ASSIGNEE,              BSK_YRD_INCELEMESINDE)
+            //                 mevcut durum           aksiyon                          yetkili rol         kayit iliskisi         hedef durum            hedef stratejisi              beklenen hedef rol
+            new TransitionRule(TASLAK,                GONDER,                          CALISAN,            CREATOR,               BSK_YRD_INCELEMESINDE, TargetStrategy.ROLE,           BASKAN_YARDIMCISI),
+            new TransitionRule(DUZENLEME_BEKLIYOR,    TEKRAR_GONDER,                   CALISAN,            CREATOR_AND_ASSIGNEE,  BSK_YRD_INCELEMESINDE, TargetStrategy.ROLE,           BASKAN_YARDIMCISI),
+            new TransitionRule(BSK_YRD_INCELEMESINDE, BASKANA_ILET,                    BASKAN_YARDIMCISI,  ASSIGNEE,              BASKAN_INCELEMESINDE,  TargetStrategy.ROLE,           BASKAN),
+            new TransitionRule(BSK_YRD_INCELEMESINDE, CALISANA_GERI_GONDER,            BASKAN_YARDIMCISI,  ASSIGNEE,              DUZENLEME_BEKLIYOR,    TargetStrategy.CREATOR,        CALISAN),
+            new TransitionRule(BASKAN_INCELEMESINDE,  ONAYLA,                          BASKAN,             ASSIGNEE,              ONAYLANDI,             TargetStrategy.NONE,           null),
+            new TransitionRule(BASKAN_INCELEMESINDE,  REDDET,                          BASKAN,             ASSIGNEE,              REDDEDILDI,            TargetStrategy.NONE,           null),
+            new TransitionRule(BASKAN_INCELEMESINDE,  CALISANA_GERI_GONDER,            BASKAN,             ASSIGNEE,              DUZENLEME_BEKLIYOR,    TargetStrategy.CREATOR,        CALISAN),
+            new TransitionRule(BASKAN_INCELEMESINDE,  BASKAN_YARDIMCISINA_GERI_GONDER, BASKAN,             ASSIGNEE,              BSK_YRD_INCELEMESINDE, TargetStrategy.PREVIOUS_ACTOR, BASKAN_YARDIMCISI)
     );
 
     private static final Map<Key, TransitionRule> INDEX = buildIndex();

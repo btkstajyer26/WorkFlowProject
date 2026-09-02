@@ -27,15 +27,19 @@ class JpaTransitionRuleRecordReaderTest {
         List<TransitionRuleRecord> records = readerReturning(
                 row("TASLAK", "GONDER", "CALISAN", "Calisan", ActorRequirement.CREATOR,
                         "BSK_YRD_INCELEMESINDE"),
-                row("BASKAN_INCELEMESINDE", "ONAYLA", "BASKAN", "Baskan", ActorRequirement.ASSIGNEE,
+                terminalRow("BASKAN_INCELEMESINDE", "ONAYLA", "BASKAN", "Baskan", ActorRequirement.ASSIGNEE,
                         "ONAYLANDI"))
                 .findAllActive();
 
         assertThat(records).containsExactly(
                 new TransitionRuleRecord("TASLAK", "GONDER", "CALISAN", "CREATOR",
-                        "BSK_YRD_INCELEMESINDE"),
+                        "BSK_YRD_INCELEMESINDE",
+                        "ROLE",
+                        "BASKAN_YARDIMCISI"),
                 new TransitionRuleRecord("BASKAN_INCELEMESINDE", "ONAYLA", "BASKAN", "ASSIGNEE",
-                        "ONAYLANDI"));
+                        "ONAYLANDI",
+                        "NONE",
+                        null));
     }
 
     @Test
@@ -83,7 +87,7 @@ class JpaTransitionRuleRecordReaderTest {
         assertThatThrownBy(() -> readerReturning(
                 row("TASLAK", "GONDER", "CALISAN", "Calisan", ActorRequirement.CREATOR,
                         "BSK_YRD_INCELEMESINDE"),
-                row("BASKAN_INCELEMESINDE", "ONAYLA", null, "Sube Muduru",
+                terminalRow("BASKAN_INCELEMESINDE", "ONAYLA", null, "Sube Muduru",
                         ActorRequirement.ASSIGNEE, "ONAYLANDI"))
                 .findAllActive())
                 .isInstanceOf(TransitionRuleConfigurationException.class)
@@ -131,6 +135,7 @@ class JpaTransitionRuleRecordReaderTest {
         return new JpaTransitionRuleRecordReader(repository);
     }
 
+    /** Hedefi bir role cozulen gecis satiri; testlerin cogunun ihtiyaci bu. */
     private static TransitionRuleRow row(String fromStatus,
                                          String action,
                                          String actorSystemKey,
@@ -138,7 +143,34 @@ class JpaTransitionRuleRecordReaderTest {
                                          ActorRequirement actorRequirement,
                                          String toStatus) {
 
+        return targetedRow(fromStatus, action, actorSystemKey, actorRoleName, actorRequirement,
+                toStatus, "ROLE", 2, "BASKAN_YARDIMCISI");
+    }
+
+    /** Hedef kullanici gerektirmeyen gecis satiri (ONAYLA / REDDET). */
+    private static TransitionRuleRow terminalRow(String fromStatus,
+                                                 String action,
+                                                 String actorSystemKey,
+                                                 String actorRoleName,
+                                                 ActorRequirement actorRequirement,
+                                                 String toStatus) {
+
+        return targetedRow(fromStatus, action, actorSystemKey, actorRoleName, actorRequirement,
+                toStatus, "NONE", null, null);
+    }
+
+    private static TransitionRuleRow targetedRow(String fromStatus,
+                                                 String action,
+                                                 String actorSystemKey,
+                                                 String actorRoleName,
+                                                 ActorRequirement actorRequirement,
+                                                 String toStatus,
+                                                 String targetStrategy,
+                                                 Integer expectedTargetRoleId,
+                                                 String expectedTargetRoleSystemKey) {
+
         return new TransitionRuleRow(
-                fromStatus, action, actorSystemKey, actorRoleName, actorRequirement, toStatus);
+                fromStatus, action, actorSystemKey, actorRoleName, actorRequirement, toStatus,
+                targetStrategy, expectedTargetRoleId, expectedTargetRoleSystemKey);
     }
 }

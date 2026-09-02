@@ -32,15 +32,21 @@ public interface WorkflowTransitionRepository extends JpaRepository<WorkflowTran
      * <p>Filtre yalnizca {@code workflow_transitions.is_active} uzerindedir:
      * portun sozlesmesi ({@code findAllActive}) budur. Katalog satirlarinin
      * aktifligi DB-1 SS14 publish dogrulamasinin konusudur.
+     *
+     * <p>Beklenen hedef rol join'i <strong>{@code LEFT JOIN}</strong> olmak zorundadir:
+     * {@code expected_target_role_id} hedef gerektirmeyen gecislerde bostur ve normal bir
+     * join {@code ONAYLA} ile {@code REDDET} satirlarini sessizce dusururdu.
      */
     @Query("""
             SELECT new btk.staj.WorkFlowProject.workflow.repository.TransitionRuleRow(
-                       fs.name, a.name, r.systemKey, r.name, t.actorRequirement, ts.name)
+                       fs.name, a.name, r.systemKey, r.name, t.actorRequirement, ts.name,
+                       t.targetStrategy, t.expectedTargetRoleId, tr.systemKey)
             FROM WorkflowTransitionEntity t
             JOIN WorkflowStatusEntity fs ON fs.id = t.fromStatusId
             JOIN WorkflowActionEntity  a ON  a.id = t.actionId
             JOIN Role                  r ON  r.id = t.actorRoleId
             JOIN WorkflowStatusEntity ts ON ts.id = t.toStatusId
+            LEFT JOIN Role            tr ON tr.id = t.expectedTargetRoleId
             WHERE t.active = true
             ORDER BY t.id ASC
             """)

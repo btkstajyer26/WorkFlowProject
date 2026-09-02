@@ -6,6 +6,7 @@ import btk.staj.WorkFlowProject.workflow.port.TransitionRuleRecordReader;
 import btk.staj.WorkFlowProject.workflow.statemachine.ActorRequirement;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
+import btk.staj.WorkFlowProject.workflow.statemachine.TargetStrategy;
 import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRule;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
 import org.junit.jupiter.api.DisplayName;
@@ -39,13 +40,17 @@ class DbTransitionRuleSourceTest {
                         WorkflowAction.GONDER,
                         RoleName.CALISAN,
                         ActorRequirement.CREATOR,
-                        RecordStatus.BSK_YRD_INCELEMESINDE),
+                        RecordStatus.BSK_YRD_INCELEMESINDE,
+                        TargetStrategy.ROLE,
+                        RoleName.BASKAN_YARDIMCISI),
                 new TransitionRule(
                         RecordStatus.BASKAN_INCELEMESINDE,
                         WorkflowAction.ONAYLA,
                         RoleName.BASKAN,
                         ActorRequirement.ASSIGNEE,
-                        RecordStatus.ONAYLANDI));
+                        RecordStatus.ONAYLANDI,
+                        TargetStrategy.NONE,
+                        null));
     }
 
     @Test
@@ -59,7 +64,9 @@ class DbTransitionRuleSourceTest {
                         WorkflowAction.GONDER,
                         RoleName.CALISAN,
                         ActorRequirement.CREATOR,
-                        RecordStatus.BSK_YRD_INCELEMESINDE));
+                        RecordStatus.BSK_YRD_INCELEMESINDE,
+                        TargetStrategy.ROLE,
+                        RoleName.BASKAN_YARDIMCISI));
     }
 
     @Test
@@ -81,7 +88,9 @@ class DbTransitionRuleSourceTest {
                 WorkflowAction.ONAYLA,
                 RoleName.BASKAN,
                 ActorRequirement.ASSIGNEE,
-                RecordStatus.ONAYLANDI)))
+                RecordStatus.ONAYLANDI,
+                TargetStrategy.NONE,
+                null)))
                 .isInstanceOf(UnsupportedOperationException.class);
     }
 
@@ -108,7 +117,7 @@ class DbTransitionRuleSourceTest {
     @DisplayName("ayni composite key ikinci kez geldiginde fail-fast olur")
     void rejectsDuplicateCompositeKey() {
         TransitionRuleRecord duplicate = new TransitionRuleRecord(
-                "TASLAK", "GONDER", "CALISAN", "ASSIGNEE", "ONAYLANDI");
+                "TASLAK", "GONDER", "CALISAN", "ASSIGNEE", "ONAYLANDI", "NONE", null);
 
         assertThatThrownBy(() -> source(List.of(validRecord(), duplicate)))
                 .isInstanceOf(TransitionRuleConfigurationException.class)
@@ -193,65 +202,65 @@ class DbTransitionRuleSourceTest {
                         "workflow status",
                         "UNKNOWN_FROM",
                         new TransitionRuleRecord(
-                                "UNKNOWN_FROM", "GONDER", "CALISAN", "CREATOR", "BSK_YRD_INCELEMESINDE")),
+                                "UNKNOWN_FROM", "GONDER", "CALISAN", "CREATOR", "BSK_YRD_INCELEMESINDE", "ROLE", "BASKAN_YARDIMCISI")),
                 Arguments.of(
                         "action",
                         "workflow action",
                         "UNKNOWN_ACTION",
                         new TransitionRuleRecord(
-                                "TASLAK", "UNKNOWN_ACTION", "CALISAN", "CREATOR", "BSK_YRD_INCELEMESINDE")),
+                                "TASLAK", "UNKNOWN_ACTION", "CALISAN", "CREATOR", "BSK_YRD_INCELEMESINDE", "ROLE", "BASKAN_YARDIMCISI")),
                 Arguments.of(
                         "actorRole",
                         "actor role",
                         "UNKNOWN_ROLE",
                         new TransitionRuleRecord(
-                                "TASLAK", "GONDER", "UNKNOWN_ROLE", "CREATOR", "BSK_YRD_INCELEMESINDE")),
+                                "TASLAK", "GONDER", "UNKNOWN_ROLE", "CREATOR", "BSK_YRD_INCELEMESINDE", "ROLE", "BASKAN_YARDIMCISI")),
                 Arguments.of(
                         "actorRequirement",
                         "actor requirement",
                         "UNKNOWN_REQUIREMENT",
                         new TransitionRuleRecord(
-                                "TASLAK", "GONDER", "CALISAN", "UNKNOWN_REQUIREMENT", "BSK_YRD_INCELEMESINDE")),
+                                "TASLAK", "GONDER", "CALISAN", "UNKNOWN_REQUIREMENT", "BSK_YRD_INCELEMESINDE", "ROLE", "BASKAN_YARDIMCISI")),
                 Arguments.of(
                         "toStatus",
                         "workflow status",
                         "UNKNOWN_TO",
                         new TransitionRuleRecord(
-                                "TASLAK", "GONDER", "CALISAN", "CREATOR", "UNKNOWN_TO")));
+                                "TASLAK", "GONDER", "CALISAN", "CREATOR", "UNKNOWN_TO", "ROLE", "BASKAN_YARDIMCISI")));
     }
 
     private static Stream<Arguments> missingFieldRecords() {
         return Stream.of(
                 Arguments.of(
                         "fromStatus", "null",
-                        new TransitionRuleRecord(null, "GONDER", "CALISAN", "CREATOR", "BSK_YRD_INCELEMESINDE")),
+                        new TransitionRuleRecord(null, "GONDER", "CALISAN", "CREATOR", "BSK_YRD_INCELEMESINDE", "ROLE", "BASKAN_YARDIMCISI")),
                 Arguments.of(
                         "fromStatus", "blank",
-                        new TransitionRuleRecord(" ", "GONDER", "CALISAN", "CREATOR", "BSK_YRD_INCELEMESINDE")),
+                        new TransitionRuleRecord(" ", "GONDER", "CALISAN", "CREATOR", "BSK_YRD_INCELEMESINDE", "ROLE", "BASKAN_YARDIMCISI")),
                 Arguments.of(
                         "action", "null",
-                        new TransitionRuleRecord("TASLAK", null, "CALISAN", "CREATOR", "BSK_YRD_INCELEMESINDE")),
+                        new TransitionRuleRecord("TASLAK", null, "CALISAN", "CREATOR", "BSK_YRD_INCELEMESINDE", "ROLE", "BASKAN_YARDIMCISI")),
                 Arguments.of(
                         "action", "blank",
-                        new TransitionRuleRecord("TASLAK", " ", "CALISAN", "CREATOR", "BSK_YRD_INCELEMESINDE")),
+                        new TransitionRuleRecord("TASLAK", " ", "CALISAN", "CREATOR", "BSK_YRD_INCELEMESINDE", "ROLE", "BASKAN_YARDIMCISI")),
                 Arguments.of(
                         "actorRole", "null",
-                        new TransitionRuleRecord("TASLAK", "GONDER", null, "CREATOR", "BSK_YRD_INCELEMESINDE")),
+                        new TransitionRuleRecord("TASLAK", "GONDER", null, "CREATOR", "BSK_YRD_INCELEMESINDE", "ROLE", "BASKAN_YARDIMCISI")),
                 Arguments.of(
                         "actorRole", "blank",
-                        new TransitionRuleRecord("TASLAK", "GONDER", " ", "CREATOR", "BSK_YRD_INCELEMESINDE")),
+                        new TransitionRuleRecord("TASLAK", "GONDER", " ", "CREATOR", "BSK_YRD_INCELEMESINDE", "ROLE", "BASKAN_YARDIMCISI")),
                 Arguments.of(
                         "actorRequirement", "null",
-                        new TransitionRuleRecord("TASLAK", "GONDER", "CALISAN", null, "BSK_YRD_INCELEMESINDE")),
+                        new TransitionRuleRecord("TASLAK", "GONDER", "CALISAN", null, "BSK_YRD_INCELEMESINDE", "ROLE", "BASKAN_YARDIMCISI")),
                 Arguments.of(
                         "actorRequirement", "blank",
-                        new TransitionRuleRecord("TASLAK", "GONDER", "CALISAN", " ", "BSK_YRD_INCELEMESINDE")),
+                        new TransitionRuleRecord("TASLAK", "GONDER", "CALISAN", " ", "BSK_YRD_INCELEMESINDE", "ROLE", "BASKAN_YARDIMCISI")),
                 Arguments.of(
                         "toStatus", "null",
-                        new TransitionRuleRecord("TASLAK", "GONDER", "CALISAN", "CREATOR", null)),
+                        new TransitionRuleRecord("TASLAK", "GONDER", "CALISAN", "CREATOR", null, "ROLE", "BASKAN_YARDIMCISI")),
                 Arguments.of(
                         "toStatus", "blank",
-                        new TransitionRuleRecord("TASLAK", "GONDER", "CALISAN", "CREATOR", " ")));
+                        new TransitionRuleRecord("TASLAK", "GONDER", "CALISAN", "CREATOR", " ", "ROLE", "BASKAN_YARDIMCISI")));
     }
 
     private static DbTransitionRuleSource source(List<TransitionRuleRecord> records) {
@@ -264,7 +273,9 @@ class DbTransitionRuleSourceTest {
                 "GONDER",
                 "CALISAN",
                 "CREATOR",
-                "BSK_YRD_INCELEMESINDE");
+                "BSK_YRD_INCELEMESINDE",
+                "ROLE",
+                "BASKAN_YARDIMCISI");
     }
 
     private static TransitionRuleRecord approvalRecord() {
@@ -273,6 +284,8 @@ class DbTransitionRuleSourceTest {
                 "ONAYLA",
                 "BASKAN",
                 "ASSIGNEE",
-                "ONAYLANDI");
+                "ONAYLANDI",
+                "NONE",
+                null);
     }
 }

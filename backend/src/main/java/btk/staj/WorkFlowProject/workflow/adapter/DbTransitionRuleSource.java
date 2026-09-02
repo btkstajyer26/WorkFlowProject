@@ -6,6 +6,7 @@ import btk.staj.WorkFlowProject.workflow.port.TransitionRuleRecordReader;
 import btk.staj.WorkFlowProject.workflow.statemachine.ActorRequirement;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
+import btk.staj.WorkFlowProject.workflow.statemachine.TargetStrategy;
 import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRule;
 import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRuleSource;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
@@ -87,17 +88,54 @@ public final class DbTransitionRuleSource implements TransitionRuleSource {
     }
 
     private static TransitionRule map(TransitionRuleRecord record, int rowNumber) {
-        return new TransitionRule(
-                mapEnum(record.fromStatus(), "fromStatus", "workflow status", RecordStatus.class, rowNumber),
-                mapEnum(record.action(), "action", "workflow action", WorkflowAction.class, rowNumber),
-                mapEnum(record.actorRole(), "actorRole", "actor role", RoleName.class, rowNumber),
-                mapEnum(
-                        record.actorRequirement(),
-                        "actorRequirement",
-                        "actor requirement",
-                        ActorRequirement.class,
-                        rowNumber),
-                mapEnum(record.toStatus(), "toStatus", "workflow status", RecordStatus.class, rowNumber));
+        try {
+            return new TransitionRule(
+                    mapEnum(record.fromStatus(), "fromStatus", "workflow status", RecordStatus.class, rowNumber),
+                    mapEnum(record.action(), "action", "workflow action", WorkflowAction.class, rowNumber),
+                    mapEnum(record.actorRole(), "actorRole", "actor role", RoleName.class, rowNumber),
+                    mapEnum(
+                            record.actorRequirement(),
+                            "actorRequirement",
+                            "actor requirement",
+                            ActorRequirement.class,
+                            rowNumber),
+                    mapEnum(record.toStatus(), "toStatus", "workflow status", RecordStatus.class, rowNumber),
+                    mapEnum(
+                            record.targetStrategy(),
+                            "targetStrategy",
+                            "target strategy",
+                            TargetStrategy.class,
+                            rowNumber),
+                    mapNullableEnum(
+                            record.expectedTargetRole(),
+                            "expectedTargetRole",
+                            "actor role",
+                            RoleName.class,
+                            rowNumber));
+        } catch (IllegalArgumentException exception) {
+            // TransitionRule'un compact constructor'i hedef stratejisi ile beklenen hedef
+            // rolun tutarli olmasini zorunlu kilar. Ihlali burada yakalayip satir numarasi
+            // ile birlikte yapilandirma hatasina cevirmezsek, cagiran taraf ham bir
+            // IllegalArgumentException gorur ve hangi satirin bozuk oldugunu bilemez.
+            throw new TransitionRuleConfigurationException(
+                    "Inconsistent transition configuration at row " + rowNumber + ": "
+                            + exception.getMessage(),
+                    exception);
+        }
+    }
+
+    /**
+     * Bos gelmesi mesru olan tek alan icin. {@code null} aynen gecirilir; dolu bir deger
+     * {@link #mapEnum} ile ayni katilikta cozulur, yani yazim hatasi yine yakalanir.
+     */
+    private static <E extends Enum<E>> E mapNullableEnum(
+            String value,
+            String fieldName,
+            String enumDescription,
+            Class<E> enumType,
+            int rowNumber) {
+
+        return value == null ? null : mapEnum(value, fieldName, enumDescription, enumType, rowNumber);
     }
 
     private static <E extends Enum<E>> E mapEnum(
