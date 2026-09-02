@@ -8,5 +8,5 @@ import java.util.Optional;
 
 public interface WorkflowStatusRepository extends JpaRepository<WorkflowStatusEntity, Integer> {
     Optional<WorkflowStatusEntity> findByName(String name);
-    List<WorkflowStatusEntity> findAllByOrderByIdAsc();
+    List<WorkflowStatusEntity> findAllByOrderByDisplayOrderAsc();
 }
