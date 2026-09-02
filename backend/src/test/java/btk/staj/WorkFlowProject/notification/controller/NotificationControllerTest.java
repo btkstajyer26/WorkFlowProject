@@ -1,5 +1,7 @@
 package btk.staj.WorkFlowProject.notification.controller;
 
+import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
+
 import btk.staj.WorkFlowProject.common.dto.PagedResponse;
 import btk.staj.WorkFlowProject.notification.service.NotificationService;
 import btk.staj.WorkFlowProject.workflow.model.CurrentActor;
@@ -36,7 +38,7 @@ class NotificationControllerTest {
 
     NotificationControllerTest() {
         when(currentActorProvider.currentActor())
-                .thenReturn(new CurrentActor(CURRENT_USER_ID, RoleName.CALISAN));
+                .thenReturn(new CurrentActor(CURRENT_USER_ID, RoleName.CALISAN, AuthorizationFixtures.workflowActor(RoleName.CALISAN), AuthorizationFixtures.permissions(RoleName.CALISAN)));
     }
 
     @Test

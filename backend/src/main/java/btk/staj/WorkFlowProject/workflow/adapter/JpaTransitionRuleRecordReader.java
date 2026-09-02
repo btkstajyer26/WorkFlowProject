@@ -73,7 +73,8 @@ public final class JpaTransitionRuleRecordReader implements TransitionRuleRecord
                 requirementOf(row, rowNumber),
                 row.toStatus(),
                 row.targetStrategy(),
-                expectedTargetKeyOf(row, rowNumber));
+                expectedTargetKeyOf(row, rowNumber),
+                row.requiredPermissionCode());
     }
 
     /**

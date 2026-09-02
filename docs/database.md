@@ -389,14 +389,25 @@ Mevcut `roles(id, name, description)` tablosuna beş yeni kolon eklendi:
 yerleşik rolün iş anlamıdır — örn. farklı ortamlarda `BASKAN` satırının sayısal
 ID'si farklı olabilir, ama `system_key = 'BASKAN'` her zaman aynıdır.
 
-### `permissions` + `role_permissions` (`V13`)
+### `permissions` + `role_permissions` (`V13`, `V17`)
 
 Yetkilendirmenin rol adına bağlı (`hasRole(...)`) olmaktan çıkıp permission
 tabanlı (`hasAuthority(...)`) hale gelmesinin temeli. `permissions.code` sabit
 bir capability kataloğudur (`RECORD_CREATE`, `USER_MANAGE`, `ADMIN_PANEL_ACCESS`
-vb., 15 kod) — admin yeni kod üretemez, yalnız var olan kodu role atar/kaldırır.
+vb.; `V13` ile 16, `V17` sonrasında 19 kod) — yeni kodlar backend desteği ve migration gerektirir.
 `role_permissions` bileşik PK'li (`role_id, permission_id`) klasik N:N eşleme
 tablosu.
+
+`V17`, `FILE_MANAGE` ve `RECORD_DELETE` kodlarını `CALISAN`, `AUDIT_VIEW` kodunu
+`ADMIN` sistem rolüne `system_key` üzerinden atar. Authentication yalnız aktif
+rolün aktif permission'larını yükler. JWT her istekte DB'den yeniler; e-posta
+aksiyonları aynı principal factory'yi kullanır. `ROLE_<rol adı>` üretilmez.
+
+WF-2C1'de `RoleCapacityService` kullanıcı oluşturma, bootstrap, rol değişimi,
+yeniden etkinleştirme ve devir için ortak kapasite kontrolüdür. Mevcut kullanıcılar
+UUID, sonra etkilenen roller ID sırasıyla `PESSIMISTIC_WRITE` kilitlenir. Rol
+ID'sine göre aktif kullanıcı sayımı ve yazım tek transaction'da yapılır;
+`max_users=NULL` sınırsızdır, aşım `409 ADMIN_LIMIT_EXCEEDED` döndürür.
 
 ### `workflow_statuses` + `workflow_actions` (`V14`)
 
@@ -431,11 +442,11 @@ sözleşmesi bozulmadan, sabit `chk_records_status` CHECK kısıtı kaldırılı
 yerine `workflow_statuses(name)`'e `ON UPDATE RESTRICT ON DELETE RESTRICT`
 foreign key eklendi. Aynı garanti, çok daha az invaziv değişiklik.
 
-### Not: statik kaynak henüz kaldırılmadı
+### Üretim kural kaynağı ve statik referans
 
-`TransitionRules.java` hâlâ yerinde duruyor ve hâlâ kullanılıyor. Yukarıdaki
-tablolar şimdilik yalnız **veri kaynağı olarak hazır** — `WorkflowTransitionValidator`
-bunları henüz okumuyor. `workflow.statemachine.TransitionRuleSource` portu
-üzerinden bir `DbTransitionRuleSource` adaptörü yazılıp statik kaynakla
-**parity testi** yeşil olana kadar `TransitionRules.java` kaldırılmayacak
-(bkz. görev dağılımı belgesi, `SM-7`/`SM-9`).
+Üretim zinciri `DbTransitionRuleSource → JpaTransitionRuleRecordReader → PostgreSQL`
+şeklindedir. Açılışta yüklenen immutable snapshot, `TransitionRuleSource` üzerinden
+saf validator'a sunulur. Boş/geçersiz kural verisi ve aktif geçişte eksik permission
+metadata'sı açılışı durdurur. `TransitionRules.java`, sekiz geçişin hedef ve permission
+metadata'sını da kapsayan parity ve veritabanısız test referansıdır. Yeni kurallar
+yeni Flyway migration'ı ve eşleşen parity referansıyla birlikte eklenir.

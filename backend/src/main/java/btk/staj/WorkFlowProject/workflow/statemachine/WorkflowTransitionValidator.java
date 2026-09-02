@@ -35,7 +35,7 @@ public class WorkflowTransitionValidator {
     public TransitionDecision validate(TransitionContext context) {
 
         // 1. Workflow aktoru olmayan roller (ADMIN) hicbir gecis yapamaz.
-        if (!context.actorRole().isWorkflowActor()) {
+        if (!context.actorWorkflowActor()) {
             return TransitionDecision.rejected(WorkflowErrorCode.WORKFLOW_ROLE_NOT_ALLOWED);
         }
 
@@ -51,8 +51,9 @@ public class WorkflowTransitionValidator {
             return TransitionDecision.rejected(WorkflowErrorCode.WORKFLOW_INVALID_TRANSITION);
         }
 
-        // 4. Aktor kaydin sahibi ve/veya atanani mi?
-        if (!rule.get().actorRequirement().isSatisfiedBy(context.actorIsCreator(), context.actorIsAssignee())) {
+        // 4. Aktor iliskisi ve gecisin gerekli permission'i birlikte saglanmali.
+        if (!rule.get().actorRequirement().isSatisfiedBy(context.actorIsCreator(), context.actorIsAssignee())
+                || !context.actorPermissionCodes().contains(rule.get().requiredPermissionCode())) {
             return TransitionDecision.rejected(WorkflowErrorCode.WORKFLOW_FORBIDDEN);
         }
 

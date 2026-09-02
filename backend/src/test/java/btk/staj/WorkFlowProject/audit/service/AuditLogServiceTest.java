@@ -103,7 +103,7 @@ class AuditLogServiceTest {
 
     @Test
     @DisplayName("rol adini roles tablosundaki id'ye cevirir")
-    void resolvesTheRoleIdByRoleName() {
+    void resolvesTheRoleIdBySystemKey() {
         givenRole("CALISAN", 7);
 
         service.record(transition(
@@ -113,14 +113,14 @@ class AuditLogServiceTest {
                 RoleName.CALISAN,
                 null));
 
-        verify(roleRepository).findByName("CALISAN");
+        verify(roleRepository).findBySystemKey("CALISAN");
         assertThat(captureSaved().getRoleId()).isEqualTo(7);
     }
 
     @Test
     @DisplayName("rol roles tablosunda yoksa yazmaz ve hata firlatir")
     void failsWithoutWritingWhenTheRoleRowIsMissing() {
-        when(roleRepository.findByName("BASKAN")).thenReturn(Optional.empty());
+        when(roleRepository.findBySystemKey("BASKAN")).thenReturn(Optional.empty());
 
         assertThatIllegalStateException()
                 .isThrownBy(() -> service.record(transition(
@@ -299,7 +299,7 @@ class AuditLogServiceTest {
         Role role = new Role();
         role.setId(roleId);
         role.setName(roleName);
-        when(roleRepository.findByName(roleName)).thenReturn(Optional.of(role));
+        when(roleRepository.findBySystemKey(roleName)).thenReturn(Optional.of(role));
     }
 
     private AuditLog captureSaved() {
@@ -325,9 +325,7 @@ class AuditLogServiceTest {
     @Test
     @DisplayName("yasam dongusu olayini durum gecisi olmadan yazar")
     void writesALifecycleEventWithoutATransition() {
-        givenRole("CALISAN", 1);
-
-        service.recordLifecycleEvent(RECORD_ID, ACTOR_ID, RoleName.CALISAN,
+        service.recordLifecycleEvent(RECORD_ID, ACTOR_ID, 1,
                 "RECORD_CREATED", RecordStatus.TASLAK, "Kayit olusturuldu");
 
         AuditLog saved = captureSaved();
@@ -345,15 +343,13 @@ class AuditLogServiceTest {
     }
 
     @Test
-    @DisplayName("yasam dongusu olayinda rol roles tablosunda yoksa yazmaz")
-    void failsWithoutWritingWhenTheLifecycleRoleRowIsMissing() {
-        when(roleRepository.findByName("CALISAN")).thenReturn(Optional.empty());
-
-        assertThatIllegalStateException()
+    @DisplayName("yasam dongusu olayinda rol kimligi eksikse yazmaz")
+    void failsWithoutWritingWhenTheLifecycleRoleIdIsMissing() {
+        org.assertj.core.api.Assertions.assertThatNullPointerException()
                 .isThrownBy(() -> service.recordLifecycleEvent(
-                        RECORD_ID, ACTOR_ID, RoleName.CALISAN,
+                        RECORD_ID, ACTOR_ID, null,
                         "RECORD_CREATED", RecordStatus.TASLAK, null))
-                .withMessageContaining("CALISAN");
+                .withMessageContaining("actorRoleId");
 
         verifyNoInteractions(auditLogRepository);
     }

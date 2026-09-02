@@ -35,7 +35,7 @@ public class RecordController {
     /**
      * Yeni Kayıt (Taslak) Oluşturma — Sadece Çalışan.
      */
-    @PreAuthorize("hasRole('CALISAN')")
+    @PreAuthorize("hasAuthority('RECORD_CREATE')")
     @PostMapping
     public ResponseEntity<RecordResponse> createRecord(@Valid @RequestBody RecordCreateRequest request) {
         RecordResponse response = recordService.createRecord(request);
@@ -86,7 +86,7 @@ public class RecordController {
      * Taslak veya Düzenleme Bekliyor durumundaki kaydı düzenleme.
      * Yalnızca kaydı oluşturan Çalışan yapabilir (isEditableByCreator() kontrolü service'te).
      */
-    @PreAuthorize("hasRole('CALISAN')")
+    @PreAuthorize("hasAuthority('RECORD_EDIT')")
     @PutMapping("/{id}")
     public ResponseEntity<RecordResponse> updateRecord(
             @PathVariable UUID id,
@@ -98,7 +98,7 @@ public class RecordController {
     /**
      * Taslak halindeki kaydı silme (soft delete — deletedAt set edilir).
      */
-    @PreAuthorize("hasRole('CALISAN')")
+    @PreAuthorize("hasAuthority('RECORD_DELETE')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteRecord(@PathVariable UUID id) {
         recordService.deleteRecord(id);

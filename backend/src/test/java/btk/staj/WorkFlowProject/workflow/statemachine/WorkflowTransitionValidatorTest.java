@@ -1,5 +1,7 @@
 package btk.staj.WorkFlowProject.workflow.statemachine;
 
+import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -456,7 +458,7 @@ class WorkflowTransitionValidatorTest {
     @DisplayName("baglam olusturucusu zorunlu alanlari dogrular")
     void baglamZorunluAlanlar() {
         assertThatCode(() -> new TransitionContext(null, WorkflowAction.ONAYLA, RoleName.BASKAN,
-                false, false, null, false, null, true))
+                false, false, null, false, null, true, AuthorizationFixtures.workflowActor(RoleName.BASKAN), AuthorizationFixtures.permissions(RoleName.BASKAN)))
                 .isInstanceOf(NullPointerException.class);
     }
 
@@ -524,7 +526,7 @@ class WorkflowTransitionValidatorTest {
                                                         new TransitionContext(
                                                                 status, action, actorRole,
                                                                 olusturan, atanan, aciklama,
-                                                                hedefGonderildi, hedefRol, hedefAktif));
+                                                                hedefGonderildi, hedefRol, hedefAktif, AuthorizationFixtures.workflowActor(actorRole), AuthorizationFixtures.permissions(actorRole)));
 
                                                 if (karar instanceof TransitionDecision.Rejected ret) {
                                                     kodlar.add(ret.errorCode());
@@ -613,7 +615,7 @@ class WorkflowTransitionValidatorTest {
 
         TransitionContext build() {
             return new TransitionContext(status, action, actorRole, isCreator, isAssignee,
-                    comment, targetProvidedInRequest, targetRole, targetActive);
+                    comment, targetProvidedInRequest, targetRole, targetActive, AuthorizationFixtures.workflowActor(actorRole), AuthorizationFixtures.permissions(actorRole));
         }
     }
 }

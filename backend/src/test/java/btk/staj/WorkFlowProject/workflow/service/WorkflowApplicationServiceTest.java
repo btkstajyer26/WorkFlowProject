@@ -1,5 +1,7 @@
 package btk.staj.WorkFlowProject.workflow.service;
 
+import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
+
 import btk.staj.WorkFlowProject.workflow.dto.WorkflowActionRequest;
 import btk.staj.WorkFlowProject.workflow.dto.WorkflowActionResponse;
 import btk.staj.WorkFlowProject.workflow.exception.WorkflowApplicationException;
@@ -422,7 +424,7 @@ class WorkflowApplicationServiceTest {
     @Test
     @DisplayName("bulunamayan kayit resolver veya yan etki cagrisi yapmadan reddedilir")
     void rejectsMissingRecordWithoutResolutionOrSideEffects() {
-        when(currentActorProvider.currentActor()).thenReturn(new CurrentActor(ACTOR_ID, RoleName.CALISAN));
+        when(currentActorProvider.currentActor()).thenReturn(new CurrentActor(ACTOR_ID, RoleName.CALISAN, AuthorizationFixtures.workflowActor(RoleName.CALISAN), AuthorizationFixtures.permissions(RoleName.CALISAN)));
         when(recordPort.findById(RECORD_ID)).thenReturn(Optional.empty());
 
         WorkflowRecordNotFoundException exception = assertThrows(
@@ -598,8 +600,21 @@ class WorkflowApplicationServiceTest {
         verify(eventPublisher).publish(any(WorkflowStatusChangedEvent.class));
     }
 
+    @Test
+    void missingPermissionStopsBeforeTargetLookupAndAllWrites() {
+        when(currentActorProvider.currentActor()).thenReturn(
+                new CurrentActor(ACTOR_ID, RoleName.CALISAN, true, java.util.Set.of()));
+        when(recordPort.findById(RECORD_ID)).thenReturn(Optional.of(
+                activeRecord(RecordStatus.TASLAK, ACTOR_ID, null, null)));
+        WorkflowApplicationException exception = assertThrows(WorkflowApplicationException.class,
+                () -> service.performAction(RECORD_ID, new WorkflowActionRequest(WorkflowAction.GONDER, null, null)));
+        assertThat(exception.errorCode()).isEqualTo(WorkflowErrorCode.WORKFLOW_FORBIDDEN);
+        verifyNoInteractions(targetUserResolver);
+        assertNoMutation();
+    }
+
     private void arrange(WorkflowRecordSnapshot record, RoleName actorRole) {
-        when(currentActorProvider.currentActor()).thenReturn(new CurrentActor(ACTOR_ID, actorRole));
+        when(currentActorProvider.currentActor()).thenReturn(new CurrentActor(ACTOR_ID, actorRole, AuthorizationFixtures.workflowActor(actorRole), AuthorizationFixtures.permissions(actorRole)));
         when(recordPort.findById(RECORD_ID)).thenReturn(Optional.of(record));
     }
 

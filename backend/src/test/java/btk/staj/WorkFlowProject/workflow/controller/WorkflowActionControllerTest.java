@@ -1,5 +1,7 @@
 package btk.staj.WorkFlowProject.workflow.controller;
 
+import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
+
 import btk.staj.WorkFlowProject.attachment.repository.FileRepository;
 import btk.staj.WorkFlowProject.audit.entity.AuditLog;
 import btk.staj.WorkFlowProject.audit.repository.AuditLogRepository;
@@ -90,6 +92,7 @@ class WorkflowActionControllerTest {
     @MockitoBean private DeviceTokenRepository deviceTokenRepository;
     @MockitoBean private MailActionTokenRepository mailActionTokenRepository;
     @MockitoBean private WorkflowTransitionRepository workflowTransitionRepository;
+    @MockitoBean private btk.staj.WorkFlowProject.rbac.repository.RolePermissionRepository rolePermissionRepository;
 
     @TestConfiguration
     static class NoOpTransactionConfig {
@@ -219,7 +222,7 @@ class WorkflowActionControllerTest {
         UUID recordId = UUID.randomUUID();
         AuthenticatedUser calisan = actor(RoleName.CALISAN);
         givenOwnedRecord(recordId, RecordStatus.TASLAK, calisan.getId());
-        when(userRepository.findByRole_NameAndActive(RoleName.BASKAN_YARDIMCISI.name(), true))
+        when(userRepository.findByRole_SystemKeyAndRole_ActiveTrueAndActiveTrue(RoleName.BASKAN_YARDIMCISI.name()))
                 .thenReturn(List.of());
 
         mockMvc.perform(post(ACTION_URL, recordId)
@@ -288,12 +291,18 @@ class WorkflowActionControllerTest {
         Role role = new Role();
         role.setId(roleId);
         role.setName(roleName.name());
-        when(roleRepository.findByName(roleName.name())).thenReturn(Optional.of(role));
+        role.setActive(true);
+        role.setSystemKey(roleName.name());
+        role.setWorkflowActor(AuthorizationFixtures.workflowActor(roleName.name()));
+        when(roleRepository.findBySystemKey(roleName.name())).thenReturn(Optional.of(role));
     }
 
     private static AuthenticatedUser actor(RoleName roleName) {
         Role role = new Role();
         role.setName(roleName.name());
+        role.setActive(true);
+        role.setSystemKey(roleName.name());
+        role.setWorkflowActor(AuthorizationFixtures.workflowActor(roleName.name()));
 
         User user = new User();
         user.setId(UUID.randomUUID());
@@ -302,6 +311,6 @@ class WorkflowActionControllerTest {
         user.setRole(role);
         user.setActive(true);
 
-        return new AuthenticatedUser(user);
+        return AuthorizationFixtures.authenticated(user);
     }
 }

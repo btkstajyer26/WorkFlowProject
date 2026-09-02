@@ -35,7 +35,9 @@ class CustomUserDetailsServiceTest {
 
     @BeforeEach
     void setUp() {
-        customUserDetailsService = new CustomUserDetailsService(userRepository);
+        customUserDetailsService = new CustomUserDetailsService(userRepository,
+                new btk.staj.WorkFlowProject.auth.security.AuthenticatedUserFactory(
+                        mock(btk.staj.WorkFlowProject.rbac.repository.RolePermissionRepository.class)));
     }
 
    @Test

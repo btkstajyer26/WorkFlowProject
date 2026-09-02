@@ -82,6 +82,7 @@ class SecurityConfigTest {
     private DeviceTokenRepository deviceTokenRepository;
     @MockitoBean private MailActionTokenRepository mailActionTokenRepository;
     @MockitoBean private WorkflowTransitionRepository workflowTransitionRepository;
+    @MockitoBean private btk.staj.WorkFlowProject.rbac.repository.RolePermissionRepository rolePermissionRepository;
 
     @Test
     @DisplayName("swagger-ui.html giris istemeden yonlendirme doner")

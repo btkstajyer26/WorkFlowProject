@@ -35,8 +35,9 @@ Kanonik uygulama kaynakları:
 | Durumlar | [`RecordStatus`](../backend/src/main/java/btk/staj/WorkFlowProject/workflow/statemachine/RecordStatus.java) |
 | Aksiyon özellikleri | [`WorkflowAction`](../backend/src/main/java/btk/staj/WorkFlowProject/workflow/statemachine/WorkflowAction.java) |
 | Geçiş kuralı okuma sınırı | [`TransitionRuleSource`](../backend/src/main/java/btk/staj/WorkFlowProject/workflow/statemachine/TransitionRuleSource.java) |
-| Güncel kural adapteri | [`StaticTransitionRuleSource`](../backend/src/main/java/btk/staj/WorkFlowProject/workflow/statemachine/StaticTransitionRuleSource.java) |
-| Statik geçiş tanımları | [`TransitionRules`](../backend/src/main/java/btk/staj/WorkFlowProject/workflow/statemachine/TransitionRules.java) |
+| Üretim kural adapteri | [`DbTransitionRuleSource`](../backend/src/main/java/btk/staj/WorkFlowProject/workflow/adapter/DbTransitionRuleSource.java) |
+| DB okuma adapteri | [`JpaTransitionRuleRecordReader`](../backend/src/main/java/btk/staj/WorkFlowProject/workflow/adapter/JpaTransitionRuleRecordReader.java) |
+| Parity ve veritabanısız test referansı | [`StaticTransitionRuleSource`](../backend/src/main/java/btk/staj/WorkFlowProject/workflow/statemachine/StaticTransitionRuleSource.java) ve [`TransitionRules`](../backend/src/main/java/btk/staj/WorkFlowProject/workflow/statemachine/TransitionRules.java) |
 | Doğrulama sırası | [`WorkflowTransitionValidator`](../backend/src/main/java/btk/staj/WorkFlowProject/workflow/statemachine/WorkflowTransitionValidator.java) |
 | Hedef çözümleme | [`TargetUserResolver`](../backend/src/main/java/btk/staj/WorkFlowProject/workflow/service/TargetUserResolver.java) |
 | Uygulama akışı | [`WorkflowApplicationService`](../backend/src/main/java/btk/staj/WorkFlowProject/workflow/service/WorkflowApplicationService.java) |
@@ -60,8 +61,9 @@ flowchart LR
     APP --> VALIDATOR["WorkflowTransitionValidator"]
     VALIDATOR --> SOURCE["TransitionRuleSource"]
     PERMISSION["PermissionService"] --> SOURCE
-    SOURCE -. "güncel adapter" .-> STATIC["StaticTransitionRuleSource"]
-    STATIC --> RULES["TransitionRules"]
+    SOURCE -. "üretim adapteri" .-> SNAPSHOT["DbTransitionRuleSource"]
+    SNAPSHOT --> READER["JpaTransitionRuleRecordReader"]
+    READER --> DB[(PostgreSQL)]
     APP --> AUDIT["AuditService"]
     APP --> EVENT["WorkflowEventPublisher"]
     RECORD --> DB[(PostgreSQL)]
@@ -71,7 +73,7 @@ flowchart LR
     EVENT --> PUSH["Commit sonrası FCM push"]
 ```
 
-Durum makinesi ve uygulama servisi doğrudan Spring, JPA veya HTTP'ye bağlı değildir. `WorkflowTransitionValidator` ve `PermissionService` kuralları `TransitionRuleSource` üzerinden okur. `WorkflowConfiguration` bugün bu sınıra, `TransitionRules` tablosunu saran `StaticTransitionRuleSource` adapterini bağlar. Controller, saf uygulama servisini doğrudan değil, transaction açan `WorkflowActionService` üzerinden çağırır.
+Durum makinesi ve uygulama servisi doğrudan Spring, JPA veya HTTP'ye bağlı değildir. `WorkflowTransitionValidator` ve `PermissionService` kuralları `TransitionRuleSource` üzerinden okur. `WorkflowConfiguration` bu sınıra `DbTransitionRuleSource` adapterini bağlar. Adapter açılışta `JpaTransitionRuleRecordReader` ile aktif geçişleri yükler ve değiştirilemez bir snapshot tutar; boş veya geçersiz kural verisi uygulamanın açılmasını engeller. Canlı yeniden yükleme yoktur. Statik kaynak yalnız parity ve veritabanısız testlerde referanstır. Controller, saf uygulama servisini doğrudan değil, transaction açan `WorkflowActionService` üzerinden çağırır.
 
 ## Roller ve organizasyon kuralları
 
@@ -82,13 +84,17 @@ Durum makinesi ve uygulama servisi doğrudan Spring, JPA veya HTTP'ye bağlı de
 | `BASKAN` | Yalnız kendisine atanmış kaydı onaylar, reddeder veya geri gönderir. |
 | `ADMIN` | Workflow aktörü ve hedefi değildir. Her aksiyon denemesi `WORKFLOW_ROLE_NOT_ALLOWED` ile reddedilir. |
 
-Kullanıcı yönetiminde `ADMIN`, `BASKAN` ve `BASKAN_YARDIMCISI` tekil rol olarak tasarlanmıştır. `changeRole` ikinci aktif kullanıcıya tekil rol verilmesini engeller; `setActive(..., true)` da yeniden etkinleştirmeden önce aynı `ensureSingletonRoleAvailable` kontrolünü çalıştırır.
+Yerleşik roller görüntülenen `name` yerine değişmez `system_key` ile tanınır. Dar kapsamlı `SystemRoleKey`; varsayılan çalışanı, bootstrap admin'i, hesap korumalarını ve yardımcı devrini belirler. Workflow ve görünürlükte `RoleName` uyumluluk sınırı korunur; enum dönüşümleri de `system_key` okur.
+
+Kullanıcı kapasitesi `roles.max_users` ile belirlenir: `NULL` sınırsızdır; dolu değer yalnız aktif kullanıcıları rol ID'sine göre sınırlar. Seed'de `ADMIN`, `BASKAN` ve `BASKAN_YARDIMCISI` için değer `1`'dir. Oluşturma, bootstrap, rol değiştirme, yeniden etkinleştirme ve yardımcı devri ortak `RoleCapacityService` kontrolünü kullanır. Güncellenen kullanıcılar UUID, ardından etkilenen roller ID sırasıyla `PESSIMISTIC_WRITE` kilitlenir; sayım ve yazım aynı transaction'dadır. Devirde ayrılan ve gelen kullanıcı birlikte hesaplanır. Limit aşımı `409 ADMIN_LIMIT_EXCEEDED` döndürür; pasif role atama yapılamaz.
+
+`PATCH /api/admin/users/{id}/role`, pozitif `roleId` veya eski `roleName` alanlarından tam birini kabul eder. Ad API sınırında ID'ye çözülür. İkisi birlikte, ikisi de eksik, boş ad veya pozitif olmayan ID `400` döndürür. Web/mobilin `roleName` gönderimleri ve mevcut yanıt alanları korunur; yeni istemciler ID kullanabilir.
 
 Başkan Yardımcısı koltuğu için ek kurallar:
 
 - Aktif Başkan Yardımcısı doğrudan pasifleştirilemez.
 - Bu kullanıcı başka bir role geçirilirken `PATCH /api/admin/users/{id}/role` isteğinde `replacementBaskanYardimcisiId` verilmelidir.
-- Yerine seçilen kullanıcı aktif olmalı ve koltuğu boşaltan kullanıcıyla aynı olmamalıdır.
+- Yerine seçilen kullanıcı aktif, `CALISAN` sistem rolünde olmalı ve koltuğu boşaltan kullanıcıyla aynı olmamalıdır.
 - Devir aynı kullanıcı yönetimi transaction'ında uygulanır ve iki rol değişikliği de audit kaydı üretir.
 
 > Rol tekil olduğu için `GONDER` ve `TEKRAR_GONDER` hedefini de backend çözer; istemci `targetUserId` göndermez. Çalışanın erişebildiği kullanıcı ucu yalnız `GET /api/users/me` olduğundan Başkan Yardımcısı UUID'sini keşfedemez ve tekil rol kararı gereği ona kullanıcı listeleme ucu açılmayacaktır. Sistemde tam olarak bir aktif Başkan Yardımcısı yoksa (devir anında sıfır, yanlış yapılandırmada birden fazla) istek `409 WORKFLOW_ROLE_NOT_CONFIGURED` ile durur.
@@ -115,6 +121,23 @@ Aynı kural iki biçimde durur: tek kayıt için `RecordAccessPolicy`, sorgu ko�
 
 Workflow controller'ı ayrıca `RecordAccessPolicy` çağırmaz. Aksiyon yetkisi; rol, durum ve `createdBy`/`assignedTo` ilişkisi üzerinden durum makinesinde belirlenir. Okuma kapsamı bir kaydı görünür kılması, o kayıt üzerinde aksiyon yapılabileceği anlamına gelmez: ilettiği evrağı izleyen Başkan Yardımcısı onu salt okunur görür.
 
+### Permission authorities (WF-2B)
+
+JWT doğrulamasında her istekte kullanıcı, rol ve aktif permission kodları DB'den okunur. E-posta aksiyonları da aynı `AuthenticatedUserFactory` yolunu kullanır. Principal değişmez bir permission kümesi taşır; global EAGER koleksiyon veya `ROLE_<rol adı>` authority'si yoktur. Pasif permission authority üretmez, pasif rol erişim sağlayamaz. `spring.jpa.open-in-view=false` altında gerekli veriler authentication sırasında yüklenir.
+
+Endpoint'ler Spring method security ile aşağıdaki `hasAuthority` kontrollerini uygular. Ek `ADMIN_PANEL_ACCESS` koşulu yoktur; kullanıcı rolünün görüntülenen adı yetki sağlamaz.
+
+| İşlem | Authority |
+| --- | --- |
+| Kayıt oluşturma / düzenleme / silme | `RECORD_CREATE` / `RECORD_EDIT` / `RECORD_DELETE` |
+| Dosya yükleme / silme | `FILE_MANAGE` |
+| Kullanıcı listeleme | `USER_VIEW` |
+| Kullanıcı oluşturma / rol atama / etkinlik değiştirme | `USER_MANAGE` |
+| Rol listeleme | `ROLE_VIEW` |
+| Admin audit listesi / kullanıcı audit geçmişi | `AUDIT_VIEW` |
+
+`V17`, `FILE_MANAGE` ve `RECORD_DELETE` kodlarını `CALISAN`, `AUDIT_VIEW` kodunu `ADMIN` sistem rolüne atar. Kayıt sahipliği, düzenlenebilir durum, yalnız taslak silme ve dosya kilidi kontrolleri ayrıca uygulanır. Dinamik roller bu capability'lerle kullanıcı yönetimi ve kayıt yaşam döngüsü işlemlerini yapabilir; audit aktörün gerçek kullanıcı/rol ID'sini kullanır. Dinamik rollerin workflow ve görünürlük modeli WF-2D2/WF-2C2 kapsamındadır.
+
 ## Kayıt durumları
 
 | Durum | Anlamı | Kaydı oluşturan düzenleyebilir mi? | Terminal mi? |
@@ -126,7 +149,7 @@ Workflow controller'ı ayrıca `RecordAccessPolicy` çağırmaz. Aksiyon yetkisi
 | `ONAYLANDI` | Başkan tarafından onaylanmış kayıt | Hayır | Evet |
 | `REDDEDILDI` | Başkan tarafından nihai olarak reddedilmiş kayıt | Hayır | Evet |
 
-`ONAYLANDI` ve `REDDEDILDI` durumlarında yeni workflow aksiyonu uygulanamaz. Kayıt içeriği yalnız `TASLAK` ve `DUZENLEME_BEKLIYOR` durumlarında sahibi tarafından düzenlenebilir. Dosya yükleme terminal durumda engellenir; dosya silme ise mevcut kodda kayıt durumunu kontrol etmez. Bu asimetri [Bilinen boşluklar ve kararlar](#bilinen-boşluklar-ve-kararlar) bölümünde açık risk olarak tutulur.
+`ONAYLANDI` ve `REDDEDILDI` durumlarında yeni workflow aksiyonu uygulanamaz. Kayıt içeriği yalnız `TASLAK` ve `DUZENLEME_BEKLIYOR` durumlarında gerekli permission'a sahip sahibi tarafından düzenlenebilir. Dosya yükleme ve silme mevcut `RecordLockValidator` üzerinden sahiplik ve kilit kontrolüne tabidir.
 
 Yeni kayıt, record modülü tarafından doğrudan `TASLAK` durumuyla oluşturulur; bu işlem bir workflow geçişi değildir.
 
@@ -153,14 +176,16 @@ Tabloda bulunmayan her durum–aksiyon–rol birleşimi geçersizdir.
 
 | Mevcut durum | Aksiyon | Aktör rolü | Gerekli kayıt ilişkisi | Hedef çözümü | Açıklama | Hedef durum |
 | --- | --- | --- | --- | --- | --- | --- |
-| `TASLAK` | `GONDER` | `CALISAN` | Kaydı oluşturan | İstekteki aktif Başkan Yardımcısı | İsteğe bağlı | `BSK_YRD_INCELEMESINDE` |
-| `DUZENLEME_BEKLIYOR` | `TEKRAR_GONDER` | `CALISAN` | Hem oluşturan hem atanan | İstekteki aktif Başkan Yardımcısı | İsteğe bağlı | `BSK_YRD_INCELEMESINDE` |
+| `TASLAK` | `GONDER` | `CALISAN` | Kaydı oluşturan | Backend'deki tek aktif Başkan Yardımcısı | İsteğe bağlı | `BSK_YRD_INCELEMESINDE` |
+| `DUZENLEME_BEKLIYOR` | `TEKRAR_GONDER` | `CALISAN` | Hem oluşturan hem atanan | Backend'deki tek aktif Başkan Yardımcısı | İsteğe bağlı | `BSK_YRD_INCELEMESINDE` |
 | `BSK_YRD_INCELEMESINDE` | `BASKANA_ILET` | `BASKAN_YARDIMCISI` | Atanan kullanıcı | Backend'deki tek aktif Başkan | İsteğe bağlı | `BASKAN_INCELEMESINDE` |
 | `BSK_YRD_INCELEMESINDE` | `CALISANA_GERI_GONDER` | `BASKAN_YARDIMCISI` | Atanan kullanıcı | Kaydın `createdBy` kullanıcısı | Zorunlu | `DUZENLEME_BEKLIYOR` |
 | `BASKAN_INCELEMESINDE` | `ONAYLA` | `BASKAN` | Atanan kullanıcı | Yok | İsteğe bağlı | `ONAYLANDI` |
 | `BASKAN_INCELEMESINDE` | `REDDET` | `BASKAN` | Atanan kullanıcı | Yok | Zorunlu | `REDDEDILDI` |
 | `BASKAN_INCELEMESINDE` | `CALISANA_GERI_GONDER` | `BASKAN` | Atanan kullanıcı | Kaydın `createdBy` kullanıcısı | Zorunlu | `DUZENLEME_BEKLIYOR` |
 | `BASKAN_INCELEMESINDE` | `BASKAN_YARDIMCISINA_GERI_GONDER` | `BASKAN` | Atanan kullanıcı | Kaydın `lastDeputyId` kullanıcısı | Zorunlu | `BSK_YRD_INCELEMESINDE` |
+
+Her geçiş ayrıca `required_permission_id` üzerinden okunan `requiredPermissionCode` değerini ister: gönderme, tekrar gönderme ve iletme için `RECORD_FORWARD`; onay için `RECORD_APPROVE`; ret için `RECORD_REJECT`; üç geri gönderme satırı için `RECORD_RETURN`. Aktif bir geçişte eksik/boş permission metadata'sı açılış hatasıdır. Permission pasifleştirilirse principal'a alınmaz ve geçiş `WORKFLOW_FORBIDDEN` ile reddedilir; snapshot'ın yenilenmesini beklemek gerekmez.
 
 Kayıt ilişkileri:
 
@@ -172,7 +197,7 @@ Kayıt ilişkileri:
 
 ### Kimlik doğrulama
 
-Workflow ucu herkese açık değildir. Geçerli JWT ile kimliği doğrulanmış, aktif bir kullanıcı gerekir. Controller üzerinde ayrı `@PreAuthorize` bulunmaz; rol, durum ve kayıt ilişkisi kontrolleri merkezi durum makinesinde uygulanır.
+Workflow ucu herkese açık değildir. Geçerli JWT ile kimliği doğrulanmış, kullanıcısı ve rolü aktif bir principal gerekir. Controller üzerinde ayrı `@PreAuthorize` bulunmaz; workflow aktörlüğü, rol, permission, durum ve kayıt ilişkisi kontrolleri merkezi durum makinesinde uygulanır.
 
 ### İstek
 
@@ -234,10 +259,10 @@ Onay örneği:
 
 Hangi hata kodunun döneceği doğrulama sırasına bağlıdır. Uygulanan sıra şöyledir:
 
-1. Aktör rolü workflow'a katılabilir mi? `ADMIN` burada elenir.
+1. Aktörün DB kaynaklı `is_workflow_actor` bilgisi workflow'a katılmasına izin veriyor mu? `ADMIN` seed'de burada elenir.
 2. Kayıt terminal durumda mı?
 3. Durum–aksiyon–rol birleşimi geçiş tablosunda var mı?
-4. Aktör, kuralın istediği kayıt ilişkisini sağlıyor mu?
+4. Aktör, kuralın istediği kayıt ilişkisini ve `requiredPermissionCode` yetkisini sağlıyor mu? İkisinden biri eksikse `WORKFLOW_FORBIDDEN` döner.
 5. Zorunlu açıklama dolu mu?
 6. İstekte hedef bekleniyorsa `targetUserId` var mı? (Şu an hiçbir aksiyon beklemiyor.)
 7. İstekte yanlışlıkla `targetUserId` gönderilmiş mi?
@@ -382,7 +407,7 @@ Bean Validation hatalarında ayrıca `fieldErrors` bulunur. Mevcut `ApiError` mo
 | --- | --- | --- |
 | `RESOURCE_NOT_FOUND` | `404` | Kayıt yoksa veya workflow için soft-delete edilmişse |
 | `WORKFLOW_ROLE_NOT_ALLOWED` | `403` | `ADMIN` gibi workflow dışı rol aksiyon denerse |
-| `WORKFLOW_FORBIDDEN` | `403` | Aktör kaydın gerekli sahibi/atananı değilse |
+| `WORKFLOW_FORBIDDEN` | `403` | Aktör gerekli permission'a sahip değilse veya kaydın gerekli sahibi/atananı değilse |
 | `WORKFLOW_RECORD_LOCKED` | `409` | Terminal kayıtta aksiyon denenirse |
 | `WORKFLOW_INVALID_TRANSITION` | `400` | Durum–aksiyon–rol birleşimi tanımlı değilse |
 | `WORKFLOW_COMMENT_REQUIRED` | `400` | Zorunlu açıklama yoksa veya boşsa |
@@ -421,7 +446,12 @@ Sürüm çatışması `409 WORKFLOW_VERSION_CONFLICT` olarak döner. `RecordPort
 Mevcut otomatik testler şu katmanları kapsar:
 
 - merkezi geçiş tablosunun sekiz izinli geçişi;
-- validator'ın rol, terminal durum, ilişki, açıklama ve hedef kontrolleri;
+- validator'ın rol, permission, terminal durum, ilişki, açıklama ve hedef kontrolleri ve hata öncelikleri;
+- sekiz geçişin DB/static permission ve hedef metadata parity'si;
+- 12 endpoint için doğru, eksik ve farklı authority matrisi;
+- eski JWT ile permission kaldırma, pasif permission/rol ve dinamik rollerin gerçek servis/audit akışı;
+- yeniden adlandırılmış sistem rolleriyle bootstrap, hedef çözümü ve yardımcı devri;
+- aktif kullanıcı kapasitesi ve son koltuğa eşzamanlı atama/etkinleştirme;
 - hedef kullanıcı çözümleme senaryoları;
 - uygulama servisinin başarılı ve reddedilen akışları;
 - istek DTO'su Bean Validation kuralları;
@@ -457,15 +487,15 @@ Başlangıç şartnamesiyle bilinçli veya fiilî uygulama farkları da korunmal
 - Başkan geri gönderme hedefini serbestçe seçmez; Çalışana dönüş `createdBy`, Başkan Yardımcısına dönüş `lastDeputyId` ile sabittir.
 - Şartnamedeki “tüm ilgililer” ifadesine karşılık mevcut uygulama atamalı geçişte yeni atanan kullanıcıyı; terminal geçişte kaydı oluşturan ile son Başkan Yardımcısını seçer.
 
-Geçiş kuralları veritabanından okunur; `TransitionRules` statik tablosu yalnız parity testinin referansı olarak durur. Dinamik rol kaynağı ve WebSocket bildirim kanalı mevcut davranış değildir.
+Geçiş kuralları veritabanından okunur; `TransitionRules` statik tablosu parity ve veritabanısız test referansıdır. Workflow rol kimliğinin tamamen `RoleId` olması, görünürlük modelinin dinamikleşmesi ve WebSocket bildirim kanalı mevcut davranış değildir. HTTP istek audit'i `ADMIN` sistem anahtarında `audit_logs`, diğerlerinde `user_audit_logs` tablosuna gider; rolün yeniden adlandırılması bu dağılımı değiştirmez.
 
 ## Değişiklik kontrol listesi
 
 Yeni bir workflow durumu veya aksiyonu eklenirken en az şu işler aynı değişiklikte yapılmalıdır:
 
 1. `RecordStatus` veya `WorkflowAction` enum'unu güncelleyin.
-2. Statik adapter kullanıldığı sürece izinli birleşimi yalnız `TransitionRules` içine ekleyin; tüketiciler kuralları `TransitionRuleSource` üzerinden okumalı, controller/service içinde paralel kural yazmamalıdır.
-3. Hedef, açıklama ve aktör ilişkisini `WorkflowAction`/validator modelinde tanımlayın.
+2. İzinli birleşimi yeni bir Flyway migration'ıyla DB kataloglarına ekleyin; uygulanmış migration'ları değiştirmeyin. `TransitionRules` parity referansını aynı değişiklikte güncelleyin. Tüketiciler kuralları `TransitionRuleSource` üzerinden okumalıdır.
+3. Hedef stratejisini, beklenen hedef rolü, gerekli permission'ı ve aktör ilişkisini geçiş metadata'sında; açıklama koşulunu aksiyon modelinde tanımlayın. DB/static parity ve validator testlerini birlikte güncelleyin.
 4. Hedef çözümleme gerekiyorsa `TargetUserResolver` ve port testlerini güncelleyin.
 5. Audit ve bildirim türü/alıcı davranışını belirleyin.
 6. `WorkflowErrorCode` ve gerçek HTTP eşlemesini birlikte ekleyin.

@@ -65,11 +65,21 @@ export interface ChangeRoleParams {
   id: string;
 }
 
+/** roleId (pozitif) veya eski roleName alanlarından tam biri zorunludur. İkisi birlikte veya ikisi de eksikse 400 döner. */
 export interface ChangeRoleRequest {
   /** @format uuid */
   replacementBaskanYardimcisiId?: string;
-  /** @minLength 1 */
-  roleName: string;
+  /**
+   * Atanacak rolün kimliği; roleName ile birlikte gönderilemez
+   * @format int32
+   * @min 1
+   */
+  roleId?: number;
+  /**
+   * Eski istemciler için rol adı; roleId ile birlikte gönderilemez
+   * @deprecated
+   */
+  roleName?: string;
 }
 
 /** @format int64 */

@@ -39,9 +39,9 @@ public final class UserPortAdapter implements WorkflowUserPort {
     @Override
     public List<WorkflowUserSnapshot> findActiveByRole(RoleName role) {
         RoleName requiredRole = Objects.requireNonNull(role, "role");
-        List<User> users = userRepository.findByRole_NameAndActive(requiredRole.name(), true);
+        List<User> users = userRepository.findByRole_SystemKeyAndRole_ActiveTrueAndActiveTrue(requiredRole.name());
         if (users == null) {
-            throw new IllegalStateException("UserRepository.findByRole_NameAndActive returned null");
+            throw new IllegalStateException("UserRepository.findByRole_SystemKeyAndRole_ActiveTrueAndActiveTrue returned null");
         }
 
         List<WorkflowUserSnapshot> snapshots = new ArrayList<>(users.size());
@@ -66,18 +66,18 @@ public final class UserPortAdapter implements WorkflowUserPort {
             throw new IllegalStateException("Repository User has a null role");
         }
 
-        String entityRoleName = entityRole.getName();
+        String entityRoleName = entityRole.getSystemKey();
         if (entityRoleName == null) {
-            throw new IllegalStateException("Repository User role has a null name");
+            throw new IllegalStateException("Repository User role has a null system key");
         }
 
         RoleName roleName;
         try {
             roleName = RoleName.valueOf(entityRoleName);
         } catch (IllegalArgumentException exception) {
-            throw new IllegalStateException("Repository User has an unknown role name", exception);
+            throw new IllegalStateException("Repository User has an unknown system role key", exception);
         }
 
-        return new WorkflowUserSnapshot(userId, roleName, user.isActive());
+        return new WorkflowUserSnapshot(userId, roleName, user.isActive() && entityRole.isActive());
     }
 }

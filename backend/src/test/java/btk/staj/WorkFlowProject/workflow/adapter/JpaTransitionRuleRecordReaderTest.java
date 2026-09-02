@@ -1,5 +1,7 @@
 package btk.staj.WorkFlowProject.workflow.adapter;
 
+import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
+
 import btk.staj.WorkFlowProject.workflow.exception.TransitionRuleConfigurationException;
 import btk.staj.WorkFlowProject.workflow.model.TransitionRuleRecord;
 import btk.staj.WorkFlowProject.workflow.repository.TransitionRuleRow;
@@ -35,11 +37,11 @@ class JpaTransitionRuleRecordReaderTest {
                 new TransitionRuleRecord("TASLAK", "GONDER", "CALISAN", "CREATOR",
                         "BSK_YRD_INCELEMESINDE",
                         "ROLE",
-                        "BASKAN_YARDIMCISI"),
+                        "BASKAN_YARDIMCISI", AuthorizationFixtures.requiredPermission("GONDER")),
                 new TransitionRuleRecord("BASKAN_INCELEMESINDE", "ONAYLA", "BASKAN", "ASSIGNEE",
                         "ONAYLANDI",
                         "NONE",
-                        null));
+                        null, AuthorizationFixtures.requiredPermission("ONAYLA")));
     }
 
     @Test
@@ -210,6 +212,6 @@ class JpaTransitionRuleRecordReaderTest {
 
         return new TransitionRuleRow(
                 fromStatus, action, actorSystemKey, actorRoleName, actorRequirement, toStatus,
-                targetStrategy, expectedTargetRoleId, expectedTargetRoleSystemKey);
+                targetStrategy, expectedTargetRoleId, expectedTargetRoleSystemKey, AuthorizationFixtures.requiredPermission(action));
     }
 }

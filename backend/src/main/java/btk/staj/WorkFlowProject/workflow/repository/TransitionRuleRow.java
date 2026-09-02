@@ -42,5 +42,6 @@ public record TransitionRuleRow(
         String toStatus,
         String targetStrategy,
         Integer expectedTargetRoleId,
-        String expectedTargetRoleSystemKey) {
+        String expectedTargetRoleSystemKey,
+        String requiredPermissionCode) {
 }

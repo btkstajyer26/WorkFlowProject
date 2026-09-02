@@ -1,5 +1,7 @@
 package btk.staj.WorkFlowProject.workflow.adapter;
 
+import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
+
 import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
 import btk.staj.WorkFlowProject.rbac.Role;
 import btk.staj.WorkFlowProject.user.entity.User;
@@ -116,11 +118,9 @@ class SecurityCurrentActorProviderTest {
     }
 
     @Test
-    void translatesNullBackingUserToAuthenticationServiceException() {
-        authenticate(new AuthenticatedUser(null));
-
-        assertThatExceptionOfType(AuthenticationServiceException.class)
-                .isThrownBy(provider::currentActor);
+    void rejectsNullBackingUserAtConstruction() {
+        assertThatExceptionOfType(NullPointerException.class)
+                .isThrownBy(() -> AuthorizationFixtures.authenticated(null));
     }
 
     @Test
@@ -132,21 +132,24 @@ class SecurityCurrentActorProviderTest {
     }
 
     @Test
-    void translatesNullRoleToAuthenticationServiceException() {
+    void rejectsMissingRoleAsDisabled() {
         User user = user(USER_ID, RoleName.CALISAN.name(), true);
         user.setRole(null);
-        authenticate(new AuthenticatedUser(user));
+        authenticate(AuthorizationFixtures.authenticated(user));
 
-        assertThatExceptionOfType(AuthenticationServiceException.class)
+        assertThatExceptionOfType(DisabledException.class)
                 .isThrownBy(provider::currentActor);
     }
 
     @Test
-    void rejectsNullRoleName() {
+    void dynamicRoleCanSupplyAuditIdentityButCannotEnterLegacyWorkflow() {
         authenticate(authenticatedUser(USER_ID, null, true));
 
-        assertThatExceptionOfType(AuthenticationServiceException.class)
-                .isThrownBy(provider::currentActor);
+        org.assertj.core.api.Assertions.assertThat(provider.currentUserId()).isEqualTo(USER_ID);
+        assertThatExceptionOfType(btk.staj.WorkFlowProject.workflow.exception.WorkflowApplicationException.class)
+                .isThrownBy(provider::currentActor)
+                .satisfies(error -> org.assertj.core.api.Assertions.assertThat(error.errorCode())
+                        .isEqualTo(btk.staj.WorkFlowProject.workflow.statemachine.WorkflowErrorCode.WORKFLOW_ROLE_NOT_ALLOWED));
     }
 
     @Test
@@ -171,12 +174,15 @@ class SecurityCurrentActorProviderTest {
     }
 
     private static AuthenticatedUser authenticatedUser(UUID id, String roleName, boolean active) {
-        return new AuthenticatedUser(user(id, roleName, active));
+        return AuthorizationFixtures.authenticated(user(id, roleName, active));
     }
 
     private static User user(UUID id, String roleName, boolean active) {
         Role role = new Role();
         role.setName(roleName);
+        role.setActive(true);
+        role.setSystemKey(roleName);
+        role.setWorkflowActor(AuthorizationFixtures.workflowActor(roleName));
 
         User user = new User();
         user.setId(id);
@@ -188,7 +194,7 @@ class SecurityCurrentActorProviderTest {
     private static final class DerivedAuthenticatedUser extends AuthenticatedUser {
 
         private DerivedAuthenticatedUser(User user) {
-            super(user);
+            super(user, java.util.Set.of());
         }
     }
 }

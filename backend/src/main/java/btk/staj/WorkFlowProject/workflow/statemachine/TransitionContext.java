@@ -1,6 +1,7 @@
 package btk.staj.WorkFlowProject.workflow.statemachine;
 
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Bir gecis denemesinin dogrulanmasi icin gereken butun girdiler.
@@ -29,12 +30,15 @@ public record TransitionContext(
         String comment,
         boolean targetProvidedInRequest,
         RoleName targetRole,
-        boolean targetActive) {
+        boolean targetActive,
+        boolean actorWorkflowActor,
+        Set<String> actorPermissionCodes) {
 
     public TransitionContext {
         Objects.requireNonNull(currentStatus, "currentStatus");
         Objects.requireNonNull(action, "action");
         Objects.requireNonNull(actorRole, "actorRole");
+        actorPermissionCodes = Set.copyOf(actorPermissionCodes);
     }
 
     /** Aciklamanin dolu olup olmadigi. Yalnizca bosluktan olusan metin bos sayilir. */

@@ -1,5 +1,7 @@
 package btk.staj.WorkFlowProject.audit.controller;
 
+import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
+
 import btk.staj.WorkFlowProject.audit.dto.AuditLogResponse;
 import btk.staj.WorkFlowProject.audit.service.AuditLogService;
 import btk.staj.WorkFlowProject.common.exception.ForbiddenException;
@@ -181,7 +183,7 @@ class AuditLogControllerTest {
     }
 
     private void givenActor(UUID userId, RoleName role) {
-        when(currentActorProvider.currentActor()).thenReturn(new CurrentActor(userId, role));
+        when(currentActorProvider.currentActor()).thenReturn(new CurrentActor(userId, role, AuthorizationFixtures.workflowActor(role), AuthorizationFixtures.permissions(role)));
     }
 
     private void givenRecord(UUID createdBy, UUID assignedTo, RecordStatus status) {
