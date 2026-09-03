@@ -180,13 +180,35 @@ class TransitionRuleSourceParityTest {
     @Test
     @DisplayName("production bean gecis kurallarini veritabanindan okur")
     void productionBeanUsesDatabaseSource() {
+        // WF-4 ile bean artik tazelenebilir sarmalayici; sardigi snapshot yine DB kaynagi.
         assertThat(injectedRuleSource)
                 .as("WorkflowConfiguration#transitionRuleSource bean'i")
+                .isInstanceOf(ReloadableTransitionRuleSource.class);
+        assertThat(((ReloadableTransitionRuleSource) injectedRuleSource).current())
+                .as("sarmalayicinin kullandigi snapshot")
                 .isInstanceOf(DbTransitionRuleSource.class);
 
         assertThat(injectedRuleSource.all())
                 .as("production bean'in urettigi kural kumesi")
                 .containsExactlyInAnyOrderElementsOf(staticSource.all());
+    }
+
+    /**
+     * WF-4: tazeleme kural kumesini degistirmemeli. Veri ayni kaldigi surece reload
+     * oncesi ve sonrasi kume birebir aynidir; parity reload'dan sonra da gecerlidir.
+     */
+    @Test
+    @DisplayName("reload kural kumesini degistirmez")
+    void reloadKeepsTheSameRuleSet() {
+        ReloadableTransitionRuleSource reloadable = (ReloadableTransitionRuleSource) injectedRuleSource;
+        List<TransitionRule> before = List.copyOf(reloadable.all());
+
+        int count = reloadable.reload();
+
+        assertThat(count).isEqualTo(EXPECTED_RULE_COUNT);
+        assertThat(reloadable.all())
+                .as("reload sonrasi kural kumesi")
+                .containsExactlyInAnyOrderElementsOf(before);
     }
 
     /**

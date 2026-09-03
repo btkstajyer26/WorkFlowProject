@@ -1,6 +1,6 @@
 package btk.staj.WorkFlowProject.workflow.config;
 
-import btk.staj.WorkFlowProject.workflow.adapter.DbTransitionRuleSource;
+import btk.staj.WorkFlowProject.workflow.adapter.ReloadableTransitionRuleSource;
 import btk.staj.WorkFlowProject.workflow.port.AuditService;
 import btk.staj.WorkFlowProject.workflow.port.CurrentActorProvider;
 import btk.staj.WorkFlowProject.workflow.port.TransitionRuleRecordReader;
@@ -36,19 +36,25 @@ public class WorkflowConfiguration {
     /**
      * Gecis kurallarinin kaynagi: {@code workflow_transitions} tablosu.
      *
-     * <p>Kurallar acilista bir kez okunup bellege alinir; canli reload bu
-     * iterasyonun kapsaminda degil (WF-4). Seed eksik veya bozuksa uygulama
-     * <strong>acilmaz</strong> &mdash; bu bilincli bir fail-fast tercihidir:
-     * yarim bir kural tablosuyla calisan bir workflow, sessizce yanlis
-     * kararlar verirdi.
+     * <p>Kurallar acilista bir kez okunup bellege alinir. Seed eksik veya bozuksa uygulama
+     * <strong>acilmaz</strong> &mdash; bu bilincli bir fail-fast tercihidir: yarim bir kural
+     * tablosuyla calisan bir workflow, sessizce yanlis kararlar verirdi.
+     *
+     * <p>WF-4 ile snapshot artik yeniden baslatmadan tazelenebiliyor; bean bu yuzden
+     * {@link ReloadableTransitionRuleSource} donuyor. Tazeleme basarisiz olursa eski
+     * snapshot yerinde kalir (bkz. o sinifin javadoc'u).
+     *
+     * <p>Bean tipi bilerek {@code TransitionRuleSource}: kural tuketicileri
+     * (validator, uygulama servisi, {@code PermissionService}) tazelemeden haberdar
+     * degildir ve olmamalidir.
      *
      * <p>{@code StaticTransitionRuleSource} kaldirilmadi: SM-9 parity testinin
      * karsilastirdigi referans odur. Statik tablonun kaldirilmasi ayri bir is
-     * (TZ-1).
+     * (TZ-1) ve WF-2D2'den sonra yapilmalidir.
      */
     @Bean
-    public TransitionRuleSource transitionRuleSource(TransitionRuleRecordReader ruleRecordReader) {
-        return new DbTransitionRuleSource(ruleRecordReader);
+    public ReloadableTransitionRuleSource transitionRuleSource(TransitionRuleRecordReader ruleRecordReader) {
+        return new ReloadableTransitionRuleSource(ruleRecordReader);
     }
 
     @Bean
