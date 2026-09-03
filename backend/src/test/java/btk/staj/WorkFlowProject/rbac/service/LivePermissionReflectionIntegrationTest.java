@@ -2,6 +2,8 @@ package btk.staj.WorkFlowProject.rbac.service;
 
 import btk.staj.WorkFlowProject.auth.service.CustomUserDetailsService;
 import btk.staj.WorkFlowProject.rbac.config.JwtUtil;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,6 +55,21 @@ class LivePermissionReflectionIntegrationTest {
     @Autowired
     private CustomUserDetailsService userDetailsService;
 
+    @PersistenceContext
+    private EntityManager entityManager;
+
+    /**
+     * Test tek bir transaction icinde kaldigi icin JDBC ile degistirilen satirlar
+     * Hibernate'in birinci seviye onbelleginde bayat kalabilir: {@code Role} entity'si
+     * eski degeri, JPQL sorgusu yeni degeri gorur. Production'da istekler arasi paylasilan
+     * bir persistence context yok; bu yalnizca testin kendi artefakti. Her degisiklikten
+     * sonra context bosaltilarak gercek davranis olculur.
+     */
+    private void detachCachedEntities() {
+        entityManager.flush();
+        entityManager.clear();
+    }
+
     @Test
     @DisplayName("rolden yetki alinirsa ayni token bir sonraki istekte 403 alir")
     void revokingAPermissionTakesEffectOnTheNextRequest() throws Exception {
@@ -91,6 +108,7 @@ class LivePermissionReflectionIntegrationTest {
                 .andExpect(status().isOk());
 
         jdbc.update("UPDATE roles SET is_active = FALSE WHERE id = ?", admin.roleId);
+        detachCachedEntities();
 
         mockMvc.perform(get(ROLES_URL).header("Authorization", "Bearer " + admin.token))
                 .andExpect(status().isUnauthorized());
@@ -104,6 +122,7 @@ class LivePermissionReflectionIntegrationTest {
         assertThat(authoritiesOf(admin.email)).contains("ROLE_VIEW");
 
         jdbc.update("UPDATE permissions SET is_active = FALSE WHERE code = 'ROLE_VIEW'");
+        detachCachedEntities();
 
         assertThat(authoritiesOf(admin.email))
                 .as("pasif permission authority olarak yayinlanmamali")
@@ -135,12 +154,14 @@ class LivePermissionReflectionIntegrationTest {
     private void revokePermission(int roleId, String code) {
         jdbc.update("DELETE FROM role_permissions WHERE role_id = ?"
                 + " AND permission_id = (SELECT id FROM permissions WHERE code = ?)", roleId, code);
+        detachCachedEntities();
     }
 
     private void grantPermission(int roleId, String code) {
         jdbc.update("INSERT INTO role_permissions (role_id, permission_id)"
                 + " SELECT ?, id FROM permissions WHERE code = ?"
                 + " ON CONFLICT DO NOTHING", roleId, code);
+        detachCachedEntities();
     }
 
     /** Testin kendi ADMIN kullanicisi; paylasilan seed kullanicilarina dokunulmaz. */
