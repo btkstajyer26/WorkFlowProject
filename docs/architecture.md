@@ -126,7 +126,7 @@ Yapının üç somut sonucu:
 | Karar | Sonuç |
 | --- | --- |
 | Çekirdek sınıfları `@Service` taşımaz | `new` ile örneklenip test edilir; bean tanımları `WorkflowConfiguration`'da dışarıdan yapılır |
-| Kural tüketicileri `TransitionRuleSource` kullanır | Validator ve yetki servisi kural kaynağına doğrudan bağlanmaz; güncel adapter kuralları `workflow_transitions` tablosundan okur |
+| Kural tüketicileri `TransitionRuleSource` kullanır | Validator ve yetki servisi kural kaynağına doğrudan bağlanmaz; güncel adapter kuralları `workflow_transitions` tablosundan okur. Kurallar açılışta bir kez okunup belleğe alınır; `ReloadableTransitionRuleSource` bunu yeniden başlatmadan tazeleyebilir ve tazeleme başarısız olursa **eski snapshot yerinde kalır** |
 | Transaction sınırı ayrı bir sınıfta (`WorkflowActionService`) | Çekirdek Spring bilmediği için transaction'ı kendisi açamaz; kayıt güncellemesi ve audit yazımı ya birlikte olur ya hiç olmaz |
 
 Bir geçişin sırası: aktörü oku → kaydı bul → **ön doğrulama** → geçiş kuralını bul → hedefi çöz → **nihai doğrulama** → kaydı güncelle → audit yaz → olay yayınla. Doğrulama bilerek iki aşamalıdır: yetkisiz bir istek, hedef için veritabanına hiç gidilmeden elenir. Bütün kural kararları validator'da verilir; servis kuraldan yalnız hedef çözüm stratejisini okur, geçiş kuralı tekrarlamaz.
@@ -139,7 +139,7 @@ Ayrıntı için [workflow.md](workflow.md).
 | --- | --- | --- |
 | Hata yönetimi | `common/exception/GlobalExceptionHandler` (`@RestControllerAdvice`) | Tüm hatalar tek `ApiError` biçiminde döner; workflow hata kodları burada HTTP durumlarına eşlenir |
 | Kimlik doğrulama | `auth/security/JwtAuthenticationFilter` | Pasif hesabı ve parola değişimi bekleyen kullanıcıyı zincirin başında durdurur |
-| Yetkilendirme | `@PreAuthorize` + `RecordAccessPolicy` | Workflow ucunda rol kontrolü bilinçli olarak controller'da değil durum makinesindedir |
+| Yetkilendirme | `@PreAuthorize("hasAuthority(...)")` + `RecordAccessPolicy` | Uç yetkileri rol adına değil **permission koduna** bağlıdır (`USER_MANAGE`, `RECORD_CREATE`, `AUDIT_VIEW`, …); authority listesi her istekte `role_permissions`'tan üretilir. Workflow ucunda kontrol bilinçli olarak controller'da değil durum makinesindedir |
 | Denetim izi | `AuditLogService`, workflow transaction'ı **içinde** | Geçiş geri alınırsa audit satırı da geri alınır |
 | Uygulama içi bildirim | `@EventListener`, transaction **içinde** | Geçişle birlikte yazılır veya hiç yazılmaz |
 | E-posta | `@TransactionalEventListener(AFTER_COMMIT)` + `@Async` | Geri alınabilir bir işlem için dışarıya e-posta çıkmasın diye commit sonrası; gönderim best-effort |
@@ -191,5 +191,6 @@ Aşağıdakiler uygulanmış davranışlardır:
 - **E-posta teslim garantisi yok.** Gönderim asenkron ve best-effort; retry, outbox veya DLQ bulunmuyor.
 - **Bu belgedeki kararların çoğu ADR olarak kaydedilmedi.** `decisions/` altında iki ADR var (modül bazlı paketleme, mobil istemci teknolojisi); ancak port/adapter sınırı, tekil rol modeli ve enum tabanlı durum kolonu kararları yalnız bu belgede anlatılıyor, ayrı birer ADR'leri yok.
 
-- **Geçiş kuralları ve hedef çözüm stratejisi veritabanından okunur.** `DbTransitionRuleSource`, `TransitionRuleRecordReader` portu üzerinden `workflow_transitions` satırlarını açılışta bir kez okur; `target_strategy` ve `expected_target_role_id` de bu yoldan gelir. `StaticTransitionRuleSource` kaldırılmadı; parity testinin karşılaştırdığı referanstır. Kuralları arayüzden düzenleme ve canlı yeniden yükleme yoktur.
-- **Dinamik rol kaynağı ve WebSocket bildirim kanalı yoktur.** Bunlar çalışan mimarinin parçası değildir.
+- **Görünürlük kuralı iki yerde ayrı yazılı.** `RecordAccessPolicy` (tek kayıt, boolean) ve `RecordSpecifications` (liste, JPA predicate) aynı kuralın iki kopyasıdır ve ikisi de hâlâ rol `switch`'i kullanır. Bu ikizlik geçmişte iki kez sessiz görünürlük hatasına yol açtı; tek kaynağa indirilmesi `DB-8` visibility sözleşmesini bekliyor.
+- **Geçiş grafiği arayüzden düzenlenemiyor.** `workflow_transitions` yalnız Flyway seed'i ile değişir; versiyonlama olmadan aktif grafiği düzenleyen bir yönetim arayüzü bilinçli olarak açılmadı (DB-1 §13).
+- **WebSocket bildirim kanalı yoktur.** Bildirimler REST/polling ile taşınır.

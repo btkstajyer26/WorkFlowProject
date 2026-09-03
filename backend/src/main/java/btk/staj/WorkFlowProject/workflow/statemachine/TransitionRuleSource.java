@@ -8,9 +8,10 @@ import java.util.Optional;
  * geldigini bilmez; yalnizca bu port uzerinden sorar.
  *
  * <p>Bu arayuz bilerek saf Java'dir: Spring, JPA veya repository bagimliligi
- * yoktur. Bugun {@link StaticTransitionRuleSource} ile merkezi statik tabloyu
- * sarar; ilerideki bir iterasyonda yalnizca adapter degistirilerek kurallar
- * veritabanindan okunabilir.
+ * yoktur. Production'da {@code workflow_transitions} tablosunu okuyan
+ * {@code DbTransitionRuleSource} tarafindan uygulanir;
+ * {@link StaticTransitionRuleSource} yalnizca parity testinin ve veritabanisiz
+ * testlerin referansi olarak durur.
  *
  * <p>Port yalnizca <em>okuma</em> sozlesmesidir. Cache, reload, kayit veya
  * silme gibi yonetim metotlari bu portun sorumlulugu degildir; onlar

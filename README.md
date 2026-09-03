@@ -19,7 +19,7 @@ Expo mobil ┘                         ├── dosya deposu
 | Mobil | React Native, Expo Router, TypeScript |
 | Veri ve yerel servisler | PostgreSQL 15, Docker Compose, Mailpit |
 
-Workflow geçişleri merkezi bir statik tablodan gelir. `StaticTransitionRuleSource`, bu tabloyu `TransitionRuleSource` sınırının arkasında hem doğrulayıcıya hem yetki servisine sunar. İstemciler hedef durumu hesaplamaz.
+Workflow geçişleri `workflow_transitions` tablosundan okunur. `DbTransitionRuleSource`, kuralları `TransitionRuleSource` sınırının arkasında hem doğrulayıcıya hem yetki servisine sunar; kurallar açılışta bir kez okunur ve `POST /api/workflow/rules/reload` ile yeniden başlatmadan tazelenebilir. İstemciler hedef durumu hesaplamaz.
 
 ## Hızlı başlangıç
 
@@ -91,7 +91,7 @@ npx expo export --platform web
 | [Veritabanı](docs/database.md) | Şema ve Flyway yönetimi |
 | [Frontend–backend sözleşmesi](docs/FRONTEND_BACKEND_SOZLESMESI.md) | Web istemcisinin dayandığı alan ve hata sözleşmeleri |
 | [Mobil API envanteri](docs/MOBIL_API_ENVANTERI.md) | Mobil istemcinin kullandığı güncel REST sözleşmesi |
-| [OpenAPI anlık görüntüsü](docs/openapi.json) | Kod incelemesi için sürümlenmiş API şeması |
+| [OpenAPI anlık görüntüsü](docs/openapi.json) | Kod incelemesi için sürümlenmiş API şeması. **Elle bakımlıdır:** canlı şema `localhost:8080/v3/api-docs` adresinde; uç eklendiğinde ilgili bölüm bu dosyaya mevcut biçim korunarak işlenir. Dosyayı toptan yeniden üretmeyin — biçimlendirme ve `servers.url` ortama göre değişip gereksiz diff üretir. Frontend istemcisi ayrı üretilir (`cd frontend && npm run api:generate`) |
 | [TEST ortamı notu](docs/TEST_ORTAMI_NOTU.md) | Güncel topoloji, dağıtım ve operasyon yönergeleri |
 | [Mimari kararlar](docs/decisions/README.md) | ADR dizini |
 
