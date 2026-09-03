@@ -446,7 +446,9 @@ foreign key eklendi. Aynı garanti, çok daha az invaziv değişiklik.
 
 Üretim zinciri `DbTransitionRuleSource → JpaTransitionRuleRecordReader → PostgreSQL`
 şeklindedir. Açılışta yüklenen immutable snapshot, `TransitionRuleSource` üzerinden
-saf validator'a sunulur. Boş/geçersiz kural verisi ve aktif geçişte eksik permission
+saf validator'a sunulur. Tabloya dışarıdan dokunulduğunda snapshot
+`POST /api/workflow/rules/reload` ile yeniden başlatmadan tazelenebilir;
+tazeleme başarısız olursa çalışan kurallar korunur. Boş/geçersiz kural verisi ve aktif geçişte eksik permission
 metadata'sı açılışı durdurur. `TransitionRules.java`, sekiz geçişin hedef ve permission
 metadata'sını da kapsayan parity ve veritabanısız test referansıdır. Yeni kurallar
 yeni Flyway migration'ı ve eşleşen parity referansıyla birlikte eklenir.

@@ -1057,3 +1057,22 @@ Web istemcisinde güncellenen rol atama tipiyle TypeScript kontrolü ve Vite
 
 Uygulama referansları: [Spring method security](https://docs.spring.io/spring-security/reference/servlet/authorization/method-security.html),
 [Spring Data JPA kilitleme](https://docs.spring.io/spring-data/jpa/reference/jpa/locking.html).
+
+### 18.9. Envanter gövdesindeki bayat ifadeler — 3 Eylül 2026
+
+§1–§17 arası bölümler **1–2 Eylül snapshot'ıdır** ve bilerek yeniden yazılmamıştır;
+o günkü kararların gerekçesini taşıyorlar. Ancak aşağıdaki ifadeler artık **yanlıştır**
+ve okuyan biri bunları güncel sanmamalıdır:
+
+| Bayat ifade | Bugünkü gerçek |
+| --- | --- |
+| "Yedi `hasRole` annotation noktası… 12 endpoint'i koruyor" (§6, §9.2, §11, §13, §15, §17 içinde ~10 satır) | Production'da **sıfır** `hasRole`. On iki uç `hasAuthority(...)` ile korunuyor (WF-2B) |
+| "`WorkflowConfiguration#transitionRuleSource()` halen `new StaticTransitionRuleSource()` döndürür" (§18.1) | Bean `ReloadableTransitionRuleSource` döndürüyor; sardığı snapshot `DbTransitionRuleSource` |
+| "`StaticTransitionRuleSource` — mevcut ve production bean olarak aktif" (§3.1, §5) | Production akışında değil; yalnız parity testinin ve veritabanısız üç testin referansı |
+| "`AdminController` class-level `hasRole('ADMIN')`" (§8) | Sınıf düzeyinde anotasyon yok; her metot kendi permission'ını istiyor |
+| Test sayıları: `506 / 14 error`, `522`, `532`, `592` (§18.4, §18.8) | Tarihli ölçümlerdir, baseline değil. Güncel eşik için ekip belgesine bakınız |
+
+Envanterin **yönü** hâlâ geçerli: `RoleName` üç production noktasında duruyor
+(`TransitionRule.actorRole`/`expectedTargetRole`, `PermissionService` imzaları,
+görünürlük `switch`'leri) ve §13'teki PR sırası `WF-2D2` ile `WF-2C2` için hâlâ yol
+gösterici.
