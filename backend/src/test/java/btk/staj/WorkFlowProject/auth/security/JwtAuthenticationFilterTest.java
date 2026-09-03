@@ -1,5 +1,7 @@
 package btk.staj.WorkFlowProject.auth.security;
 
+import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
+
 import btk.staj.WorkFlowProject.auth.service.CustomUserDetailsService;
 import btk.staj.WorkFlowProject.common.exception.ApiErrorWriter;
 import btk.staj.WorkFlowProject.rbac.Role;
@@ -251,6 +253,9 @@ class JwtAuthenticationFilterTest {
         Role role = new Role();
         role.setId(1);
         role.setName("CALISAN");
+        role.setActive(true);
+        role.setSystemKey("CALISAN");
+        role.setWorkflowActor(AuthorizationFixtures.workflowActor("CALISAN"));
 
         btk.staj.WorkFlowProject.user.entity.User user = new btk.staj.WorkFlowProject.user.entity.User();
         user.setEmail("test@example.com");
@@ -261,6 +266,6 @@ class JwtAuthenticationFilterTest {
         when(jwtUtil.isTokenValid("valid-token")).thenReturn(true);
         when(jwtUtil.extractEmail("valid-token")).thenReturn("test@example.com");
         when(userDetailsService.loadUserByUsername("test@example.com"))
-                .thenReturn(new AuthenticatedUser(user));
+                .thenReturn(AuthorizationFixtures.authenticated(user));
     }
 }

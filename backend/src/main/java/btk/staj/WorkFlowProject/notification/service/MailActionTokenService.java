@@ -1,6 +1,7 @@
 package btk.staj.WorkFlowProject.notification.service;
 
 import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
+import btk.staj.WorkFlowProject.auth.security.AuthenticatedUserFactory;
 import btk.staj.WorkFlowProject.notification.dto.MailActionPreview;
 import btk.staj.WorkFlowProject.notification.entity.MailActionToken;
 import btk.staj.WorkFlowProject.notification.exception.InvalidMailActionTokenException;
@@ -76,15 +77,18 @@ public class MailActionTokenService {
     private final RecordRepository recordRepository;
     private final WorkflowActionService workflowActionService;
     private final int ttlHours;
+    private final AuthenticatedUserFactory principalFactory;
 
     public MailActionTokenService(MailActionTokenRepository mailActionTokenRepository,
                                   RecordRepository recordRepository,
                                   WorkflowActionService workflowActionService,
+                                  AuthenticatedUserFactory principalFactory,
                                   @Value("${app.mail-action-token-ttl-hours:72}") int ttlHours) {
         this.mailActionTokenRepository = Objects.requireNonNull(mailActionTokenRepository, "mailActionTokenRepository");
         this.recordRepository = Objects.requireNonNull(recordRepository, "recordRepository");
         this.workflowActionService = Objects.requireNonNull(workflowActionService, "workflowActionService");
         this.ttlHours = ttlHours;
+        this.principalFactory = Objects.requireNonNull(principalFactory, "principalFactory");
     }
 
     /**
@@ -187,7 +191,10 @@ public class MailActionTokenService {
         SecurityContext previousContext = SecurityContextHolder.getContext();
         try {
             SecurityContext context = SecurityContextHolder.createEmptyContext();
-            AuthenticatedUser principal = new AuthenticatedUser(actor);
+            AuthenticatedUser principal = principalFactory.create(actor);
+            if (!principal.isEnabled()) {
+                throw new InvalidMailActionTokenException(INVALID_TOKEN_MESSAGE);
+            }
             Authentication authentication = new UsernamePasswordAuthenticationToken(
                     principal, null, principal.getAuthorities());
             context.setAuthentication(authentication);

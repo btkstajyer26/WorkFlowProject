@@ -100,7 +100,9 @@ public final class WorkflowApplicationService {
                 request.comment(),
                 targetProvidedInRequest,
                 null,
-                false));
+                false,
+                actor.workflowActor(),
+                actor.permissionCodes()));
 
         // Kural, on dogrulamadan SONRA aranir: gecis tanimli degilse on dogrulama zaten
         // WORKFLOW_INVALID_TRANSITION ile reddetmistir ve asagidaki kontrol onu firlatir.
@@ -128,7 +130,9 @@ public final class WorkflowApplicationService {
                         request.comment(),
                         targetProvidedInRequest,
                         target.role(),
-                        target.active()));
+                        target.active(),
+                        actor.workflowActor(),
+                        actor.permissionCodes()));
         TransitionDecision.Allowed allowed = requireAllowed(finalDecision);
 
         UUID assignedTo = target == null ? null : target.id();

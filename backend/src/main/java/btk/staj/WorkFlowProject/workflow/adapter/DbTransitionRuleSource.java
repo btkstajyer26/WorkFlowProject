@@ -111,7 +111,8 @@ public final class DbTransitionRuleSource implements TransitionRuleSource {
                             "expectedTargetRole",
                             "actor role",
                             RoleName.class,
-                            rowNumber));
+                            rowNumber),
+                    record.requiredPermissionCode());
         } catch (IllegalArgumentException exception) {
             // TransitionRule'un compact constructor'i hedef stratejisi ile beklenen hedef
             // rolun tutarli olmasini zorunlu kilar. Ihlali burada yakalayip satir numarasi

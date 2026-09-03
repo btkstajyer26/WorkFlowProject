@@ -18,5 +18,6 @@ public record TransitionRuleRecord(
         String actorRequirement,
         String toStatus,
         String targetStrategy,
-        String expectedTargetRole) {
+        String expectedTargetRole,
+        String requiredPermissionCode) {
 }

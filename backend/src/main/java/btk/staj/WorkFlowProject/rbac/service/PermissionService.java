@@ -7,6 +7,7 @@ import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
 import org.springframework.stereotype.Component;
 
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Sartnamedeki rol bazli yetki matrisinin sorgulanabilir hali.
@@ -18,7 +19,7 @@ import java.util.Objects;
  * guncellenmesi gerekmez ve kurallarin kaynagi degistiginde (statik tablo,
  * veritabani) bu sinif etkilenmez.
  *
- * <p><b>Kapsam:</b> Yalnizca "durum + aksiyon + rol" birlesiminin tabloda
+ * <p><b>Kapsam:</b> Permission ve "durum + aksiyon + rol" birlesiminin tabloda
  * tanimli olup olmadigini soyler. Aktorun kayitla kurmasi gereken iliski
  * (olusturan/atanan), aciklama zorunlulugu ve kilit kontrolu burada
  * dogrulanmaz. Nihai karar mercii daima
@@ -37,38 +38,38 @@ public class PermissionService {
     // ---------- Gecis gerektiren yetkiler ----------
 
     /** Calisanin taslagi Baskan Yardimcisina gondermesi. */
-    public boolean canSendToReview(RoleName role, RecordStatus currentStatus) {
-        return isTransitionDefined(currentStatus, WorkflowAction.GONDER, role);
+    public boolean canSendToReview(RoleName role, RecordStatus currentStatus, Set<String> permissions) {
+        return isTransitionDefined(currentStatus, WorkflowAction.GONDER, role, permissions);
     }
 
     /** Calisanin geri donen kaydi duzeltip yeniden gondermesi. */
-    public boolean canEditAndResendReturnedRecord(RoleName role, RecordStatus currentStatus) {
-        return isTransitionDefined(currentStatus, WorkflowAction.TEKRAR_GONDER, role);
+    public boolean canEditAndResendReturnedRecord(RoleName role, RecordStatus currentStatus, Set<String> permissions) {
+        return isTransitionDefined(currentStatus, WorkflowAction.TEKRAR_GONDER, role, permissions);
     }
 
     /** Baskan Yardimcisinin kaydi Baskana iletmesi. */
-    public boolean canForwardToBaskan(RoleName role, RecordStatus currentStatus) {
-        return isTransitionDefined(currentStatus, WorkflowAction.BASKANA_ILET, role);
+    public boolean canForwardToBaskan(RoleName role, RecordStatus currentStatus, Set<String> permissions) {
+        return isTransitionDefined(currentStatus, WorkflowAction.BASKANA_ILET, role, permissions);
     }
 
     /** Baskanin nihai onayi. */
-    public boolean canApprove(RoleName role, RecordStatus currentStatus) {
-        return isTransitionDefined(currentStatus, WorkflowAction.ONAYLA, role);
+    public boolean canApprove(RoleName role, RecordStatus currentStatus, Set<String> permissions) {
+        return isTransitionDefined(currentStatus, WorkflowAction.ONAYLA, role, permissions);
     }
 
     /** Baskanin nihai reddi. */
-    public boolean canReject(RoleName role, RecordStatus currentStatus) {
-        return isTransitionDefined(currentStatus, WorkflowAction.REDDET, role);
+    public boolean canReject(RoleName role, RecordStatus currentStatus, Set<String> permissions) {
+        return isTransitionDefined(currentStatus, WorkflowAction.REDDET, role, permissions);
     }
 
     /** Kaydin olusturan Calisana geri gonderilmesi. */
-    public boolean canReturnToCalisan(RoleName role, RecordStatus currentStatus) {
-        return isTransitionDefined(currentStatus, WorkflowAction.CALISANA_GERI_GONDER, role);
+    public boolean canReturnToCalisan(RoleName role, RecordStatus currentStatus, Set<String> permissions) {
+        return isTransitionDefined(currentStatus, WorkflowAction.CALISANA_GERI_GONDER, role, permissions);
     }
 
     /** Baskanin kaydi ileten Baskan Yardimcisina geri gondermesi. */
-    public boolean canReturnToBaskanYrd(RoleName role, RecordStatus currentStatus) {
-        return isTransitionDefined(currentStatus, WorkflowAction.BASKAN_YARDIMCISINA_GERI_GONDER, role);
+    public boolean canReturnToBaskanYrd(RoleName role, RecordStatus currentStatus, Set<String> permissions) {
+        return isTransitionDefined(currentStatus, WorkflowAction.BASKAN_YARDIMCISINA_GERI_GONDER, role, permissions);
     }
 
     // ---------- Durum bilinmeden yalnizca rol sorgulandiginda ----------
@@ -76,15 +77,15 @@ public class PermissionService {
     /**
      * Bu rolun herhangi bir durumda Calisana geri gonderme yetkisi olup
      * olmadigi. Belirli bir kayit icin karar verirken durum bilgisini de alan
-     * {@link #canReturnToCalisan(RoleName, RecordStatus)} tercih edilmelidir.
+     * {@link #canReturnToCalisan(RoleName, RecordStatus, Set)} tercih edilmelidir.
      */
-    public boolean canReturnToCalisan(RoleName role) {
-        return hasAnyTransition(WorkflowAction.CALISANA_GERI_GONDER, role);
+    public boolean canReturnToCalisan(RoleName role, Set<String> permissions) {
+        return hasAnyTransition(WorkflowAction.CALISANA_GERI_GONDER, role, permissions);
     }
 
     /** Bu rolun herhangi bir durumda Baskan Yardimcisina geri gonderme yetkisi. */
-    public boolean canReturnToBaskanYrd(RoleName role) {
-        return hasAnyTransition(WorkflowAction.BASKAN_YARDIMCISINA_GERI_GONDER, role);
+    public boolean canReturnToBaskanYrd(RoleName role, Set<String> permissions) {
+        return hasAnyTransition(WorkflowAction.BASKAN_YARDIMCISINA_GERI_GONDER, role, permissions);
     }
 
     // ---------- Gecis olmayan yetkiler ----------
@@ -92,10 +93,10 @@ public class PermissionService {
     /**
      * Yeni kayit olusturma bir durum gecisi degildir; kayit dogrudan
      * {@code TASLAK} olarak dogar. Bu yuzden kural tablosunda karsiligi yoktur
-     * ve rol kontrolu burada yapilir.
+     * ve capability kontrolu burada yapilir.
      */
-    public boolean canCreateRecord(RoleName role) {
-        return role == RoleName.CALISAN;
+    public boolean canCreateRecord(Set<String> permissions) {
+        return permissions.contains("RECORD_CREATE");
     }
 
     /**
@@ -105,8 +106,12 @@ public class PermissionService {
      * <p>Silme islemi ayrica yalnizca {@code TASLAK} durumunda gecerlidir; bunu
      * record modulu kendi servisinde daraltir.
      */
-    public boolean canEditOrDeleteDraft(RoleName role, RecordStatus currentStatus) {
-        return role == RoleName.CALISAN && currentStatus.isEditableByCreator();
+    public boolean canEditRecord(Set<String> permissions, RecordStatus currentStatus) {
+        return permissions.contains("RECORD_EDIT") && currentStatus.isEditableByCreator();
+    }
+
+    public boolean canDeleteRecord(Set<String> permissions, RecordStatus currentStatus) {
+        return permissions.contains("RECORD_DELETE") && currentStatus == RecordStatus.TASLAK;
     }
 
     /** Terminal durumdaki kayit kilitlidir. */
@@ -131,12 +136,14 @@ public class PermissionService {
 
     // ---------- Tabloya sorgu ----------
 
-    private boolean isTransitionDefined(RecordStatus from, WorkflowAction action, RoleName role) {
-        return ruleSource.find(from, action, role).isPresent();
+    private boolean isTransitionDefined(RecordStatus from, WorkflowAction action, RoleName role, Set<String> permissions) {
+        return ruleSource.find(from, action, role)
+                .filter(rule -> permissions.contains(rule.requiredPermissionCode())).isPresent();
     }
 
-    private boolean hasAnyTransition(WorkflowAction action, RoleName role) {
+    private boolean hasAnyTransition(WorkflowAction action, RoleName role, Set<String> permissions) {
         return ruleSource.all().stream()
-                .anyMatch(rule -> rule.action() == action && rule.actorRole() == role);
+                .anyMatch(rule -> rule.action() == action && rule.actorRole() == role
+                        && permissions.contains(rule.requiredPermissionCode()));
     }
 }

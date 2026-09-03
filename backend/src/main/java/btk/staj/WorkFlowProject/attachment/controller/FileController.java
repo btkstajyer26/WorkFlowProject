@@ -22,7 +22,7 @@ public class FileController {
 
     private final FileService fileService;
 
-    @PreAuthorize("hasRole('CALISAN')")
+    @PreAuthorize("hasAuthority('FILE_MANAGE')")
     @PostMapping(value = "/api/records/{id}/files", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<List<FileResponseDto>> uploadFiles(
             @PathVariable("id") UUID recordId,
@@ -38,7 +38,7 @@ public class FileController {
             @PathVariable("id") UUID recordId,
             @AuthenticationPrincipal AuthenticatedUser currentUser) {
 
-        RoleName role = RoleName.valueOf(currentUser.getRoleName());
+        RoleName role = currentUser.getLegacyRole();
         List<FileResponseDto> files = fileService.listByRecord(recordId, role, currentUser.getId());
         return ResponseEntity.ok(files);
     }
@@ -48,7 +48,7 @@ public class FileController {
             @PathVariable UUID id,
             @AuthenticationPrincipal AuthenticatedUser currentUser) {
 
-        RoleName role = RoleName.valueOf(currentUser.getRoleName());
+        RoleName role = currentUser.getLegacyRole();
         return fileService.downloadFile(id, role, currentUser.getId());
     }
 
@@ -57,11 +57,11 @@ public class FileController {
             @PathVariable UUID id,
             @AuthenticationPrincipal AuthenticatedUser currentUser) {
 
-        RoleName role = RoleName.valueOf(currentUser.getRoleName());
+        RoleName role = currentUser.getLegacyRole();
         return fileService.previewFile(id, role, currentUser.getId());
     }
 
-    @PreAuthorize("hasRole('CALISAN')")
+    @PreAuthorize("hasAuthority('FILE_MANAGE')")
     @DeleteMapping("/api/files/{id}")
     public ResponseEntity<Void> deleteFile(
             @PathVariable UUID id,

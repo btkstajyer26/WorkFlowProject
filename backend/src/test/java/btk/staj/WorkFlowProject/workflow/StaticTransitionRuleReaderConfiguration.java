@@ -1,5 +1,7 @@
 package btk.staj.WorkFlowProject.workflow;
 
+import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
+
 import btk.staj.WorkFlowProject.workflow.model.TransitionRuleRecord;
 import btk.staj.WorkFlowProject.workflow.port.TransitionRuleRecordReader;
 import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRule;
@@ -52,6 +54,6 @@ public class StaticTransitionRuleReaderConfiguration {
                 rule.actorRequirement().name(),
                 rule.to().name(),
                 rule.targetStrategy().name(),
-                rule.expectedTargetRole() == null ? null : rule.expectedTargetRole().name());
+                rule.expectedTargetRole() == null ? null : rule.expectedTargetRole().name(), AuthorizationFixtures.requiredPermission(rule.action().name()));
     }
 }

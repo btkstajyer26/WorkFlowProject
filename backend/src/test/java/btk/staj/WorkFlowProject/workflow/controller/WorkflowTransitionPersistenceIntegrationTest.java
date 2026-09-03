@@ -1,5 +1,7 @@
 package btk.staj.WorkFlowProject.workflow.controller;
 
+import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
+
 import btk.staj.WorkFlowProject.audit.service.AuditLogService;
 import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
 import btk.staj.WorkFlowProject.notification.service.MailService;
@@ -577,6 +579,9 @@ class WorkflowTransitionPersistenceIntegrationTest {
         Role role = new Role();
         role.setId(roleId(roleName));
         role.setName(roleName.name());
+        role.setActive(true);
+        role.setSystemKey(roleName.name());
+        role.setWorkflowActor(AuthorizationFixtures.workflowActor(roleName.name()));
 
         User user = new User();
         user.setId(userId);
@@ -585,6 +590,6 @@ class WorkflowTransitionPersistenceIntegrationTest {
         user.setRole(role);
         user.setActive(true);
 
-        return new AuthenticatedUser(user);
+        return AuthorizationFixtures.authenticated(user);
     }
 }

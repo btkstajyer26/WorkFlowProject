@@ -89,19 +89,19 @@ class UserPortAdapterTest {
 
     @Test
     void findActiveByRoleRejectsANullListReturnedByTheRepository() {
-        when(userRepository.findByRole_NameAndActive(RoleName.CALISAN.name(), true)).thenReturn(null);
+        when(userRepository.findByRole_SystemKeyAndRole_ActiveTrueAndActiveTrue(RoleName.CALISAN.name())).thenReturn(null);
 
         assertThatIllegalStateException()
                 .isThrownBy(() -> adapter.findActiveByRole(RoleName.CALISAN));
 
-        verify(userRepository).findByRole_NameAndActive("CALISAN", true);
+        verify(userRepository).findByRole_SystemKeyAndRole_ActiveTrueAndActiveTrue("CALISAN");
         verifyNoMoreInteractions(userRepository);
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("malformedUsers")
     void findActiveByRoleRejectsMalformedRepositoryUsers(String scenario, User malformedUser) {
-        when(userRepository.findByRole_NameAndActive(RoleName.CALISAN.name(), true))
+        when(userRepository.findByRole_SystemKeyAndRole_ActiveTrueAndActiveTrue(RoleName.CALISAN.name()))
                 .thenReturn(Arrays.asList(malformedUser));
 
         assertThatIllegalStateException()
@@ -110,19 +110,19 @@ class UserPortAdapterTest {
 
     @Test
     void findActiveByRoleUsesTheExactRepositoryQueryAndReturnsAnEmptyList() {
-        when(userRepository.findByRole_NameAndActive(RoleName.BASKAN.name(), true)).thenReturn(List.of());
+        when(userRepository.findByRole_SystemKeyAndRole_ActiveTrueAndActiveTrue(RoleName.BASKAN.name())).thenReturn(List.of());
 
         List<WorkflowUserSnapshot> result = adapter.findActiveByRole(RoleName.BASKAN);
 
         assertThat(result).isEmpty();
-        verify(userRepository).findByRole_NameAndActive("BASKAN", true);
+        verify(userRepository).findByRole_SystemKeyAndRole_ActiveTrueAndActiveTrue("BASKAN");
         verifyNoMoreInteractions(userRepository);
     }
 
     @Test
     void findActiveByRoleMapsActualEntityRoleAndActiveValueWithoutFiltering() {
         User repositoryUser = user(USER_ID, "ADMIN", false);
-        when(userRepository.findByRole_NameAndActive(RoleName.BASKAN.name(), true))
+        when(userRepository.findByRole_SystemKeyAndRole_ActiveTrueAndActiveTrue(RoleName.BASKAN.name()))
                 .thenReturn(List.of(repositoryUser));
 
         List<WorkflowUserSnapshot> result = adapter.findActiveByRole(RoleName.BASKAN);
@@ -134,7 +134,7 @@ class UserPortAdapterTest {
     void findActiveByRolePreservesRepositoryOrderAndSupportsMultipleActiveDeputies() {
         User first = user(FIRST_DEPUTY_ID, "BASKAN_YARDIMCISI", true);
         User second = user(SECOND_DEPUTY_ID, "BASKAN_YARDIMCISI", true);
-        when(userRepository.findByRole_NameAndActive(RoleName.BASKAN_YARDIMCISI.name(), true))
+        when(userRepository.findByRole_SystemKeyAndRole_ActiveTrueAndActiveTrue(RoleName.BASKAN_YARDIMCISI.name()))
                 .thenReturn(List.of(first, second));
 
         List<WorkflowUserSnapshot> result = adapter.findActiveByRole(RoleName.BASKAN_YARDIMCISI);
@@ -142,14 +142,14 @@ class UserPortAdapterTest {
         assertThat(result).containsExactly(
                 new WorkflowUserSnapshot(FIRST_DEPUTY_ID, RoleName.BASKAN_YARDIMCISI, true),
                 new WorkflowUserSnapshot(SECOND_DEPUTY_ID, RoleName.BASKAN_YARDIMCISI, true));
-        verify(userRepository).findByRole_NameAndActive("BASKAN_YARDIMCISI", true);
+        verify(userRepository).findByRole_SystemKeyAndRole_ActiveTrueAndActiveTrue("BASKAN_YARDIMCISI");
         verifyNoMoreInteractions(userRepository);
     }
 
     @Test
     void findActiveByRoleDoesNotDeduplicateRepositoryEntries() {
         User duplicate = user(FIRST_DEPUTY_ID, "BASKAN_YARDIMCISI", true);
-        when(userRepository.findByRole_NameAndActive(RoleName.BASKAN_YARDIMCISI.name(), true))
+        when(userRepository.findByRole_SystemKeyAndRole_ActiveTrueAndActiveTrue(RoleName.BASKAN_YARDIMCISI.name()))
                 .thenReturn(List.of(duplicate, duplicate));
 
         List<WorkflowUserSnapshot> result = adapter.findActiveByRole(RoleName.BASKAN_YARDIMCISI);
@@ -176,6 +176,8 @@ class UserPortAdapterTest {
     private static User user(UUID id, String roleName, boolean active) {
         Role role = new Role();
         role.setName(roleName);
+        role.setSystemKey(roleName);
+        role.setActive(true);
 
         User user = new User();
         user.setId(id);

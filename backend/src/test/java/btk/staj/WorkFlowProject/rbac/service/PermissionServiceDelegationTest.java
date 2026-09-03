@@ -1,5 +1,7 @@
 package btk.staj.WorkFlowProject.rbac.service;
 
+import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
+
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import btk.staj.WorkFlowProject.workflow.statemachine.StaticTransitionRuleSource;
@@ -42,44 +44,44 @@ class PermissionServiceDelegationTest {
     @Test
     @DisplayName("gonderme kararlari tabloyla birebir ortusur")
     void gonderme() {
-        tumMatrisiKarsilastir(WorkflowAction.GONDER, permissionService::canSendToReview);
+        tumMatrisiKarsilastir(WorkflowAction.GONDER, (role, status) -> permissionService.canSendToReview(role, status, AuthorizationFixtures.permissions(role)));
     }
 
     @Test
     @DisplayName("tekrar gonderme kararlari tabloyla birebir ortusur")
     void tekrarGonderme() {
-        tumMatrisiKarsilastir(WorkflowAction.TEKRAR_GONDER, permissionService::canEditAndResendReturnedRecord);
+        tumMatrisiKarsilastir(WorkflowAction.TEKRAR_GONDER, (role, status) -> permissionService.canEditAndResendReturnedRecord(role, status, AuthorizationFixtures.permissions(role)));
     }
 
     @Test
     @DisplayName("Baskana iletme kararlari tabloyla birebir ortusur")
     void baskanaIletme() {
-        tumMatrisiKarsilastir(WorkflowAction.BASKANA_ILET, permissionService::canForwardToBaskan);
+        tumMatrisiKarsilastir(WorkflowAction.BASKANA_ILET, (role, status) -> permissionService.canForwardToBaskan(role, status, AuthorizationFixtures.permissions(role)));
     }
 
     @Test
     @DisplayName("onaylama kararlari tabloyla birebir ortusur")
     void onaylama() {
-        tumMatrisiKarsilastir(WorkflowAction.ONAYLA, permissionService::canApprove);
+        tumMatrisiKarsilastir(WorkflowAction.ONAYLA, (role, status) -> permissionService.canApprove(role, status, AuthorizationFixtures.permissions(role)));
     }
 
     @Test
     @DisplayName("reddetme kararlari tabloyla birebir ortusur")
     void reddetme() {
-        tumMatrisiKarsilastir(WorkflowAction.REDDET, permissionService::canReject);
+        tumMatrisiKarsilastir(WorkflowAction.REDDET, (role, status) -> permissionService.canReject(role, status, AuthorizationFixtures.permissions(role)));
     }
 
     @Test
     @DisplayName("Calisana geri gonderme kararlari tabloyla birebir ortusur")
     void calisanaGeriGonderme() {
-        tumMatrisiKarsilastir(WorkflowAction.CALISANA_GERI_GONDER, permissionService::canReturnToCalisan);
+        tumMatrisiKarsilastir(WorkflowAction.CALISANA_GERI_GONDER, (role, status) -> permissionService.canReturnToCalisan(role, status, AuthorizationFixtures.permissions(role)));
     }
 
     @Test
     @DisplayName("Baskan Yardimcisina geri gonderme kararlari tabloyla birebir ortusur")
     void baskanYrdGeriGonderme() {
         tumMatrisiKarsilastir(
-                WorkflowAction.BASKAN_YARDIMCISINA_GERI_GONDER, permissionService::canReturnToBaskanYrd);
+                WorkflowAction.BASKAN_YARDIMCISINA_GERI_GONDER, (role, status) -> permissionService.canReturnToBaskanYrd(role, status, AuthorizationFixtures.permissions(role)));
     }
 
     // ---------- Sartnameden dogrudan gelen beklentiler ----------
@@ -87,7 +89,7 @@ class PermissionServiceDelegationTest {
     @Test
     @DisplayName("Baskan, kayit Bsk. Yrd. incelemesindeyken onaylayamaz")
     void baskanErkenOnaylayamaz() {
-        assertThat(permissionService.canApprove(RoleName.BASKAN, RecordStatus.BSK_YRD_INCELEMESINDE))
+        assertThat(permissionService.canApprove(RoleName.BASKAN, RecordStatus.BSK_YRD_INCELEMESINDE, AuthorizationFixtures.permissions(RoleName.BASKAN)))
                 .isFalse();
     }
 
@@ -95,18 +97,18 @@ class PermissionServiceDelegationTest {
     @EnumSource(RecordStatus.class)
     @DisplayName("Calisan hicbir durumda onaylayamaz")
     void calisanHicbirDurumdaOnaylayamaz(RecordStatus status) {
-        assertThat(permissionService.canApprove(RoleName.CALISAN, status)).isFalse();
+        assertThat(permissionService.canApprove(RoleName.CALISAN, status, AuthorizationFixtures.permissions(RoleName.CALISAN))).isFalse();
     }
 
     @ParameterizedTest
     @EnumSource(RecordStatus.class)
     @DisplayName("ADMIN hicbir is akisi aksiyonu yapamaz")
     void adminIsAkisiAksiyonuYapamaz(RecordStatus status) {
-        assertThat(permissionService.canApprove(RoleName.ADMIN, status)).isFalse();
-        assertThat(permissionService.canReject(RoleName.ADMIN, status)).isFalse();
-        assertThat(permissionService.canSendToReview(RoleName.ADMIN, status)).isFalse();
-        assertThat(permissionService.canForwardToBaskan(RoleName.ADMIN, status)).isFalse();
-        assertThat(permissionService.canCreateRecord(RoleName.ADMIN)).isFalse();
+        assertThat(permissionService.canApprove(RoleName.ADMIN, status, AuthorizationFixtures.permissions(RoleName.ADMIN))).isFalse();
+        assertThat(permissionService.canReject(RoleName.ADMIN, status, AuthorizationFixtures.permissions(RoleName.ADMIN))).isFalse();
+        assertThat(permissionService.canSendToReview(RoleName.ADMIN, status, AuthorizationFixtures.permissions(RoleName.ADMIN))).isFalse();
+        assertThat(permissionService.canForwardToBaskan(RoleName.ADMIN, status, AuthorizationFixtures.permissions(RoleName.ADMIN))).isFalse();
+        assertThat(permissionService.canCreateRecord(AuthorizationFixtures.permissions(RoleName.ADMIN))).isFalse();
     }
 
     @ParameterizedTest
@@ -116,11 +118,11 @@ class PermissionServiceDelegationTest {
         assertThat(permissionService.isRecordLocked(terminal)).isTrue();
 
         for (RoleName role : RoleName.values()) {
-            assertThat(permissionService.canSendToReview(role, terminal)).isFalse();
-            assertThat(permissionService.canApprove(role, terminal)).isFalse();
-            assertThat(permissionService.canReject(role, terminal)).isFalse();
-            assertThat(permissionService.canReturnToCalisan(role, terminal)).isFalse();
-            assertThat(permissionService.canEditOrDeleteDraft(role, terminal)).isFalse();
+            assertThat(permissionService.canSendToReview(role, terminal, AuthorizationFixtures.permissions(role))).isFalse();
+            assertThat(permissionService.canApprove(role, terminal, AuthorizationFixtures.permissions(role))).isFalse();
+            assertThat(permissionService.canReject(role, terminal, AuthorizationFixtures.permissions(role))).isFalse();
+            assertThat(permissionService.canReturnToCalisan(role, terminal, AuthorizationFixtures.permissions(role))).isFalse();
+            assertThat(permissionService.canEditRecord(AuthorizationFixtures.permissions(role), terminal)).isFalse();
         }
     }
 

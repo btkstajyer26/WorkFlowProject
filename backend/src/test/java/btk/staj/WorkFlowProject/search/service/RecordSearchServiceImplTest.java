@@ -1,5 +1,7 @@
 package btk.staj.WorkFlowProject.search.service;
 
+import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
+
 import btk.staj.WorkFlowProject.common.dto.PagedResponse;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy;
@@ -140,7 +142,7 @@ class RecordSearchServiceImplTest {
     }
 
     private void givenActor(RoleName role) {
-        when(currentActorProvider.currentActor()).thenReturn(new CurrentActor(USER_ID, role));
+        when(currentActorProvider.currentActor()).thenReturn(new CurrentActor(USER_ID, role, AuthorizationFixtures.workflowActor(role), AuthorizationFixtures.permissions(role)));
     }
 
     private static Record record() {

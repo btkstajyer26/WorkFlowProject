@@ -1,5 +1,7 @@
 package btk.staj.WorkFlowProject.rbac.config;
 
+import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
+
 import btk.staj.WorkFlowProject.attachment.repository.FileRepository;
 import btk.staj.WorkFlowProject.audit.repository.AuditLogRepository;
 import btk.staj.WorkFlowProject.audit.repository.UserAuditLogRepository;
@@ -86,6 +88,7 @@ class AuthorizationMatrixTest {
     @MockitoBean private DeviceTokenRepository deviceTokenRepository;
     @MockitoBean private MailActionTokenRepository mailActionTokenRepository;
     @MockitoBean private WorkflowTransitionRepository workflowTransitionRepository;
+    @MockitoBean private btk.staj.WorkFlowProject.rbac.repository.RolePermissionRepository rolePermissionRepository;
 
     private static final String RECORD_JSON = """
             {"title":"Test","description":"Test","categoryId":1}
@@ -141,6 +144,9 @@ class AuthorizationMatrixTest {
     private static AuthenticatedUser actor(RoleName role) {
         Role roleEntity = new Role();
         roleEntity.setName(role.name());
+        roleEntity.setActive(true);
+        roleEntity.setSystemKey(role.name());
+        roleEntity.setWorkflowActor(AuthorizationFixtures.workflowActor(role.name()));
 
         User user = new User();
         user.setId(UUID.randomUUID());
@@ -149,7 +155,7 @@ class AuthorizationMatrixTest {
         user.setRole(roleEntity);
         user.setActive(true);
 
-        return new AuthenticatedUser(user);
+        return AuthorizationFixtures.authenticated(user);
     }
 
     @Nested
@@ -184,7 +190,7 @@ class AuthorizationMatrixTest {
     class KayitOlusturma {
 
         @Test
-        @WithMockUser(roles = "BASKAN")
+        @WithMockUser(authorities = {"RECORD_VIEW", "RECORD_APPROVE", "RECORD_REJECT", "RECORD_RETURN"})
         @DisplayName("Baskan kayit olusturamaz")
         void baskanOlusturamaz() throws Exception {
             mockMvc.perform(post("/api/records")
@@ -195,7 +201,7 @@ class AuthorizationMatrixTest {
         }
 
         @Test
-        @WithMockUser(roles = "BASKAN_YARDIMCISI")
+        @WithMockUser(authorities = {"RECORD_VIEW", "RECORD_FORWARD", "RECORD_RETURN"})
         @DisplayName("Baskan Yardimcisi kayit olusturamaz")
         void baskanYrdOlusturamaz() throws Exception {
             mockMvc.perform(post("/api/records")
@@ -205,7 +211,7 @@ class AuthorizationMatrixTest {
         }
 
         @Test
-        @WithMockUser(roles = "CALISAN")
+        @WithMockUser(authorities = {"RECORD_CREATE", "RECORD_VIEW", "RECORD_EDIT", "RECORD_FORWARD", "FILE_MANAGE", "RECORD_DELETE"})
         @DisplayName("Calisan icin yetki engeli yoktur")
         void calisanEngellenmez() throws Exception {
             // Servis katmani mock oldugu icin sonuc basarili olmayabilir;
@@ -287,7 +293,7 @@ class AuthorizationMatrixTest {
                 """;
 
         @Test
-        @WithMockUser(roles = "CALISAN")
+        @WithMockUser(authorities = {"RECORD_CREATE", "RECORD_VIEW", "RECORD_EDIT", "RECORD_FORWARD", "FILE_MANAGE", "RECORD_DELETE"})
         @DisplayName("Calisan kullanici olusturamaz")
         void calisanKullaniciOlusturamaz() throws Exception {
             mockMvc.perform(post("/api/admin/users")
@@ -297,7 +303,7 @@ class AuthorizationMatrixTest {
         }
 
         @Test
-        @WithMockUser(roles = "BASKAN")
+        @WithMockUser(authorities = {"RECORD_VIEW", "RECORD_APPROVE", "RECORD_REJECT", "RECORD_RETURN"})
         @DisplayName("Baskan kullanici olusturamaz")
         void baskanKullaniciOlusturamaz() throws Exception {
             mockMvc.perform(post("/api/admin/users")
@@ -312,7 +318,7 @@ class AuthorizationMatrixTest {
     class DosyaYukleme {
 
         @Test
-        @WithMockUser(roles = "BASKAN")
+        @WithMockUser(authorities = {"RECORD_VIEW", "RECORD_APPROVE", "RECORD_REJECT", "RECORD_RETURN"})
         @DisplayName("Baskan dosya yukleyemez")
         void baskanYukleyemez() throws Exception {
             // Yukleme ucu sozlesmeye uyacak sekilde POST /api/records/{id}/files

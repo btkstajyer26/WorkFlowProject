@@ -70,21 +70,21 @@ public class AuditLogService implements AuditService {
      */
     public void recordLifecycleEvent(UUID recordId,
                                      UUID actorId,
-                                     RoleName actorRole,
+                                     Integer actorRoleId,
                                      String action,
                                      RecordStatus currentStatus,
                                      String comment) {
 
         Objects.requireNonNull(recordId, "recordId");
         Objects.requireNonNull(actorId, "actorId");
-        Objects.requireNonNull(actorRole, "actorRole");
+        Objects.requireNonNull(actorRoleId, "actorRoleId");
         Objects.requireNonNull(action, "action");
         Objects.requireNonNull(currentStatus, "currentStatus");
 
         AuditLog log = AuditLog.builder()
                 .recordId(recordId)
                 .userId(actorId)
-                .roleId(resolveRoleId(actorRole))
+                .roleId(actorRoleId)
                 .action(action)
                 .previousStatus(null)
                 .newStatus(currentStatus.name())
@@ -224,7 +224,7 @@ public class AuditLogService implements AuditService {
     }
 
     private Integer resolveRoleId(RoleName role) {
-        return roleRepository.findByName(role.name())
+        return roleRepository.findBySystemKey(role.name())
                 .map(Role::getId)
                 .orElseThrow(() -> new IllegalStateException(
                         "roles tablosunda '" + role.name() + "' rolu bulunamadi"));

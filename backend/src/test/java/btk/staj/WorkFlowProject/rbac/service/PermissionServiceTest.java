@@ -1,5 +1,7 @@
 package btk.staj.WorkFlowProject.rbac.service;
 
+import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
+
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import btk.staj.WorkFlowProject.workflow.statemachine.StaticTransitionRuleSource;
@@ -15,62 +17,62 @@ class PermissionServiceTest {
 
     @Test
     void calisanKayitOlusturabilmeli() {
-        assertTrue(permissionService.canCreateRecord(RoleName.CALISAN));
+        assertTrue(permissionService.canCreateRecord(AuthorizationFixtures.permissions(RoleName.CALISAN)));
     }
 
     @Test
     void baskanKayitOlusturamamali() {
-        assertFalse(permissionService.canCreateRecord(RoleName.BASKAN));
+        assertFalse(permissionService.canCreateRecord(AuthorizationFixtures.permissions(RoleName.BASKAN)));
     }
 
     @Test
     void baskanYardimcisiKayitOlusturamamali() {
-        assertFalse(permissionService.canCreateRecord(RoleName.BASKAN_YARDIMCISI));
+        assertFalse(permissionService.canCreateRecord(AuthorizationFixtures.permissions(RoleName.BASKAN_YARDIMCISI)));
     }
 
     @Test
     void calisanTaslagiIncelemeyeGonderebilmeli() {
-        assertTrue(permissionService.canSendToReview(RoleName.CALISAN, RecordStatus.TASLAK));
+        assertTrue(permissionService.canSendToReview(RoleName.CALISAN, RecordStatus.TASLAK, AuthorizationFixtures.permissions(RoleName.CALISAN)));
     }
 
     @Test
     void calisanOnaylanmisKaydiTekrarGonderemeMeli() {
-        assertFalse(permissionService.canSendToReview(RoleName.CALISAN, RecordStatus.ONAYLANDI));
+        assertFalse(permissionService.canSendToReview(RoleName.CALISAN, RecordStatus.ONAYLANDI, AuthorizationFixtures.permissions(RoleName.CALISAN)));
     }
 
     @Test
     void baskanNihaiOnayVerebilmeli() {
-        assertTrue(permissionService.canApprove(RoleName.BASKAN, RecordStatus.BASKAN_INCELEMESINDE));
+        assertTrue(permissionService.canApprove(RoleName.BASKAN, RecordStatus.BASKAN_INCELEMESINDE, AuthorizationFixtures.permissions(RoleName.BASKAN)));
     }
 
     @Test
     void calisanNihaiOnayVeremeMeli() {
-        assertFalse(permissionService.canApprove(RoleName.CALISAN, RecordStatus.BASKAN_INCELEMESINDE));
+        assertFalse(permissionService.canApprove(RoleName.CALISAN, RecordStatus.BASKAN_INCELEMESINDE, AuthorizationFixtures.permissions(RoleName.CALISAN)));
     }
 
     @Test
     void baskanYardimcisiCalisanaGeriGonderebilmeli() {
-        assertTrue(permissionService.canReturnToCalisan(RoleName.BASKAN_YARDIMCISI));
+        assertTrue(permissionService.canReturnToCalisan(RoleName.BASKAN_YARDIMCISI, AuthorizationFixtures.permissions(RoleName.BASKAN_YARDIMCISI)));
     }
 
     @Test
     void calisanBaskaCalisanaGeriGonderemeMeli() {
-        assertFalse(permissionService.canReturnToCalisan(RoleName.CALISAN));
+        assertFalse(permissionService.canReturnToCalisan(RoleName.CALISAN, AuthorizationFixtures.permissions(RoleName.CALISAN)));
     }
 
     @Test
     void calisanTasladiDuzenleyebilmeli() {
-        assertTrue(permissionService.canEditOrDeleteDraft(RoleName.CALISAN, RecordStatus.TASLAK));
+        assertTrue(permissionService.canEditRecord(AuthorizationFixtures.permissions(RoleName.CALISAN), RecordStatus.TASLAK));
     }
 
     @Test
     void calisanOnaylanmisTasladiDuzenleyemeMeli() {
-        assertFalse(permissionService.canEditOrDeleteDraft(RoleName.CALISAN, RecordStatus.ONAYLANDI));
+        assertFalse(permissionService.canEditRecord(AuthorizationFixtures.permissions(RoleName.CALISAN), RecordStatus.ONAYLANDI));
     }
 
     @Test
     void calisanGeriGonderilenKaydiDuzenleyipGonderebilmeli() {
-        assertTrue(permissionService.canEditAndResendReturnedRecord(RoleName.CALISAN, RecordStatus.DUZENLEME_BEKLIYOR));
+        assertTrue(permissionService.canEditAndResendReturnedRecord(RoleName.CALISAN, RecordStatus.DUZENLEME_BEKLIYOR, AuthorizationFixtures.permissions(RoleName.CALISAN)));
     }
 
     @Test

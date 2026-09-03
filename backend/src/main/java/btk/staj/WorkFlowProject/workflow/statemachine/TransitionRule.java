@@ -24,7 +24,8 @@ public record TransitionRule(
         ActorRequirement actorRequirement,
         RecordStatus to,
         TargetStrategy targetStrategy,
-        RoleName expectedTargetRole) {
+        RoleName expectedTargetRole,
+        String requiredPermissionCode) {
 
     public TransitionRule {
         Objects.requireNonNull(from, "from");
@@ -33,6 +34,9 @@ public record TransitionRule(
         Objects.requireNonNull(actorRequirement, "actorRequirement");
         Objects.requireNonNull(to, "to");
         Objects.requireNonNull(targetStrategy, "targetStrategy");
+        if (requiredPermissionCode == null || requiredPermissionCode.isBlank()) {
+            throw new IllegalArgumentException("requiredPermissionCode must not be blank");
+        }
 
         // Hedef gerektiren her gecis beklenen rolu de tasimak zorundadir.
         //

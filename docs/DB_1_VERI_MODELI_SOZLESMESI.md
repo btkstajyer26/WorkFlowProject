@@ -162,6 +162,10 @@ Davranış kuralları:
 - `max_users` genel bir `CHECK` ile doğrulanamaz. Kullanıcı oluşturma, rol
   değiştirme, etkinleştirme ve koltuk devri aynı transaction içinde bu sınırı
   kilitli biçimde doğrulamalıdır.
+- WF-2C1 bu kontrolü bootstrap dahil `RoleCapacityService` ile uygular: mevcut
+  kullanıcılar UUID, ardından rol satırları ID sırasıyla `PESSIMISTIC_WRITE`
+  kilitlenir. Devirde iki kullanıcının net etkisi birlikte hesaplanır; kayıt
+  devri ve audit aynı transaction'a dahildir.
 - `is_active = FALSE` rol yeni kullanıcıya atanamaz ve o roldeki kullanıcıya
   yeni authority verilmez.
 
@@ -227,6 +231,12 @@ ADMIN_PANEL_ACCESS
 Bu liste backend'in desteklemediği hayali capability'lerle genişletilemez.
 Mevcut controller ve policy'lerin permission'a taşınması sırasında eksik bir
 capability görülürse aynı kod değişikliğinde katalog ve seed de güncellenir.
+
+WF-2B (`V17`) bu kataloğa `FILE_MANAGE`, `RECORD_DELETE`, `AUDIT_VIEW` ekler.
+İlk ikisi `CALISAN`, sonuncusu `ADMIN` sistem rolüne atanır. Kullanıcıya rol
+atama `USER_MANAGE`, iki audit okuma endpoint'i `AUDIT_VIEW` ister; ek
+`ADMIN_PANEL_ACCESS` koşulu yoktur. Her JWT isteği güncel aktif permission'ları
+yükler; pasif rol erişim sağlayamaz. `ROLE_<rol adı>` authority yayını kaldırılmıştır.
 
 ### 6.3. `role_permissions`
 
@@ -710,6 +720,6 @@ giderilmiştir:
 - `backend/src/main/resources/db/migration/` — şemanın mevcut tek uygulama
   otoritesi
 - `backend/src/main/java/btk/staj/WorkFlowProject/workflow/statemachine/TransitionRules.java`
-  — DB geçişi tamamlanana kadar mevcut sekiz kuralın çalışma zamanı kaynağı
+  — mevcut sekiz kuralın parity ve veritabanısız test referansı
 - `backend/src/main/java/btk/staj/WorkFlowProject/workflow/statemachine/TransitionRuleSource.java`
   — statik ve DB-backed kaynakların portu

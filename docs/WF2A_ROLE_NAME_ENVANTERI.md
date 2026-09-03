@@ -1,5 +1,7 @@
 # WF-2A — RoleName Kaldırma Hazırlık Envanteri
 
+> Güncel uygulama durumu ve kabul kararları [§18.8](#188-wf-2b-ve-wf-2c1-uygulama-kapanışı--23-eylül-2026) içindedir. Önceki envanter/gate tabloları tarihsel snapshot'tır.
+
 ## 1. Amaç
 
 Bu belge, `RoleName` kaldırıldığında hangi kodun neden etkileneceğini ve her
@@ -997,3 +999,61 @@ PostgreSQL'in kapalı olmasından kaynaklanıyordu. Veritabanı ayaktayken günc
 ölçüm **522 test / 0 failure / 0 error**'dur. Ölçüm alınırken `DB_PORT`
 değerinin `.env` ile aynı olması gerekir; `application.properties` varsayılanı
 `5432`, projenin compose dosyası ise `5433` yayınlar.
+
+### 18.8. WF-2B ve WF-2C1 uygulama kapanışı — 2–3 Eylül 2026
+
+İş sırası korundu: önce `docs/workflow.md` içindeki eski SM-7 anlatımı düzeltildi;
+ardından WF-2B uygulandı ve tam backend `verify` **542 test / 0 failure / 0 error**
+ile geçti (2 Eylül 23:31). WF-2C1 bu kapı geçildikten sonra başladı. Son tam
+`verify` **592 test / 0 failure / 0 error**, paketleme dahil `BUILD SUCCESS`
+ile tamamlandı (2 Eylül 23:59, Europe/Istanbul). Başlangıçtaki 532 testlik kapsam
+korunarak toplam 60 senaryo eklendi. Bunlar yerel doğrulama sonuçlarıdır.
+
+| Aşama | Güncel durum |
+| --- | --- |
+| SM-7 dokümantasyon düzeltmesi | **TAMAM.** Üretim DB okuma zinciri, açılış snapshot'ı, fail-fast ve statik parity referansı belgelendi |
+| WF-2B — permission authorities | **TAMAM.** `V17`, ortak principal factory, 12 endpoint yetkisi, workflow permission metadata'sı ve audit aktör ID'leri uygulandı |
+| WF-2C1 — system_key / max_users | **TAMAM.** `SystemRoleKey`, `roleId` uyumluluğu, rol ID'sine göre aktif kullanıcı kapasitesi ve transaction kilitleri uygulandı |
+| WF-2D1 — hedef metadata'sı | **KORUNDU.** Hedefler geçişin `target_strategy`/`expected_target_role_id` metadata'sından çözülür |
+| WF-2D2 — workflow RoleId | **KAPSAM DIŞI.** Workflow aktör/hedef rolleri hâlâ `RoleName`; dönüşümler `system_key` okur |
+| WF-2C2 / DB-8 — görünürlük modeli | **BLOKE.** Ayrı tasarım kararı gerekir |
+| WF-2E — RoleName tamamen silme | **BLOKE.** WF-2D2 ve görünürlük çalışması tamamlanmalıdır |
+
+Kabul edilen kararlar:
+
+- `V17`: `FILE_MANAGE` ve `RECORD_DELETE` → `CALISAN`; `AUDIT_VIEW` → `ADMIN`.
+  Seed eşlemeleri gösterilen rol adına değil `system_key` değerine dayanır.
+- Rol atama dahil kullanıcı yönetimi `USER_MANAGE` ister. Ek `ROLE_MANAGE` veya
+  `ADMIN_PANEL_ACCESS` koşulu yoktur. Diğer endpoint eşlemeleri `workflow.md`'dedir.
+- Principal yalnız aktif rolün aktif permission kodlarını değişmez kümede taşır.
+  `ROLE_<rol adı>` yayını yoktur. JWT her istekte DB'den okunur; e-posta aksiyonları
+  aynı factory'yi kullanır. Pasif rol erişim sağlayamaz; global EAGER koleksiyon eklenmedi.
+- Workflow validator'ının dördüncü kontrolü kayıt ilişkisiyle birlikte geçişin
+  permission'ını doğrular; eksiklik `WORKFLOW_FORBIDDEN` döndürür. Önceki hata
+  öncelikleri korunur ve ret halinde hedef sorgusu/yazım yapılmaz. Eksik aktif
+  geçiş permission metadata'sı açılışı durdurur; statik/DB parity metadata'yı kapsar.
+- `roleId` pozitif olmalıdır; eski `roleName` API sınırında ID'ye çözülür. İkisinden
+  tam biri gerekir; ikisi birlikte veya ikisi de eksikse 400 döner. Pasif rol
+  atanamaz. Web/mobilin mevcut `roleName` gönderimleri ve yanıt alanları korunur.
+  OpenAPI snapshot'ı gerçek Springdoc çıktısından, ilgili web tipi aynı snapshot'tan güncellendi.
+- `max_users=NULL` sınırsızdır. Sayım yalnız aktif kullanıcıları rol ID'sine göre
+  kapsar. Mevcut kullanıcılar UUID, ardından roller ID sırasıyla kilitlenir.
+  Oluşturma, bootstrap, rol değişimi, etkinleştirme ve devir ortak kapasite kontrolündedir.
+  Devirde net kapasite hesaplanır; rol/kayıt/audit yazımları birlikte commit veya rollback olur.
+  Limit aşımında `409 ADMIN_LIMIT_EXCEEDED` korunur.
+- Request audit dağılımı `ADMIN` **sistem anahtarı** için `audit_logs`, diğerleri
+  için `user_audit_logs` olarak kalır. Kullanıcı yönetimi ve kayıt yaşam döngüsü
+  audit'i dinamik rollerde enum dönüşümü yapmaz. Dinamik workflow/görünürlük ayrı kapsamdır.
+
+Yeni doğrulamalar; 12 endpoint'in doğru/boş/farklı authority matrisi, eski JWT'den
+yetki kaldırma, pasif rol/permission, kapalı OSIV, gerçek e-posta validator akışı,
+dinamik aktörün servis ve audit işlemleri, yeniden adlandırılmış sistem rolleri,
+1/2/sınırsız kapasite, pasif kullanıcı sayımı, eşzamanlı atama/etkinleştirme ve
+kayıt devrinden sonraki audit hatasında tüm işlemin geri alınmasını kapsar.
+DB testlerinden önce Compose ve çalışan Docker PostgreSQL incelendi;
+`workflow-db` sağlıklı ve yerel port `.env` ile uyumlu **5433** olarak doğrulandı.
+Web istemcisinde güncellenen rol atama tipiyle TypeScript kontrolü ve Vite
+üretim derlemesi (`npm run build`) başarılıdır.
+
+Uygulama referansları: [Spring method security](https://docs.spring.io/spring-security/reference/servlet/authorization/method-security.html),
+[Spring Data JPA kilitleme](https://docs.spring.io/spring-data/jpa/reference/jpa/locking.html).

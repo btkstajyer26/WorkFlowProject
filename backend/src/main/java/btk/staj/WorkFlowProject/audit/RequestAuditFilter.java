@@ -95,9 +95,9 @@ public class RequestAuditFilter extends OncePerRequestFilter {
         Integer roleId = snapshot != null && snapshot.roleId() != null
                 ? snapshot.roleId()
                 : (authenticated != null ? authenticated.getRoleId() : null);
-        String roleName = snapshot != null && snapshot.roleName() != null
-                ? snapshot.roleName()
-                : (authenticated != null ? authenticated.getRoleName() : null);
+        String systemKey = snapshot != null && snapshot.systemKey() != null
+                ? snapshot.systemKey()
+                : (authenticated != null ? authenticated.getSystemKey() : null);
 
         int status = response.getStatus();
         String errorCode = status >= 400 ? extractErrorCode(response) : "OK";
@@ -109,7 +109,7 @@ public class RequestAuditFilter extends OncePerRequestFilter {
                 action,
                 userId,
                 roleId,
-                roleName,
+                systemKey,
                 request.getMethod(),
                 path,
                 status,
