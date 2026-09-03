@@ -2,6 +2,7 @@
 
 - **Durum:** Kabul edildi
 - **Karar tarihi:** 1 Eylül 2026
+- **Son güncelleme:** 3 Eylül 2026 — §15 departman veri şekli (ADR-0005 kabulü)
 - **Kapsam:** DB-1
 - **Mevcut şema tabanı:** Flyway `V1`–`V11` (`V3` tarihsel olarak yoktur)
 - **Uygulama durumu:** Uygulandı — `V12`–`V16` migration'ları ve `DbTransitionRuleSource`
@@ -628,29 +629,139 @@ Publish doğrulaması en az şunları kontrol etmelidir:
 - target strategy için gerekli alanlar doludur;
 - ulaşılamayan durumlar ve istenmeyen döngüler raporlanır.
 
-## 15. Departman modeli — ertelenen karar
+## 15. Departman modeli — şekil kabul edildi, uygulama sonraki iterasyonda
 
-Gelecek faz için yalnız aşağıdaki çekirdek yön kabul edilmiştir:
+[ADR-0005](decisions/0005-departman-atamasi-ve-akis-kurali.md) (**Kabul Edildi**,
+3 Eylül 2026) departman atamasının açık kararlarını kapattı. Bu bölüm o kararların
+**veri şeklini** taşır; değerlendirilen seçenekler ve gerekçe ADR'dedir. Şekil
+bağlayıcıdır, uygulama zamanlaması değişmemiştir: DDL bu iterasyonda yazılmaz,
+`DB-11` · `DB-12` · `DB-13` ile gelir (§16).
+
+ADR-0005'ten gelen bağlayıcı kararlar:
+
+- Üyelik kendi rolünü taşımaz; yetki global `users.role_id` ile çözülür. Üyelik
+  kapsamlı (scoped) rol açılmaz — §10'daki tek ana rol kararı korunur.
+- Bir kullanıcı birden fazla departmana üye olabilir.
+- Akış kuralı `(department_id, from_status_id, action_id)` taneciğinde tutulur ve
+  bir **rol** işaret eder.
+- `records.assigned_to` ile `records.assigned_department_id` global XOR ile değil,
+  karşılıklı dışlama `CHECK`'i ile korunur.
+- `departments.parent_department_id` kolon olarak açılır; hedef çözümünde
+  **kullanılmaz**.
+
+Hâlâ dondurulmuş olanlar: §7.2'deki departman hedefli `target_strategy` değerleri,
+departman hedef çözümünde varsayılan kişi ve eskalasyon davranışı. Bunlar
+ADR-0006'nın konusudur; o karar verilmeden `assigned_department_id`'yi yazan bir
+geçiş tanımlanamaz.
+
+### 15.1. `departments`
+
+| Kolon | Tip | Null | Varsayılan | Sözleşme |
+| --- | --- | --- | --- | --- |
+| `id` | `INTEGER` | hayır | identity/sequence | PK |
+| `name` | `VARCHAR(150)` | hayır | — | Kullanıcıya gösterilen ad; benzersiz |
+| `parent_department_id` | `INTEGER` | evet | — | FK → `departments.id`; yalnız veri, çözümlemede kullanılmaz |
+| `is_active` | `BOOLEAN` | hayır | `TRUE` | Yeni atama ve üyelikte kullanılabilirlik |
 
 ```text
-departments
-  id
-  name
-  parent_department_id
-  is_active
+PRIMARY KEY (id)
+UNIQUE (name)
+FOREIGN KEY (parent_department_id)
+  REFERENCES departments(id) ON DELETE RESTRICT
+CHECK (parent_department_id IS NULL OR parent_department_id <> id)
 ```
 
-Aşağıdaki konular DB-1 kapsamında dondurulmamıştır:
+Satır içi `CHECK` yalnız kendine referansı engeller. Daha uzun ata döngüleri satır
+içi `CHECK` ile görülemez; parent'ı yazan uygulama servisi aynı transaction içinde
+ata zincirini yürüyerek döngüyü reddetmelidir. Bu, §6.1'in `max_users` için
+tanımladığı kalıbın aynısıdır.
 
-- `department_members` rolü global `users.role_id` değerini mi kullanacak;
-- rol üyelik kapsamında ayrı bir scoped role mü olacak;
-- bir kullanıcının birden fazla departman üyeliği olup olmayacağı;
-- `records.assigned_department_id` ile kullanıcı atamasının birlikte
-  nullability/XOR kuralı;
-- departman hedef çözümünde varsayılan kişi ve eskalasyon davranışı.
+### 15.2. `department_members`
 
-Bu kararlar verilmeden `department_members`, `department_routing_rules` veya
-departman target strategy'si için bağlayıcı DDL yazılmaz.
+| Kolon | Tip | Null | Sözleşme |
+| --- | --- | --- | --- |
+| `department_id` | `INTEGER` | hayır | FK → `departments.id` |
+| `user_id` | `UUID` | hayır | FK → `users.id` |
+
+```text
+PRIMARY KEY (department_id, user_id)
+FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE RESTRICT
+FOREIGN KEY (user_id)       REFERENCES users(id)       ON DELETE RESTRICT
+```
+
+`user_id` üzerinde UNIQUE **tanımlanmaz**: çoklu üyelik bilinçli olarak açıktır.
+Üyelik satırı rol taşımaz; "bu kişi bu adımda yetkili mi" sorusu `users.role_id`
+ile kuralın `target_role_id` değeri karşılaştırılarak cevaplanır.
+
+`department_members(user_id)` için ayrıca indeks oluşturulur; birleşik PK yalnız
+`department_id` ile başlayan sorguları verimli karşılar.
+
+### 15.3. `department_routing_rules`
+
+| Kolon | Tip | Null | Varsayılan | Sözleşme |
+| --- | --- | --- | --- | --- |
+| `id` | `INTEGER` | hayır | identity/sequence | PK |
+| `department_id` | `INTEGER` | hayır | — | FK → `departments.id` |
+| `from_status_id` | `INTEGER` | hayır | — | FK → `workflow_statuses.id` |
+| `action_id` | `INTEGER` | hayır | — | FK → `workflow_actions.id` |
+| `target_role_id` | `INTEGER` | hayır | — | FK → `roles.id`; kuralın işaret ettiği rol |
+| `is_active` | `BOOLEAN` | hayır | `TRUE` | Kuralın çalıştırılabilirliği |
+
+```text
+PRIMARY KEY (id)
+UNIQUE (department_id, from_status_id, action_id)
+
+FOREIGN KEY (department_id)   REFERENCES departments(id)        ON DELETE RESTRICT
+FOREIGN KEY (from_status_id)  REFERENCES workflow_statuses(id)  ON DELETE RESTRICT
+FOREIGN KEY (action_id)       REFERENCES workflow_actions(id)   ON DELETE RESTRICT
+FOREIGN KEY (target_role_id)  REFERENCES roles(id)              ON DELETE RESTRICT
+```
+
+`UNIQUE` kısıtı §6.6'daki `UNIQUE (from_status_id, action_id, actor_role_id)` ile
+aynı mantıktadır: bir departman için bir adımda tek kural. Kural satırı veya
+işaret edilen rolde aktif üye bulunamazsa uygulama servisi sessizce geçmez;
+ADR-0005 bu durum için `WORKFLOW_DEPARTMENT_ROUTING_NOT_CONFIGURED` kodunu önerir
+ve bu kod mevcut runtime'da uygulanmış değildir.
+
+### 15.4. `records` atama kolonları
+
+`records` tablosuna `assigned_department_id` eklenir; mevcut `assigned_to`
+korunur ve yeniden adlandırılmaz (§16).
+
+| Kolon | Tip | Null | Sözleşme |
+| --- | --- | --- | --- |
+| `assigned_to` | `UUID` | evet | Mevcut kolon; FK → `users.id` |
+| `assigned_department_id` | `INTEGER` | evet | FK → `departments.id` ON DELETE RESTRICT |
+
+```sql
+CHECK (assigned_to IS NULL OR assigned_department_id IS NULL)
+```
+
+Atama kuralı üç kademelidir ve **yalnız birinci maddesi DDL'e girer**:
+
+1. İkisi birden dolu olamaz — yukarıdaki `CHECK`.
+2. Atama gerektiren geçişten sonra tam olarak biri dolu olmalıdır.
+3. Atama gerektirmeyen durumda ikisi de `NULL` olabilir.
+
+2. madde satır içi `CHECK` ile zorlanamaz: `CHECK` başka tabloya
+(`workflow_statuses`) bakamaz ve "atama gerektiren durum" bilgisi veride yoktur —
+`workflow_statuses` yalnız `is_terminal`, `is_editable_by_creator`,
+`display_order` ve `is_active` taşır (`V14`), `is_terminal` de bu bilgiyi
+türetmeye yetmez (`TASLAK` terminal değildir ama atamasızdır). Bu nedenle 2. madde
+uygulama servisinde, atamayı yazan transaction içinde doğrulanır ve beklenti
+statüden değil **geçişin `target_strategy` değerinden** türetilir: strateji `NONE`
+değilse tam olarak biri dolu olmalıdır, `NONE` ise ikisi de `NULL` kalır.
+`workflow_statuses.requires_assignment` kolonu ve trigger **seçilmemiştir**.
+
+Bugünkü sekiz geçişte bu beklenti sağlanır: `BSK_YRD_INCELEMESINDE`,
+`BASKAN_INCELEMESINDE` ve `DUZENLEME_BEKLIYOR`'a giren her satır
+`ROLE`/`CREATOR`/`PREVIOUS_ACTOR`, `ONAYLANDI` ve `REDDEDILDI`'ye giren her satır
+`NONE` taşır (§8).
+
+**Global XOR yasaktır.** "Tam olarak biri dolu" kısıtı bugünkü davranışla
+çelişirdi: yeni kayıt `TASLAK` durumunda ve `assigned_to = NULL` ile oluşur,
+`ONAYLA` ve `REDDET` ise `target_strategy = NONE` ile atamayı `NULL`'a çeker.
+Global XOR konsaydı hiçbir kayıt oluşturulamazdı.
 
 ## 16. Kapsam dışı
 

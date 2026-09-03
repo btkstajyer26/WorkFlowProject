@@ -9,7 +9,7 @@ Bu dizin, projeyi uzun vadede etkileyen kararları Architecture Decision Record 
 | [0001](0001-modul-bazli-paketleme.md) | Backend'i modül (feature) bazlı paketleme | Kabul Edildi |
 | [0002](0002-mobil-istemci-teknolojisi.md) | Mobil istemci teknolojisi — React Native + Expo | Kabul Edildi |
 | [0003](0003-veri-tanimli-akis-motoru-ve-birim-bazli-roller.md) | Veri tanımlı akış motoru ve birim bazlı roller | Önerildi |
-| [0005](0005-departman-atamasi-ve-akis-kurali.md) | Departman ataması ve akış kuralı | Önerildi |
+| [0005](0005-departman-atamasi-ve-akis-kurali.md) | Departman ataması ve akış kuralı | Kabul Edildi |
 
 > ⚠️ **ADR-0003 ile bugün uygulanan model çelişiyor.** ADR, rolün **daire başına**
 > tekil olmasını öneriyor: `roles.scope` (`GLOBAL`/`UNIT`/`MULTI`),

@@ -1,6 +1,6 @@
 # ADR-0005: Departman Ataması ve Akış Kuralı
 
-- Durum: Önerildi
+- Durum: Kabul Edildi
 - Tarih: 2026-09-03
 - Karar sahipleri: Tamer (öneren) · Burak (`WF`) · Alperen (`DB`)
 
@@ -12,13 +12,13 @@ yapabilmesi. Departman, projede hiç tasarlanmamış yeni bir domain kavramı.
 
 Semantik yön ekipçe kararlaştırıldı: kayıt gönderilirken departmandan belirli bir
 kişi seçilmişse işlemi o kişi yapar; seçilmemişse departmanın önceden tanımlı
-akışı kimi işaret ediyorsa o yapar. Bu ADR o yönün **veri şeklini** ve **durum
-makinesine yansımasını** sabitler.
+akışı kimi işaret ediyorsa o yapar. Bu ADR o yönün **hangi seçeneklerle** hayata
+geçtiğini sabitler. Kararların veri şekli `DB-1` §15'tedir; burada tekrarlanmaz.
 
-Kararı üç kulvar birden bekliyor: Alperen `department_members` ve akış kuralı
-tablosunu (`DB-12`), Tamer akış kuralı editörünü (`AP-5`) ve çözümleyiciyi
-(`WF-6`), Bahadır departmana fan-out'u (`NT-5`) buna göre yazacak. Karar tek yerde
-yazılı olmazsa üçü ayrı ayrı doğru, birbirine göre yanlış kod yazar.
+Karar üç kulvarı birden ilgilendiriyor: Alperen `department_members` ve akış
+kuralı tablosunu (`DB-12`), Tamer akış kuralı editörünü (`AP-5`) ve çözümleyiciyi
+(`WF-6`), Bahadır departmana fan-out'u (`NT-5`) buna göre yazacak. `DB-1` §15 de
+bu kararlar verilmeden departman DDL'inin bağlayıcı olmayacağını söylüyordu.
 
 Bağlayıcı kısıtlar:
 
@@ -33,26 +33,16 @@ Bağlayıcı kısıtlar:
 
 ### S1 — Aktör ilişkisi: `ActorRequirement` genişletilsin mi?
 
-**Seçenek A — Enum'a yeni değer eklenir** (ör. `DEPARTMENT_MEMBER`).
+**A — Enum'a yeni değer eklenir** (ör. `DEPARTMENT_MEMBER`). Kavram veride açıkça
+görünür, geçiş bazında departman şartı tanımlanabilir. Ama `DB-1` §6.6
+`actor_requirement` için bağlayıcı bir CHECK tanımlıyor; yeni değer kabul edilmiş
+bir sözleşmeyi, uygulanmış `V15` seed'ini ve parite testinin referansını birlikte
+değiştirmeyi gerektirir. Sekiz geçişin davranışı değişmediği hâlde üç dosya oynar.
 
-Artı: "aktörün kayıtla ilişkisi" kavramı veride açıkça görünür; geçiş bazında
-departman şartı tanımlanabilir.
-
-Eksi: `DB-1` §6.6 `actor_requirement` için bağlayıcı bir CHECK tanımlıyor
-(`CREATOR` · `ASSIGNEE` · `CREATOR_AND_ASSIGNEE`). Yeni değer, kabul edilmiş bir
-sözleşmeyi, uygulanmış `V15` seed'ini ve parite testinin referansını birlikte
-değiştirmeyi gerektirir. Sekiz geçişin davranışı değişmediği hâlde üç dosya
-birden oynar.
-
-**Seçenek B — `TransitionContext.actorIsAssignee` hesaplaması genişletilir.**
-
-Artı: Enum, CHECK, seed ve parite testi hiç değişmez. Kişiye atanmış kayıtta
-boolean bugünküyle aynı şekilde hesaplanır, bu da mevcut davranışın korunduğunu
-kanıtlamayı kolaylaştırır. Validator'ın public sözleşmesi ve hata kodu sırası
-aynı kalır; `WORKFLOW_FORBIDDEN` yine dördüncü adımdan döner.
-
-Eksi: Boolean iki anlamı birden taşır — doğrudan atanan **veya** departman
-üzerinden yetkili. Ayrım veride görünmez hâle gelir.
+**B — `TransitionContext.actorIsAssignee` hesaplaması genişletilir.** Enum, CHECK,
+seed ve parite testi hiç değişmez; kişiye atanmış kayıtta boolean bugünküyle aynı
+hesaplanır. Bedeli: boolean iki anlamı birden taşır — doğrudan atanan **veya**
+departman üzerinden yetkili.
 
 ### S2 — Akış kuralının taneciği
 
@@ -73,9 +63,56 @@ Eksi: Boolean iki anlamı birden taşır — doğrudan atanan **veya** departman
 2. Üyelik kapsamlı ayrı bir rol tutulur — `DB-1` §10'daki "bir kullanıcı = bir ana
    rol" kararıyla ve `user_roles` yasağıyla çelişir.
 
+### S5 — Departman üzerinden yetki `TransitionContext`'te görünür kılınsın mı?
+
+**A — Ayrı bir alan eklenir** (ör. `actorAuthorizedViaDepartment`). Yetkinin
+kaynağı tipin kendisinde okunur. Ama validator bu alanı **okumaz**: `S1` gereği
+dördüncü kontrolün davranışı sabit. Tipin javadoc'u onu "doğrulama için gereken
+bütün girdiler" diye tanımlıyor; okunmayan bir bileşen bu sözleşmeyi bozar ve
+kayıt pozisyonel kurulduğu için yedi kurulum noktası (beşi test) boşuna değişir.
+
+**B — Alan eklenmez; ayrım servis katmanındaki resolver dönüşünde durur.** Tip
+karar girdisi olarak kalır; yetkinin kaynağına ihtiyaç duyan iki tüketici de
+(audit yazımı, `NT-5` fan-out'u) zaten resolver sonucunun elde olduğu yerde
+çalışıyor. Bedeli: iki anlam `TransitionContext` imzasında hâlâ görünmez.
+
+### S6 — Bir kullanıcı kaç departmana üye olabilir?
+
+1. **Birden fazla** — `user_id` üzerinde ek `UNIQUE` yok; tablonun `S4` ile
+   kabul edilen şekli zaten N:N.
+2. **Tek** — `UNIQUE (user_id)`. Şema 1:N olur ama tablo N:N gibi görünmeye devam
+   eder; kısıt sonradan gevşetilebilir, sıkılaştırılamaz.
+
+Çözüm yönü tek yönlü: kayıt → `assigned_department_id` → kural → rol → o roldeki
+aktif üyeler. Kullanıcıdan departmana doğru bir arama yok, yani "bu kullanıcının
+departmanı" diye tekil bir soru hiçbir yolda sorulmuyor; `users.role_id` global
+olduğu için çoklu üyelik iki farklı rol de üretmiyor.
+
+### S7 — `departments.parent_department_id` bu iterasyonda
+
+1. **Kolon açılır, davranış bağlanmaz.**
+2. **Kolon açılmaz** — `DB-1` §15 çekirdek şekli kabul etmişti; kolonu sonraya
+   bırakmak departman kurulurken girilebilecek veriyi ikinci turda toplamayı
+   gerektirir.
+3. **Kolon açılır ve çözümlemede yukarı yürünür** (eskalasyon) — `PARENT_DEPARTMENT`
+   `DB-1` §7.2 ile bilerek dondurulduğu için o dondurmayı çözmek gerekir.
+
+### S8 — "Atama gerektiren durumda hedef bulunmalı" kuralı uygulamada nereye yerleşir?
+
+1. **`RecordStatus` enum'ına `requiresAssignment` bayrağı.** Enum bugün de
+   `is_terminal` ve `is_editable_by_creator`'ı taşıyor, ama o iki bayrağın `V14`'te
+   karşılığı var; karşılığı olmayan üçüncüsü yalnız Java'da duran yeni bir
+   doğruluk kaynağı olurdu.
+2. **`workflow_statuses.requires_assignment` kolonu + trigger.** Statik veriyi
+   trigger'la korumak bu projede başka hiçbir yerde kullanılmıyor.
+3. **Geçişin `target_strategy` değerinden türetilir.**
+   `WorkflowApplicationService.requiresTargetUser(rule)` bunu bugün zaten
+   hesaplıyor (`target_strategy != NONE`) ve `resolvedTarget(...)` hedef
+   çözülemediğinde `WORKFLOW_ROLE_NOT_CONFIGURED` ile durduruyor.
+
 ## Karar
 
-**S1 → Seçenek B.** `ActorRequirement` bu iterasyonda genişlemez. Departman desteği
+**S1 → B.** `ActorRequirement` bu iterasyonda genişlemez. Departman desteği
 dördüncü kontrolün *içine* girer, yeni bir adım olarak araya girmez.
 `actorIsAssignee` şu soruya cevap verir hâle gelir:
 
@@ -86,17 +123,56 @@ kayıt bir departmana atanmışsa, aktör o departmanın üyesi ve akış kural�
 bu adımda işaret ettiği role sahip mi?
 ```
 
-**S2 → Seçenek 1.** Kural `(departman, kaynak durum, aksiyon)` taneciğinde tutulur.
+**S2 → 1.** Kural `(departman, kaynak durum, aksiyon)` taneciğinde tutulur.
 Bugünkü grafikte aktör rolü kaynak duruma göre zaten tekil, yani aksiyon boyutu şu
 an ayırt edici değil; ancak bu grafiğin bir tesadüfü. Aksiyon boyutunu şimdi
 eklemenin maliyeti seed'de birkaç satır, sonradan eklemenin maliyeti şema
 değişikliği.
 
-**S3 → Seçenek 1.** Kural bir rol işaret eder (`target_role_id`).
+**S3 → 1.** Kural bir rol işaret eder (`target_role_id`).
 
-**S4 → Seçenek 1.** `department_members` yalnız `(department_id, user_id)` tutar;
-"bu kişi bu adımda yetkili mi" sorusu `users.role_id` ile kuralın rolü
-karşılaştırılarak cevaplanır.
+**S4 → 1.** Üyelik kendi rolünü taşımaz; "bu kişi bu adımda yetkili mi" sorusu
+`users.role_id` ile kuralın rolü karşılaştırılarak cevaplanır.
+
+**S5 → B.** `TransitionContext`'e yeni alan eklenmez. Ayrım
+`DepartmentRoutingResolver`'ın dönüş tipinde görünür kılınır; tip mevcut
+`TargetResolution` desenini izler:
+
+```text
+DepartmentRoutingResolution
+  NotDepartmentAssigned                      -> kayıt kişiye atanmış; bugünkü yol
+  Resolved(targetRoleId, eligibleUserIds)    -> kural bulundu, roldeki aktif üyeler
+  RuleNotConfigured(departmentId, fromStatusId, actionId)
+  NoEligibleMember(departmentId, targetRoleId)
+```
+
+Boolean'ın iki anlamı en azından dürüst bir isme çekilir:
+`TransitionContext.actorIsAssignee` → **`actorHoldsAssignment`**. Bileşen her yerde
+pozisyonel kurulduğu için beş test kurulum noktası değişmez; rename yalnız
+`TransitionContext`, `WorkflowTransitionValidator` ve `ActorRequirement`'ın
+parametre adını etkiler. Audit ve `NT-5` yetkinin kaynağını
+`DepartmentRoutingResolution`'dan okur.
+
+**S6 → 1.** Çoklu üyelik açıktır. Karşılığında iki yer çoğulu varsaymak zorundadır:
+`NT-5` alıcı kümesini `user_id` ile tekilleştirir, `DB-8` görünürlük sorguları
+`assigned_department_id = ?` değil `IN (:aktörün departmanları)` kurar.
+
+**S7 → 1.** `parent_department_id` yalnız kolon olarak açılır; `WF-6` hiçbir
+koşulda yukarı yürümez. Kendine referans satır içi `CHECK` ile, daha uzun döngüler
+parent'ı yazan uygulama servisinde ata zinciri yürünerek engellenir (`DB-1` §6.1
+`max_users` kalıbı). `AP-4` ağacı gösterip düzenleyebilir.
+
+**S8 → 3.** Kural yeni bir mekanizma gerektirmiyor: beklenti statüden değil
+geçişin `target_strategy` değerinden türetilir ve bugünkü
+`requiresTargetUser`/`resolvedTarget` yoluna departman dalı eklenir. Karşılıklı
+dışlama ayrıca `WorkflowRecordUpdate`'in compact constructor'ında doğrulanır —
+komut saf Java ve atamayı yazan tek yol olduğu için DB `CHECK`'iyle aynı kural
+altyapısız test edilebilir hâle gelir. `RecordStatus`'a bayrak,
+`workflow_statuses`'a kolon eklenmez.
+
+Statü seviyesindeki garanti — "atama isteyen bir statüye yalnız `NONE` olmayan
+geçişlerle girilebilir" — geçiş grafiğinin özelliğidir ve editör tarafında
+doğrulanır (`DB-1` §14 workflow designer sınırı).
 
 Bunlara ek olarak:
 
@@ -107,74 +183,36 @@ Bunlara ek olarak:
 - **Uygun kimse yoksa sessizce geçilmez.** Kural bulunamazsa veya işaret edilen
   rolde aktif üye yoksa servis katmanı `WORKFLOW_DEPARTMENT_ROUTING_NOT_CONFIGURED`
   ile durdurur. Mevcut `WORKFLOW_ROLE_NOT_CONFIGURED` deseniyle aynı yerde çalışır.
+- **Atama kısıtı global XOR değildir.** `assigned_to` ve `assigned_department_id`
+  aynı anda dolu olamaz, ama ikisi birden `NULL` olabilir: yeni kayıt `TASLAK`
+  durumunda atamasız oluşur ve `ONAYLA`/`REDDET` atamayı `NULL`'a çeker. Global XOR
+  konsaydı hiçbir kayıt oluşturulamazdı.
 - **Departmandan kişiye devir yoktur** — bu iterasyonun kapsamı dışında.
 
-### Veri şekli
-
-`department_routing_rules`:
-
-| Kolon | Tip | Null | Sözleşme |
-| --- | --- | --- | --- |
-| `id` | `INTEGER` | hayır | PK |
-| `department_id` | `INTEGER` | hayır | FK → `departments.id` |
-| `from_status_id` | `INTEGER` | hayır | FK → `workflow_statuses.id` |
-| `action_id` | `INTEGER` | hayır | FK → `workflow_actions.id` |
-| `target_role_id` | `INTEGER` | hayır | FK → `roles.id` |
-| `is_active` | `BOOLEAN` | hayır | varsayılan `TRUE` |
-
-```text
-PRIMARY KEY (id)
-UNIQUE (department_id, from_status_id, action_id)
-FOREIGN KEY (...) ... ON DELETE RESTRICT
-```
-
-`UNIQUE` kısıtı `workflow_transitions`'daki
-`UNIQUE (from_status_id, action_id, actor_role_id)` ile aynı mantıkta: bir departman
-için bir adımda tek kural.
-
-### `records` atama sözleşmesi
-
-Atama hedefi mevcut `assigned_to` kolonu (kişi) **veya** yeni
-`assigned_department_id` (departman) olur. Kural üç kademelidir:
-
-1. **İkisi birden dolu olamaz.** Bu, satır içi `CHECK` ile DB seviyesinde
-   zorlanır:
-
-   ```sql
-   CHECK (assigned_to IS NULL OR assigned_department_id IS NULL)
-   ```
-
-2. **Atama gerektiren durumda biri dolu olmalıdır.** Bugün bu küme
-   `BSK_YRD_INCELEMESINDE`, `BASKAN_INCELEMESINDE` ve `DUZENLEME_BEKLIYOR`.
-3. **Atama gerektirmeyen durumda ikisi de `NULL` olabilir.** Bugün bu küme
-   `TASLAK` (kayıt oluşturulduğu an) ile terminal `ONAYLANDI` ve `REDDEDILDI`.
-
-> ⚠️ **2. madde `CHECK` ile zorlanamaz.** Satır içi `CHECK` başka tabloya
-> (`workflow_statuses`) bakamaz ve "atama gerektiren durum" bilgisi bugün veride
-> yok: `workflow_statuses` yalnız `is_terminal`, `is_editable_by_creator`,
-> `display_order` ve `is_active` taşıyor (`V14`). `is_terminal` da bu bilgiyi
-> türetmeye yetmez — `TASLAK` terminal değildir ama atamasızdır.
->
-> Bu nedenle 2. madde **uygulama servisinde**, atamayı yazan transaction içinde
-> doğrulanır. DB-1 §6.1'in `max_users` için verdiği kararla aynı kalıptır:
-> genel bir `CHECK` ile doğrulanamayan invariant, yazma yolunda kilitli biçimde
-> korunur. Alternatifi — `workflow_statuses.requires_assignment` kolonu ve
-> trigger — bu iterasyonda **seçilmedi**; gerekirse ayrı karar konusudur.
-
-Yalnız 1. madde DDL'e girer; `DB-11`/`DB-12`/`DB-13` bu ayrımı esas alır.
-
-**Neden "tam olarak biri dolu" değil.** Önceki taslak global bir XOR öneriyordu.
-Bu kısıt bugünkü davranışla çelişiyordu: yeni kayıt `TASLAK` durumunda ve
-`assigned_to = NULL` ile oluşuyor
-(`DynamicWorkflowRoleIntegrationTest`), `ONAYLA` ve `REDDET` ise
-`target_strategy = NONE` ile atamayı `NULL`'a çekiyor (`V15`). Global XOR konsaydı
-hiçbir kayıt oluşturulamazdı ve yukarıdaki "mevcut kişiye-atama davranışı birebir
-korunur" kısıtı çiğnenirdi.
+Bu kararların tablo, kolon ve kısıt karşılığı **`DB-1` §15**'tedir; burada
+tekrarlanmaz, böylece şemanın tek doğruluk kaynağı DB-1 olarak kalır.
 
 ### Çözümün yeri
 
 `DepartmentRoutingResolver` servis katmanında, `TransitionContext` **doldurulurken**
 çalışır — validator'ın içinde değil. Validator'a giren şey yine sadece boolean olur.
+
+### Departmana atamayı kim yazar
+
+Bu ADR departman atamasının **okuma ve yetki** tarafını sabitliyor. Kaydı bir
+departmana **yazan** gönderim yolu kapsam dışında: bir geçişin departmanı hedef
+göstermesi `target_strategy`'de `DEPARTMENT` / `DEPARTMENT_ROLE` değerlerini
+gerektirir; `DB-1` §7.2 ve `TargetStrategy` javadoc'u bunları bilerek dondurdu ve
+dondurmayı çözmek kabul edilmiş bir sözleşmeyi, `chk_transition_target_strategy`
+kısıtını, `V15` seed'ini ve parite testini birlikte değiştirmek demek — `S1`'de
+aynı gerekçeyle reddedilen hamlenin daha büyüğü.
+
+Sonuç: `assigned_department_id`'yi bu iterasyonda hiçbir çalışma zamanı yolu
+yazmaz. `WF-6` çözümleyicisi, `DB-13` seed'i veya repository ile yazılmış departman
+atamalarına karşı test edilir; uçtan uca gönderim akışı **ADR-0006** (departman
+hedefli `target_strategy` ve gönderim sözleşmesi) ile karara bağlanır. Bu ayrım
+bilinçlidir: `DB-11`/`DB-12`/`DB-13`, `WF-5`, `WF-6`, `AP-4`/`AP-5` ve `NT-5` bu
+ADR ile paralel yürüyebilir; yalnız son gönderim adımı ADR-0006'yı bekler.
 
 ## Sonuçlar
 
@@ -182,50 +220,66 @@ Olumlu:
 
 - `ActorRequirement`, `workflow_transitions` seed'i ve validator'ın kontrol sırası
   değişmez; mevcut regresyon testleri korunur.
-- Akış kuralı tablosu geçiş tablosuyla aynı tanecikte durduğu için panel editörü
-  (`AP-5`) `(durum, aksiyon)` çiftlerini doğrudan `workflow_transitions`'tan
-  okuyup listeleyebilir.
+- Akış kuralı geçiş tablosuyla aynı tanecikte durduğu için `AP-5` editörü
+  `(durum, aksiyon)` çiftlerini doğrudan `workflow_transitions`'tan okuyabilir.
 - Departman yetkisi rol üzerinden çözüldüğü için personel değişimi kuralı bozmaz.
+- `S8` yeni şema, kolon veya enum bayrağı getirmiyor; invariant bugünkü yolda ve
+  tek yazma komutunda toplanıyor.
+- `S5` rename'i pozisyonel kayıt kurulumunu bozmadığı için test dosyalarına
+  dokunmaz.
 
 Maliyet ve riskler:
 
-- `actorIsAssignee` iki anlamı birden taşır. Ayrımın `TransitionContext`'te ayrı
-  bir alanla görünür kılınıp kılınmayacağı `WF-5` sırasında yeniden
-  değerlendirilmelidir.
+- `actorHoldsAssignment` iki anlamı birden taşımaya devam eder; validator'ın reddi
+  (`WORKFLOW_FORBIDDEN`) hangi anlamın sağlanmadığını söylemez, sebep audit
+  kaydından okunur.
 - `recipientsOf` (`NT-5`) departmana atanmış kayıtta tek kişi değil, kuralın
-  işaret ettiği roldeki aktif departman üyeleri kümesini döndürmek zorunda. Önceki
-  plandaki "dokunmana gerek yok" notu departmanlarla geçersiz.
-- Kural satırı olmayan departman kullanılamaz hâle gelir. `AP-5` editörü,
-  departman oluşturulurken kural tanımlanmasını teşvik etmeli.
+  işaret ettiği roldeki aktif üyeler kümesini döndürmek zorunda; çoklu üyelik
+  nedeniyle küme `user_id` ile tekilleştirilmelidir. Önceki plandaki "dokunmana
+  gerek yok" notu departmanlarla geçersiz.
+- `DB-8` görünürlük sorguları tekil departman varsayamaz.
+- Kural satırı olmayan departman kullanılamaz hâle gelir; `AP-5` editörü departman
+  oluşturulurken kural tanımlanmasını teşvik etmeli.
+- `parent_department_id` davranışsız açıldığı için veri girilir ama hiçbir
+  çözümleme yolu onu doğrulamaz; döngü kontrolü yazma yolunda unutulursa `AP-4`
+  ağacı sonsuz dallanabilir.
+- Gönderim yolu ADR-0006'ya kaldığı için `WF-6` üretimde tetiklenen bir yol değil;
+  ölü kalmaması testlerle ve `AP-5` editörüyle güvenceye alınır.
 
 Takip işleri:
 
-- `DB-11` · `DB-12` · `DB-13` — tablolar ve karşılıklı dışlama `CHECK`'i
-  (atama sözleşmesi 1. madde). 2. maddenin uygulama servisinde nereye
-  yerleşeceği `WF-5` ile birlikte kararlaştırılır
-- `WF-5` — `TransitionContext` genişlemesi
-- `WF-6` — `DepartmentRoutingResolver`
-- `AP-4` · `AP-5` — departman ekranları ve kural editörü
-- `NT-5` — departmana fan-out
+- `ADR-0006` — departman hedefli `target_strategy` ve gönderim sözleşmesi
+- `DB-11` · `DB-12` · `DB-13` — `DB-1` §15'teki şeklin migration'ları
+- `WF-5` — `actorIsAssignee` → `actorHoldsAssignment` rename'i ve javadoc
+- `WF-6` — `DepartmentRoutingResolver` ve `DepartmentRoutingResolution`;
+  `WorkflowRecordUpdate`'te karşılıklı dışlama doğrulaması
+- `AP-4` · `AP-5` — departman ekranları (parent döngü kontrolü) ve kural editörü
+- `NT-5` — departmana fan-out, `user_id` ile tekilleştirme
 
 Kapsam dışı: departmanlar arası devir ve vekâlet, üyelik kapsamlı roller,
-departman hedefli `target_strategy` değerleri (`DEPARTMENT`, `DEPARTMENT_ROLE`,
-`PARENT_DEPARTMENT`, `EXPLICIT_USER` — `DB-1` §7.2 bunları bilerek dondurmuş),
-workflow versioning.
+departman hedefli `target_strategy` değerleri (ADR-0006), hiyerarşi üzerinden
+eskalasyon, workflow versioning.
 
-## Açık sorular
+## Kapatılan sorular
 
-- `TransitionContext`'e "departman üzerinden yetkili" ayrımını görünür kılan ayrı
-  bir alan eklenecek mi? (`WF-5`)
-- Bir kullanıcı birden fazla departmana üye olabilir mi? (`DB-12`)
-- Departmanın üst departman referansı bu iterasyonda kullanılacak mı, yoksa yalnız
-  kolon olarak mı açılacak? (`DB-11`)
+| Soru | Cevap |
+| --- | --- |
+| `TransitionContext`'e departman ayrımını görünür kılan ayrı bir alan eklenecek mi? (`WF-5`) | Hayır — `S5 → B` |
+| Bir kullanıcı birden fazla departmana üye olabilir mi? (`DB-12`) | Evet — `S6 → 1` |
+| Üst departman referansı kullanılacak mı, yoksa yalnız kolon olarak mı açılacak? (`DB-11`) | Yalnız kolon — `S7 → 1` |
+| Atama gerektiren durumun doğrulaması uygulamada nereye yerleşir? (`WF-5`) | Geçişin `target_strategy` değerinden türetilir — `S8 → 3` |
 
 ## Bağlantılar
 
 - [`DB_1_VERI_MODELI_SOZLESMESI.md`](../DB_1_VERI_MODELI_SOZLESMESI.md) — §6.6
-  `actor_requirement` CHECK'i, §7.2 target strategy, §10 tek rol kararı, §15
-  ertelenen departman kararları
+  `actor_requirement` CHECK'i, §7.2 target strategy, §10 tek rol kararı, §14
+  workflow designer sınırı, **§15 bu kararların veri şekli**
 - [`workflow.md`](../workflow.md) — mevcut workflow davranışı
 - `workflow/statemachine/WorkflowTransitionValidator.java` — dördüncü kontrol
 - `workflow/statemachine/TransitionContext.java` — `actorIsAssignee`
+  (`actorHoldsAssignment` olacak)
+- `workflow/statemachine/TargetStrategy.java` — dondurulmuş departman değerleri
+- `workflow/service/WorkflowApplicationService.java` — `requiresTargetUser`,
+  `resolvedTarget` (`S8`)
+- `workflow/model/TargetResolution.java` — `DepartmentRoutingResolution`'ın deseni
+- `workflow/model/WorkflowRecordUpdate.java` — atamayı yazan tek komut
