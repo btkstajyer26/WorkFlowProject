@@ -449,6 +449,14 @@ EXPLICIT_USER
 Desteklenmeyen bir primitive yalnız metin eklenerek etkinleştirilemez. DB
 constraint, resolver, validator ve testler aynı değişiklikte genişletilmelidir.
 
+> **Dondurmanın çözülmesi (ADR-0006, Kabul Edildi — 4 Eylül 2026).**
+> [ADR-0006](decisions/0006-departman-hedefli-target-strategy.md) yalnız
+> **`DEPARTMENT`** değerini açar; `DEPARTMENT_ROLE`, `PARENT_DEPARTMENT`
+> ve `EXPLICIT_USER` dondurulmuş kalır. `V18` ile `chk_transition_target_strategy` ve
+> `chk_transition_target_strategy_role` kısıtları yeniden oluşturulur; uygulanmış
+> `V15` düzenlenmez (§13.1). Karar `DB-13` kapsamındadır ve Workflow V1 teslimine
+> dahildir.
+
 ## 8. Bağlayıcı sekiz geçiş seed'i
 
 Tabloda bulunmayan veya `is_active = FALSE` olan her
@@ -635,13 +643,19 @@ Publish doğrulaması en az şunları kontrol etmelidir:
 - target strategy için gerekli alanlar doludur;
 - ulaşılamayan durumlar ve istenmeyen döngüler raporlanır.
 
-## 15. Departman modeli — şekil kabul edildi, uygulama sonraki iterasyonda
+## 15. Departman modeli — şekil kabul edildi, uygulama Workflow V1 kapsamında
 
 [ADR-0005](decisions/0005-departman-atamasi-ve-akis-kurali.md) (**Kabul Edildi**,
 3 Eylül 2026) departman atamasının açık kararlarını kapattı. Bu bölüm o kararların
 **veri şeklini** taşır; değerlendirilen seçenekler ve gerekçe ADR'dedir. Şekil
-bağlayıcıdır, uygulama zamanlaması değişmemiştir: DDL bu iterasyonda yazılmaz,
-`DB-11` · `DB-12` · `DB-13` ile gelir (§16).
+bağlayıcıdır; DDL bu sözleşmenin kendi kapsamında değil, `DB-11` · `DB-12` ·
+`DB-13` işleriyle gelir.
+
+> **Zamanlama güncellemesi (4 Eylül 2026).** Bu bölüm yazıldığında departman
+> uygulaması "sonraki iterasyon" idi. Plan güncellemesiyle `DB-11`/`DB-12`/`DB-13`
+> **10 Eylül Workflow V1 teslim kapsamına** alındı; §16'daki "hemen uygulanması
+> istenmez" maddesi departman DDL'i için artık geçerli değildir. Şekil değişmedi,
+> yalnız takvim öne alındı.
 
 ADR-0005'ten gelen bağlayıcı kararlar:
 
@@ -655,10 +669,11 @@ ADR-0005'ten gelen bağlayıcı kararlar:
 - `departments.parent_department_id` kolon olarak açılır; hedef çözümünde
   **kullanılmaz**.
 
-Hâlâ dondurulmuş olanlar: §7.2'deki departman hedefli `target_strategy` değerleri,
-departman hedef çözümünde varsayılan kişi ve eskalasyon davranışı. Bunlar
-ADR-0006'nın konusudur; o karar verilmeden `assigned_department_id`'yi yazan bir
-geçiş tanımlanamaz.
+Departman hedefli `target_strategy` sorusu [ADR-0006](decisions/0006-departman-hedefli-target-strategy.md)
+ile kapandı (**Kabul Edildi**, 4 Eylül 2026): yalnız `DEPARTMENT` açılır ve
+`assigned_department_id`'yi yazan yol `DEPARTMANA_GONDER` aksiyonudur.
+`DEPARTMENT_ROLE`, `PARENT_DEPARTMENT` ve `EXPLICIT_USER` ile hiyerarşi üzerinden
+eskalasyon **dondurulmuş kalır**.
 
 ### 15.1. `departments`
 
@@ -777,7 +792,8 @@ Bu sözleşme aşağıdakilerin hemen uygulanmasını istemez:
 - workflow draft/publish/versioning;
 - çoklu kullanıcı rolü;
 - admin tarafından yeni permission türü oluşturma;
-- departman üyelik ve routing DDL'i;
+- ~~departman üyelik ve routing DDL'i~~ — **Workflow V1 kapsamına alındı**
+  (4 Eylül 2026 plan güncellemesi); bkz. §15;
 - `records.assigned_to` kolonunun yeniden adlandırılması;
 - audit tablolarının yeniden modellenmesi;
 - mevcut enumların tek adımda kaldırılması;

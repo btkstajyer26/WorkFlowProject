@@ -37,7 +37,7 @@ Kanonik uygulama kaynakları:
 | Geçiş kuralı okuma sınırı | [`TransitionRuleSource`](../backend/src/main/java/btk/staj/WorkFlowProject/workflow/statemachine/TransitionRuleSource.java) |
 | Üretim kural adapteri | [`DbTransitionRuleSource`](../backend/src/main/java/btk/staj/WorkFlowProject/workflow/adapter/DbTransitionRuleSource.java) |
 | DB okuma adapteri | [`JpaTransitionRuleRecordReader`](../backend/src/main/java/btk/staj/WorkFlowProject/workflow/adapter/JpaTransitionRuleRecordReader.java) |
-| Parity ve veritabanısız test referansı | [`StaticTransitionRuleSource`](../backend/src/main/java/btk/staj/WorkFlowProject/workflow/statemachine/StaticTransitionRuleSource.java) ve [`TransitionRules`](../backend/src/main/java/btk/staj/WorkFlowProject/workflow/statemachine/TransitionRules.java) |
+| Parity ve veritabanısız test referansı (`TZ-1` ile test ağacında) | [`StaticTransitionRuleSource`](../backend/src/test/java/btk/staj/WorkFlowProject/workflow/statemachine/StaticTransitionRuleSource.java) ve [`TransitionRules`](../backend/src/test/java/btk/staj/WorkFlowProject/workflow/statemachine/TransitionRules.java) |
 | Doğrulama sırası | [`WorkflowTransitionValidator`](../backend/src/main/java/btk/staj/WorkFlowProject/workflow/statemachine/WorkflowTransitionValidator.java) |
 | Hedef çözümleme | [`TargetUserResolver`](../backend/src/main/java/btk/staj/WorkFlowProject/workflow/service/TargetUserResolver.java) |
 | Uygulama akışı | [`WorkflowApplicationService`](../backend/src/main/java/btk/staj/WorkFlowProject/workflow/service/WorkflowApplicationService.java) |
@@ -489,6 +489,18 @@ Başlangıç şartnamesiyle bilinçli veya fiilî uygulama farkları da korunmal
 
 - Başkan geri gönderme hedefini serbestçe seçmez; Çalışana dönüş `createdBy`, Başkan Yardımcısına dönüş `lastDeputyId` ile sabittir.
 - Şartnamedeki “tüm ilgililer” ifadesine karşılık mevcut uygulama atamalı geçişte yeni atanan kullanıcıyı; terminal geçişte kaydı oluşturan ile son Başkan Yardımcısını seçer.
+
+Yukarıdaki boşlukların bir kısmı **Workflow V1 açık işidir**, bir kısmı bilinçli olarak
+**Workflow V2'ye** bırakılmıştır:
+
+| Boşluk | Nereye ait |
+| --- | --- |
+| Görünürlüğün `RecordAccessPolicy` + `RecordSpecifications` ikizliği ve dinamik role açılması | Workflow V1 — `WF-2C2` / `DB-8` |
+| Departmana atama, üyelik, routing ve `actorHoldsAssignment`'ın departman anlamı | Workflow V1 — `DB-11`/`DB-12`/`DB-13`, `WF-5`/`WF-6`; ADR-0005, ADR-0006 ve ADR-0007 kabul edildi |
+| Mevcut geçişe dinamik aktör rolü bağlama ve Admin'den rol/permission yönetimi | Workflow V1 — `WF-8`/`AP-2`/`AP-3`/`AP-8` |
+| WebSocket bildirim kanalı | Workflow V1 — `NT-2`…`NT-4` |
+| Aksiyon metadata'sının enum'dan tabloya taşınması | V1 acceptance'ı için zorunlu değil |
+| Grafik topolojisinin arayüzden düzenlenmesi, workflow definition/versioning, draft/publish | **Workflow V2** — V1'de yasak (DB-1 §14) |
 
 Geçiş kuralları veritabanından okunur; `TransitionRules` statik tablosu test ağacındaki parity ve veritabanısız test referansıdır. Workflow rol kimliği `WF-2D2` ile tamamen `RoleId`'ye taşındı. Görünürlük modelinin dinamikleşmesi ve WebSocket bildirim kanalı ise hâlâ mevcut davranış değildir. HTTP istek audit'i `ADMIN` sistem anahtarında `audit_logs`, diğerlerinde `user_audit_logs` tablosuna gider; rolün yeniden adlandırılması bu dağılımı değiştirmez.
 

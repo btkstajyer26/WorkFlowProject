@@ -8,8 +8,10 @@ Bu dizin, projeyi uzun vadede etkileyen kararları Architecture Decision Record 
 | --- | --- | --- |
 | [0001](0001-modul-bazli-paketleme.md) | Backend'i modül (feature) bazlı paketleme | Kabul Edildi |
 | [0002](0002-mobil-istemci-teknolojisi.md) | Mobil istemci teknolojisi — React Native + Expo | Kabul Edildi |
-| [0003](0003-veri-tanimli-akis-motoru-ve-birim-bazli-roller.md) | Veri tanımlı akış motoru ve birim bazlı roller | Önerildi |
+| [0003](0003-veri-tanimli-akis-motoru-ve-birim-bazli-roller.md) | Veri tanımlı akış motoru ve birim bazlı roller | Yerine Geçildi (ADR-0005 · ADR-0007) |
 | [0005](0005-departman-atamasi-ve-akis-kurali.md) | Departman ataması ve akış kuralı | Kabul Edildi |
+| [0006](0006-departman-hedefli-target-strategy.md) | Departman hedefli `target_strategy` ve gönderim sözleşmesi | Kabul Edildi |
+| [0007](0007-rol-kapasitesi-ve-birim-tekilligi.md) | Rol kapasitesi ve birim tekilliği | Kabul Edildi |
 
 > ⚠️ **ADR-0003 ile bugün uygulanan model çelişiyor.** ADR, rolün **daire başına**
 > tekil olmasını öneriyor: `roles.scope` (`GLOBAL`/`UNIT`/`MULTI`),
@@ -18,9 +20,18 @@ Bu dizin, projeyi uzun vadede etkileyen kararları Architecture Decision Record 
 > (`V12` ile geldi; `BASKAN`, `BASKAN_YARDIMCISI` ve `ADMIN` için `1`) ve kodda
 > birim/departman kavramı henüz yok.
 >
-> Bu fark bilinçli olarak çözülmedi. Departman modeli ile `DB-8` görünürlük
-> sözleşmesi yazılırken karara bağlanmalıdır. ADR silinmedi çünkü seçenekleri
-> tartışılmış tek departman/rol kaynağı odur; durumu `Önerildi` olarak kalıyor.
+> **Bu fark [ADR-0005](0005-departman-atamasi-ve-akis-kurali.md) ile karara
+> bağlandı (3 Eylül 2026):** birim semantiği `departments` + `department_members`
+> ile taşınır, yetki global `users.role_id` ile çözülür; `roles.scope` ve
+> `users.org_unit_id` açılmaz. ADR-0003 bu nedenle `Yerine Geçildi` durumundadır ve
+> seçenek tartışması için kayıtta kalır.
+>
+> ADR-0003'ün diğer yarısı — tekilliğin **nerede zorlanacağı** —
+> [ADR-0007](0007-rol-kapasitesi-ve-birim-tekilligi.md) ile karara bağlandı:
+> `roles.max_users` Workflow V1 boyunca korunur, invariant uygulama katmanında
+> (`RoleCapacityService` + rol satırı kilidi) zorlanır ve ADR-0003'ün kısmi `UNIQUE`
+> indeks önerisi reddedilir. Bu, README'de açık madde olarak duran "invariant yalnız
+> uygulama seviyesinde" durumunu bilinçli bir karara dönüştürür.
 >
 > Buradaki fark yalnız **rol kapsamı** içindir. ADR-0003'ün motor tarafı
 > (kuralların veriye taşınması, `hasAuthority` dönüşümü, `RoleId`) fiilen

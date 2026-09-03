@@ -176,8 +176,8 @@ Aşağıdakiler uygulanmış davranışlardır:
 
 - Yeni kullanıcıları yalnız Admin oluşturur ve **her hesap daima Çalışan rolüyle başlar**; başlangıç rolü dışarıdan seçilemez (`UserService.createUser`).
 - Başkan Yardımcısı, Başkan ve Admin rolleri yalnız ayrı ve audit'lenen bir Admin işlemiyle (`changeRole`) atanır.
-- Bu üç rol **tekildir**: aynı anda yalnız bir aktif kullanıcı tutabilir.
-- Pasif tekil rol sahibi yeniden etkinleştirilirken de `ensureSingletonRoleAvailable` çalışır; aynı rolde başka aktif kullanıcı varsa yazma işlemi reddedilir.
+- Bu üç rol **tekildir**: aynı anda yalnız bir aktif kullanıcı tutabilir. Tekillik artık kodda sabit bir rol listesiyle değil, `roles.max_users` kolonuyla taşınır (`V12`; üçü için değer `1`).
+- Kapasite kontrolü ortak `RoleCapacityService` içindedir; oluşturma, bootstrap, rol değiştirme, yeniden etkinleştirme ve yardımcı devri aynı yolu kullanır. Pasif tekil rol sahibi yeniden etkinleştirilirken de çalışır; aynı rolde başka aktif kullanıcı varsa yazma işlemi reddedilir.
 - Admin rolü tek başına iş akışı kayıtlarına erişim vermez; `RecordAccessPolicy` Admin için boş kapsam üretir.
 - Nihai onay ve ret yalnız Başkan tarafından, yalnız kendisine atanmış kayıtta yapılabilir.
 - Admin hesabı aktiflik ucundan pasifleştirilemez (`UserService.setActive`).
@@ -189,8 +189,8 @@ Aşağıdakiler uygulanmış davranışlardır:
 - **Son Admin'in rolü korunmuyor.** `setActive` Admin hesabının pasifleştirilmesini engelliyor, ancak `changeRole` sistemdeki tek Admin'in rolünü başka bir role çevirmeyi engellemiyor. Tekil rol kontrolü yalnız bir role *girerken* çalışıyor, *çıkarken* değil. Sistem yönetimsiz kalabilir.
 - **Audit append-only kuralı veritabanında zorlanmıyor.** Uygulama güncelleme veya silme ucu sunmuyor, fakat DB trigger'ı ya da rol kısıtı yok.
 - **E-posta teslim garantisi yok.** Gönderim asenkron ve best-effort; retry, outbox veya DLQ bulunmuyor.
-- **Bu belgedeki kararların çoğu ADR olarak kaydedilmedi.** `decisions/` altında iki ADR var (modül bazlı paketleme, mobil istemci teknolojisi); ancak port/adapter sınırı ve tekil rol modeli kararları yalnız bu belgede anlatılıyor, ayrı birer ADR'leri yok. (`records.status` `V16` ile sabit CHECK'ten `workflow_statuses(name)` FK'sine geçti; kolon `VARCHAR` kalmaya devam ediyor.)
+- **Bu belgedeki kararların çoğu ADR olarak kaydedilmedi.** `decisions/` altında bugün beş ADR var (modül bazlı paketleme, mobil istemci teknolojisi, veri tanımlı akış motoru, departman ataması, departman hedefli `target_strategy`); ancak port/adapter sınırı ve tekil rol modeli kararları yalnız bu belgede anlatılıyor, ayrı birer ADR'leri yok. (`records.status` `V16` ile sabit CHECK'ten `workflow_statuses(name)` FK'sine geçti; kolon `VARCHAR` kalmaya devam ediyor.)
 
 - **Görünürlük kuralı iki yerde ayrı yazılı.** `RecordAccessPolicy` (tek kayıt, boolean) ve `RecordSpecifications` (liste, JPA predicate) aynı kuralın iki kopyasıdır ve ikisi de hâlâ rol `switch`'i kullanır. Bu ikizlik geçmişte iki kez sessiz görünürlük hatasına yol açtı; tek kaynağa indirilmesi `DB-8` visibility sözleşmesini bekliyor.
-- **Geçiş grafiği arayüzden düzenlenemiyor.** `workflow_transitions` yalnız Flyway seed'i ile değişir; versiyonlama olmadan aktif grafiği düzenleyen bir yönetim arayüzü bilinçli olarak açılmadı (DB-1 §13).
+- **Geçiş grafiği arayüzden düzenlenemiyor.** `workflow_transitions` yalnız Flyway seed'i ile değişir; versiyonlama olmadan aktif grafiği düzenleyen bir yönetim arayüzü bilinçli olarak açılmadı (DB-1 §14). Workflow V1 bu sınırı korur; grafik topolojisinin düzenlenmesi Workflow V2 kapsamındadır.
 - **WebSocket bildirim kanalı yoktur.** Bildirimler REST/polling ile taşınır.

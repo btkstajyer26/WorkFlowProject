@@ -15,9 +15,9 @@ kişi seçilmişse işlemi o kişi yapar; seçilmemişse departmanın önceden t
 akışı kimi işaret ediyorsa o yapar. Bu ADR o yönün **hangi seçeneklerle** hayata
 geçtiğini sabitler. Kararların veri şekli `DB-1` §15'tedir; burada tekrarlanmaz.
 
-Karar üç kulvarı birden ilgilendiriyor: Alperen `department_members` ve akış
-kuralı tablosunu (`DB-12`), Tamer akış kuralı editörünü (`AP-5`) ve çözümleyiciyi
-(`WF-6`), Bahadır departmana fan-out'u (`NT-5`) buna göre yazacak. `DB-1` §15 de
+Karar dört kulvarı birden ilgilendiriyor: Alperen `department_members` ve akış
+kuralı tablosunu (`DB-12`), Burak çözümleyiciyi (`WF-6`), Tamer akış kuralı
+editörünü (`AP-5`), Bahadır departmana fan-out'u (`NT-5`) buna göre yazacak. `DB-1` §15 de
 bu kararlar verilmeden departman DDL'inin bağlayıcı olmayacağını söylüyordu.
 
 Bağlayıcı kısıtlar:
@@ -26,8 +26,9 @@ Bağlayıcı kısıtlar:
   validator'a giremez (`SM-5` ile kazanılan altyapısız test edilebilirlik).
 - Validator'ın dokuz kontrolünün **sırası ve hata kodları** değişmez; negatif
   testler tam hata kodu assert ediyor.
-- Mevcut kişiye-atama davranışı birebir korunur; backend test eşiği (bugün 639)
-  düşmez.
+- Mevcut kişiye-atama davranışı birebir korunur; backend test eşiği düşmez.
+  ADR yazılırken eşik 639'du; `TZ-1` (PR #64) sonrası **646**'dır — bağlayıcı olan
+  o günün sayısı değil, kapsamın azaltılmamasıdır.
 
 ## Değerlendirilen Seçenekler
 
@@ -114,7 +115,8 @@ olduğu için çoklu üyelik iki farklı rol de üretmiyor.
 
 **S1 → B.** `ActorRequirement` bu iterasyonda genişlemez. Departman desteği
 dördüncü kontrolün *içine* girer, yeni bir adım olarak araya girmez.
-`actorIsAssignee` şu soruya cevap verir hâle gelir:
+`actorHoldsAssignment` (aşağıda `S5` ile yeniden adlandırılan alan) şu soruya
+cevap verir hâle gelir:
 
 ```text
 aktör kaydın assigned_to'su mu
@@ -171,8 +173,10 @@ altyapısız test edilebilir hâle gelir. `RecordStatus`'a bayrak,
 `workflow_statuses`'a kolon eklenmez.
 
 Statü seviyesindeki garanti — "atama isteyen bir statüye yalnız `NONE` olmayan
-geçişlerle girilebilir" — geçiş grafiğinin özelliğidir ve editör tarafında
-doğrulanır (`DB-1` §14 workflow designer sınırı).
+geçişlerle girilebilir" — geçiş grafiğinin özelliğidir. **Workflow V1'de grafik
+topolojisi sabittir ve Admin onu değiştiremez**, dolayısıyla garantiyi seed'in
+kendisi ve parite/invariant testleri taşır. Publish-time doğrulayıcıya (`DB-1` §14
+workflow designer sınırı) devri Workflow V2 işidir.
 
 Bunlara ek olarak:
 
@@ -207,12 +211,20 @@ dondurmayı çözmek kabul edilmiş bir sözleşmeyi, `chk_transition_target_str
 kısıtını, `V15` seed'ini ve parite testini birlikte değiştirmek demek — `S1`'de
 aynı gerekçeyle reddedilen hamlenin daha büyüğü.
 
-Sonuç: `assigned_department_id`'yi bu iterasyonda hiçbir çalışma zamanı yolu
-yazmaz. `WF-6` çözümleyicisi, `DB-13` seed'i veya repository ile yazılmış departman
-atamalarına karşı test edilir; uçtan uca gönderim akışı **ADR-0006** (departman
-hedefli `target_strategy` ve gönderim sözleşmesi) ile karara bağlanır. Bu ayrım
-bilinçlidir: `DB-11`/`DB-12`/`DB-13`, `WF-5`, `WF-6`, `AP-4`/`AP-5` ve `NT-5` bu
-ADR ile paralel yürüyebilir; yalnız son gönderim adımı ADR-0006'yı bekler.
+Sonuç: `assigned_department_id`'yi bu ADR'nin kendi kapsamında hiçbir çalışma
+zamanı yolu yazmaz. `WF-6` çözümleyicisi, `DB-13` seed'i veya repository ile
+yazılmış departman atamalarına karşı test edilebilir; uçtan uca gönderim akışı
+**ADR-0006** (departman hedefli `target_strategy` ve gönderim sözleşmesi) ile
+karara bağlanır. Bu ayrım bilinçlidir: `DB-11`/`DB-12`/`DB-13`, `WF-5`, `WF-6`,
+`AP-4`/`AP-5` ve `NT-5` bu ADR ile paralel yürüyebilir; yalnız son gönderim adımı
+ADR-0006'yı bekler.
+
+> **Zamanlama güncellemesi (4 Eylül 2026).** Bu ADR yazıldığında gönderim yolu
+> "sonraki iterasyon" idi. Plan güncellemesiyle departman uygulaması **10 Eylül
+> Workflow V1 teslimine alındı**; ADR-0006 de aynı teslimin kritik yolundadır.
+> Yani gönderim yolu ayrı bir iterasyona değil, bu ADR ile **paralel yürüyen bir
+> V1 iş kalemine** ertelenmiştir. Sıra korunur (yazma yolu ADR-0006 kararını
+> bekler), takvim ayrışmaz.
 
 ## Sonuçlar
 
@@ -243,8 +255,11 @@ Maliyet ve riskler:
 - `parent_department_id` davranışsız açıldığı için veri girilir ama hiçbir
   çözümleme yolu onu doğrulamaz; döngü kontrolü yazma yolunda unutulursa `AP-4`
   ağacı sonsuz dallanabilir.
-- Gönderim yolu ADR-0006'ya kaldığı için `WF-6` üretimde tetiklenen bir yol değil;
-  ölü kalmaması testlerle ve `AP-5` editörüyle güvenceye alınır.
+- Gönderim yolu ADR-0006'ya kaldığı için `WF-6` bu ADR tek başına merge edildiğinde
+  üretimde tetiklenen bir yol değildir; ölü kalmaması testlerle ve `AP-5` editörüyle
+  güvenceye alınır. ADR-0006 aynı V1 teslimine alındığından bu boşluk 10 Eylül
+  kabulünde kapanmalıdır — `WF-6`'nın üretimde tetiklenmemesi V1 çıkışında kabul
+  edilebilir bir son durum değildir.
 
 Takip işleri:
 

@@ -1,6 +1,6 @@
 # ADR-0003: Veri tanımlı akış motoru ve birim bazlı roller
 
-- Durum: Önerildi
+- Durum: Yerine Geçildi — [ADR-0005](0005-departman-atamasi-ve-akis-kurali.md) (birim kapsamı) · [ADR-0007](0007-rol-kapasitesi-ve-birim-tekilligi.md) (rol tekilliği) · motor tarafı uygulandı
 - Tarih: 2026-08-25
 - Karar sahipleri: Proje ekibi (mühendislik tarafının talebi üzerine)
 
@@ -14,8 +14,27 @@
 > `WorkflowAction.getExpectedTargetRole()` kaldırıldı. **Uygulanmayan kısım
 > birim bazlı rol kapsamıdır** (`roles.scope`, `users.org_unit_id`,
 > `ROLE_IN_UNIT`); yerine sistem geneli tekillik `roles.max_users` ile taşınıyor.
-> Departman yönü ayrıca
-> [ADR-0005](0005-departman-atamasi-ve-akis-kurali.md) ile karara bağlandı.
+> Birim bazlı rol kapsamı önerisinin yerine
+> [ADR-0005](0005-departman-atamasi-ve-akis-kurali.md) geçti: birim semantiği
+> `roles.scope` / `users.org_unit_id` ile değil `departments` + `department_members`
+> ile taşınır; üyelik kendi rolünü taşımaz, yetki global `users.role_id` ile çözülür
+> (ADR-0005 `S4 → 1`). `ROLE_IN_UNIT` yerine `(departman, durum, aksiyon) → rol`
+> akış kuralı gelir (ADR-0005 `S2`/`S3`).
+>
+> §Karar'ın **"Tekilliğin veritabanında zorlanması"** alt başlığı
+> [ADR-0007](0007-rol-kapasitesi-ve-birim-tekilligi.md) `S2 → 1` ile **reddedildi**:
+> tekillik `roles.scope` enum'u yerine `roles.max_users` sayı kolonuyla taşındığı
+> için kısmi `UNIQUE` indeks veriden okunan sınırı ifade edemez. Invariant uygulama
+> katmanında, `RoleCapacityService` ve rol satırı kilidiyle zorlanır.
+>
+> Aşağıdaki §Karar bölümünün **veri modeli önerisi de uygulanmadı**: `flows`,
+> `flow_steps`, `flow_transitions`, `flow_step_visibility` ve `record_step_holders`
+> yerine `workflow_statuses` / `workflow_actions` / `workflow_transitions` üçlüsü
+> uygulandı; tek adım geri dönüş işaretçisi `records.last_deputy_id` olarak korundu
+> (`TargetStrategy.PREVIOUS_ACTOR`). §Karar içindeki **akış sürümleme** maddesi
+> ("pazarlık konusu değildir") Workflow V1 kapsamında **değildir**; versioning,
+> draft/publish ve grafik düzenleme Workflow V2'ye bırakıldı — sınır
+> `DB-1` §14 ve Workflow V1/V2 planındadır.
 
 ## Bağlam
 

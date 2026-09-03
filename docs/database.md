@@ -369,7 +369,7 @@ PostgreSQL parolası veri volume'ü **ilk oluşturulurken** sabitlenir. `.env` i
 
 - **Append-only kuralı veritabanında zorlanmıyor.** `audit_logs` ve `user_audit_logs` uygulama üzerinden güncellenemez veya silinemez, ancak bunu garanti eden bir trigger ya da rol kısıtı yoktur. Şartname §4.2 "silinemez tablo" diyor; garanti şu an yalnız uygulama seviyesinde.
 - **Bildirim geçmişi için bileşik indeks yok.** Mevcut `(user_id, is_read)` okunmamış sayacına hizmet ediyor; sayfalı geçmiş sorgusu `(user_id, created_at DESC)` indeksinden faydalanır. Veri büyüdükçe değerlendirilmelidir.
-- **Süresi dolmuş e-posta hızlı işlem anahtarları için temizlik işi yok.** `idx_mail_action_tokens_expires_at` hazırdır; ancak satırları zamanlanmış olarak fiziksel temizleyen job henüz yazılmamıştır.
+- ~~Süresi dolmuş e-posta hızlı işlem anahtarları için temizlik işi yok.~~ **Kapandı (`NT-6`).** `TokenCleanupJob` her gece 03:00'te `tokens`, `password_reset_codes` ve `mail_action_tokens` tablolarını birlikte temizler; mail aksiyon anahtarları destek soruları için bir gün bekletilir ve `idx_mail_action_tokens_expires_at` indeksi kullanılır.
 - **`records.version` yalnız workflow tarafında kullanılıyor.** Kayıt CRUD'u aynı korumayı almıyor.
 
 ## Dinamik rol, yetki ve workflow veri modeli (V12–V17)

@@ -212,6 +212,12 @@ Liste ve detay aynı kuralı uygular — mobil ayrıca filtreleme yapmaz:
 Kapsam dışı kayıt listede **hiç dönmez**, sayfa sayısına da girmez. Kimliğiyle
 doğrudan istenirse `403 FORBIDDEN`.
 
+> **Tablo kapalı bir liste değildir.** Dört yerleşik rolün bugünkü kapsamını
+> anlatır; rol katalogu `roles` tablosundan gelir ve panelden yeni rol açılabilir.
+> Rol adı (`roles.name`) değiştirilebilir — istemci rolü ada göre sabit bir listeye
+> karşı doğrulamamalıdır. Dinamik rollerin görünürlük kapsamı `DB-8`/`WF-2C2`
+> görünürlük çalışmasıyla netleşir.
+
 **İçerik dondurma:** Kayıt `DUZENLEME_BEKLIYOR` iken onu geri gönderen Bşk. Yrd.
 **devir anındaki kopyayı** görür — başlık, açıklama, kategori ve ek dosyalar
 dahil. Çalışanın o sırada yaptığı düzenlemeler ona yansımaz. Kayıt
@@ -229,6 +235,12 @@ Yetki `@PreAuthorize` ile değil, durum makinesiyle belirlenir.
 
 **`targetUserId` gönderilmez.** Alan DTO'da duruyor ama backend bilerek yok
 sayıyor; hedefi her aksiyon için sunucu çözer.
+
+> [ADR-0006](decisions/0006-departman-hedefli-target-strategy.md) (**Kabul
+> Edildi**, 4 Eylül 2026) yeni bir `DEPARTMANA_GONDER` aksiyonu ve istekte
+> `targetDepartmentId` alanı getirir. `WorkflowAction` enum'u istemci
+> sözleşmesinde paylaşıldığı için mobil, aksiyonu tanımadan gönderim ekranını
+> açmamalıdır. Bu bölüm uçlar `DB-13`/`V18` ile geldiğinde güncellenir.
 
 Cevap:
 
