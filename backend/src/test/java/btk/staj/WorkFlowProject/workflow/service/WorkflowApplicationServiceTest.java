@@ -1,7 +1,7 @@
 package btk.staj.WorkFlowProject.workflow.service;
 
 import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
-
+import btk.staj.WorkFlowProject.support.WorkflowRoleFixtures;
 import btk.staj.WorkFlowProject.workflow.dto.WorkflowActionRequest;
 import btk.staj.WorkFlowProject.workflow.dto.WorkflowActionResponse;
 import btk.staj.WorkFlowProject.workflow.exception.WorkflowApplicationException;
@@ -89,7 +89,7 @@ class WorkflowApplicationServiceTest {
         // Validator ve servis AYNI kaynagi gorur; aksi halde ikisi farkli kural kumesine
         // bakar ve servisin "validator izin verdigi gecisi kaynak tanimiyor" korumasi
         // yanlis yere tetiklenirdi.
-        TransitionRuleSource ruleSource = new StaticTransitionRuleSource();
+        TransitionRuleSource ruleSource = new StaticTransitionRuleSource(WorkflowRoleFixtures.roleIds());
         service = new WorkflowApplicationService(
                 recordPort,
                 currentActorProvider,

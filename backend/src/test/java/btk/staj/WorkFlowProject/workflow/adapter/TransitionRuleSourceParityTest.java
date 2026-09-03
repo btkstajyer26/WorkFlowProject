@@ -6,11 +6,13 @@ import btk.staj.WorkFlowProject.workflow.port.TransitionRuleRecordReader;
 import btk.staj.WorkFlowProject.workflow.repository.WorkflowActionRepository;
 import btk.staj.WorkFlowProject.workflow.repository.WorkflowStatusRepository;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
+import btk.staj.WorkFlowProject.workflow.statemachine.RoleId;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import btk.staj.WorkFlowProject.workflow.statemachine.StaticTransitionRuleSource;
 import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRule;
 import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRuleSource;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,8 +20,11 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -64,7 +69,20 @@ class TransitionRuleSourceParityTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
-    private final TransitionRuleSource staticSource = new StaticTransitionRuleSource();
+    private TransitionRuleSource staticSource;
+    private Map<RoleId, RoleName> legacyRoles;
+
+    @BeforeEach
+    void resolveReferenceIdentitiesFromDatabase() {
+        Map<RoleName, RoleId> ids = new EnumMap<>(RoleName.class);
+        jdbcTemplate.query("SELECT system_key, id FROM roles WHERE system_key IS NOT NULL", rs -> {
+            ids.put(RoleName.valueOf(rs.getString("system_key")), new RoleId(rs.getInt("id")));
+        });
+        assertThat(ids).containsKeys(RoleName.values());
+        staticSource = new StaticTransitionRuleSource(ids);
+        legacyRoles = ids.entrySet().stream().collect(
+                Collectors.toUnmodifiableMap(Map.Entry::getValue, Map.Entry::getKey));
+    }
 
     @Test
     @DisplayName("veritabani sekiz aktif kural uretir")
@@ -244,7 +262,7 @@ class TransitionRuleSourceParityTest {
      * veritabani durumunu oku" demektir.
      */
     private TransitionRuleSource databaseSource() {
-        return new DbTransitionRuleSource(reader);
+        return new DbTransitionRuleSource(reader, legacyRoles);
     }
 
     private static String[] names(Enum<?>[] values) {

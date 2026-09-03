@@ -2,17 +2,20 @@ package btk.staj.WorkFlowProject.rbac.service;
 
 import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
 import btk.staj.WorkFlowProject.rbac.Role;
+import btk.staj.WorkFlowProject.support.WorkflowRoleFixtures;
 import btk.staj.WorkFlowProject.user.entity.User;
 import btk.staj.WorkFlowProject.workflow.adapter.DbTransitionRuleSource;
 import btk.staj.WorkFlowProject.workflow.exception.TransitionRuleConfigurationException;
 import btk.staj.WorkFlowProject.workflow.model.TransitionRuleRecord;
 import btk.staj.WorkFlowProject.workflow.statemachine.*;
 import org.junit.jupiter.api.Test;
+
 import java.util.*;
+
 import static org.assertj.core.api.Assertions.*;
 
 class PermissionAuthorizationTest {
-    private final StaticTransitionRuleSource rules = new StaticTransitionRuleSource();
+    private final StaticTransitionRuleSource rules = new StaticTransitionRuleSource(WorkflowRoleFixtures.roleIds());
     private final WorkflowTransitionValidator validator = new WorkflowTransitionValidator(rules);
 
     private TransitionContext context(RecordStatus status, boolean actor, Set<String> codes) {
@@ -41,7 +44,14 @@ class PermissionAuthorizationTest {
     @Test void activeRuleCannotOmitPermissionMetadata() {
         for (String code : Arrays.asList(null, "", " ")) {
             assertThatThrownBy(() -> new DbTransitionRuleSource(() -> List.of(new TransitionRuleRecord(
-                    "BASKAN_INCELEMESINDE", "ONAYLA", "BASKAN", "ASSIGNEE", "ONAYLANDI", "NONE", null, code))))
+                    "BASKAN_INCELEMESINDE",
+                    "ONAYLA",
+                    WorkflowRoleFixtures.value(RoleName.BASKAN),
+                    "ASSIGNEE",
+                    "ONAYLANDI",
+                    "NONE",
+                    null,
+                    code)), WorkflowRoleFixtures.legacyRoles()))
                     .isInstanceOf(TransitionRuleConfigurationException.class)
                     .hasMessageContaining("requiredPermissionCode");
         }

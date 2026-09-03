@@ -1,6 +1,7 @@
 package btk.staj.WorkFlowProject.workflow.adapter;
 
 import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
+import btk.staj.WorkFlowProject.support.WorkflowRoleFixtures;
 import btk.staj.WorkFlowProject.workflow.exception.TransitionRuleConfigurationException;
 import btk.staj.WorkFlowProject.workflow.model.TransitionRuleRecord;
 import btk.staj.WorkFlowProject.workflow.port.TransitionRuleRecordReader;
@@ -22,8 +23,7 @@ class ReloadableTransitionRuleSourceTest {
     @Test
     @DisplayName("acilista ilk snapshot'i kurar")
     void loadsInitialSnapshot() {
-        ReloadableTransitionRuleSource source = new ReloadableTransitionRuleSource(
-                mutableReader(sendRule()));
+        ReloadableTransitionRuleSource source = new ReloadableTransitionRuleSource(mutableReader(sendRule()), WorkflowRoleFixtures::legacyRoles);
 
         assertThat(source.all()).hasSize(1);
         assertThat(source.find(RecordStatus.TASLAK, WorkflowAction.GONDER, RoleName.CALISAN))
@@ -34,7 +34,7 @@ class ReloadableTransitionRuleSourceTest {
     @DisplayName("reload veritabanindaki degisikligi gorur")
     void reloadPicksUpChangedRules() {
         MutableReader reader = mutableReader(sendRule());
-        ReloadableTransitionRuleSource source = new ReloadableTransitionRuleSource(reader);
+        ReloadableTransitionRuleSource source = new ReloadableTransitionRuleSource(reader, WorkflowRoleFixtures::legacyRoles);
         assertThat(source.all()).hasSize(1);
 
         reader.rows = List.of(sendRule(), approveRule());
@@ -55,11 +55,16 @@ class ReloadableTransitionRuleSourceTest {
     @DisplayName("basarisiz reload eski snapshot'i korur")
     void failedReloadKeepsPreviousSnapshot() {
         MutableReader reader = mutableReader(sendRule());
-        ReloadableTransitionRuleSource source = new ReloadableTransitionRuleSource(reader);
+        ReloadableTransitionRuleSource source = new ReloadableTransitionRuleSource(reader, WorkflowRoleFixtures::legacyRoles);
 
         reader.rows = List.of(new TransitionRuleRecord(
-                "TASLAK", "GONDER", "CALISAN", "CREATOR", "BSK_YRD_INCELEMESINDE",
-                "UNKNOWN_STRATEGY", "BASKAN_YARDIMCISI",
+                "TASLAK",
+                "GONDER",
+                WorkflowRoleFixtures.value(RoleName.CALISAN),
+                "CREATOR",
+                "BSK_YRD_INCELEMESINDE",
+                "UNKNOWN_STRATEGY",
+                WorkflowRoleFixtures.value(RoleName.BASKAN_YARDIMCISI),
                 AuthorizationFixtures.requiredPermission("GONDER")));
 
         assertThatThrownBy(source::reload)
@@ -76,7 +81,7 @@ class ReloadableTransitionRuleSourceTest {
     @DisplayName("bos tablo ile yapilan reload da eski snapshot'i korur")
     void reloadWithEmptyTableKeepsPreviousSnapshot() {
         MutableReader reader = mutableReader(sendRule());
-        ReloadableTransitionRuleSource source = new ReloadableTransitionRuleSource(reader);
+        ReloadableTransitionRuleSource source = new ReloadableTransitionRuleSource(reader, WorkflowRoleFixtures::legacyRoles);
 
         reader.rows = List.of();
 
@@ -90,7 +95,7 @@ class ReloadableTransitionRuleSourceTest {
     @Test
     @DisplayName("acilista bos tablo uygulamayi durdurur")
     void stillFailsFastOnStartup() {
-        assertThatThrownBy(() -> new ReloadableTransitionRuleSource(mutableReader()))
+        assertThatThrownBy(() -> new ReloadableTransitionRuleSource(mutableReader(), WorkflowRoleFixtures::legacyRoles))
                 .isInstanceOf(TransitionRuleConfigurationException.class)
                 .hasMessageContaining("no active transition rules");
     }
@@ -99,7 +104,7 @@ class ReloadableTransitionRuleSourceTest {
     @DisplayName("reader olmadan olusturulamaz")
     void rejectsNullReader() {
         assertThatNullPointerException()
-                .isThrownBy(() -> new ReloadableTransitionRuleSource(null))
+                .isThrownBy(() -> new ReloadableTransitionRuleSource(null, WorkflowRoleFixtures::legacyRoles))
                 .withMessageContaining("reader");
     }
 
@@ -121,13 +126,25 @@ class ReloadableTransitionRuleSourceTest {
 
     private static TransitionRuleRecord sendRule() {
         return new TransitionRuleRecord(
-                "TASLAK", "GONDER", "CALISAN", "CREATOR", "BSK_YRD_INCELEMESINDE",
-                "ROLE", "BASKAN_YARDIMCISI", AuthorizationFixtures.requiredPermission("GONDER"));
+                "TASLAK",
+                "GONDER",
+                WorkflowRoleFixtures.value(RoleName.CALISAN),
+                "CREATOR",
+                "BSK_YRD_INCELEMESINDE",
+                "ROLE",
+                WorkflowRoleFixtures.value(RoleName.BASKAN_YARDIMCISI),
+                AuthorizationFixtures.requiredPermission("GONDER"));
     }
 
     private static TransitionRuleRecord approveRule() {
         return new TransitionRuleRecord(
-                "BASKAN_INCELEMESINDE", "ONAYLA", "BASKAN", "ASSIGNEE", "ONAYLANDI",
-                "NONE", null, AuthorizationFixtures.requiredPermission("ONAYLA"));
+                "BASKAN_INCELEMESINDE",
+                "ONAYLA",
+                WorkflowRoleFixtures.value(RoleName.BASKAN),
+                "ASSIGNEE",
+                "ONAYLANDI",
+                "NONE",
+                null,
+                AuthorizationFixtures.requiredPermission("ONAYLA"));
     }
 }

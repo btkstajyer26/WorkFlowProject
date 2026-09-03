@@ -1,7 +1,8 @@
 package btk.staj.WorkFlowProject.workflow.statemachine;
 
 import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
-
+import btk.staj.WorkFlowProject.support.WorkflowRoleFixtures;
+import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -23,7 +24,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 class WorkflowTransitionValidatorTest {
 
     private final WorkflowTransitionValidator validator =
-            new WorkflowTransitionValidator(new StaticTransitionRuleSource());
+            new WorkflowTransitionValidator(new StaticTransitionRuleSource(WorkflowRoleFixtures.roleIds()));
 
     // ------------------------------------------------------------------
     // Pozitif gecisler - gecis matrisindeki sekiz satir
@@ -500,7 +501,7 @@ class WorkflowTransitionValidatorTest {
             for (RecordStatus status : RecordStatus.values()) {
                 for (WorkflowAction action : WorkflowAction.values()) {
                     for (RoleName actorRole : RoleName.values()) {
-                        if (TransitionRules.find(status, action, actorRole).isPresent()) {
+                        if (WorkflowRoleFixtures.rules().find(status, action, actorRole).isPresent()) {
                             izinliBirlesimSayisi++;
                         }
                     }
@@ -552,7 +553,7 @@ class WorkflowTransitionValidatorTest {
      * gelinmeden once reddedilirler.
      */
     private static RoleName expectedTargetRoleOf(RecordStatus status, WorkflowAction action, RoleName role) {
-        return TransitionRules.find(status, action, role)
+        return WorkflowRoleFixtures.rules().find(status, action, role)
                 .map(TransitionRule::expectedTargetRole)
                 .orElse(null);
     }
