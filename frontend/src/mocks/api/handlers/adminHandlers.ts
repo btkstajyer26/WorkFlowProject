@@ -3,12 +3,13 @@ import type {
   CreateUserRequest,
   ChangeRoleRequest,
   PagedResponseUserResponse,
+  RoleResponse,
   UserAuditLogResponse,
   UserResponse,
   SetActiveRequest,
 } from '../../../api/generated/data-contracts'
 import { apiBaseUrl } from '../../../api/config'
-import { mockAdminAuditLogs, mockManagedUsers } from '../../admin'
+import { mockAdminAuditLogs, mockAdminRoles, mockManagedUsers } from '../../admin'
 import { getAuthenticatedMockUser, mockApiUsers } from '../auth'
 import { mockApiDb } from '../db'
 import { apiErrorResponse, forbiddenResponse, unauthorizedResponse } from '../responses'
@@ -67,6 +68,24 @@ export const adminHandlers = [
       totalPages: Math.ceil(filtered.length / size),
     }
     return HttpResponse.json(response)
+  }),
+
+  /**
+   * Uç sayfalanmamış düz bir dizi döndürür ve pasif rolleri hiç göndermez.
+   * `RoleResponse` id/name/description'dan ibaret olduğu için fixture'daki
+   * `systemKey` dışarı verilmez.
+   */
+  http.get(`${apiBaseUrl}/api/admin/roles`, ({ request }) => {
+    const actor = getAuthenticatedMockUser(request)
+    if (!actor) return unauthorizedResponse()
+    if (actor.role !== 'ADMIN') return forbiddenResponse()
+
+    const content: RoleResponse[] = mockAdminRoles.map((role) => ({
+      id: role.id,
+      name: role.name,
+      description: role.description ?? undefined,
+    }))
+    return HttpResponse.json(content)
   }),
 
   http.get(`${apiBaseUrl}/api/admin/audit-logs`, ({ request }) => {
