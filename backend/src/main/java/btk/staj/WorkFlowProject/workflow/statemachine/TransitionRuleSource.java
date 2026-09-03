@@ -9,9 +9,9 @@ import java.util.Optional;
  *
  * <p>Bu arayuz bilerek saf Java'dir: Spring, JPA veya repository bagimliligi
  * yoktur. Production'da {@code workflow_transitions} tablosunu okuyan
- * {@code DbTransitionRuleSource} tarafindan uygulanir;
- * {@link StaticTransitionRuleSource} yalnizca parity testinin ve veritabanisiz
- * testlerin referansi olarak durur.
+ * {@code DbTransitionRuleSource} tarafindan uygulanir. Test agacindaki
+ * {@code StaticTransitionRuleSource} yalnizca parity testinin ve veritabanisiz
+ * testlerin referansi olarak durur; production artifact'inda bulunmaz (TZ-1).
  *
  * <p>Port yalnizca <em>okuma</em> sozlesmesidir. Cache, reload, kayit veya
  * silme gibi yonetim metotlari bu portun sorumlulugu degildir; onlar

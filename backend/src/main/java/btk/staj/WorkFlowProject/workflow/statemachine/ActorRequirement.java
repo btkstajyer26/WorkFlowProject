@@ -21,13 +21,14 @@ public enum ActorRequirement {
      * Verilen iliskilerin bu gereksinimi karsilayip karsilamadigini doner.
      *
      * @param actorIsCreator  aktor kaydi olusturan kullanici mi
-     * @param actorIsAssignee aktor kaydin guncel atanani mi
+     * @param actorHoldsAssignment atama aktorde mi (dogrudan atanan veya
+     *                             ADR-0005 sonrasi departman uzerinden yetkili)
      */
-    public boolean isSatisfiedBy(boolean actorIsCreator, boolean actorIsAssignee) {
+    public boolean isSatisfiedBy(boolean actorIsCreator, boolean actorHoldsAssignment) {
         return switch (this) {
             case CREATOR -> actorIsCreator;
-            case ASSIGNEE -> actorIsAssignee;
-            case CREATOR_AND_ASSIGNEE -> actorIsCreator && actorIsAssignee;
+            case ASSIGNEE -> actorHoldsAssignment;
+            case CREATOR_AND_ASSIGNEE -> actorIsCreator && actorHoldsAssignment;
         };
     }
 }

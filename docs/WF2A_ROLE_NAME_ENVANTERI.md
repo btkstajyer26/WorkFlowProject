@@ -1072,7 +1072,8 @@ ve okuyan biri bunları güncel sanmamalıdır:
 | "`AdminController` class-level `hasRole('ADMIN')`" (§8) | Sınıf düzeyinde anotasyon yok; her metot kendi permission'ını istiyor |
 | Test sayıları: `506 / 14 error`, `522`, `532`, `592` (§18.4, §18.8) | Tarihli ölçümlerdir, baseline değil. Güncel eşik için ekip belgesine bakınız |
 
-Envanterin **yönü** hâlâ geçerli: `RoleName` üç production noktasında duruyor
-(`TransitionRule.actorRole`/`expectedTargetRole`, `PermissionService` imzaları,
-görünürlük `switch`'leri) ve §13'teki PR sırası `WF-2D2` ile `WF-2C2` için hâlâ yol
+Bu errata'nın kendisi de kısmen eskidi: `WF-2D2` (PR #61/#60) sonrasında
+`TransitionRule` ve `PermissionService` `RoleId` taşıyor. `RoleName` bugün yalnız
+görünürlük `switch`'lerinde, istemci uyumluluk alanlarında ve test referanslarında
+duruyor; kaldırılması `WF-2E`'nin işidir. §13'teki PR sırası `WF-2C2` için hâlâ yol
 gösterici.

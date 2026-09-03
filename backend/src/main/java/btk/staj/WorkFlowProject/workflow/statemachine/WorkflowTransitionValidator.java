@@ -52,7 +52,7 @@ public class WorkflowTransitionValidator {
         }
 
         // 4. Aktor iliskisi ve gecisin gerekli permission'i birlikte saglanmali.
-        if (!rule.get().actorRequirement().isSatisfiedBy(context.actorIsCreator(), context.actorIsAssignee())
+        if (!rule.get().actorRequirement().isSatisfiedBy(context.actorIsCreator(), context.actorHoldsAssignment())
                 || !context.actorPermissionCodes().contains(rule.get().requiredPermissionCode())) {
             return TransitionDecision.rejected(WorkflowErrorCode.WORKFLOW_FORBIDDEN);
         }

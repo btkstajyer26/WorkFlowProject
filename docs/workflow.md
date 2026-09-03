@@ -73,7 +73,7 @@ flowchart LR
     EVENT --> PUSH["Commit sonrası FCM push"]
 ```
 
-Durum makinesi ve uygulama servisi doğrudan Spring, JPA veya HTTP'ye bağlı değildir. `WorkflowTransitionValidator` ve `PermissionService` kuralları `TransitionRuleSource` üzerinden okur. `WorkflowConfiguration` bu sınıra `DbTransitionRuleSource` adapterini bağlar. Adapter açılışta `JpaTransitionRuleRecordReader` ile aktif geçişleri yükler ve değiştirilemez bir snapshot tutar; boş veya geçersiz kural verisi uygulamanın açılmasını engeller. Canlı yeniden yükleme yoktur. Statik kaynak yalnız parity ve veritabanısız testlerde referanstır. Controller, saf uygulama servisini doğrudan değil, transaction açan `WorkflowActionService` üzerinden çağırır.
+Durum makinesi ve uygulama servisi doğrudan Spring, JPA veya HTTP'ye bağlı değildir. `WorkflowTransitionValidator` ve `PermissionService` kuralları `TransitionRuleSource` üzerinden okur. `WorkflowConfiguration` bu sınıra `ReloadableTransitionRuleSource` bean'ini bağlar; sarmaladığı `DbTransitionRuleSource` açılışta `JpaTransitionRuleRecordReader` ile aktif geçişleri yükler ve değiştirilemez bir snapshot tutar. Boş veya geçersiz kural verisi uygulamanın açılmasını engeller. Snapshot `WORKFLOW_MANAGE` gerektiren `POST /api/workflow/rules/reload` ile yenilenebilir; geçersiz yeni kural kümesi yüklenmez ve çalışan snapshot korunur. Statik kaynak yalnız parity ve veritabanısız testlerde referanstır ve test ağacında durur. Controller, saf uygulama servisini doğrudan değil, transaction açan `WorkflowActionService` üzerinden çağırır.
 
 ## Roller ve organizasyon kuralları
 
@@ -84,7 +84,7 @@ Durum makinesi ve uygulama servisi doğrudan Spring, JPA veya HTTP'ye bağlı de
 | `BASKAN` | Yalnız kendisine atanmış kaydı onaylar, reddeder veya geri gönderir. |
 | `ADMIN` | Workflow aktörü ve hedefi değildir. Her aksiyon denemesi `WORKFLOW_ROLE_NOT_ALLOWED` ile reddedilir. |
 
-Yerleşik roller görüntülenen `name` yerine değişmez `system_key` ile tanınır. Dar kapsamlı `SystemRoleKey`; varsayılan çalışanı, bootstrap admin'i, hesap korumalarını ve yardımcı devrini belirler. Workflow ve görünürlükte `RoleName` uyumluluk sınırı korunur; enum dönüşümleri de `system_key` okur.
+Yerleşik roller görüntülenen `name` yerine değişmez `system_key` ile tanınır. Dar kapsamlı `SystemRoleKey`; varsayılan çalışanı, bootstrap admin'i, hesap korumalarını ve yardımcı devrini belirler. Workflow aktör ve hedef kimliği `RoleId` taşır; `RoleName` yalnız görünürlük ve istemci uyumluluğu sınırında korunur ve enum dönüşümleri `system_key` okur.
 
 Kullanıcı kapasitesi `roles.max_users` ile belirlenir: `NULL` sınırsızdır; dolu değer yalnız aktif kullanıcıları rol ID'sine göre sınırlar. Seed'de `ADMIN`, `BASKAN` ve `BASKAN_YARDIMCISI` için değer `1`'dir. Oluşturma, bootstrap, rol değiştirme, yeniden etkinleştirme ve yardımcı devri ortak `RoleCapacityService` kontrolünü kullanır. Güncellenen kullanıcılar UUID, ardından etkilenen roller ID sırasıyla `PESSIMISTIC_WRITE` kilitlenir; sayım ve yazım aynı transaction'dadır. Devirde ayrılan ve gelen kullanıcı birlikte hesaplanır. Limit aşımı `409 ADMIN_LIMIT_EXCEEDED` döndürür; pasif role atama yapılamaz.
 
@@ -415,7 +415,7 @@ Bean Validation hatalarında ayrıca `fieldErrors` bulunur. Mevcut `ApiError` mo
 | `WORKFLOW_TARGET_NOT_ALLOWED` | `400` | İstek `targetUserId` taşırsa (artık bütün aksiyonlar için) |
 | `WORKFLOW_TARGET_ROLE_INVALID` | `400` | Hedef bulunamazsa veya beklenen rolde değilse |
 | `WORKFLOW_TARGET_INACTIVE` | `400` | Hedef kullanıcı pasifse |
-| `WORKFLOW_STATUS_NOT_CONFIGURED` | `500` | Rezerve kod; mevcut enum-tabanlı akışta bunu üreten bir yol yoktur |
+| `WORKFLOW_STATUS_NOT_CONFIGURED` | `500` | Rezerve kod; durum kataloğu `workflow_statuses` ile FK altında olduğu için bunu üreten bir yol yoktur |
 | `WORKFLOW_VERSION_CONFLICT` | `409` | Kayıt, istek hazırlanırken başka bir işlem tarafından değiştirilmişse. Durum makinesi üretmez; `RecordPortAdapter` flush anındaki `@Version` çatışmasını bu koda çevirir |
 | `VERSION_CONFLICT` | `409` | Aynı çatışmanın workflow dışı yazmalarda (ör. kayıt güncelleme) oluşan hâli; `GlobalExceptionHandler` emniyet ağı üretir |
 | `WORKFLOW_ROLE_NOT_CONFIGURED` | `409` | Tekil rol hedefi çözülemezse: `BASKANA_ILET` için aktif Başkan, `GONDER`/`TEKRAR_GONDER` için aktif Başkan Yardımcısı sayısı 1 değilse. Kalıcı kural ihlali değil geçici çatışma olduğu için `4xx`; sunucu tarafında `WARN` olarak loglanır |
@@ -480,21 +480,21 @@ Mevcut otomatik testler şu katmanları kapsar:
    istemcinin hedef gönderip gönderemeyeceği `WorkflowAction` enum'unda tutulur. `workflow_actions`
    tablosunda karşılıkları seed'li ve parity testi ayrışmalarını engelliyor, ama kod henüz
    tabloyu okumuyor.
-5. **Kural kaynağının yönetilebilirliği:** Geçiş kuralları `workflow_transitions` tablosundan okunur, fakat tablo yalnız Flyway seed'i ile değişir; kuralları arayüzden düzenleyen bir yol yoktur. Kurallar ayrıca açılışta bir kez okunup belleğe alınır, canlı yeniden yükleme yoktur.
+5. **Kural kaynağının yönetilebilirliği:** Geçiş kuralları `workflow_transitions` tablosundan okunur, fakat tablo yalnız Flyway seed'i ile değişir; kuralları arayüzden düzenleyen bir yol yoktur. Bellekteki snapshot `POST /api/workflow/rules/reload` ile yenilenir; bu uç grafiği yazmaz, yalnız tabloyu yeniden okur.
 
 Başlangıç şartnamesiyle bilinçli veya fiilî uygulama farkları da korunmalıdır:
 
 - Başkan geri gönderme hedefini serbestçe seçmez; Çalışana dönüş `createdBy`, Başkan Yardımcısına dönüş `lastDeputyId` ile sabittir.
 - Şartnamedeki “tüm ilgililer” ifadesine karşılık mevcut uygulama atamalı geçişte yeni atanan kullanıcıyı; terminal geçişte kaydı oluşturan ile son Başkan Yardımcısını seçer.
 
-Geçiş kuralları veritabanından okunur; `TransitionRules` statik tablosu parity ve veritabanısız test referansıdır. Workflow rol kimliğinin tamamen `RoleId` olması, görünürlük modelinin dinamikleşmesi ve WebSocket bildirim kanalı mevcut davranış değildir. HTTP istek audit'i `ADMIN` sistem anahtarında `audit_logs`, diğerlerinde `user_audit_logs` tablosuna gider; rolün yeniden adlandırılması bu dağılımı değiştirmez.
+Geçiş kuralları veritabanından okunur; `TransitionRules` statik tablosu test ağacındaki parity ve veritabanısız test referansıdır. Workflow rol kimliği `WF-2D2` ile tamamen `RoleId`'ye taşındı. Görünürlük modelinin dinamikleşmesi ve WebSocket bildirim kanalı ise hâlâ mevcut davranış değildir. HTTP istek audit'i `ADMIN` sistem anahtarında `audit_logs`, diğerlerinde `user_audit_logs` tablosuna gider; rolün yeniden adlandırılması bu dağılımı değiştirmez.
 
 ## Değişiklik kontrol listesi
 
 Yeni bir workflow durumu veya aksiyonu eklenirken en az şu işler aynı değişiklikte yapılmalıdır:
 
 1. `RecordStatus` veya `WorkflowAction` enum'unu güncelleyin.
-2. İzinli birleşimi yeni bir Flyway migration'ıyla DB kataloglarına ekleyin; uygulanmış migration'ları değiştirmeyin. `TransitionRules` parity referansını aynı değişiklikte güncelleyin. Tüketiciler kuralları `TransitionRuleSource` üzerinden okumalıdır.
+2. İzinli birleşimi yeni bir Flyway migration'ıyla DB kataloglarına ekleyin; uygulanmış migration'ları değiştirmeyin. Test ağacındaki `TransitionRules` parity referansını aynı değişiklikte güncelleyin. Tüketiciler kuralları `TransitionRuleSource` üzerinden okumalıdır.
 3. Hedef stratejisini, beklenen hedef rolü, gerekli permission'ı ve aktör ilişkisini geçiş metadata'sında; açıklama koşulunu aksiyon modelinde tanımlayın. DB/static parity ve validator testlerini birlikte güncelleyin.
 4. Hedef çözümleme gerekiyorsa `TargetUserResolver` ve port testlerini güncelleyin.
 5. Audit ve bildirim türü/alıcı davranışını belirleyin.

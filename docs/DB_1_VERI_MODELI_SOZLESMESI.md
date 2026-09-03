@@ -23,9 +23,12 @@ Bu sözleşmede **zorunludur**, **yasaktır** ve **yalnızca** ifadeleri bağlay
 “İleride” veya “ayrı karar gerekir” olarak işaretlenen bölümler mevcut
 iterasyonun uygulama kapsamına girmez.
 
-## 2. Mevcut durum
+## 2. Sözleşme yazılırken mevcut durum (1 Eylül 2026 snapshot'ı)
 
-Sözleşme hazırlanırken kod ve şemada aşağıdaki yapı vardır:
+> Bu bölüm **tarihsel**tir: sözleşmenin çözmek için yazıldığı başlangıç durumunu
+> anlatır. Bugünkü uygulama durumu için §20'ye bakın.
+
+Sözleşme hazırlanırken kod ve şemada aşağıdaki yapı vardı:
 
 - `roles(id, name, description)` ve `users.role_id` kullanılmaktadır.
 - Bir kullanıcı tam olarak bir role sahiptir.
@@ -614,6 +617,9 @@ draft / published / retired yaşam döngüsü
 publish-time graph validation
 ```
 
+Rollout'un on adımının tamamı uygulandı; `WorkflowAction.getExpectedTargetRole()`
+kaldırıldı ve workflow kimliği `RoleId`'ye taşındı (§20).
+
 Versioning gelene kadar açık kayıtların kullandığı grafiği yerinde değiştiren
 bir admin özelliği yapılmaz. Gelecekte versioning eklenmesi mevcut status,
 action ve transition tablolarını atmayı gerektirmemeli; version ilişkileri bu
@@ -830,7 +836,29 @@ giderilmiştir:
 - [`workflow.md`](workflow.md) — mevcut workflow davranışı ve API sözleşmesi
 - `backend/src/main/resources/db/migration/` — şemanın mevcut tek uygulama
   otoritesi
-- `backend/src/main/java/btk/staj/WorkFlowProject/workflow/statemachine/TransitionRules.java`
-  — mevcut sekiz kuralın parity ve veritabanısız test referansı
+- `backend/src/test/java/btk/staj/WorkFlowProject/workflow/statemachine/TransitionRules.java`
+  — sekiz kuralın parity ve veritabanısız test referansı; `TZ-1` ile test ağacına
+  taşındı, production artifact'ında yer almaz
 - `backend/src/main/java/btk/staj/WorkFlowProject/workflow/statemachine/TransitionRuleSource.java`
   — statik ve DB-backed kaynakların portu
+
+## 20. Güncel uygulama sınırları ve kanıtlar
+
+*Son doğrulama: 3 Eylül 2026, yerel `feature/tz-1-wf-5-tz-4` dalı.*
+
+| Konu | Durum / kanıt |
+| --- | --- |
+| Şema ve seed | `V12`–`V17`; 6 durum, 7 aksiyon, 8 başlangıç geçişi; 19 permission ve 23 rol-permission seed eşlemesi |
+| Permission + kapasite | `AuthenticatedUserFactory`, `RoleCapacityService`; WF-2B / WF-2C1 kapanışı WF2A envanteri §18.8'de |
+| Aktör ve hedef kimliği | `TransitionRule`, `CurrentActor`, `TransitionContext`, kullanıcı portu, audit ve event modellerinde `RoleId`; PR #61 / #60 |
+| Canlı kural yenileme | `ReloadableTransitionRuleSource`, `WorkflowRuleAdminController`; PR #56. Bean sarmalayıcıdır, sardığı snapshot `DbTransitionRuleSource`'tur |
+| Dinamik rol kanıtı | `DynamicWorkflowRoleIntegrationTest`: 11 PostgreSQL/HTTP senaryosu |
+| Görünürlük | DB-8 tasarımı yok. `VisibilityActor` / `CurrentVisibilityActorProvider` eski sistem rolü sınırını korur; dinamik role arama ve kayıt geçmişi açılmış değildir |
+| Admin paneli | PR #57 rol listesi getirir. Rol CRUD, permission matrisi ve durum katalog ekranı teslim edilmiş değildir |
+| Statik kaynak | `TZ-1` **tamamlandı**: `TransitionRules` ve `StaticTransitionRuleSource` test ağacına taşındı ve production jar'ından çıktı. Parity oracle'ı ve invariantlar korundu; invariantlar artık veritabanı kaynağı üzerinde de koşuyor |
+| Atama sözleşmesi | `TransitionContext.actorHoldsAssignment` (`WF-5` ile yeniden adlandırıldı); departman anlamı `WF-6` ile gelecek |
+| Departman | ADR-0005 **Kabul Edildi**; veri şekli §15'te. `assigned_department_id`'yi yazan gönderim yolu ADR-0006'ya bırakıldı |
+
+Test kanıtı: bu doğrulamada tam süit **646 test / 0 failure / 0 error / 0 skipped**
+(önceki kayıt 639; `TZ-1`'in eklediği kaynak-agnostik invariantlar ve mutasyon
+testleriyle arttı). Uzak CI ve TEST sunucusu doğrulaması ayrıca yapılır.

@@ -276,8 +276,8 @@ eskalasyon, workflow versioning.
   workflow designer sınırı, **§15 bu kararların veri şekli**
 - [`workflow.md`](../workflow.md) — mevcut workflow davranışı
 - `workflow/statemachine/WorkflowTransitionValidator.java` — dördüncü kontrol
-- `workflow/statemachine/TransitionContext.java` — `actorIsAssignee`
-  (`actorHoldsAssignment` olacak)
+- `workflow/statemachine/TransitionContext.java` — `actorHoldsAssignment`
+  (`WF-5` ile `actorIsAssignee`'den yeniden adlandırıldı)
 - `workflow/statemachine/TargetStrategy.java` — dondurulmuş departman değerleri
 - `workflow/service/WorkflowApplicationService.java` — `requiresTargetUser`,
   `resolvedTarget` (`S8`)

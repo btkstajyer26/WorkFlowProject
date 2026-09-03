@@ -5,7 +5,7 @@ Bu belge PostgreSQL şemasını, tasarım kararlarını ve migration yönetimini
 > Son kod doğrulaması 31 Ağustos 2026 tarihinde `test` dalının `4491a80` commit'i üzerinde yapılmıştır. Şema değiştiğinde bu belge aynı değişiklik kapsamında güncellenmelidir.
 
 - **Veritabanı:** PostgreSQL 15.18
-- **Migration:** Flyway (`V1`–`V11`; `V3` tarihsel olarak yoktur)
+- **Migration:** Flyway (`V1`–`V17`; `V3` tarihsel olarak yoktur). Aşağıdaki gövde `V1`–`V11` tabanını anlatır; `V12`–`V17` ile gelen katalog, capability ve FK değişiklikleri belgenin sonundaki bölümlerde ele alınır.
 - **ORM:** Spring Data JPA / Hibernate, `ddl-auto=validate`
 
 ## İçindekiler
@@ -25,7 +25,7 @@ Bu belge PostgreSQL şemasını, tasarım kararlarını ve migration yönetimini
 | İlke                                      | Uygulanışı                                                                                                              |
 | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | Şemanın tek otoritesi Flyway'dir          | Hibernate şema üretmez; `ddl-auto=validate` yalnız entity–şema uyumunu doğrular ve uyumsuzlukta uygulama açılışta durur |
-| Sayısal ID'ler koda taşınmaz              | `roles.name` ve `records.status` metin olarak saklanır ve Java enum'larıyla birebir aynı yazılır                        |
+| Sayısal ID'ler koda taşınmaz              | `records.status` metin olarak saklanır ve `RecordStatus` ile birebir aynı yazılır. `roles` için durum `V12` ile değişti: ilişkisel kimlik `roles.id`, yerleşik rolün değişmez semantik anahtarı `system_key`, `name` ise değiştirilebilir görünen addır |
 | Kayıt silme geri alınabilir olmalı        | `records.deleted_at` ve `files.deleted_at` ile soft delete; fiziksel silme yok                                          |
 | Denetim izi kaybolmamalı                  | Geçmişi olan kullanıcı, rol ve kategori satırları `ON DELETE RESTRICT` ile korunur                                      |
 | İkili veri veritabanında tutulmaz         | Dosya içeriği diskte, yalnız metadata veritabanında                                                                     |
@@ -60,7 +60,7 @@ erDiagram
 
 ### `roles`
 
-Kullanıcı yetki seviyeleri. `name` değerleri Java'daki `RoleName` enum'u ile birebir aynıdır.
+Kullanıcı yetki seviyeleri. Aşağıdaki kolonlar `V1` tabanıdır; `V12` bu tabloya `system_key`, `is_system`, `is_workflow_actor`, `max_users` ve `is_active` kolonlarını ekledi (belgenin sonundaki `V12` bölümüne bakın). Yerleşik rol artık `name` ile değil `system_key` ile tanınır; `name` panelden değiştirilebilir.
 
 | Kolon         | Tip            | Null  | Açıklama                                                     |
 | ------------- | -------------- | ----- | ------------------------------------------------------------ |
@@ -115,7 +115,7 @@ Sistemin ana varlığı.
 | `title`                | `VARCHAR(255)` | hayır |                                                                                                                                |
 | `description`          | `TEXT`         | hayır |                                                                                                                                |
 | `category_id`          | `INT`          | hayır |                                                                                                                                |
-| `status`               | `VARCHAR(50)`  | hayır | `RecordStatus` enum **adı**. `chk_records_status` ile kısıtlı                                                                  |
+| `status`               | `VARCHAR(50)`  | hayır | `RecordStatus` enum **adı**. `V16` ile `chk_records_status` kaldırıldı; yerine `workflow_statuses(name)` foreign key'i geldi   |
 | `created_by`           | `UUID`         | hayır | Kaydı oluşturan Çalışan. Değişmez                                                                                              |
 | `assigned_to`          | `UUID`         | evet  | Kaydın o an işlem beklediği kullanıcı. Terminal durumda `NULL`                                                                 |
 | `last_deputy_id`       | `UUID`         | evet  | Kaydı Başkana ileten Başkan Yardımcısı. Yalnız `BASKANA_ILET` sırasında yazılır; Başkanın geri gönderme hedefi buradan bulunur |
@@ -275,14 +275,14 @@ tek başına yetki vermez.
 
 | Kısıt                  | Tablo                 | İşlevi                                                                                                          |
 | ---------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `chk_records_status`   | `records`             | `status` yalnız altı geçerli durum adından biri olabilir. Yazım hatasının veritabanına yazılmasını engeller     |
+| `records.status` FK    | `records`             | `V16` ile `chk_records_status` kaldırıldı; `status` artık `workflow_statuses(name)` kataloğuna FK ile bağlıdır  |
 | `UNIQUE (email)`       | `users`               | Aynı e-postayla ikinci hesap açılamaz; ihlali `409` döner                                                       |
 | `UNIQUE (token)`       | `tokens`              |                                                                                                                 |
 | `UNIQUE (token_hash)`  | `mail_action_tokens`  | Aynı hızlı işlem anahtarının ikinci satırda kullanılmasını engeller; aynı zamanda tüketim sorgusunun indeksidir |
 | `UNIQUE (stored_name)` | `files`               | Diskte ad çakışması olamaz                                                                                      |
 | `UNIQUE (name)`        | `roles`, `categories` |                                                                                                                 |
 
-> `chk_records_status` şemayı Java enum'una bağlar. **Yeni bir durum eklenirse bu kısıt da yeni bir migration ile güncellenmelidir**, aksi halde uygulama geçerli bir durumu yazamaz.
+> `chk_records_status` `V16` ile kaldırıldı. **Yeni bir durum eklenirse `workflow_statuses` tablosuna yeni bir satır eklenir**; sabit bir CHECK listesi güncellenmez.
 
 ## İndeksler
 
@@ -321,7 +321,7 @@ Toplam 26 açıkça tanımlanmış indeks; hepsi bir sorgu deseninden türetilmi
 
 `V1` iki tabloyu tohumlar:
 
-- **`roles`** — `CALISAN`, `BASKAN_YARDIMCISI`, `BASKAN`, `ADMIN`. Adlar `RoleName` enum'uyla birebir aynı olmalıdır; aksi halde rol çözümlemesi çalışmaz.
+- **`roles`** — `CALISAN`, `BASKAN_YARDIMCISI`, `BASKAN`, `ADMIN`. `V12` sonrasında rol çözümlemesi `system_key` üzerinden yapılır; `name` değiştirilebilir ve çözümlemeyi bozmaz.
 - **`categories`** — İdari, Mali, İnsan Kaynakları, Bilgi İşlem, Teknik.
 
 Kullanıcı tohumlanmaz. İlk Admin, `BOOTSTRAP_ADMIN_EMAIL` ve `BOOTSTRAP_ADMIN_PASSWORD` birlikte verildiğinde ve sistemde aktif Admin yokken uygulama açılışında oluşturulur.
@@ -340,6 +340,12 @@ Kullanıcı tohumlanmaz. İlk Admin, `BOOTSTRAP_ADMIN_EMAIL` ve `BOOTSTRAP_ADMIN
 | `V9__record_handoff_snapshot.sql`        | `records`'a `snapshot_*` kolonları; mevcut `DUZENLEME_BEKLIYOR` kayıtları için geri doldurma  |
 | `V10__device_tokens.sql`                 | `device_tokens` tablosu ve `(user_id, is_active)` bileşik indeksi                             |
 | `V11__mail_action_tokens.sql`            | Süreli, tek kullanımlık e-posta hızlı işlem anahtarları; iki foreign key ve iki sorgu indeksi |
+| `V12__extend_roles.sql`                  | `roles`'a `system_key`, `is_system`, `is_workflow_actor`, `max_users`, `is_active`             |
+| `V13__permissions_and_role_permissions.sql` | `permissions` ve `role_permissions` katalogları; 16 kod, 20 eşleme                         |
+| `V14__workflow_statuses_and_actions.sql` | Altı durum ve yedi aksiyon katalogları                                                        |
+| `V15__workflow_transitions.sql`          | Sekiz geçiş; aktör ilişkisi, hedef stratejisi ve gerekli permission metadata'sı               |
+| `V16__records_status_fk.sql`             | `chk_records_status` kaldırıldı; `records.status` → `workflow_statuses(name)` FK'si            |
+| `V17__authorization_capabilities.sql`    | `FILE_MANAGE`, `RECORD_DELETE` → `CALISAN`; `AUDIT_VIEW` → `ADMIN`                             |
 
 ### Numaralandırmadaki boşluk
 
@@ -412,7 +418,7 @@ ID'sine göre aktif kullanıcı sayımı ve yazım tek transaction'da yapılır;
 ### `workflow_statuses` + `workflow_actions` (`V14`)
 
 `records.status`'ta bugüne kadar sabit metin olarak tutulan 6 durum ve
-`TransitionRules.java`'daki 7 aksiyon artık veri:
+Test ağacındaki `TransitionRules`'ta duran 7 aksiyon artık veri:
 
 - `workflow_statuses`: `name` (teknik anahtar, `RecordStatus` enum adıyla
   birebir), `display_name`, `is_terminal`, `is_editable_by_creator`,
@@ -423,7 +429,7 @@ ID'sine göre aktif kullanıcı sayımı ve yazım tek transaction'da yapılır;
 
 ### `workflow_transitions` (`V15`)
 
-`TransitionRules.java`'daki 8 satırlık statik geçiş tablosunun veri karşılığı.
+Test ağacındaki 8 satırlık statik geçiş tablosunun veri karşılığı.
 `(from_status_id, action_id, actor_role_id)` UNIQUE — tabloda bulunmayan her
 durum-aksiyon-rol birleşimi geçersizdir. Ayrıca:
 
@@ -444,11 +450,11 @@ foreign key eklendi. Aynı garanti, çok daha az invaziv değişiklik.
 
 ### Üretim kural kaynağı ve statik referans
 
-Üretim zinciri `DbTransitionRuleSource → JpaTransitionRuleRecordReader → PostgreSQL`
-şeklindedir. Açılışta yüklenen immutable snapshot, `TransitionRuleSource` üzerinden
+Üretim zinciri `ReloadableTransitionRuleSource → DbTransitionRuleSource → JpaTransitionRuleRecordReader → PostgreSQL`
+şeklindedir; bean sarmalayıcıdır, tazelemeyi o yürütür. Açılışta yüklenen immutable snapshot, `TransitionRuleSource` üzerinden
 saf validator'a sunulur. Tabloya dışarıdan dokunulduğunda snapshot
 `POST /api/workflow/rules/reload` ile yeniden başlatmadan tazelenebilir;
 tazeleme başarısız olursa çalışan kurallar korunur. Boş/geçersiz kural verisi ve aktif geçişte eksik permission
-metadata'sı açılışı durdurur. `TransitionRules.java`, sekiz geçişin hedef ve permission
+metadata'sı açılışı durdurur. Test ağacındaki `TransitionRules`, sekiz geçişin hedef ve permission
 metadata'sını da kapsayan parity ve veritabanısız test referansıdır. Yeni kurallar
 yeni Flyway migration'ı ve eşleşen parity referansıyla birlikte eklenir.
