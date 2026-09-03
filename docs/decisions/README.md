@@ -8,7 +8,23 @@ Bu dizin, projeyi uzun vadede etkileyen kararları Architecture Decision Record 
 | --- | --- | --- |
 | [0001](0001-modul-bazli-paketleme.md) | Backend'i modül (feature) bazlı paketleme | Kabul Edildi |
 | [0002](0002-mobil-istemci-teknolojisi.md) | Mobil istemci teknolojisi — React Native + Expo | Kabul Edildi |
+<<<<<<< HEAD
 | [0005](0005-departman-atamasi-ve-akis-kurali.md) | Departman ataması ve akış kuralı | Önerildi |
+=======
+| [0003](0003-veri-tanimli-akis-motoru-ve-birim-bazli-roller.md) | Veri tanımlı akış motoru ve birim bazlı roller | Önerildi |
+
+> ⚠️ **ADR-0003 ile bugün uygulanan model çelişiyor.** ADR, rolün **daire başına**
+> tekil olmasını öneriyor: `roles.scope` (`GLOBAL`/`UNIT`/`MULTI`),
+> `users.org_unit_id` ve `assignee_rule = ROLE_IN_UNIT`. Uygulanan model ise
+> **sistem genelinde** tekil — tekillik `roles.max_users` kolonuyla taşınıyor
+> (`V12` ile geldi; `BASKAN`, `BASKAN_YARDIMCISI` ve `ADMIN` için `1`) ve kodda
+> birim/departman kavramı henüz yok.
+>
+> Bu fark bilinçli olarak çözülmedi. Departman modeli ile `DB-8` görünürlük
+> sözleşmesi yazılırken karara bağlanmalıdır. ADR silinmedi çünkü seçenekleri
+> tartışılmış tek departman/rol kaynağı odur; durumu `Önerildi` olarak kalıyor.
+
+>>>>>>> origin/test
 Bu dizinde her mimari karar için ADR yoktur ve olması da beklenmez. Mevcut
 mimarinin çoğu [architecture.md](../architecture.md),
 [workflow.md](../workflow.md) ve [database.md](../database.md) içinde gerekçesiyle

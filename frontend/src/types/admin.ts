@@ -17,6 +17,18 @@ export type CreateManagedUserInput = {
   password: string
 }
 
+/**
+ * Panelin rol kataloğu görünümü. `types/auth.ts`'teki `UserRole` union'ından
+ * bilerek bağımsızdır: roller panelden dinamik olarak açılacağı için ad,
+ * sabit bir rol listesine değil backend'in döndürdüğü metne dayanır.
+ */
+export type AdminRole = {
+  id: number
+  name: string
+  systemKey: string | null
+  description: string | null
+}
+
 export type AdminLogType = 'USER' | 'RECORD'
 
 export type AdminAuditLog = {
