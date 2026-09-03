@@ -135,6 +135,9 @@ Endpoint'ler Spring method security ile aşağıdaki `hasAuthority` kontrollerin
 | Kullanıcı oluşturma / rol atama / etkinlik değiştirme | `USER_MANAGE` |
 | Rol listeleme | `ROLE_VIEW` |
 | Admin audit listesi / kullanıcı audit geçmişi | `AUDIT_VIEW` |
+| Geçiş kuralı snapshot'ını yenileme (`POST /api/workflow/rules/reload`) | `WORKFLOW_MANAGE` |
+
+Authority'si olmayan istek `403` döner; `docs/openapi.json` springdoc anlık görüntüsü olduğu için bu koşulu uç bazında taşımaz, bağlayıcı kaynak bu tablodur.
 
 `V17`, `FILE_MANAGE` ve `RECORD_DELETE` kodlarını `CALISAN`, `AUDIT_VIEW` kodunu `ADMIN` sistem rolüne atar. Kayıt sahipliği, düzenlenebilir durum, yalnız taslak silme ve dosya kilidi kontrolleri ayrıca uygulanır. Dinamik roller bu capability'lerle kullanıcı yönetimi ve kayıt yaşam döngüsü işlemlerini yapabilir; audit aktörün gerçek kullanıcı/rol ID'sini kullanır. Dinamik rollerin workflow ve görünürlük modeli WF-2D2/WF-2C2 kapsamındadır.
 

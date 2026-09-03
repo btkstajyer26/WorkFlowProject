@@ -3,6 +3,9 @@
 - Durum: Kabul Edildi
 - Tarih: 2026-08-20
 - Karar sahipleri: Proje ekibi
+- Uygulanma durumu (3 Eylül 2026): `MOB-1`–`MOB-15` uygulandı (`mobile/`); iOS
+  release/imza ve fiziksel cihaz push kanıtı açık. Karar metnindeki "onay
+  alınmadan `MOB-1` başlatılmamalıdır" koşulu geçmiştedir.
 
 ## Bağlam
 

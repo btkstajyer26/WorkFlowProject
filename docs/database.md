@@ -372,7 +372,7 @@ PostgreSQL parolası veri volume'ü **ilk oluşturulurken** sabitlenir. `.env` i
 - **Süresi dolmuş e-posta hızlı işlem anahtarları için temizlik işi yok.** `idx_mail_action_tokens_expires_at` hazırdır; ancak satırları zamanlanmış olarak fiziksel temizleyen job henüz yazılmamıştır.
 - **`records.version` yalnız workflow tarafında kullanılıyor.** Kayıt CRUD'u aynı korumayı almıyor.
 
-## Dinamik rol, yetki ve workflow veri modeli (V12-V16)
+## Dinamik rol, yetki ve workflow veri modeli (V12–V17)
 
 > Kaynak: `DB_1_VERI_MODELI_SOZLESMESI.md` (kabul edildi, 1 Eylül 2026).
 > Amaç: rol, yetki ve workflow geçiş verisinin derleme zamanında sabit

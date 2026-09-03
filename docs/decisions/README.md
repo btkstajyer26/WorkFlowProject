@@ -21,6 +21,11 @@ Bu dizin, projeyi uzun vadede etkileyen kararları Architecture Decision Record 
 > Bu fark bilinçli olarak çözülmedi. Departman modeli ile `DB-8` görünürlük
 > sözleşmesi yazılırken karara bağlanmalıdır. ADR silinmedi çünkü seçenekleri
 > tartışılmış tek departman/rol kaynağı odur; durumu `Önerildi` olarak kalıyor.
+>
+> Buradaki fark yalnız **rol kapsamı** içindir. ADR-0003'ün motor tarafı
+> (kuralların veriye taşınması, `hasAuthority` dönüşümü, `RoleId`) fiilen
+> uygulandı — ayrıntı ADR'nin kendi "uygulanma durumu" notundadır. Departman
+> yönü ise ADR-0005 ile ayrıca karara bağlandı.
 
 Bu dizinde her mimari karar için ADR yoktur ve olması da beklenmez. Mevcut
 mimarinin çoğu [architecture.md](../architecture.md),

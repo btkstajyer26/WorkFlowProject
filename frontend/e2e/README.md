@@ -32,7 +32,7 @@ production veritabanına karşı çalıştırılmamalıdır.
 
 ## Kapsanan kritik akışlar
 
-- Giriş, güvenli çıkış ve zorunlu parola değişimi
+- Giriş, güvenli çıkış ve isteğe bağlı şifre değiştirme ekranı (bootstrap Admin'in **zorunlu** parola değişimi ekranda değil, `global-setup.ts` içinde API ile tüketilir)
 - Mailpit üzerinden şifremi unuttum kodu, yanlış kod, tek kullanımlık sıfırlama anahtarı ve hesap gizliliği
 - Admin arayüzünden Çalışan hesabı oluşturma
 - Admin kullanıcı araması, rol/aktiflik filtreleri, sunucu sayfalaması ve Başkan Yardımcısı görev devri

@@ -844,7 +844,7 @@ giderilmiştir:
 
 ## 20. Güncel uygulama sınırları ve kanıtlar
 
-*Son doğrulama: 3 Eylül 2026, yerel `feature/tz-1-wf-5-tz-4` dalı.*
+*Son doğrulama: 3 Eylül 2026, `test` @ `aa113f1` (PR #64 dahil).*
 
 | Konu | Durum / kanıt |
 | --- | --- |
@@ -860,5 +860,5 @@ giderilmiştir:
 | Departman | ADR-0005 **Kabul Edildi**; veri şekli §15'te. `assigned_department_id`'yi yazan gönderim yolu ADR-0006'ya bırakıldı |
 
 Test kanıtı: bu doğrulamada tam süit **646 test / 0 failure / 0 error / 0 skipped**
-(önceki kayıt 639; `TZ-1`'in eklediği kaynak-agnostik invariantlar ve mutasyon
+(TZ-1 öncesi kayıt 639; `TZ-1`'in eklediği kaynak-agnostik invariantlar ve mutasyon
 testleriyle arttı). Uzak CI ve TEST sunucusu doğrulaması ayrıca yapılır.

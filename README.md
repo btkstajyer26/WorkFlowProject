@@ -23,7 +23,7 @@ Workflow geçişleri `workflow_transitions` tablosundan okunur. `DbTransitionRul
 
 ## Hızlı başlangıç
 
-Gereksinimler: Docker Compose 2.24 veya üzeri. Yerel geliştirme için ayrıca Java 21, Maven ve Node.js 22.13 veya üzeri gerekir.
+Gereksinimler: Docker ve Docker Compose. Yerel geliştirme için ayrıca Java 21 ve Node.js 22.13 veya üzeri gerekir; Maven'ı ayrıca kurmanız gerekmez, wrapper (`backend/mvnw`) repoda gelir. TEST dağıtımı `!reset` kullandığı için orada Compose 2.24 veya üzeri şarttır (bkz. [TEST ortamı notu](docs/TEST_ORTAMI_NOTU.md)).
 
 ```bash
 cp .env.example .env
@@ -57,7 +57,7 @@ Backend doğrulaması PostgreSQL gerektirir:
 ```bash
 docker compose up -d db
 cd backend
-mvn verify
+./mvnw verify
 ```
 
 Frontend:

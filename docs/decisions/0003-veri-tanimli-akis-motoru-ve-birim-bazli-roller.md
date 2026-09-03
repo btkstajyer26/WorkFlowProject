@@ -4,6 +4,19 @@
 - Tarih: 2026-08-25
 - Karar sahipleri: Proje ekibi (mühendislik tarafının talebi üzerine)
 
+> **Uygulanma durumu (3 Eylül 2026).** Aşağıdaki §Bağlam bölümü 25 Ağustos'un
+> fotoğrafıdır ve bugünkü kodu tarif etmez; ADR biçimi gereği düzenlenmemiştir.
+> O tarihten bu yana kararın **motor tarafı uygulandı**: geçiş kuralları
+> `workflow_transitions` tablosundan okunuyor (`ReloadableTransitionRuleSource` →
+> `DbTransitionRuleSource`), statik tablo `TZ-1` ile test ağacına taşındı,
+> `hasRole` anotasyonu kalmadı (yetkilendirme `hasAuthority` permission
+> kodlarıyla), workflow rol kimliği `RoleId` oldu ve
+> `WorkflowAction.getExpectedTargetRole()` kaldırıldı. **Uygulanmayan kısım
+> birim bazlı rol kapsamıdır** (`roles.scope`, `users.org_unit_id`,
+> `ROLE_IN_UNIT`); yerine sistem geneli tekillik `roles.max_users` ile taşınıyor.
+> Departman yönü ayrıca
+> [ADR-0005](0005-departman-atamasi-ve-akis-kurali.md) ile karara bağlandı.
+
 ## Bağlam
 
 Onay akışı bugün Java'da sabit yazılı. Mühendislik tarafı akışın **veri**
