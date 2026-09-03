@@ -1,217 +1,113 @@
 package btk.staj.WorkFlowProject.workflow.adapter;
 
-import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
-
 import btk.staj.WorkFlowProject.workflow.exception.TransitionRuleConfigurationException;
 import btk.staj.WorkFlowProject.workflow.model.TransitionRuleRecord;
 import btk.staj.WorkFlowProject.workflow.repository.TransitionRuleRow;
 import btk.staj.WorkFlowProject.workflow.repository.WorkflowTransitionRepository;
 import btk.staj.WorkFlowProject.workflow.statemachine.ActorRequirement;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
-import static org.assertj.core.api.Assertions.assertThatNullPointerException;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
-@DisplayName("JpaTransitionRuleRecordReader")
 class JpaTransitionRuleRecordReaderTest {
-
-    @Test
-    @DisplayName("satirlari port sozlesmesindeki teknik anahtarlara cevirir")
-    void mapsRowsToTechnicalRecords() {
-        List<TransitionRuleRecord> records = readerReturning(
-                row("TASLAK", "GONDER", "CALISAN", "Calisan", ActorRequirement.CREATOR,
-                        "BSK_YRD_INCELEMESINDE"),
-                terminalRow("BASKAN_INCELEMESINDE", "ONAYLA", "BASKAN", "Baskan", ActorRequirement.ASSIGNEE,
-                        "ONAYLANDI"))
-                .findAllActive();
-
-        assertThat(records).containsExactly(
-                new TransitionRuleRecord("TASLAK", "GONDER", "CALISAN", "CREATOR",
+    @Test void mapsRoleForeignKeysAndMetadataWithoutNameConversion() {
+        assertThat(readerReturning(row(1001, 2002)).findAllActive()).containsExactly(
+                new TransitionRuleRecord(
+                        "TASLAK",
+                        "GONDER",
+                        1001,
+                        "CREATOR",
                         "BSK_YRD_INCELEMESINDE",
                         "ROLE",
-                        "BASKAN_YARDIMCISI", AuthorizationFixtures.requiredPermission("GONDER")),
-                new TransitionRuleRecord("BASKAN_INCELEMESINDE", "ONAYLA", "BASKAN", "ASSIGNEE",
-                        "ONAYLANDI",
-                        "NONE",
-                        null, AuthorizationFixtures.requiredPermission("ONAYLA")));
+                        2002,
+                        "RECORD_FORWARD"));
     }
 
-    @Test
-    @DisplayName("aktor rolunu system_key'den okur, gosterilen rol adindan degil")
-    void readsActorRoleFromSystemKeyNotDisplayName() {
-        // Rol yonetim panelinden "Calisan Personel" olarak yeniden adlandirildi;
-        // system_key degismedi. Kural kimligi degismeyen anahtardan gelmeli.
-        List<TransitionRuleRecord> records = readerReturning(
-                row("TASLAK", "GONDER", "CALISAN", "Calisan Personel", ActorRequirement.CREATOR,
-                        "BSK_YRD_INCELEMESINDE"))
-                .findAllActive();
-
-        assertThat(records).singleElement()
-                .extracting(TransitionRuleRecord::actorRole)
-                .isEqualTo("CALISAN");
+    @Test void preservesDifferentEnvironmentIdentities() {
+        assertThat(readerReturning(row(701, 903)).findAllActive()).singleElement()
+                .extracting(TransitionRuleRecord::actorRoleId, TransitionRuleRecord::expectedTargetRoleId)
+                .containsExactly(701, 903);
     }
 
-    @Test
-    @DisplayName("dinamik rol aktor yapilmissa rol adini iceren acik hata verir")
-    void rejectsActorRoleWithoutSystemKey() {
-        assertThatThrownBy(() -> readerReturning(
-                row("TASLAK", "GONDER", null, "Sube Muduru", ActorRequirement.CREATOR,
-                        "BSK_YRD_INCELEMESINDE"))
-                .findAllActive())
+    @Test void representsDynamicActorWithItsForeignKey() {
+        assertThat(readerReturning(row(5501, 2002)).findAllActive()).singleElement()
+                .extracting(TransitionRuleRecord::actorRoleId).isEqualTo(5501);
+    }
+
+    @Test void representsDynamicTargetWithItsForeignKey() {
+        assertThat(readerReturning(row(1001, 5502)).findAllActive()).singleElement()
+                .extracting(TransitionRuleRecord::expectedTargetRoleId).isEqualTo(5502);
+    }
+
+    @Test void preservesRowOrder() {
+        assertThat(readerReturning(row(1001, 2002), row(3003, 4004)).findAllActive())
+                .extracting(TransitionRuleRecord::actorRoleId).containsExactly(1001, 3003);
+    }
+
+    @Test void leavesTargetAbsentForTerminalTransition() {
+        var row = new TransitionRuleRow("BASKAN_INCELEMESINDE", "ONAYLA", 3003,
+                ActorRequirement.ASSIGNEE, "ONAYLANDI", "NONE", null, "RECORD_APPROVE");
+        assertThat(readerReturning(row).findAllActive()).singleElement()
+                .extracting(TransitionRuleRecord::expectedTargetRoleId).isNull();
+    }
+
+    @Test void reportsNullRequirementWithItsRowNumber() {
+        var invalid = new TransitionRuleRow("TASLAK", "GONDER", 1001, null,
+                "BSK_YRD_INCELEMESINDE", "ROLE", 2002, "RECORD_FORWARD");
+        assertThatThrownBy(() -> readerReturning(row(1001, 2002), invalid).findAllActive())
                 .isInstanceOf(TransitionRuleConfigurationException.class)
-                .hasMessageContaining("row 1")
-                .hasMessageContaining("system_key")
-                .hasMessageContaining("Sube Muduru");
+                .hasMessageContaining("actor_requirement").hasMessageContaining("row 2");
     }
 
-    @Test
-    @DisplayName("bos system_key de null gibi reddedilir")
-    void rejectsBlankSystemKey() {
-        assertThatThrownBy(() -> readerReturning(
-                row("TASLAK", "GONDER", "   ", "Sube Muduru", ActorRequirement.CREATOR,
-                        "BSK_YRD_INCELEMESINDE"))
-                .findAllActive())
-                .isInstanceOf(TransitionRuleConfigurationException.class)
-                .hasMessageContaining("row 1");
+    @Test void leavesMissingActorIdentityForSourceValidation() {
+        assertThat(readerReturning(row(null, 2002)).findAllActive()).singleElement()
+                .extracting(TransitionRuleRecord::actorRoleId).isNull();
     }
 
-    @Test
-    @DisplayName("hatali satirin numarasini bildirir")
-    void reportsFailingRowNumber() {
-        assertThatThrownBy(() -> readerReturning(
-                row("TASLAK", "GONDER", "CALISAN", "Calisan", ActorRequirement.CREATOR,
-                        "BSK_YRD_INCELEMESINDE"),
-                terminalRow("BASKAN_INCELEMESINDE", "ONAYLA", null, "Sube Muduru",
-                        ActorRequirement.ASSIGNEE, "ONAYLANDI"))
-                .findAllActive())
-                .isInstanceOf(TransitionRuleConfigurationException.class)
-                .hasMessageContaining("row 2");
-    }
-
-    @Test
-    @DisplayName("actor_requirement bos gelirse reddeder")
-    void rejectsNullActorRequirement() {
-        assertThatThrownBy(() -> readerReturning(
-                row("TASLAK", "GONDER", "CALISAN", "Calisan", null, "BSK_YRD_INCELEMESINDE"))
-                .findAllActive())
-                .isInstanceOf(TransitionRuleConfigurationException.class)
-                .hasMessageContaining("actor_requirement");
-    }
-
-    @Test
-    @DisplayName("bos sonuc bos liste dondurur; kural yoklugu karari kaynagin isidir")
-    void returnsEmptyListWhenNoActiveRows() {
+    @Test void returnsEmptyRowsWithoutDecidingSourceValidity() {
         assertThat(readerReturning().findAllActive()).isEmpty();
     }
 
-    @Test
-    @DisplayName("repository null dondurursa acik hata verir")
-    void rejectsNullRepositoryResult() {
-        WorkflowTransitionRepository repository = mock(WorkflowTransitionRepository.class);
+    @Test void rejectsNullRepositoryResult() {
+        var repository = mock(WorkflowTransitionRepository.class);
         when(repository.findActiveRuleRows()).thenReturn(null);
-
-        assertThatIllegalStateException()
-                .isThrownBy(() -> new JpaTransitionRuleRecordReader(repository).findAllActive())
+        assertThatIllegalStateException().isThrownBy(() -> new JpaTransitionRuleRecordReader(repository).findAllActive())
                 .withMessageContaining("findActiveRuleRows");
     }
 
-    @Test
-    @DisplayName("repository olmadan olusturulamaz")
-    void rejectsNullRepository() {
-        assertThatNullPointerException()
-                .isThrownBy(() -> new JpaTransitionRuleRecordReader(null))
+    @Test void rejectsNullRepository() {
+        assertThatNullPointerException().isThrownBy(() -> new JpaTransitionRuleRecordReader(null))
                 .withMessageContaining("transitionRepository");
     }
 
-    @Test
-    @DisplayName("beklenen hedef rolu de system_key'den okur")
-    void readsExpectedTargetRoleFromSystemKey() {
-        List<TransitionRuleRecord> records = readerReturning(
-                targetedRow("TASLAK", "GONDER", "CALISAN", "Calisan", ActorRequirement.CREATOR,
-                        "BSK_YRD_INCELEMESINDE", "ROLE", 2, "BASKAN_YARDIMCISI"))
-                .findAllActive();
-
-        assertThat(records).singleElement()
-                .extracting(TransitionRuleRecord::expectedTargetRole)
-                .isEqualTo("BASKAN_YARDIMCISI");
+    @Test void reportsNullRowPosition() {
+        assertThatIllegalStateException().isThrownBy(() -> readerReturning(row(1001, 2002), null).findAllActive())
+                .withMessageContaining("row 2");
     }
 
-    @Test
-    @DisplayName("hedef rol FK'si bos ise beklenen hedef rol bos gelir")
-    void leavesExpectedTargetRoleEmptyWhenForeignKeyIsNull() {
-        List<TransitionRuleRecord> records = readerReturning(
-                terminalRow("BASKAN_INCELEMESINDE", "ONAYLA", "BASKAN", "Baskan",
-                        ActorRequirement.ASSIGNEE, "ONAYLANDI"))
-                .findAllActive();
-
-        assertThat(records).singleElement()
-                .extracting(TransitionRuleRecord::expectedTargetRole)
-                .isNull();
-    }
-
-    @Test
-    @DisplayName("hedef rol dinamikse (FK dolu, system_key bos) acik hata verir")
-    void rejectsDynamicExpectedTargetRole() {
-        assertThatThrownBy(() -> readerReturning(
-                targetedRow("TASLAK", "GONDER", "CALISAN", "Calisan", ActorRequirement.CREATOR,
-                        "BSK_YRD_INCELEMESINDE", "ROLE", 7, null))
-                .findAllActive())
-                .isInstanceOf(TransitionRuleConfigurationException.class)
-                .hasMessageContaining("row 1")
-                .hasMessageContaining("system_key")
-                .hasMessageContaining("7");
+    @Test void returnsAnImmutableDetachedResult() {
+        var repository = mock(WorkflowTransitionRepository.class);
+        var rows = new ArrayList<>(List.of(row(1001, 2002)));
+        when(repository.findActiveRuleRows()).thenReturn(rows);
+        var result = new JpaTransitionRuleRecordReader(repository).findAllActive();
+        rows.clear();
+        assertThat(result).hasSize(1);
+        assertThatThrownBy(() -> result.clear()).isInstanceOf(UnsupportedOperationException.class);
     }
 
     private static JpaTransitionRuleRecordReader readerReturning(TransitionRuleRow... rows) {
-        WorkflowTransitionRepository repository = mock(WorkflowTransitionRepository.class);
+        var repository = mock(WorkflowTransitionRepository.class);
         when(repository.findActiveRuleRows()).thenReturn(Arrays.asList(rows));
         return new JpaTransitionRuleRecordReader(repository);
     }
 
-    /** Hedefi bir role cozulen gecis satiri; testlerin cogunun ihtiyaci bu. */
-    private static TransitionRuleRow row(String fromStatus,
-                                         String action,
-                                         String actorSystemKey,
-                                         String actorRoleName,
-                                         ActorRequirement actorRequirement,
-                                         String toStatus) {
-
-        return targetedRow(fromStatus, action, actorSystemKey, actorRoleName, actorRequirement,
-                toStatus, "ROLE", 2, "BASKAN_YARDIMCISI");
-    }
-
-    /** Hedef kullanici gerektirmeyen gecis satiri (ONAYLA / REDDET). */
-    private static TransitionRuleRow terminalRow(String fromStatus,
-                                                 String action,
-                                                 String actorSystemKey,
-                                                 String actorRoleName,
-                                                 ActorRequirement actorRequirement,
-                                                 String toStatus) {
-
-        return targetedRow(fromStatus, action, actorSystemKey, actorRoleName, actorRequirement,
-                toStatus, "NONE", null, null);
-    }
-
-    private static TransitionRuleRow targetedRow(String fromStatus,
-                                                 String action,
-                                                 String actorSystemKey,
-                                                 String actorRoleName,
-                                                 ActorRequirement actorRequirement,
-                                                 String toStatus,
-                                                 String targetStrategy,
-                                                 Integer expectedTargetRoleId,
-                                                 String expectedTargetRoleSystemKey) {
-
-        return new TransitionRuleRow(
-                fromStatus, action, actorSystemKey, actorRoleName, actorRequirement, toStatus,
-                targetStrategy, expectedTargetRoleId, expectedTargetRoleSystemKey, AuthorizationFixtures.requiredPermission(action));
+    private static TransitionRuleRow row(Integer actorRoleId, Integer targetRoleId) {
+        return new TransitionRuleRow("TASLAK", "GONDER", actorRoleId, ActorRequirement.CREATOR,
+                "BSK_YRD_INCELEMESINDE", "ROLE", targetRoleId, "RECORD_FORWARD");
     }
 }

@@ -1,11 +1,10 @@
 package btk.staj.WorkFlowProject.rbac.service;
 
 import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
-
+import btk.staj.WorkFlowProject.support.WorkflowRoleFixtures;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import btk.staj.WorkFlowProject.workflow.statemachine.StaticTransitionRuleSource;
-import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRules;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,12 +26,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PermissionServiceDelegationTest {
 
     private final PermissionService permissionService =
-            new PermissionService(new StaticTransitionRuleSource());
+            new PermissionService(new StaticTransitionRuleSource(WorkflowRoleFixtures.roleIds()));
 
     private void tumMatrisiKarsilastir(WorkflowAction action, BiPredicate<RoleName, RecordStatus> metot) {
         for (RecordStatus status : RecordStatus.values()) {
             for (RoleName role : RoleName.values()) {
-                boolean tablodaVar = TransitionRules.find(status, action, role).isPresent();
+                boolean tablodaVar = WorkflowRoleFixtures.rules().find(status, action, role).isPresent();
 
                 assertThat(metot.test(role, status))
                         .as("%s / %s / %s birlesimi tabloyla ayni sonucu vermeli", action, status, role)

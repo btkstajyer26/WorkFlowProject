@@ -1,16 +1,19 @@
 package btk.staj.WorkFlowProject.workflow;
 
 import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
-
+import btk.staj.WorkFlowProject.support.WorkflowRoleFixtures;
 import btk.staj.WorkFlowProject.workflow.model.TransitionRuleRecord;
 import btk.staj.WorkFlowProject.workflow.port.TransitionRuleRecordReader;
+import btk.staj.WorkFlowProject.workflow.statemachine.RoleId;
+import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRule;
-import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRules;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 
 import java.util.List;
+import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * Veritabani olmadan calisan {@code @SpringBootTest}'ler icin gecis kurali
@@ -39,21 +42,28 @@ public class StaticTransitionRuleReaderConfiguration {
     @Bean
     @Primary
     public TransitionRuleRecordReader staticTransitionRuleRecordReader() {
-        List<TransitionRuleRecord> records = TransitionRules.all().stream()
+        List<TransitionRuleRecord> records = WorkflowRoleFixtures.rules().all().stream()
                 .map(StaticTransitionRuleReaderConfiguration::toRecord)
                 .toList();
 
         return () -> records;
     }
 
+    @Bean
+    @Primary
+    public Supplier<Map<RoleId, RoleName>> staticLegacyRoles() {
+        return WorkflowRoleFixtures::legacyRoles;
+    }
+
     private static TransitionRuleRecord toRecord(TransitionRule rule) {
         return new TransitionRuleRecord(
                 rule.from().name(),
                 rule.action().name(),
-                rule.actorRole().name(),
+                rule.actorRoleId().value(),
                 rule.actorRequirement().name(),
                 rule.to().name(),
                 rule.targetStrategy().name(),
-                rule.expectedTargetRole() == null ? null : rule.expectedTargetRole().name(), AuthorizationFixtures.requiredPermission(rule.action().name()));
+                rule.expectedTargetRoleId() == null ? null : rule.expectedTargetRoleId().value(),
+                AuthorizationFixtures.requiredPermission(rule.action().name()));
     }
 }

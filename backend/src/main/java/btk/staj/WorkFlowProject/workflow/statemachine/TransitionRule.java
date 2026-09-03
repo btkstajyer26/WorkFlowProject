@@ -9,6 +9,9 @@ import java.util.Objects;
  * bir satiri temsil eder. {@link TransitionRules} ayni satirlari statik olarak tutar ve
  * parity testinin referansidir.
  *
+ * <p>WF-2D2 PR 1: RoleName fields temporarily accompany the relational IDs.
+ * The actor rollout removes these compatibility fields in PR 2.
+ *
  * @param from               gecisin uygulanabilecegi mevcut durum
  * @param action             uygulanan aksiyon
  * @param actorRole          aksiyonu yapabilecek rol
@@ -25,12 +28,15 @@ public record TransitionRule(
         RecordStatus to,
         TargetStrategy targetStrategy,
         RoleName expectedTargetRole,
-        String requiredPermissionCode) {
+        String requiredPermissionCode,
+        RoleId actorRoleId,
+        RoleId expectedTargetRoleId) {
 
     public TransitionRule {
         Objects.requireNonNull(from, "from");
         Objects.requireNonNull(action, "action");
         Objects.requireNonNull(actorRole, "actorRole");
+        Objects.requireNonNull(actorRoleId, "actorRoleId");
         Objects.requireNonNull(actorRequirement, "actorRequirement");
         Objects.requireNonNull(to, "to");
         Objects.requireNonNull(targetStrategy, "targetStrategy");
@@ -50,11 +56,11 @@ public record TransitionRule(
         //
         // Seed edilmis sekiz gecisin tamami bu kosulu zaten saglar (DB-1 SS8).
         boolean targetExpected = targetStrategy != TargetStrategy.NONE;
-        if (targetExpected && expectedTargetRole == null) {
+        if (targetExpected && (expectedTargetRole == null || expectedTargetRoleId == null)) {
             throw new IllegalArgumentException(
                     "targetStrategy " + targetStrategy + " requires expectedTargetRole");
         }
-        if (!targetExpected && expectedTargetRole != null) {
+        if (!targetExpected && (expectedTargetRole != null || expectedTargetRoleId != null)) {
             throw new IllegalArgumentException(
                     "targetStrategy NONE must not carry expectedTargetRole but was "
                             + expectedTargetRole);

@@ -1,23 +1,13 @@
 package btk.staj.WorkFlowProject.workflow.model;
 
-/**
- * Persistence katmanindan okunan aktif bir workflow gecisinin teknik
- * degerlerini tasiyan projection.
- *
- * <p>Alanlar bilerek {@code String} olarak tasinir. Mevcut domain enumlarina
- * donusum {@code DbTransitionRuleSource} sinirinda yapilir.
- *
- * <p>{@code expectedTargetRole} tek nullable alandir: hedef kullanici gerektirmeyen
- * gecislerde ({@code targetStrategy = NONE}) bos gelir. Diger alanlarin bos gelmesi
- * yapilandirma hatasidir.
- */
+/** Raw persistence values, validated and converted at the rule-source boundary. */
 public record TransitionRuleRecord(
         String fromStatus,
         String action,
-        String actorRole,
+        Integer actorRoleId,
         String actorRequirement,
         String toStatus,
         String targetStrategy,
-        String expectedTargetRole,
+        Integer expectedTargetRoleId,
         String requiredPermissionCode) {
 }

@@ -1,12 +1,13 @@
 package btk.staj.WorkFlowProject.workflow.adapter;
 
 import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
-
+import btk.staj.WorkFlowProject.support.WorkflowRoleFixtures;
 import btk.staj.WorkFlowProject.workflow.exception.TransitionRuleConfigurationException;
 import btk.staj.WorkFlowProject.workflow.model.TransitionRuleRecord;
 import btk.staj.WorkFlowProject.workflow.port.TransitionRuleRecordReader;
 import btk.staj.WorkFlowProject.workflow.statemachine.ActorRequirement;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
+import btk.staj.WorkFlowProject.workflow.statemachine.RoleId;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import btk.staj.WorkFlowProject.workflow.statemachine.TargetStrategy;
 import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRule;
@@ -16,10 +17,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
@@ -44,7 +47,10 @@ class DbTransitionRuleSourceTest {
                         ActorRequirement.CREATOR,
                         RecordStatus.BSK_YRD_INCELEMESINDE,
                         TargetStrategy.ROLE,
-                        RoleName.BASKAN_YARDIMCISI, AuthorizationFixtures.requiredPermission(WorkflowAction.GONDER)),
+                        RoleName.BASKAN_YARDIMCISI,
+                        AuthorizationFixtures.requiredPermission(WorkflowAction.GONDER),
+                        WorkflowRoleFixtures.id(RoleName.CALISAN),
+                        WorkflowRoleFixtures.id(RoleName.BASKAN_YARDIMCISI)),
                 new TransitionRule(
                         RecordStatus.BASKAN_INCELEMESINDE,
                         WorkflowAction.ONAYLA,
@@ -52,7 +58,10 @@ class DbTransitionRuleSourceTest {
                         ActorRequirement.ASSIGNEE,
                         RecordStatus.ONAYLANDI,
                         TargetStrategy.NONE,
-                        null, AuthorizationFixtures.requiredPermission(WorkflowAction.ONAYLA)));
+                        null,
+                        AuthorizationFixtures.requiredPermission(WorkflowAction.ONAYLA),
+                        WorkflowRoleFixtures.id(RoleName.BASKAN),
+                        null));
     }
 
     @Test
@@ -68,7 +77,10 @@ class DbTransitionRuleSourceTest {
                         ActorRequirement.CREATOR,
                         RecordStatus.BSK_YRD_INCELEMESINDE,
                         TargetStrategy.ROLE,
-                        RoleName.BASKAN_YARDIMCISI, AuthorizationFixtures.requiredPermission(WorkflowAction.GONDER)));
+                        RoleName.BASKAN_YARDIMCISI,
+                        AuthorizationFixtures.requiredPermission(WorkflowAction.GONDER),
+                        WorkflowRoleFixtures.id(RoleName.CALISAN),
+                        WorkflowRoleFixtures.id(RoleName.BASKAN_YARDIMCISI)));
     }
 
     @Test
@@ -92,7 +104,10 @@ class DbTransitionRuleSourceTest {
                 ActorRequirement.ASSIGNEE,
                 RecordStatus.ONAYLANDI,
                 TargetStrategy.NONE,
-                null, AuthorizationFixtures.requiredPermission(WorkflowAction.ONAYLA))))
+                null,
+                AuthorizationFixtures.requiredPermission(WorkflowAction.ONAYLA),
+                WorkflowRoleFixtures.id(RoleName.BASKAN),
+                null)))
                 .isInstanceOf(UnsupportedOperationException.class);
     }
 
@@ -106,7 +121,7 @@ class DbTransitionRuleSourceTest {
             return records;
         };
 
-        DbTransitionRuleSource source = new DbTransitionRuleSource(reader);
+        DbTransitionRuleSource source = new DbTransitionRuleSource(reader, WorkflowRoleFixtures.legacyRoles());
         records.clear();
 
         assertThat(source.all()).hasSize(1);
@@ -119,7 +134,14 @@ class DbTransitionRuleSourceTest {
     @DisplayName("ayni composite key ikinci kez geldiginde fail-fast olur")
     void rejectsDuplicateCompositeKey() {
         TransitionRuleRecord duplicate = new TransitionRuleRecord(
-                "TASLAK", "GONDER", "CALISAN", "ASSIGNEE", "ONAYLANDI", "NONE", null, AuthorizationFixtures.requiredPermission("GONDER"));
+                "TASLAK",
+                "GONDER",
+                WorkflowRoleFixtures.value(RoleName.CALISAN),
+                "ASSIGNEE",
+                "ONAYLANDI",
+                "NONE",
+                null,
+                AuthorizationFixtures.requiredPermission("GONDER"));
 
         assertThatThrownBy(() -> source(List.of(validRecord(), duplicate)))
                 .isInstanceOf(TransitionRuleConfigurationException.class)
@@ -165,7 +187,7 @@ class DbTransitionRuleSourceTest {
     @Test
     @DisplayName("null reader'i reddeder")
     void rejectsNullReader() {
-        assertThatThrownBy(() -> new DbTransitionRuleSource(null))
+        assertThatThrownBy(() -> new DbTransitionRuleSource(null, WorkflowRoleFixtures.legacyRoles()))
                 .isInstanceOf(TransitionRuleConfigurationException.class)
                 .hasMessageContaining("TransitionRuleRecordReader")
                 .hasMessageContaining("null");
@@ -174,7 +196,7 @@ class DbTransitionRuleSourceTest {
     @Test
     @DisplayName("reader null liste dondururse reddeder")
     void rejectsNullReaderResult() {
-        assertThatThrownBy(() -> new DbTransitionRuleSource(() -> null))
+        assertThatThrownBy(() -> new DbTransitionRuleSource(() -> null, WorkflowRoleFixtures.legacyRoles()))
                 .isInstanceOf(TransitionRuleConfigurationException.class)
                 .hasMessageContaining("findAllActive")
                 .hasMessageContaining("null");
@@ -204,73 +226,194 @@ class DbTransitionRuleSourceTest {
                         "workflow status",
                         "UNKNOWN_FROM",
                         new TransitionRuleRecord(
-                                "UNKNOWN_FROM", "GONDER", "CALISAN", "CREATOR", "BSK_YRD_INCELEMESINDE", "ROLE", "BASKAN_YARDIMCISI", AuthorizationFixtures.requiredPermission("GONDER"))),
+                                "UNKNOWN_FROM",
+                                "GONDER",
+                                WorkflowRoleFixtures.value(RoleName.CALISAN),
+                                "CREATOR",
+                                "BSK_YRD_INCELEMESINDE",
+                                "ROLE",
+                                WorkflowRoleFixtures.value(RoleName.BASKAN_YARDIMCISI),
+                                AuthorizationFixtures.requiredPermission("GONDER"))),
                 Arguments.of(
                         "action",
                         "workflow action",
                         "UNKNOWN_ACTION",
                         new TransitionRuleRecord(
-                                "TASLAK", "UNKNOWN_ACTION", "CALISAN", "CREATOR", "BSK_YRD_INCELEMESINDE", "ROLE", "BASKAN_YARDIMCISI", AuthorizationFixtures.requiredPermission("UNKNOWN_ACTION"))),
+                                "TASLAK",
+                                "UNKNOWN_ACTION",
+                                WorkflowRoleFixtures.value(RoleName.CALISAN),
+                                "CREATOR",
+                                "BSK_YRD_INCELEMESINDE",
+                                "ROLE",
+                                WorkflowRoleFixtures.value(RoleName.BASKAN_YARDIMCISI),
+                                AuthorizationFixtures.requiredPermission("UNKNOWN_ACTION"))),
                 Arguments.of(
-                        "actorRole",
+                        "actorRoleId",
                         "actor role",
-                        "UNKNOWN_ROLE",
+                        "999",
                         new TransitionRuleRecord(
-                                "TASLAK", "GONDER", "UNKNOWN_ROLE", "CREATOR", "BSK_YRD_INCELEMESINDE", "ROLE", "BASKAN_YARDIMCISI", AuthorizationFixtures.requiredPermission("GONDER"))),
+                                "TASLAK",
+                                "GONDER",
+                                999,
+                                "CREATOR",
+                                "BSK_YRD_INCELEMESINDE",
+                                "ROLE",
+                                WorkflowRoleFixtures.value(RoleName.BASKAN_YARDIMCISI),
+                                AuthorizationFixtures.requiredPermission("GONDER"))),
                 Arguments.of(
                         "actorRequirement",
                         "actor requirement",
                         "UNKNOWN_REQUIREMENT",
                         new TransitionRuleRecord(
-                                "TASLAK", "GONDER", "CALISAN", "UNKNOWN_REQUIREMENT", "BSK_YRD_INCELEMESINDE", "ROLE", "BASKAN_YARDIMCISI", AuthorizationFixtures.requiredPermission("GONDER"))),
+                                "TASLAK",
+                                "GONDER",
+                                WorkflowRoleFixtures.value(RoleName.CALISAN),
+                                "UNKNOWN_REQUIREMENT",
+                                "BSK_YRD_INCELEMESINDE",
+                                "ROLE",
+                                WorkflowRoleFixtures.value(RoleName.BASKAN_YARDIMCISI),
+                                AuthorizationFixtures.requiredPermission("GONDER"))),
                 Arguments.of(
                         "toStatus",
                         "workflow status",
                         "UNKNOWN_TO",
                         new TransitionRuleRecord(
-                                "TASLAK", "GONDER", "CALISAN", "CREATOR", "UNKNOWN_TO", "ROLE", "BASKAN_YARDIMCISI", AuthorizationFixtures.requiredPermission("GONDER"))));
+                                "TASLAK",
+                                "GONDER",
+                                WorkflowRoleFixtures.value(RoleName.CALISAN),
+                                "CREATOR",
+                                "UNKNOWN_TO",
+                                "ROLE",
+                                WorkflowRoleFixtures.value(RoleName.BASKAN_YARDIMCISI),
+                                AuthorizationFixtures.requiredPermission("GONDER"))));
     }
 
     private static Stream<Arguments> missingFieldRecords() {
         return Stream.of(
                 Arguments.of(
                         "fromStatus", "null",
-                        new TransitionRuleRecord(null, "GONDER", "CALISAN", "CREATOR", "BSK_YRD_INCELEMESINDE", "ROLE", "BASKAN_YARDIMCISI", AuthorizationFixtures.requiredPermission("GONDER"))),
+                        new TransitionRuleRecord(
+                                null,
+                                "GONDER",
+                                WorkflowRoleFixtures.value(RoleName.CALISAN),
+                                "CREATOR",
+                                "BSK_YRD_INCELEMESINDE",
+                                "ROLE",
+                                WorkflowRoleFixtures.value(RoleName.BASKAN_YARDIMCISI),
+                                AuthorizationFixtures.requiredPermission("GONDER"))),
                 Arguments.of(
                         "fromStatus", "blank",
-                        new TransitionRuleRecord(" ", "GONDER", "CALISAN", "CREATOR", "BSK_YRD_INCELEMESINDE", "ROLE", "BASKAN_YARDIMCISI", AuthorizationFixtures.requiredPermission("GONDER"))),
+                        new TransitionRuleRecord(
+                                " ",
+                                "GONDER",
+                                WorkflowRoleFixtures.value(RoleName.CALISAN),
+                                "CREATOR",
+                                "BSK_YRD_INCELEMESINDE",
+                                "ROLE",
+                                WorkflowRoleFixtures.value(RoleName.BASKAN_YARDIMCISI),
+                                AuthorizationFixtures.requiredPermission("GONDER"))),
                 Arguments.of(
                         "action", "null",
-                        new TransitionRuleRecord("TASLAK", null, "CALISAN", "CREATOR", "BSK_YRD_INCELEMESINDE", "ROLE", "BASKAN_YARDIMCISI", AuthorizationFixtures.requiredPermission(null))),
+                        new TransitionRuleRecord(
+                                "TASLAK",
+                                null,
+                                WorkflowRoleFixtures.value(RoleName.CALISAN),
+                                "CREATOR",
+                                "BSK_YRD_INCELEMESINDE",
+                                "ROLE",
+                                WorkflowRoleFixtures.value(RoleName.BASKAN_YARDIMCISI),
+                                AuthorizationFixtures.requiredPermission(null))),
                 Arguments.of(
                         "action", "blank",
-                        new TransitionRuleRecord("TASLAK", " ", "CALISAN", "CREATOR", "BSK_YRD_INCELEMESINDE", "ROLE", "BASKAN_YARDIMCISI", AuthorizationFixtures.requiredPermission(" "))),
+                        new TransitionRuleRecord(
+                                "TASLAK",
+                                " ",
+                                WorkflowRoleFixtures.value(RoleName.CALISAN),
+                                "CREATOR",
+                                "BSK_YRD_INCELEMESINDE",
+                                "ROLE",
+                                WorkflowRoleFixtures.value(RoleName.BASKAN_YARDIMCISI),
+                                AuthorizationFixtures.requiredPermission(" "))),
                 Arguments.of(
-                        "actorRole", "null",
-                        new TransitionRuleRecord("TASLAK", "GONDER", null, "CREATOR", "BSK_YRD_INCELEMESINDE", "ROLE", "BASKAN_YARDIMCISI", AuthorizationFixtures.requiredPermission("GONDER"))),
+                        "actorRoleId", "null",
+                        new TransitionRuleRecord(
+                                "TASLAK",
+                                "GONDER",
+                                null,
+                                "CREATOR",
+                                "BSK_YRD_INCELEMESINDE",
+                                "ROLE",
+                                WorkflowRoleFixtures.value(RoleName.BASKAN_YARDIMCISI),
+                                AuthorizationFixtures.requiredPermission("GONDER"))),
                 Arguments.of(
-                        "actorRole", "blank",
-                        new TransitionRuleRecord("TASLAK", "GONDER", " ", "CREATOR", "BSK_YRD_INCELEMESINDE", "ROLE", "BASKAN_YARDIMCISI", AuthorizationFixtures.requiredPermission("GONDER"))),
+                        "actorRoleId", "positive",
+                        new TransitionRuleRecord(
+                                "TASLAK",
+                                "GONDER",
+                                0,
+                                "CREATOR",
+                                "BSK_YRD_INCELEMESINDE",
+                                "ROLE",
+                                WorkflowRoleFixtures.value(RoleName.BASKAN_YARDIMCISI),
+                                AuthorizationFixtures.requiredPermission("GONDER"))),
                 Arguments.of(
                         "actorRequirement", "null",
-                        new TransitionRuleRecord("TASLAK", "GONDER", "CALISAN", null, "BSK_YRD_INCELEMESINDE", "ROLE", "BASKAN_YARDIMCISI", AuthorizationFixtures.requiredPermission("GONDER"))),
+                        new TransitionRuleRecord(
+                                "TASLAK",
+                                "GONDER",
+                                WorkflowRoleFixtures.value(RoleName.CALISAN),
+                                null,
+                                "BSK_YRD_INCELEMESINDE",
+                                "ROLE",
+                                WorkflowRoleFixtures.value(RoleName.BASKAN_YARDIMCISI),
+                                AuthorizationFixtures.requiredPermission("GONDER"))),
                 Arguments.of(
                         "actorRequirement", "blank",
-                        new TransitionRuleRecord("TASLAK", "GONDER", "CALISAN", " ", "BSK_YRD_INCELEMESINDE", "ROLE", "BASKAN_YARDIMCISI", AuthorizationFixtures.requiredPermission("GONDER"))),
+                        new TransitionRuleRecord(
+                                "TASLAK",
+                                "GONDER",
+                                WorkflowRoleFixtures.value(RoleName.CALISAN),
+                                " ",
+                                "BSK_YRD_INCELEMESINDE",
+                                "ROLE",
+                                WorkflowRoleFixtures.value(RoleName.BASKAN_YARDIMCISI),
+                                AuthorizationFixtures.requiredPermission("GONDER"))),
                 Arguments.of(
                         "toStatus", "null",
-                        new TransitionRuleRecord("TASLAK", "GONDER", "CALISAN", "CREATOR", null, "ROLE", "BASKAN_YARDIMCISI", AuthorizationFixtures.requiredPermission("GONDER"))),
+                        new TransitionRuleRecord(
+                                "TASLAK",
+                                "GONDER",
+                                WorkflowRoleFixtures.value(RoleName.CALISAN),
+                                "CREATOR",
+                                null,
+                                "ROLE",
+                                WorkflowRoleFixtures.value(RoleName.BASKAN_YARDIMCISI),
+                                AuthorizationFixtures.requiredPermission("GONDER"))),
                 Arguments.of(
                         "toStatus", "blank",
-                        new TransitionRuleRecord("TASLAK", "GONDER", "CALISAN", "CREATOR", " ", "ROLE", "BASKAN_YARDIMCISI", AuthorizationFixtures.requiredPermission("GONDER"))));
+                        new TransitionRuleRecord(
+                                "TASLAK",
+                                "GONDER",
+                                WorkflowRoleFixtures.value(RoleName.CALISAN),
+                                "CREATOR",
+                                " ",
+                                "ROLE",
+                                WorkflowRoleFixtures.value(RoleName.BASKAN_YARDIMCISI),
+                                AuthorizationFixtures.requiredPermission("GONDER"))));
     }
 
     @Test
     @DisplayName("hedefsiz gecis beklenen hedef rol tasiyorsa satir numarasiyla reddedilir")
     void rejectsNoneStrategyCarryingExpectedTargetRole() {
         TransitionRuleRecord inconsistent = new TransitionRuleRecord(
-                "BASKAN_INCELEMESINDE", "ONAYLA", "BASKAN", "ASSIGNEE", "ONAYLANDI",
-                "NONE", "CALISAN", AuthorizationFixtures.requiredPermission("ONAYLA"));
+                "BASKAN_INCELEMESINDE",
+                "ONAYLA",
+                WorkflowRoleFixtures.value(RoleName.BASKAN),
+                "ASSIGNEE",
+                "ONAYLANDI",
+                "NONE",
+                WorkflowRoleFixtures.value(RoleName.CALISAN),
+                AuthorizationFixtures.requiredPermission("ONAYLA"));
 
         assertThatThrownBy(() -> source(List.of(inconsistent)))
                 .isInstanceOf(TransitionRuleConfigurationException.class)
@@ -284,8 +427,14 @@ class DbTransitionRuleSourceTest {
         // Bu kombinasyon veritabani CHECK'ini gecerdi (CHECK yalniz ROLE icin rolu zorunlu
         // kilar) ama servisin sentinel protokolunu sessizce kirardi.
         TransitionRuleRecord inconsistent = new TransitionRuleRecord(
-                "BSK_YRD_INCELEMESINDE", "CALISANA_GERI_GONDER", "BASKAN_YARDIMCISI",
-                "ASSIGNEE", "DUZENLEME_BEKLIYOR", "CREATOR", null, AuthorizationFixtures.requiredPermission("CALISANA_GERI_GONDER"));
+                "BSK_YRD_INCELEMESINDE",
+                "CALISANA_GERI_GONDER",
+                WorkflowRoleFixtures.value(RoleName.BASKAN_YARDIMCISI),
+                "ASSIGNEE",
+                "DUZENLEME_BEKLIYOR",
+                "CREATOR",
+                null,
+                AuthorizationFixtures.requiredPermission("CALISANA_GERI_GONDER"));
 
         assertThatThrownBy(() -> source(List.of(inconsistent)))
                 .isInstanceOf(TransitionRuleConfigurationException.class)
@@ -297,8 +446,14 @@ class DbTransitionRuleSourceTest {
     @DisplayName("bilinmeyen hedef stratejisini reddeder")
     void rejectsUnknownTargetStrategy() {
         TransitionRuleRecord unknown = new TransitionRuleRecord(
-                "TASLAK", "GONDER", "CALISAN", "CREATOR", "BSK_YRD_INCELEMESINDE",
-                "DEPARTMENT", "BASKAN_YARDIMCISI", AuthorizationFixtures.requiredPermission("GONDER"));
+                "TASLAK",
+                "GONDER",
+                WorkflowRoleFixtures.value(RoleName.CALISAN),
+                "CREATOR",
+                "BSK_YRD_INCELEMESINDE",
+                "DEPARTMENT",
+                WorkflowRoleFixtures.value(RoleName.BASKAN_YARDIMCISI),
+                AuthorizationFixtures.requiredPermission("GONDER"));
 
         assertThatThrownBy(() -> source(List.of(unknown)))
                 .isInstanceOf(TransitionRuleConfigurationException.class)
@@ -310,8 +465,14 @@ class DbTransitionRuleSourceTest {
     @DisplayName("hedef stratejisi bos gelirse reddeder")
     void rejectsMissingTargetStrategy() {
         TransitionRuleRecord missing = new TransitionRuleRecord(
-                "TASLAK", "GONDER", "CALISAN", "CREATOR", "BSK_YRD_INCELEMESINDE",
-                null, "BASKAN_YARDIMCISI", AuthorizationFixtures.requiredPermission("GONDER"));
+                "TASLAK",
+                "GONDER",
+                WorkflowRoleFixtures.value(RoleName.CALISAN),
+                "CREATOR",
+                "BSK_YRD_INCELEMESINDE",
+                null,
+                WorkflowRoleFixtures.value(RoleName.BASKAN_YARDIMCISI),
+                AuthorizationFixtures.requiredPermission("GONDER"));
 
         assertThatThrownBy(() -> source(List.of(missing)))
                 .isInstanceOf(TransitionRuleConfigurationException.class)
@@ -323,10 +484,16 @@ class DbTransitionRuleSourceTest {
     void mapsEveryTargetStrategy() {
         assertThat(TargetStrategy.values()).hasSize(5);
         for (TargetStrategy strategy : TargetStrategy.values()) {
-            String role = strategy == TargetStrategy.NONE ? null : "CALISAN";
+            Integer role = strategy == TargetStrategy.NONE ? null : WorkflowRoleFixtures.value(RoleName.CALISAN);
             DbTransitionRuleSource source = source(List.of(new TransitionRuleRecord(
-                    "TASLAK", "GONDER", "CALISAN", "CREATOR", "BSK_YRD_INCELEMESINDE",
-                    strategy.name(), role, AuthorizationFixtures.requiredPermission("GONDER"))));
+                    "TASLAK",
+                    "GONDER",
+                    WorkflowRoleFixtures.value(RoleName.CALISAN),
+                    "CREATOR",
+                    "BSK_YRD_INCELEMESINDE",
+                    strategy.name(),
+                    role,
+                    AuthorizationFixtures.requiredPermission("GONDER"))));
 
             assertThat(source.all()).singleElement()
                     .extracting(TransitionRule::targetStrategy)
@@ -334,29 +501,101 @@ class DbTransitionRuleSourceTest {
         }
     }
 
+    @Test
+    void resolvesIdsFromAnotherEnvironmentWithoutNumericRoleConstants() {
+        var actorId = new RoleId(1001);
+        var targetId = new RoleId(2002);
+        var record = new TransitionRuleRecord(
+                "TASLAK",
+                "GONDER",
+                actorId.value(),
+                "CREATOR",
+                "BSK_YRD_INCELEMESINDE",
+                "ROLE",
+                targetId.value(),
+                "RECORD_FORWARD");
+        var source = new DbTransitionRuleSource(() -> List.of(record), Map.of(
+                actorId, RoleName.CALISAN, targetId, RoleName.BASKAN_YARDIMCISI));
+        var rule = source.find(RecordStatus.TASLAK, WorkflowAction.GONDER, RoleName.CALISAN).orElseThrow();
+        assertThat(rule.actorRoleId()).isEqualTo(new RoleId(1001));
+        assertThat(rule.expectedTargetRoleId()).isEqualTo(new RoleId(2002));
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, -1})
+    void rejectsNonPositiveActorIdWithRowNumber(int id) {
+        var row = new TransitionRuleRecord(
+                "TASLAK",
+                "GONDER",
+                id,
+                "CREATOR",
+                "BSK_YRD_INCELEMESINDE",
+                "ROLE",
+                WorkflowRoleFixtures.value(RoleName.BASKAN_YARDIMCISI),
+                "RECORD_FORWARD");
+        assertThatThrownBy(() -> source(List.of(validRecord(), row)))
+                .isInstanceOf(TransitionRuleConfigurationException.class)
+                .hasMessageContaining("actorRoleId").hasMessageContaining("row 2").hasMessageContaining("positive");
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, -1})
+    void rejectsNonPositiveTargetIdWithRowNumber(int id) {
+        var row = new TransitionRuleRecord(
+                "TASLAK",
+                "GONDER",
+                WorkflowRoleFixtures.value(RoleName.CALISAN),
+                "CREATOR",
+                "BSK_YRD_INCELEMESINDE",
+                "ROLE",
+                id,
+                "RECORD_FORWARD");
+        assertThatThrownBy(() -> source(List.of(validRecord(), row)))
+                .isInstanceOf(TransitionRuleConfigurationException.class)
+                .hasMessageContaining("expectedTargetRoleId").hasMessageContaining("row 2").hasMessageContaining("positive");
+    }
+
+    @Test
+    void dynamicTargetStillRequiresTheSecondRollout() {
+        var row = new TransitionRuleRecord(
+                "TASLAK",
+                "GONDER",
+                WorkflowRoleFixtures.value(RoleName.CALISAN),
+                "CREATOR",
+                "BSK_YRD_INCELEMESINDE",
+                "ROLE",
+                7007,
+                "RECORD_FORWARD");
+        assertThatThrownBy(() -> source(List.of(row)))
+                .isInstanceOf(TransitionRuleConfigurationException.class)
+                .hasMessageContaining("expectedTargetRoleId").hasMessageContaining("7007");
+    }
+
     private static DbTransitionRuleSource source(List<TransitionRuleRecord> records) {
-        return new DbTransitionRuleSource(() -> records);
+        return new DbTransitionRuleSource(() -> records, WorkflowRoleFixtures.legacyRoles());
     }
 
     private static TransitionRuleRecord validRecord() {
         return new TransitionRuleRecord(
                 "TASLAK",
                 "GONDER",
-                "CALISAN",
+                WorkflowRoleFixtures.value(RoleName.CALISAN),
                 "CREATOR",
                 "BSK_YRD_INCELEMESINDE",
                 "ROLE",
-                "BASKAN_YARDIMCISI", AuthorizationFixtures.requiredPermission("GONDER"));
+                WorkflowRoleFixtures.value(RoleName.BASKAN_YARDIMCISI),
+                AuthorizationFixtures.requiredPermission("GONDER"));
     }
 
     private static TransitionRuleRecord approvalRecord() {
         return new TransitionRuleRecord(
                 "BASKAN_INCELEMESINDE",
                 "ONAYLA",
-                "BASKAN",
+                WorkflowRoleFixtures.value(RoleName.BASKAN),
                 "ASSIGNEE",
                 "ONAYLANDI",
                 "NONE",
-                null, AuthorizationFixtures.requiredPermission("ONAYLA"));
+                null,
+                AuthorizationFixtures.requiredPermission("ONAYLA"));
     }
 }
