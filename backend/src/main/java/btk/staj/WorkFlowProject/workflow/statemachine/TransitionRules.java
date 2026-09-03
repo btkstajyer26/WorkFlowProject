@@ -56,8 +56,8 @@ public final class TransitionRules {
             RoleId actorId = Objects.requireNonNull(ids.get(actorRole), "Missing role ID for " + actorRole);
             RoleId targetId = expectedTargetRole == null ? null
                     : Objects.requireNonNull(ids.get(expectedTargetRole), "Missing role ID for " + expectedTargetRole);
-            return new TransitionRule(from, action, actorRole, actorRequirement, to, targetStrategy,
-                    expectedTargetRole, requiredPermissionCode, actorId, targetId);
+            return new TransitionRule(from, action, actorId, actorRequirement, to, targetStrategy,
+                    targetId, requiredPermissionCode);
         }
     }
 }

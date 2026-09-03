@@ -4,16 +4,11 @@ import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
 import btk.staj.WorkFlowProject.support.WorkflowRoleFixtures;
 import btk.staj.WorkFlowProject.workflow.model.TransitionRuleRecord;
 import btk.staj.WorkFlowProject.workflow.port.TransitionRuleRecordReader;
-import btk.staj.WorkFlowProject.workflow.statemachine.RoleId;
-import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRule;
+import java.util.List;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
-
-import java.util.List;
-import java.util.Map;
-import java.util.function.Supplier;
 
 /**
  * Veritabani olmadan calisan {@code @SpringBootTest}'ler icin gecis kurali
@@ -47,12 +42,6 @@ public class StaticTransitionRuleReaderConfiguration {
                 .toList();
 
         return () -> records;
-    }
-
-    @Bean
-    @Primary
-    public Supplier<Map<RoleId, RoleName>> staticLegacyRoles() {
-        return WorkflowRoleFixtures::legacyRoles;
     }
 
     private static TransitionRuleRecord toRecord(TransitionRule rule) {

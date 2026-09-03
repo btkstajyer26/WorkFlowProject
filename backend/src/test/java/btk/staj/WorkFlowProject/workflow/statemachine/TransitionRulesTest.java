@@ -1,12 +1,10 @@
 package btk.staj.WorkFlowProject.workflow.statemachine;
 
 import btk.staj.WorkFlowProject.support.WorkflowRoleFixtures;
-import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
 import java.util.HashSet;
 import java.util.Set;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -30,7 +28,7 @@ class TransitionRulesTest {
         Set<String> keys = new HashSet<>();
 
         for (TransitionRule rule : WorkflowRoleFixtures.rules().all()) {
-            String key = rule.from() + "|" + rule.action() + "|" + rule.actorRole();
+            String key = rule.from() + "|" + rule.action() + "|" + rule.actorRoleId();
             assertThat(keys.add(key))
                     .as("tekrar eden kural: %s", key)
                     .isTrue();
@@ -50,7 +48,7 @@ class TransitionRulesTest {
     @DisplayName("her kuralin yetkili rolu workflow aktorudur")
     void aktorRolleriGecerli() {
         assertThat(WorkflowRoleFixtures.rules().all())
-                .filteredOn(rule -> !rule.actorRole().isWorkflowActor())
+                .filteredOn(rule -> rule.actorRoleId().equals(WorkflowRoleFixtures.id(RoleName.ADMIN)))
                 .as("ADMIN gibi aktor olmayan roller icin kural tanimlanmamali")
                 .isEmpty();
     }
@@ -58,14 +56,14 @@ class TransitionRulesTest {
     @Test
     @DisplayName("tabloda olmayan birlesim icin bos sonuc doner")
     void tanimsizBirlesim() {
-        assertThat(WorkflowRoleFixtures.rules().find(RecordStatus.TASLAK, WorkflowAction.ONAYLA, RoleName.BASKAN))
+        assertThat(WorkflowRoleFixtures.rules().find(RecordStatus.TASLAK, WorkflowAction.ONAYLA, WorkflowRoleFixtures.id(RoleName.BASKAN)))
                 .isEmpty();
     }
 
     @Test
     @DisplayName("tanimli birlesim icin dogru hedef durum doner")
     void tanimliBirlesim() {
-        assertThat(WorkflowRoleFixtures.rules().find(RecordStatus.TASLAK, WorkflowAction.GONDER, RoleName.CALISAN))
+        assertThat(WorkflowRoleFixtures.rules().find(RecordStatus.TASLAK, WorkflowAction.GONDER, WorkflowRoleFixtures.id(RoleName.CALISAN)))
                 .get()
                 .extracting(TransitionRule::to)
                 .isEqualTo(RecordStatus.BSK_YRD_INCELEMESINDE);
@@ -76,15 +74,15 @@ class TransitionRulesTest {
     void everyRuleCarriesConsistentTargetMetadata() {
         for (TransitionRule rule : WorkflowRoleFixtures.rules().all()) {
             assertThat(rule.targetStrategy())
-                    .as("%s + %s + %s icin hedef stratejisi", rule.from(), rule.action(), rule.actorRole())
+                    .as("%s + %s + %s icin hedef stratejisi", rule.from(), rule.action(), rule.actorRoleId())
                     .isNotNull();
 
             // TransitionRule'un invariantinin statik tabloda da tuttugunu dogrular:
             // hedef gerektiren gecis beklenen rolu tasir, gerektirmeyen tasimaz.
             if (rule.targetStrategy() == TargetStrategy.NONE) {
-                assertThat(rule.expectedTargetRole()).isNull();
+                assertThat(rule.expectedTargetRoleId()).isNull();
             } else {
-                assertThat(rule.expectedTargetRole()).isNotNull();
+                assertThat(rule.expectedTargetRoleId()).isNotNull();
             }
         }
     }

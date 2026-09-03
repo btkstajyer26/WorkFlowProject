@@ -2,14 +2,12 @@ package btk.staj.WorkFlowProject.workflow.statemachine;
 
 import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
 import btk.staj.WorkFlowProject.support.WorkflowRoleFixtures;
-import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -25,6 +23,21 @@ class WorkflowTransitionValidatorTest {
 
     private final WorkflowTransitionValidator validator =
             new WorkflowTransitionValidator(new StaticTransitionRuleSource(WorkflowRoleFixtures.roleIds()));
+
+    @Test
+    void equalRoleIdsInDifferentObjectsMatchActorAndTarget() {
+        var ids = java.util.Map.of(RoleName.CALISAN, new RoleId(1001),
+                RoleName.BASKAN_YARDIMCISI, new RoleId(2002), RoleName.BASKAN, new RoleId(3003));
+        var source = new StaticTransitionRuleSource(ids);
+        var context = new TransitionContext(RecordStatus.TASLAK, WorkflowAction.GONDER,
+                new RoleId(1001), true, false, null, false, new RoleId(2002), true,
+                true, java.util.Set.of("RECORD_FORWARD"));
+
+        assertThat(context.actorRoleId()).isNotSameAs(ids.get(RoleName.CALISAN));
+        assertThat(context.targetRoleId()).isNotSameAs(ids.get(RoleName.BASKAN_YARDIMCISI));
+        assertThat(new WorkflowTransitionValidator(source).validate(context))
+                .isEqualTo(TransitionDecision.allowed(RecordStatus.BSK_YRD_INCELEMESINDE));
+    }
 
     // ------------------------------------------------------------------
     // Pozitif gecisler - gecis matrisindeki sekiz satir
@@ -458,8 +471,18 @@ class WorkflowTransitionValidatorTest {
     @Test
     @DisplayName("baglam olusturucusu zorunlu alanlari dogrular")
     void baglamZorunluAlanlar() {
-        assertThatCode(() -> new TransitionContext(null, WorkflowAction.ONAYLA, RoleName.BASKAN,
-                false, false, null, false, null, true, AuthorizationFixtures.workflowActor(RoleName.BASKAN), AuthorizationFixtures.permissions(RoleName.BASKAN)))
+        assertThatCode(() -> new TransitionContext(
+                null,
+                WorkflowAction.ONAYLA,
+                WorkflowRoleFixtures.id(RoleName.BASKAN),
+                false,
+                false,
+                null,
+                false,
+                null,
+                true,
+                AuthorizationFixtures.workflowActor(RoleName.BASKAN),
+                AuthorizationFixtures.permissions(RoleName.BASKAN)))
                 .isInstanceOf(NullPointerException.class);
     }
 
@@ -501,7 +524,7 @@ class WorkflowTransitionValidatorTest {
             for (RecordStatus status : RecordStatus.values()) {
                 for (WorkflowAction action : WorkflowAction.values()) {
                     for (RoleName actorRole : RoleName.values()) {
-                        if (WorkflowRoleFixtures.rules().find(status, action, actorRole).isPresent()) {
+                        if (WorkflowRoleFixtures.rules().find(status, action, WorkflowRoleFixtures.id(actorRole)).isPresent()) {
                             izinliBirlesimSayisi++;
                         }
                     }
@@ -525,9 +548,17 @@ class WorkflowTransitionValidatorTest {
                                             for (boolean hedefAktif : bayraklar) {
                                                 TransitionDecision karar = validator.validate(
                                                         new TransitionContext(
-                                                                status, action, actorRole,
-                                                                olusturan, atanan, aciklama,
-                                                                hedefGonderildi, hedefRol, hedefAktif, AuthorizationFixtures.workflowActor(actorRole), AuthorizationFixtures.permissions(actorRole)));
+                                                                status,
+                                                                action,
+                                                                WorkflowRoleFixtures.id(actorRole),
+                                                                olusturan,
+                                                                atanan,
+                                                                aciklama,
+                                                                hedefGonderildi,
+                                                                WorkflowRoleFixtures.id(hedefRol),
+                                                                hedefAktif,
+                                                                AuthorizationFixtures.workflowActor(actorRole),
+                                                                AuthorizationFixtures.permissions(actorRole)));
 
                                                 if (karar instanceof TransitionDecision.Rejected ret) {
                                                     kodlar.add(ret.errorCode());
@@ -552,9 +583,9 @@ class WorkflowTransitionValidatorTest {
      * okumali. Tanimsiz birlesimlerde {@code null} doner &mdash; zaten hedef kontrolune
      * gelinmeden once reddedilirler.
      */
-    private static RoleName expectedTargetRoleOf(RecordStatus status, WorkflowAction action, RoleName role) {
-        return WorkflowRoleFixtures.rules().find(status, action, role)
-                .map(TransitionRule::expectedTargetRole)
+    private static RoleId expectedTargetRoleOf(RecordStatus status, WorkflowAction action, RoleName role) {
+        return WorkflowRoleFixtures.rules().find(status, action, WorkflowRoleFixtures.id(role))
+                .map(TransitionRule::expectedTargetRoleId)
                 .orElse(null);
     }
 
@@ -568,7 +599,7 @@ class WorkflowTransitionValidatorTest {
         private boolean isAssignee;
         private String comment;
         private boolean targetProvidedInRequest;
-        private RoleName targetRole;
+        private RoleId targetRole;
         private boolean targetActive = true;
 
         private Ctx(RecordStatus status, WorkflowAction action, RoleName actorRole) {
@@ -599,12 +630,17 @@ class WorkflowTransitionValidatorTest {
         /** Istemcinin istekte gonderdigi hedef; hicbir aksiyon icin beklenmiyor, reddedilir. */
         Ctx targetInRequest(RoleName role) {
             this.targetProvidedInRequest = true;
-            this.targetRole = role;
+            this.targetRole = WorkflowRoleFixtures.id(role);
             return this;
         }
 
         /** Servisin kendi cozdugu hedef (istekte gonderilmez). */
         Ctx resolvedTarget(RoleName role) {
+            this.targetRole = WorkflowRoleFixtures.id(role);
+            return this;
+        }
+
+        Ctx resolvedTarget(RoleId role) {
             this.targetRole = role;
             return this;
         }
@@ -615,8 +651,18 @@ class WorkflowTransitionValidatorTest {
         }
 
         TransitionContext build() {
-            return new TransitionContext(status, action, actorRole, isCreator, isAssignee,
-                    comment, targetProvidedInRequest, targetRole, targetActive, AuthorizationFixtures.workflowActor(actorRole), AuthorizationFixtures.permissions(actorRole));
+            return new TransitionContext(
+                    status,
+                    action,
+                    WorkflowRoleFixtures.id(actorRole),
+                    isCreator,
+                    isAssignee,
+                    comment,
+                    targetProvidedInRequest,
+                    targetRole,
+                    targetActive,
+                    AuthorizationFixtures.workflowActor(actorRole),
+                    AuthorizationFixtures.permissions(actorRole));
         }
     }
 }

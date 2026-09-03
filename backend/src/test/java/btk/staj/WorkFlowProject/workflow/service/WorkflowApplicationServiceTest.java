@@ -26,6 +26,12 @@ import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRuleSource;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowErrorCode;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowTransitionValidator;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,13 +41,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.time.Clock;
-import java.time.Instant;
-import java.time.ZoneOffset;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -134,7 +133,7 @@ class WorkflowApplicationServiceTest {
                 scenario.previousStatus(),
                 scenario.newStatus(),
                 ACTOR_ID,
-                scenario.actorRole(),
+                WorkflowRoleFixtures.id(scenario.actorRole()),
                 scenario.expectedAssignedTo(),
                 scenario.comment(),
                 PERFORMED_AT));
@@ -144,7 +143,7 @@ class WorkflowApplicationServiceTest {
                 scenario.previousStatus(),
                 scenario.newStatus(),
                 ACTOR_ID,
-                scenario.actorRole(),
+                WorkflowRoleFixtures.id(scenario.actorRole()),
                 scenario.previousAssignedTo(),
                 scenario.expectedAssignedTo(),
                 scenario.comment(),
@@ -306,7 +305,7 @@ class WorkflowApplicationServiceTest {
         arrange(record, RoleName.CALISAN);
         when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
                 .thenReturn(new TargetResolution.Resolved(
-                        new WorkflowUserSnapshot(TARGET_ID, RoleName.BASKAN_YARDIMCISI, false)));
+                        new WorkflowUserSnapshot(TARGET_ID, WorkflowRoleFixtures.id(RoleName.BASKAN_YARDIMCISI), false)));
 
         WorkflowApplicationException exception = assertThrows(
                 WorkflowApplicationException.class,
@@ -326,7 +325,7 @@ class WorkflowApplicationServiceTest {
         arrange(record, RoleName.CALISAN);
         when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
                 .thenReturn(new TargetResolution.Resolved(
-                        new WorkflowUserSnapshot(TARGET_ID, RoleName.ADMIN, true)));
+                        new WorkflowUserSnapshot(TARGET_ID, WorkflowRoleFixtures.id(RoleName.ADMIN), true)));
 
         WorkflowApplicationException exception = assertThrows(
                 WorkflowApplicationException.class,
@@ -345,7 +344,7 @@ class WorkflowApplicationServiceTest {
                 WorkflowAction.GONDER, null, null);
         arrange(record, RoleName.CALISAN);
         when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
-                .thenReturn(new TargetResolution.RoleNotConfigured(RoleName.BASKAN_YARDIMCISI, 0));
+                .thenReturn(new TargetResolution.RoleNotConfigured(WorkflowRoleFixtures.id(RoleName.BASKAN_YARDIMCISI), 0));
 
         WorkflowApplicationException exception = assertThrows(
                 WorkflowApplicationException.class,
@@ -364,7 +363,7 @@ class WorkflowApplicationServiceTest {
                 WorkflowAction.BASKANA_ILET, null, null);
         arrange(record, RoleName.BASKAN_YARDIMCISI);
         when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
-                .thenReturn(new TargetResolution.RoleNotConfigured(RoleName.BASKAN, 0));
+                .thenReturn(new TargetResolution.RoleNotConfigured(WorkflowRoleFixtures.id(RoleName.BASKAN), 0));
 
         WorkflowApplicationException exception = assertThrows(
                 WorkflowApplicationException.class,
@@ -424,7 +423,11 @@ class WorkflowApplicationServiceTest {
     @Test
     @DisplayName("bulunamayan kayit resolver veya yan etki cagrisi yapmadan reddedilir")
     void rejectsMissingRecordWithoutResolutionOrSideEffects() {
-        when(currentActorProvider.currentActor()).thenReturn(new CurrentActor(ACTOR_ID, RoleName.CALISAN, AuthorizationFixtures.workflowActor(RoleName.CALISAN), AuthorizationFixtures.permissions(RoleName.CALISAN)));
+        when(currentActorProvider.currentActor()).thenReturn(new CurrentActor(
+                ACTOR_ID,
+                WorkflowRoleFixtures.id(RoleName.CALISAN),
+                AuthorizationFixtures.workflowActor(RoleName.CALISAN),
+                AuthorizationFixtures.permissions(RoleName.CALISAN)));
         when(recordPort.findById(RECORD_ID)).thenReturn(Optional.empty());
 
         WorkflowRecordNotFoundException exception = assertThrows(
@@ -448,7 +451,7 @@ class WorkflowApplicationServiceTest {
         arrange(record, RoleName.BASKAN_YARDIMCISI);
         when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
                 .thenReturn(new TargetResolution.Resolved(
-                        new WorkflowUserSnapshot(TARGET_ID, RoleName.BASKAN, true)));
+                        new WorkflowUserSnapshot(TARGET_ID, WorkflowRoleFixtures.id(RoleName.BASKAN), true)));
 
         WorkflowActionResponse response = service.performAction(RECORD_ID, request);
 
@@ -603,7 +606,7 @@ class WorkflowApplicationServiceTest {
     @Test
     void missingPermissionStopsBeforeTargetLookupAndAllWrites() {
         when(currentActorProvider.currentActor()).thenReturn(
-                new CurrentActor(ACTOR_ID, RoleName.CALISAN, true, java.util.Set.of()));
+                new CurrentActor(ACTOR_ID, WorkflowRoleFixtures.id(RoleName.CALISAN), true, java.util.Set.of()));
         when(recordPort.findById(RECORD_ID)).thenReturn(Optional.of(
                 activeRecord(RecordStatus.TASLAK, ACTOR_ID, null, null)));
         WorkflowApplicationException exception = assertThrows(WorkflowApplicationException.class,
@@ -614,7 +617,11 @@ class WorkflowApplicationServiceTest {
     }
 
     private void arrange(WorkflowRecordSnapshot record, RoleName actorRole) {
-        when(currentActorProvider.currentActor()).thenReturn(new CurrentActor(ACTOR_ID, actorRole, AuthorizationFixtures.workflowActor(actorRole), AuthorizationFixtures.permissions(actorRole)));
+        when(currentActorProvider.currentActor()).thenReturn(new CurrentActor(
+                ACTOR_ID,
+                WorkflowRoleFixtures.id(actorRole),
+                AuthorizationFixtures.workflowActor(actorRole),
+                AuthorizationFixtures.permissions(actorRole)));
         when(recordPort.findById(RECORD_ID)).thenReturn(Optional.of(record));
     }
 
@@ -651,7 +658,7 @@ class WorkflowApplicationServiceTest {
                         null,
                         null,
                         new TargetResolution.Resolved(
-                                new WorkflowUserSnapshot(TARGET_ID, RoleName.BASKAN_YARDIMCISI, true)),
+                                new WorkflowUserSnapshot(TARGET_ID, WorkflowRoleFixtures.id(RoleName.BASKAN_YARDIMCISI), true)),
                         RecordStatus.BSK_YRD_INCELEMESINDE,
                         TARGET_ID,
                         LAST_DEPUTY_ID),
@@ -666,7 +673,7 @@ class WorkflowApplicationServiceTest {
                         null,
                         null,
                         new TargetResolution.Resolved(
-                                new WorkflowUserSnapshot(TARGET_ID, RoleName.BASKAN_YARDIMCISI, true)),
+                                new WorkflowUserSnapshot(TARGET_ID, WorkflowRoleFixtures.id(RoleName.BASKAN_YARDIMCISI), true)),
                         RecordStatus.BSK_YRD_INCELEMESINDE,
                         TARGET_ID,
                         LAST_DEPUTY_ID),
@@ -681,7 +688,7 @@ class WorkflowApplicationServiceTest {
                         null,
                         null,
                         new TargetResolution.Resolved(
-                                new WorkflowUserSnapshot(TARGET_ID, RoleName.BASKAN, true)),
+                                new WorkflowUserSnapshot(TARGET_ID, WorkflowRoleFixtures.id(RoleName.BASKAN), true)),
                         RecordStatus.BASKAN_INCELEMESINDE,
                         TARGET_ID,
                         ACTOR_ID),
@@ -696,7 +703,7 @@ class WorkflowApplicationServiceTest {
                         null,
                         "duzeltiniz",
                         new TargetResolution.Resolved(
-                                new WorkflowUserSnapshot(CREATOR_ID, RoleName.CALISAN, true)),
+                                new WorkflowUserSnapshot(CREATOR_ID, WorkflowRoleFixtures.id(RoleName.CALISAN), true)),
                         RecordStatus.DUZENLEME_BEKLIYOR,
                         CREATOR_ID,
                         LAST_DEPUTY_ID),
@@ -739,7 +746,7 @@ class WorkflowApplicationServiceTest {
                         null,
                         "duzeltiniz",
                         new TargetResolution.Resolved(
-                                new WorkflowUserSnapshot(CREATOR_ID, RoleName.CALISAN, true)),
+                                new WorkflowUserSnapshot(CREATOR_ID, WorkflowRoleFixtures.id(RoleName.CALISAN), true)),
                         RecordStatus.DUZENLEME_BEKLIYOR,
                         CREATOR_ID,
                         LAST_DEPUTY_ID),
@@ -754,7 +761,7 @@ class WorkflowApplicationServiceTest {
                         null,
                         "tekrar inceleyiniz",
                         new TargetResolution.Resolved(
-                                new WorkflowUserSnapshot(LAST_DEPUTY_ID, RoleName.BASKAN_YARDIMCISI, true)),
+                                new WorkflowUserSnapshot(LAST_DEPUTY_ID, WorkflowRoleFixtures.id(RoleName.BASKAN_YARDIMCISI), true)),
                         RecordStatus.BSK_YRD_INCELEMESINDE,
                         LAST_DEPUTY_ID,
                         LAST_DEPUTY_ID));

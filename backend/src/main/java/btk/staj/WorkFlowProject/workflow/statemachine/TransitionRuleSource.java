@@ -22,12 +22,12 @@ public interface TransitionRuleSource {
     /**
      * Verilen birlesime karsilik gelen kurali arar.
      *
-     * <p>{@code (from, action, actorRole)} birlesimi domain seviyesinde tekildir:
+     * <p>{@code (from, action, actorRoleId)} birlesimi domain seviyesinde tekildir:
      * bir birlesim en fazla bir gecise karsilik gelir.
      *
      * @return kural varsa dolu, tanimli degilse bos {@code Optional}
      */
-    Optional<TransitionRule> find(RecordStatus from, WorkflowAction action, RoleName actorRole);
+    Optional<TransitionRule> find(RecordStatus from, WorkflowAction action, RoleId actorRoleId);
 
     /**
      * Tanimli butun gecis kurallari.

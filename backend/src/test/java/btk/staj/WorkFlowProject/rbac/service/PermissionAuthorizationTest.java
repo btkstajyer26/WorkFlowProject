@@ -8,9 +8,8 @@ import btk.staj.WorkFlowProject.workflow.adapter.DbTransitionRuleSource;
 import btk.staj.WorkFlowProject.workflow.exception.TransitionRuleConfigurationException;
 import btk.staj.WorkFlowProject.workflow.model.TransitionRuleRecord;
 import btk.staj.WorkFlowProject.workflow.statemachine.*;
-import org.junit.jupiter.api.Test;
-
 import java.util.*;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.*;
 
@@ -19,8 +18,18 @@ class PermissionAuthorizationTest {
     private final WorkflowTransitionValidator validator = new WorkflowTransitionValidator(rules);
 
     private TransitionContext context(RecordStatus status, boolean actor, Set<String> codes) {
-        return new TransitionContext(status, WorkflowAction.ONAYLA, RoleName.BASKAN,
-                false, true, null, false, null, false, actor, codes);
+        return new TransitionContext(
+                status,
+                WorkflowAction.ONAYLA,
+                WorkflowRoleFixtures.id(RoleName.BASKAN),
+                false,
+                true,
+                null,
+                false,
+                null,
+                false,
+                actor,
+                codes);
     }
 
     @Test void permissionIsRequiredAndWrongPermissionCannotSubstitute() {
@@ -51,7 +60,7 @@ class PermissionAuthorizationTest {
                     "ONAYLANDI",
                     "NONE",
                     null,
-                    code)), WorkflowRoleFixtures.legacyRoles()))
+                    code))))
                     .isInstanceOf(TransitionRuleConfigurationException.class)
                     .hasMessageContaining("requiredPermissionCode");
         }
@@ -65,7 +74,7 @@ class PermissionAuthorizationTest {
         assertThat(service.canEditRecord(Set.of("RECORD_EDIT"), RecordStatus.DUZENLEME_BEKLIYOR)).isTrue();
         assertThat(service.canDeleteRecord(Set.of("RECORD_DELETE"), RecordStatus.DUZENLEME_BEKLIYOR)).isFalse();
         assertThat(service.canDeleteRecord(Set.of("RECORD_DELETE"), RecordStatus.TASLAK)).isTrue();
-        assertThat(service.canApprove(RoleName.BASKAN, RecordStatus.BASKAN_INCELEMESINDE, Set.of())).isFalse();
+        assertThat(service.canApprove(WorkflowRoleFixtures.id(RoleName.BASKAN), RecordStatus.BASKAN_INCELEMESINDE, Set.of())).isFalse();
     }
 
     @Test void principalCopiesPermissionsAndInactiveRoleIsDisabled() {

@@ -1,7 +1,6 @@
 package btk.staj.WorkFlowProject.workflow.model;
 
-import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
-
+import btk.staj.WorkFlowProject.workflow.statemachine.RoleId;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -30,10 +29,10 @@ public sealed interface TargetResolution permits
         }
     }
 
-    record RoleNotConfigured(RoleName role, int activeUserCount) implements TargetResolution {
+    record RoleNotConfigured(RoleId roleId, int activeUserCount) implements TargetResolution {
 
         public RoleNotConfigured {
-            Objects.requireNonNull(role, "role");
+            Objects.requireNonNull(roleId, "roleId");
         }
     }
 

@@ -13,9 +13,9 @@ public final class StaticTransitionRuleSource implements TransitionRuleSource {
     }
 
     @Override
-    public Optional<TransitionRule> find(RecordStatus from, WorkflowAction action, RoleName actorRole) {
+    public Optional<TransitionRule> find(RecordStatus from, WorkflowAction action, RoleId actorRoleId) {
         return snapshot.stream().filter(rule -> rule.from() == from && rule.action() == action
-                && rule.actorRole() == actorRole).findFirst();
+                && rule.actorRoleId().equals(actorRoleId)).findFirst();
     }
 
     @Override

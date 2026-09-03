@@ -46,7 +46,7 @@ public class WorkflowTransitionValidator {
 
         // 3. Durum + aksiyon + rol birlesimi tabloda tanimli mi?
         Optional<TransitionRule> rule = ruleSource.find(
-                context.currentStatus(), context.action(), context.actorRole());
+                context.currentStatus(), context.action(), context.actorRoleId());
         if (rule.isEmpty()) {
             return TransitionDecision.rejected(WorkflowErrorCode.WORKFLOW_INVALID_TRANSITION);
         }
@@ -76,12 +76,12 @@ public class WorkflowTransitionValidator {
         // Beklenen rol aksiyonun degil GECISIN ozelligidir: ayni aksiyon farkli gecislerde
         // farkli hedefe gidebilir (DB-1 SS6.5). Ornegin CALISANA_GERI_GONDER hem Baskan
         // Yardimcisinin hem Baskanin kullandigi iki ayri satirda bulunur.
-        RoleName expectedTargetRole = rule.get().expectedTargetRole();
-        if (expectedTargetRole != null) {
+        RoleId expectedTargetRoleId = rule.get().expectedTargetRoleId();
+        if (expectedTargetRoleId != null) {
             // ADMIN veya yanlis roldeki hedef burada elenir. Hedef cozulememisse
             // (null) yine gecersiz sayilir; servis bu durumu zaten daha once
             // WORKFLOW_ROLE_NOT_CONFIGURED ile durdurmus olmalidir.
-            if (context.targetRole() != expectedTargetRole) {
+            if (!expectedTargetRoleId.equals(context.targetRoleId())) {
                 return TransitionDecision.rejected(WorkflowErrorCode.WORKFLOW_TARGET_ROLE_INVALID);
             }
             if (!context.targetActive()) {

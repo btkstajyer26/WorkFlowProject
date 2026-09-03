@@ -1,19 +1,18 @@
 package btk.staj.WorkFlowProject.notification.controller;
 
-import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
-
 import btk.staj.WorkFlowProject.common.dto.PagedResponse;
 import btk.staj.WorkFlowProject.notification.service.NotificationService;
+import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
+import btk.staj.WorkFlowProject.support.WorkflowRoleFixtures;
 import btk.staj.WorkFlowProject.workflow.model.CurrentActor;
 import btk.staj.WorkFlowProject.workflow.port.CurrentActorProvider;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
+import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-
-import java.util.List;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -38,7 +37,11 @@ class NotificationControllerTest {
 
     NotificationControllerTest() {
         when(currentActorProvider.currentActor())
-                .thenReturn(new CurrentActor(CURRENT_USER_ID, RoleName.CALISAN, AuthorizationFixtures.workflowActor(RoleName.CALISAN), AuthorizationFixtures.permissions(RoleName.CALISAN)));
+                .thenReturn(new CurrentActor(
+                        CURRENT_USER_ID,
+                        WorkflowRoleFixtures.id(RoleName.CALISAN),
+                        AuthorizationFixtures.workflowActor(RoleName.CALISAN),
+                        AuthorizationFixtures.permissions(RoleName.CALISAN)));
     }
 
     @Test

@@ -1,14 +1,14 @@
 package btk.staj.WorkFlowProject.workflow.adapter;
 
+import btk.staj.WorkFlowProject.support.WorkflowRoleFixtures;
 import btk.staj.WorkFlowProject.workflow.model.WorkflowStatusChangedEvent;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
-import org.junit.jupiter.api.Test;
-import org.springframework.context.ApplicationEventPublisher;
-
 import java.time.Instant;
 import java.util.UUID;
+import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.mockito.ArgumentMatchers.same;
@@ -52,7 +52,7 @@ class SpringWorkflowEventPublisherTest {
                 RecordStatus.TASLAK,
                 RecordStatus.BSK_YRD_INCELEMESINDE,
                 UUID.fromString("00000000-0000-0000-0000-000000000002"),
-                RoleName.CALISAN,
+                WorkflowRoleFixtures.id(RoleName.CALISAN),
                 null,
                 UUID.fromString("00000000-0000-0000-0000-000000000003"),
                 null,

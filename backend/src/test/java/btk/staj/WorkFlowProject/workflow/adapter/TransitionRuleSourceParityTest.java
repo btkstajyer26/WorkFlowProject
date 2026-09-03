@@ -12,6 +12,10 @@ import btk.staj.WorkFlowProject.workflow.statemachine.StaticTransitionRuleSource
 import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRule;
 import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRuleSource;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,12 +23,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.EnumMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -70,7 +68,7 @@ class TransitionRuleSourceParityTest {
     private JdbcTemplate jdbcTemplate;
 
     private TransitionRuleSource staticSource;
-    private Map<RoleId, RoleName> legacyRoles;
+    private Map<RoleName, RoleId> referenceRoleIds;
 
     @BeforeEach
     void resolveReferenceIdentitiesFromDatabase() {
@@ -80,8 +78,7 @@ class TransitionRuleSourceParityTest {
         });
         assertThat(ids).containsKeys(RoleName.values());
         staticSource = new StaticTransitionRuleSource(ids);
-        legacyRoles = ids.entrySet().stream().collect(
-                Collectors.toUnmodifiableMap(Map.Entry::getValue, Map.Entry::getKey));
+        referenceRoleIds = Map.copyOf(ids);
     }
 
     @Test
@@ -120,8 +117,8 @@ class TransitionRuleSourceParityTest {
         for (RecordStatus from : RecordStatus.values()) {
             for (WorkflowAction action : WorkflowAction.values()) {
                 for (RoleName actorRole : RoleName.values()) {
-                    Optional<TransitionRule> fromDatabase = databaseSource.find(from, action, actorRole);
-                    Optional<TransitionRule> fromStatic = staticSource.find(from, action, actorRole);
+                    Optional<TransitionRule> fromDatabase = databaseSource.find(from, action, referenceRoleIds.get(actorRole));
+                    Optional<TransitionRule> fromStatic = staticSource.find(from, action, referenceRoleIds.get(actorRole));
 
                     assertThat(fromDatabase)
                             .as("kural araması: %s + %s + %s", from, action, actorRole)
@@ -241,18 +238,17 @@ class TransitionRuleSourceParityTest {
         TransitionRuleSource databaseSource = databaseSource();
 
         for (TransitionRule staticRule : staticSource.all()) {
-            Optional<TransitionRule> fromDatabase = databaseSource.find(
-                    staticRule.from(), staticRule.action(), staticRule.actorRole());
+            Optional<TransitionRule> fromDatabase = databaseSource.find(staticRule.from(), staticRule.action(), staticRule.actorRoleId());
 
             assertThat(fromDatabase)
-                    .as("kural: %s + %s + %s", staticRule.from(), staticRule.action(), staticRule.actorRole())
+                    .as("kural: %s + %s + %s", staticRule.from(), staticRule.action(), staticRule.actorRoleId())
                     .isPresent();
             assertThat(fromDatabase.get().targetStrategy())
-                    .as("%s + %s + %s hedef stratejisi", staticRule.from(), staticRule.action(), staticRule.actorRole())
+                    .as("%s + %s + %s hedef stratejisi", staticRule.from(), staticRule.action(), staticRule.actorRoleId())
                     .isEqualTo(staticRule.targetStrategy());
-            assertThat(fromDatabase.get().expectedTargetRole())
-                    .as("%s + %s + %s beklenen hedef rolu", staticRule.from(), staticRule.action(), staticRule.actorRole())
-                    .isEqualTo(staticRule.expectedTargetRole());
+            assertThat(fromDatabase.get().expectedTargetRoleId())
+                    .as("%s + %s + %s beklenen hedef rolu", staticRule.from(), staticRule.action(), staticRule.actorRoleId())
+                    .isEqualTo(staticRule.expectedTargetRoleId());
         }
     }
 
@@ -262,7 +258,7 @@ class TransitionRuleSourceParityTest {
      * veritabani durumunu oku" demektir.
      */
     private TransitionRuleSource databaseSource() {
-        return new DbTransitionRuleSource(reader, legacyRoles);
+        return new DbTransitionRuleSource(reader);
     }
 
     private static String[] names(Enum<?>[] values) {
