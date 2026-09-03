@@ -26,7 +26,7 @@ Bağlayıcı kısıtlar:
   validator'a giremez (`SM-5` ile kazanılan altyapısız test edilebilirlik).
 - Validator'ın dokuz kontrolünün **sırası ve hata kodları** değişmez; negatif
   testler tam hata kodu assert ediyor.
-- Mevcut kişiye-atama davranışı birebir korunur; backend test eşiği (bugün 592)
+- Mevcut kişiye-atama davranışı birebir korunur; backend test eşiği (bugün 639)
   düşmez.
 
 ## Değerlendirilen Seçenekler
@@ -80,7 +80,7 @@ dördüncü kontrolün *içine* girer, yeni bir adım olarak araya girmez.
 `actorIsAssignee` şu soruya cevap verir hâle gelir:
 
 ```text
-aktör kaydın assigned_user_id'si mi
+aktör kaydın assigned_to'su mu
   VEYA
 kayıt bir departmana atanmışsa, aktör o departmanın üyesi ve akış kuralının
 bu adımda işaret ettiği role sahip mi?
@@ -132,8 +132,44 @@ FOREIGN KEY (...) ... ON DELETE RESTRICT
 `UNIQUE (from_status_id, action_id, actor_role_id)` ile aynı mantıkta: bir departman
 için bir adımda tek kural.
 
-`records` tarafında atama hedefi `assigned_user_id` **veya**
-`assigned_department_id` olur; tam olarak biri dolu, kısıt DB seviyesinde zorlanır.
+### `records` atama sözleşmesi
+
+Atama hedefi mevcut `assigned_to` kolonu (kişi) **veya** yeni
+`assigned_department_id` (departman) olur. Kural üç kademelidir:
+
+1. **İkisi birden dolu olamaz.** Bu, satır içi `CHECK` ile DB seviyesinde
+   zorlanır:
+
+   ```sql
+   CHECK (assigned_to IS NULL OR assigned_department_id IS NULL)
+   ```
+
+2. **Atama gerektiren durumda biri dolu olmalıdır.** Bugün bu küme
+   `BSK_YRD_INCELEMESINDE`, `BASKAN_INCELEMESINDE` ve `DUZENLEME_BEKLIYOR`.
+3. **Atama gerektirmeyen durumda ikisi de `NULL` olabilir.** Bugün bu küme
+   `TASLAK` (kayıt oluşturulduğu an) ile terminal `ONAYLANDI` ve `REDDEDILDI`.
+
+> ⚠️ **2. madde `CHECK` ile zorlanamaz.** Satır içi `CHECK` başka tabloya
+> (`workflow_statuses`) bakamaz ve "atama gerektiren durum" bilgisi bugün veride
+> yok: `workflow_statuses` yalnız `is_terminal`, `is_editable_by_creator`,
+> `display_order` ve `is_active` taşıyor (`V14`). `is_terminal` da bu bilgiyi
+> türetmeye yetmez — `TASLAK` terminal değildir ama atamasızdır.
+>
+> Bu nedenle 2. madde **uygulama servisinde**, atamayı yazan transaction içinde
+> doğrulanır. DB-1 §6.1'in `max_users` için verdiği kararla aynı kalıptır:
+> genel bir `CHECK` ile doğrulanamayan invariant, yazma yolunda kilitli biçimde
+> korunur. Alternatifi — `workflow_statuses.requires_assignment` kolonu ve
+> trigger — bu iterasyonda **seçilmedi**; gerekirse ayrı karar konusudur.
+
+Yalnız 1. madde DDL'e girer; `DB-11`/`DB-12`/`DB-13` bu ayrımı esas alır.
+
+**Neden "tam olarak biri dolu" değil.** Önceki taslak global bir XOR öneriyordu.
+Bu kısıt bugünkü davranışla çelişiyordu: yeni kayıt `TASLAK` durumunda ve
+`assigned_to = NULL` ile oluşuyor
+(`DynamicWorkflowRoleIntegrationTest`), `ONAYLA` ve `REDDET` ise
+`target_strategy = NONE` ile atamayı `NULL`'a çekiyor (`V15`). Global XOR konsaydı
+hiçbir kayıt oluşturulamazdı ve yukarıdaki "mevcut kişiye-atama davranışı birebir
+korunur" kısıtı çiğnenirdi.
 
 ### Çözümün yeri
 
@@ -164,7 +200,9 @@ Maliyet ve riskler:
 
 Takip işleri:
 
-- `DB-11` · `DB-12` · `DB-13` — tablolar ve XOR kısıtı
+- `DB-11` · `DB-12` · `DB-13` — tablolar ve karşılıklı dışlama `CHECK`'i
+  (atama sözleşmesi 1. madde). 2. maddenin uygulama servisinde nereye
+  yerleşeceği `WF-5` ile birlikte kararlaştırılır
 - `WF-5` — `TransitionContext` genişlemesi
 - `WF-6` — `DepartmentRoutingResolver`
 - `AP-4` · `AP-5` — departman ekranları ve kural editörü
