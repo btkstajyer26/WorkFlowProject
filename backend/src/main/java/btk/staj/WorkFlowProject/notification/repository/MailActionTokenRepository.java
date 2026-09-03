@@ -35,4 +35,21 @@ public interface MailActionTokenRepository extends JpaRepository<MailActionToken
     int consumeOpenTokens(@Param("recordId") UUID recordId,
                           @Param("userId") UUID userId,
                           @Param("now") LocalDateTime now);
+
+    /**
+     * Suresi gecmis anahtarlari siler.
+     *
+     * <p>{@code V11} {@code idx_mail_action_tokens_expires_at} indeksini tam bu toplu
+     * temizlik icin acmisti. Silinen satirlar zaten kullanilamaz durumda: suresi gecmis
+     * bir anahtar tuketilemez. Tuketilmis anahtarlar da suresi dolunca ayni sorguyla
+     * gider; ayri bir kosula gerek yoktur.
+     *
+     * <p>Bu bir denetim kaydi degildir; kim ne zaman ne yapti bilgisi {@code audit_logs}
+     * icinde tutulur ve buradan silme onu etkilemez.
+     *
+     * @return silinen satir sayisi
+     */
+    @Transactional
+    @Modifying
+    int deleteByExpiresAtBefore(LocalDateTime threshold);
 }
