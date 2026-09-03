@@ -8,6 +8,9 @@ Bu dizin, projeyi uzun vadede etkileyen kararları Architecture Decision Record 
 | --- | --- | --- |
 | [0001](0001-modul-bazli-paketleme.md) | Backend'i modül (feature) bazlı paketleme | Kabul Edildi |
 | [0002](0002-mobil-istemci-teknolojisi.md) | Mobil istemci teknolojisi — React Native + Expo | Kabul Edildi |
+<<<<<<< HEAD
+| [0005](0005-departman-atamasi-ve-akis-kurali.md) | Departman ataması ve akış kuralı | Önerildi |
+=======
 | [0003](0003-veri-tanimli-akis-motoru-ve-birim-bazli-roller.md) | Veri tanımlı akış motoru ve birim bazlı roller | Önerildi |
 
 > ⚠️ **ADR-0003 ile bugün uygulanan model çelişiyor.** ADR, rolün **daire başına**
@@ -21,6 +24,7 @@ Bu dizin, projeyi uzun vadede etkileyen kararları Architecture Decision Record 
 > sözleşmesi yazılırken karara bağlanmalıdır. ADR silinmedi çünkü seçenekleri
 > tartışılmış tek departman/rol kaynağı odur; durumu `Önerildi` olarak kalıyor.
 
+>>>>>>> origin/test
 Bu dizinde her mimari karar için ADR yoktur ve olması da beklenmez. Mevcut
 mimarinin çoğu [architecture.md](../architecture.md),
 [workflow.md](../workflow.md) ve [database.md](../database.md) içinde gerekçesiyle
