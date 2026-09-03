@@ -25,7 +25,9 @@ import static btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction.REDD
 import static btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction.TEKRAR_GONDER;
 
 /**
- * Eight seeded transition templates, retained as the parity reference until TZ-1.
+ * Eight seeded transition templates, kept in the test tree as the parity reference (TZ-1).
+ * Production reads the same rows from {@code workflow_transitions}; this table exists only
+ * so the parity test has an independent second source.
  * Role IDs must be supplied by the caller: production IDs are environment-specific.
  * Tests without a database supply their own synthetic mapping.
  */

@@ -14,7 +14,12 @@ import java.util.Set;
  * @param action                  uygulanmak istenen aksiyon
  * @param actorRoleId               aksiyonu yapan kullanicinin rolu
  * @param actorIsCreator          aktor {@code records.created_by} mu
- * @param actorIsAssignee         aktor {@code records.assigned_to} mu
+ * @param actorHoldsAssignment    atama aktorde mi. Bugun yalnizca
+ *                                {@code records.assigned_to} esitligi; ADR-0005 geregi
+ *                                departmana atanmis kayitta aktorun departman uyeligi ve
+ *                                akis kuralinin isaret ettigi rol de bu bayragi dogru yapar
+ *                                (WF-6 ile gelir). Validator ayrimi gormez; yetkinin
+ *                                kaynagi servis katmanindaki cozumleyici sonucunda durur
  * @param comment                 istekteki aciklama; yoksa {@code null}
  * @param targetProvidedInRequest istemci istekte {@code targetUserId} gonderdi mi
  * @param targetRoleId              servis tarafindan cozulen hedef kullanicinin rolu;
@@ -26,7 +31,7 @@ public record TransitionContext(
         WorkflowAction action,
         RoleId actorRoleId,
         boolean actorIsCreator,
-        boolean actorIsAssignee,
+        boolean actorHoldsAssignment,
         String comment,
         boolean targetProvidedInRequest,
         RoleId targetRoleId,

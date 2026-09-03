@@ -6,8 +6,8 @@ import java.util.Objects;
  * Tek bir durum gecisi kurali.
  *
  * <p>Kurallarin dogruluk kaynagi {@code workflow_transitions} tablosudur; bu tip yalnizca
- * bir satiri temsil eder. {@link TransitionRules} ayni satirlari statik olarak tutar ve
- * parity testinin referansidir.
+ * bir satiri temsil eder. Test agacindaki {@code TransitionRules} ayni satirlari statik
+ * olarak tutar ve parity testinin referansidir (TZ-1).
  *
  * @param from               gecisin uygulanabilecegi mevcut durum
  * @param action             uygulanan aksiyon

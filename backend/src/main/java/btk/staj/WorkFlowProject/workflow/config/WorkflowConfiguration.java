@@ -47,9 +47,9 @@ public class WorkflowConfiguration {
      * (validator, uygulama servisi, {@code PermissionService}) tazelemeden haberdar
      * degildir ve olmamalidir.
      *
-     * <p>{@code StaticTransitionRuleSource} kaldirilmadi: SM-9 parity testinin
-     * karsilastirdigi referans odur. Statik tablonun kaldirilmasi ayri bir is
-     * (TZ-1) ve WF-2D2'den sonra yapilmalidir.
+     * <p>TZ-1: statik gecis tablosu ve {@code StaticTransitionRuleSource} test
+     * agacina tasindi. SM-9 parity testinin karsilastirdigi referans odur;
+     * production artifact'inda yer almaz.
      */
     @Bean
     public ReloadableTransitionRuleSource transitionRuleSource(TransitionRuleRecordReader ruleRecordReader) {

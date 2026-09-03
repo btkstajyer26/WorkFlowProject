@@ -18,8 +18,9 @@ başarısız olursa çalışan snapshot korunur.
 eşlemeyi çağırandan alır; production kodunda sayısal rol sabiti yoktur.
 Parity testi eşlemeyi PostgreSQL'den `system_key → id` olarak okur.
 Veritabanısız testler `WorkflowRoleFixtures` içindeki ortak sentetik
-eşlemeyi kullanır. Statik tablo TZ-1'e kadar referans olarak kalır;
-sentetik ID'lerle production fallback olarak kullanılamaz.
+eşlemeyi kullanır. Statik tablo TZ-1 ile test ağacına taşındı ve parity referansı olarak orada
+kalır; production artifact'ında yer almaz ve sentetik ID'lerle production
+fallback olarak kullanılamaz.
 
 ## PR 2: aktör zinciri
 

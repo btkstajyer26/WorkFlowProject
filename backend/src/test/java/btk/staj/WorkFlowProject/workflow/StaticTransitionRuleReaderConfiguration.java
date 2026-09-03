@@ -1,11 +1,8 @@
 package btk.staj.WorkFlowProject.workflow;
 
-import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
+import btk.staj.WorkFlowProject.support.TransitionRuleFixtures;
 import btk.staj.WorkFlowProject.support.WorkflowRoleFixtures;
-import btk.staj.WorkFlowProject.workflow.model.TransitionRuleRecord;
 import btk.staj.WorkFlowProject.workflow.port.TransitionRuleRecordReader;
-import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRule;
-import java.util.List;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
@@ -37,22 +34,6 @@ public class StaticTransitionRuleReaderConfiguration {
     @Bean
     @Primary
     public TransitionRuleRecordReader staticTransitionRuleRecordReader() {
-        List<TransitionRuleRecord> records = WorkflowRoleFixtures.rules().all().stream()
-                .map(StaticTransitionRuleReaderConfiguration::toRecord)
-                .toList();
-
-        return () -> records;
-    }
-
-    private static TransitionRuleRecord toRecord(TransitionRule rule) {
-        return new TransitionRuleRecord(
-                rule.from().name(),
-                rule.action().name(),
-                rule.actorRoleId().value(),
-                rule.actorRequirement().name(),
-                rule.to().name(),
-                rule.targetStrategy().name(),
-                rule.expectedTargetRoleId() == null ? null : rule.expectedTargetRoleId().value(),
-                AuthorizationFixtures.requiredPermission(rule.action().name()));
+        return TransitionRuleFixtures.reader(WorkflowRoleFixtures.rules().all());
     }
 }

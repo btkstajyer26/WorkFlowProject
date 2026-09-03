@@ -1,5 +1,6 @@
 package btk.staj.WorkFlowProject.workflow.adapter;
 
+import btk.staj.WorkFlowProject.support.AbstractTransitionRuleInvariants;
 import btk.staj.WorkFlowProject.workflow.entity.WorkflowActionEntity;
 import btk.staj.WorkFlowProject.workflow.entity.WorkflowStatusEntity;
 import btk.staj.WorkFlowProject.workflow.port.TransitionRuleRecordReader;
@@ -41,6 +42,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * cevirmenin on kosuludur; bean'e bagimli olsaydi kendi on kosulunu
  * dogrulayamazdi.
  *
+ * <p>TZ-1 ile ayrica {@link AbstractTransitionRuleInvariants} miras alinir: statik tablo
+ * uzerinde kosan kaynak-agnostik kontroller ayni sekilde <em>gercek veritabani</em>
+ * kaynagina da uygulanir. Bu miras parity karsilastirmasinin yerine gecmez, onu tamamlar.
+ *
  * <p>Gercek PostgreSQL gerektirir (projede Testcontainers yok):
  * {@code docker compose up -d db} ve {@code DB_PORT} degeri {@code .env} ile
  * ayni olmalidir.
@@ -48,7 +53,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest
 @Transactional // Pasiflestirme senaryosu veriyi degistirir; test sonunda geri alinir.
 @DisplayName("Static-DB gecis kurali paritesi")
-class TransitionRuleSourceParityTest {
+class TransitionRuleSourceParityTest extends AbstractTransitionRuleInvariants {
 
     private static final int EXPECTED_RULE_COUNT = 8;
 
@@ -259,6 +264,20 @@ class TransitionRuleSourceParityTest {
      */
     private TransitionRuleSource databaseSource() {
         return new DbTransitionRuleSource(reader);
+    }
+
+    /**
+     * Miras alinan invariantlar gercek veritabani kaynagini denetler. Her cagrida taze
+     * kurulur; aksi halde ayni test icinde yapilan veri degisikligi gorunmez olurdu.
+     */
+    @Override
+    protected TransitionRuleSource ruleSource() {
+        return databaseSource();
+    }
+
+    @Override
+    protected RoleId nonActorRoleId() {
+        return referenceRoleIds.get(RoleName.ADMIN);
     }
 
     private static String[] names(Enum<?>[] values) {
