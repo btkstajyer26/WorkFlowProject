@@ -17,7 +17,7 @@ import btk.staj.WorkFlowProject.workflow.port.CurrentActorProvider;
 import btk.staj.WorkFlowProject.workflow.port.WorkflowEventPublisher;
 import btk.staj.WorkFlowProject.workflow.port.WorkflowRecordPort;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
-import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
+import btk.staj.WorkFlowProject.workflow.statemachine.RoleId;
 import btk.staj.WorkFlowProject.workflow.statemachine.TargetStrategy;
 import btk.staj.WorkFlowProject.workflow.statemachine.TransitionContext;
 import btk.staj.WorkFlowProject.workflow.statemachine.TransitionDecision;
@@ -26,7 +26,6 @@ import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRuleSource;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowErrorCode;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowTransitionValidator;
-
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Objects;
@@ -94,7 +93,7 @@ public final class WorkflowApplicationService {
         TransitionDecision preliminaryDecision = validator.validate(new TransitionContext(
                 record.status(),
                 action,
-                actor.role(),
+                actor.roleId(),
                 actor.id().equals(record.createdBy()),
                 actor.id().equals(record.assignedTo()),
                 request.comment(),
@@ -106,14 +105,14 @@ public final class WorkflowApplicationService {
 
         // Kural, on dogrulamadan SONRA aranir: gecis tanimli degilse on dogrulama zaten
         // WORKFLOW_INVALID_TRANSITION ile reddetmistir ve asagidaki kontrol onu firlatir.
-        TransitionRule rule = requireRule(record.status(), action, actor.role(), preliminaryDecision);
+        TransitionRule rule = requireRule(record.status(), action, actor.roleId(), preliminaryDecision);
 
         validatePreliminaryDecision(rule, preliminaryDecision);
 
         TargetResolution resolution = Objects.requireNonNull(
                 targetUserResolver.resolve(
                         rule.targetStrategy(),
-                        rule.expectedTargetRole(),
+                        rule.expectedTargetRoleId(),
                         request.targetUserId(),
                         record),
                 "targetUserResolver.resolve(...)");
@@ -124,12 +123,12 @@ public final class WorkflowApplicationService {
                 : validator.validate(new TransitionContext(
                         record.status(),
                         action,
-                        actor.role(),
+                        actor.roleId(),
                         actor.id().equals(record.createdBy()),
                         actor.id().equals(record.assignedTo()),
                         request.comment(),
                         targetProvidedInRequest,
-                        target.role(),
+                        target.roleId(),
                         target.active(),
                         actor.workflowActor(),
                         actor.permissionCodes()));
@@ -155,7 +154,7 @@ public final class WorkflowApplicationService {
                 record.status(),
                 allowed.targetStatus(),
                 actor.id(),
-                actor.role(),
+                actor.roleId(),
                 assignedTo,
                 request.comment(),
                 performedAt));
@@ -166,7 +165,7 @@ public final class WorkflowApplicationService {
                 record.status(),
                 allowed.targetStatus(),
                 actor.id(),
-                actor.role(),
+                actor.roleId(),
                 record.assignedTo(),
                 assignedTo,
                 request.comment(),
@@ -205,10 +204,10 @@ public final class WorkflowApplicationService {
     private TransitionRule requireRule(
             RecordStatus currentStatus,
             WorkflowAction action,
-            RoleName actorRole,
+            RoleId actorRoleId,
             TransitionDecision preliminaryDecision) {
 
-        Optional<TransitionRule> rule = ruleSource.find(currentStatus, action, actorRole);
+        Optional<TransitionRule> rule = ruleSource.find(currentStatus, action, actorRoleId);
         if (rule.isPresent()) {
             return rule.get();
         }
@@ -217,7 +216,7 @@ public final class WorkflowApplicationService {
         }
         throw new IllegalStateException(
                 "Validator allowed a transition the rule source does not define: "
-                        + currentStatus + ", " + action + ", " + actorRole);
+                        + currentStatus + ", " + action + ", " + actorRoleId);
     }
 
     private static void validatePreliminaryDecision(

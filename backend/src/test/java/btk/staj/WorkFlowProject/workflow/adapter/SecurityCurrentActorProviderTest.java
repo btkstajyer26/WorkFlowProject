@@ -1,12 +1,15 @@
 package btk.staj.WorkFlowProject.workflow.adapter;
 
-import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
-
 import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
 import btk.staj.WorkFlowProject.rbac.Role;
+import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
 import btk.staj.WorkFlowProject.user.entity.User;
 import btk.staj.WorkFlowProject.workflow.model.CurrentActor;
+import btk.staj.WorkFlowProject.workflow.statemachine.RoleId;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,9 +22,6 @@ import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-
-import java.util.List;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -51,7 +51,10 @@ class SecurityCurrentActorProviderTest {
         CurrentActor actor = provider.currentActor();
 
         assertThat(actor.id()).isEqualTo(USER_ID);
-        assertThat(actor.role()).isEqualTo(role);
+        assertThat(actor.roleId()).isEqualTo(new RoleId(1001));
+        assertThat(actor.workflowActor()).isEqualTo(AuthorizationFixtures.workflowActor(role));
+        assertThat(provider.currentVisibilityActor().role()).isEqualTo(role);
+        assertThat(provider.currentVisibilityActor().id()).isEqualTo(USER_ID);
     }
 
     @Test
@@ -142,30 +145,39 @@ class SecurityCurrentActorProviderTest {
     }
 
     @Test
-    void dynamicRoleCanSupplyAuditIdentityButCannotEnterLegacyWorkflow() {
-        authenticate(authenticatedUser(USER_ID, null, true));
+    void dynamicRoleSuppliesWorkflowIdentityEligibilityAndPermissions() {
+        User user = user(USER_ID, null, true);
+        user.getRole().setName("Dynamic reviewer");
+        user.getRole().setWorkflowActor(true);
+        authenticate(new AuthenticatedUser(user, Set.of("RECORD_FORWARD")));
 
-        org.assertj.core.api.Assertions.assertThat(provider.currentUserId()).isEqualTo(USER_ID);
-        assertThatExceptionOfType(btk.staj.WorkFlowProject.workflow.exception.WorkflowApplicationException.class)
+        assertThat(provider.currentUserId()).isEqualTo(USER_ID);
+        assertThat(provider.currentActor()).isEqualTo(
+                new CurrentActor(USER_ID, new RoleId(1001), true, Set.of("RECORD_FORWARD")));
+    }
+
+    @Test
+    void rejectsZeroRoleId() {
+        assertInvalidRoleId(0);
+    }
+
+    @Test
+    void rejectsNegativeRoleId() {
+        assertInvalidRoleId(-1);
+    }
+
+    @Test
+    void rejectsMissingRoleId() {
+        assertInvalidRoleId(null);
+    }
+
+    private void assertInvalidRoleId(Integer roleId) {
+        User user = user(USER_ID, "CALISAN", true);
+        user.getRole().setId(roleId);
+        authenticate(AuthorizationFixtures.authenticated(user));
+        assertThatExceptionOfType(AuthenticationServiceException.class)
                 .isThrownBy(provider::currentActor)
-                .satisfies(error -> org.assertj.core.api.Assertions.assertThat(error.errorCode())
-                        .isEqualTo(btk.staj.WorkFlowProject.workflow.statemachine.WorkflowErrorCode.WORKFLOW_ROLE_NOT_ALLOWED));
-    }
-
-    @Test
-    void rejectsUnknownRoleName() {
-        authenticate(authenticatedUser(USER_ID, "SUPER_ADMIN", true));
-
-        assertThatExceptionOfType(AuthenticationServiceException.class)
-                .isThrownBy(provider::currentActor);
-    }
-
-    @Test
-    void rejectsLowercaseRoleNameWithoutNormalizingIt() {
-        authenticate(authenticatedUser(USER_ID, "calisan", true));
-
-        assertThatExceptionOfType(AuthenticationServiceException.class)
-                .isThrownBy(provider::currentActor);
+                .withMessageContaining("role id");
     }
 
     private static void authenticate(Object principal) {
@@ -179,6 +191,7 @@ class SecurityCurrentActorProviderTest {
 
     private static User user(UUID id, String roleName, boolean active) {
         Role role = new Role();
+        role.setId(1001);
         role.setName(roleName);
         role.setActive(true);
         role.setSystemKey(roleName);

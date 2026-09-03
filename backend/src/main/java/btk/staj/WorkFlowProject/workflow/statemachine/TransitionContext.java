@@ -12,24 +12,24 @@ import java.util.Set;
  *
  * @param currentStatus           kaydin gecis oncesindeki durumu
  * @param action                  uygulanmak istenen aksiyon
- * @param actorRole               aksiyonu yapan kullanicinin rolu
+ * @param actorRoleId               aksiyonu yapan kullanicinin rolu
  * @param actorIsCreator          aktor {@code records.created_by} mu
  * @param actorIsAssignee         aktor {@code records.assigned_to} mu
  * @param comment                 istekteki aciklama; yoksa {@code null}
  * @param targetProvidedInRequest istemci istekte {@code targetUserId} gonderdi mi
- * @param targetRole              servis tarafindan cozulen hedef kullanicinin rolu;
+ * @param targetRoleId              servis tarafindan cozulen hedef kullanicinin rolu;
  *                                hedef yoksa veya cozulemediyse {@code null}
  * @param targetActive            cozulen hedef kullanicinin {@code is_active} degeri
  */
 public record TransitionContext(
         RecordStatus currentStatus,
         WorkflowAction action,
-        RoleName actorRole,
+        RoleId actorRoleId,
         boolean actorIsCreator,
         boolean actorIsAssignee,
         String comment,
         boolean targetProvidedInRequest,
-        RoleName targetRole,
+        RoleId targetRoleId,
         boolean targetActive,
         boolean actorWorkflowActor,
         Set<String> actorPermissionCodes) {
@@ -37,7 +37,7 @@ public record TransitionContext(
     public TransitionContext {
         Objects.requireNonNull(currentStatus, "currentStatus");
         Objects.requireNonNull(action, "action");
-        Objects.requireNonNull(actorRole, "actorRole");
+        Objects.requireNonNull(actorRoleId, "actorRoleId");
         actorPermissionCodes = Set.copyOf(actorPermissionCodes);
     }
 

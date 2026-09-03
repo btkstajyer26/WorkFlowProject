@@ -12,19 +12,17 @@ import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import btk.staj.WorkFlowProject.workflow.statemachine.TargetStrategy;
 import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRule;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -43,25 +41,21 @@ class DbTransitionRuleSourceTest {
                 new TransitionRule(
                         RecordStatus.TASLAK,
                         WorkflowAction.GONDER,
-                        RoleName.CALISAN,
+                        WorkflowRoleFixtures.id(RoleName.CALISAN),
                         ActorRequirement.CREATOR,
                         RecordStatus.BSK_YRD_INCELEMESINDE,
                         TargetStrategy.ROLE,
-                        RoleName.BASKAN_YARDIMCISI,
-                        AuthorizationFixtures.requiredPermission(WorkflowAction.GONDER),
-                        WorkflowRoleFixtures.id(RoleName.CALISAN),
-                        WorkflowRoleFixtures.id(RoleName.BASKAN_YARDIMCISI)),
+                        WorkflowRoleFixtures.id(RoleName.BASKAN_YARDIMCISI),
+                        AuthorizationFixtures.requiredPermission(WorkflowAction.GONDER)),
                 new TransitionRule(
                         RecordStatus.BASKAN_INCELEMESINDE,
                         WorkflowAction.ONAYLA,
-                        RoleName.BASKAN,
+                        WorkflowRoleFixtures.id(RoleName.BASKAN),
                         ActorRequirement.ASSIGNEE,
                         RecordStatus.ONAYLANDI,
                         TargetStrategy.NONE,
                         null,
-                        AuthorizationFixtures.requiredPermission(WorkflowAction.ONAYLA),
-                        WorkflowRoleFixtures.id(RoleName.BASKAN),
-                        null));
+                        AuthorizationFixtures.requiredPermission(WorkflowAction.ONAYLA)));
     }
 
     @Test
@@ -69,18 +63,16 @@ class DbTransitionRuleSourceTest {
     void findsRuleByCompositeKey() {
         DbTransitionRuleSource source = source(List.of(validRecord(), approvalRecord()));
 
-        assertThat(source.find(RecordStatus.TASLAK, WorkflowAction.GONDER, RoleName.CALISAN))
+        assertThat(source.find(RecordStatus.TASLAK, WorkflowAction.GONDER, WorkflowRoleFixtures.id(RoleName.CALISAN)))
                 .contains(new TransitionRule(
                         RecordStatus.TASLAK,
                         WorkflowAction.GONDER,
-                        RoleName.CALISAN,
+                        WorkflowRoleFixtures.id(RoleName.CALISAN),
                         ActorRequirement.CREATOR,
                         RecordStatus.BSK_YRD_INCELEMESINDE,
                         TargetStrategy.ROLE,
-                        RoleName.BASKAN_YARDIMCISI,
-                        AuthorizationFixtures.requiredPermission(WorkflowAction.GONDER),
-                        WorkflowRoleFixtures.id(RoleName.CALISAN),
-                        WorkflowRoleFixtures.id(RoleName.BASKAN_YARDIMCISI)));
+                        WorkflowRoleFixtures.id(RoleName.BASKAN_YARDIMCISI),
+                        AuthorizationFixtures.requiredPermission(WorkflowAction.GONDER)));
     }
 
     @Test
@@ -88,7 +80,7 @@ class DbTransitionRuleSourceTest {
     void returnsEmptyForMissingCompositeKey() {
         DbTransitionRuleSource source = source(List.of(validRecord()));
 
-        assertThat(source.find(RecordStatus.TASLAK, WorkflowAction.ONAYLA, RoleName.BASKAN))
+        assertThat(source.find(RecordStatus.TASLAK, WorkflowAction.ONAYLA, WorkflowRoleFixtures.id(RoleName.BASKAN)))
                 .isEmpty();
     }
 
@@ -100,14 +92,12 @@ class DbTransitionRuleSourceTest {
         assertThatThrownBy(() -> source.all().add(new TransitionRule(
                 RecordStatus.BASKAN_INCELEMESINDE,
                 WorkflowAction.ONAYLA,
-                RoleName.BASKAN,
+                WorkflowRoleFixtures.id(RoleName.BASKAN),
                 ActorRequirement.ASSIGNEE,
                 RecordStatus.ONAYLANDI,
                 TargetStrategy.NONE,
                 null,
-                AuthorizationFixtures.requiredPermission(WorkflowAction.ONAYLA),
-                WorkflowRoleFixtures.id(RoleName.BASKAN),
-                null)))
+                AuthorizationFixtures.requiredPermission(WorkflowAction.ONAYLA))))
                 .isInstanceOf(UnsupportedOperationException.class);
     }
 
@@ -121,11 +111,11 @@ class DbTransitionRuleSourceTest {
             return records;
         };
 
-        DbTransitionRuleSource source = new DbTransitionRuleSource(reader, WorkflowRoleFixtures.legacyRoles());
+        DbTransitionRuleSource source = new DbTransitionRuleSource(reader);
         records.clear();
 
         assertThat(source.all()).hasSize(1);
-        assertThat(source.find(RecordStatus.TASLAK, WorkflowAction.GONDER, RoleName.CALISAN))
+        assertThat(source.find(RecordStatus.TASLAK, WorkflowAction.GONDER, WorkflowRoleFixtures.id(RoleName.CALISAN)))
                 .isPresent();
         assertThat(callCount).hasValue(1);
     }
@@ -148,7 +138,7 @@ class DbTransitionRuleSourceTest {
                 .hasMessageContaining("Duplicate")
                 .hasMessageContaining("TASLAK")
                 .hasMessageContaining("GONDER")
-                .hasMessageContaining("CALISAN")
+                .hasMessageContaining(WorkflowRoleFixtures.value(RoleName.CALISAN).toString())
                 .hasMessageContaining("row 2");
     }
 
@@ -187,7 +177,7 @@ class DbTransitionRuleSourceTest {
     @Test
     @DisplayName("null reader'i reddeder")
     void rejectsNullReader() {
-        assertThatThrownBy(() -> new DbTransitionRuleSource(null, WorkflowRoleFixtures.legacyRoles()))
+        assertThatThrownBy(() -> new DbTransitionRuleSource(null))
                 .isInstanceOf(TransitionRuleConfigurationException.class)
                 .hasMessageContaining("TransitionRuleRecordReader")
                 .hasMessageContaining("null");
@@ -196,7 +186,7 @@ class DbTransitionRuleSourceTest {
     @Test
     @DisplayName("reader null liste dondururse reddeder")
     void rejectsNullReaderResult() {
-        assertThatThrownBy(() -> new DbTransitionRuleSource(() -> null, WorkflowRoleFixtures.legacyRoles()))
+        assertThatThrownBy(() -> new DbTransitionRuleSource(() -> null))
                 .isInstanceOf(TransitionRuleConfigurationException.class)
                 .hasMessageContaining("findAllActive")
                 .hasMessageContaining("null");
@@ -249,12 +239,12 @@ class DbTransitionRuleSourceTest {
                                 AuthorizationFixtures.requiredPermission("UNKNOWN_ACTION"))),
                 Arguments.of(
                         "actorRoleId",
-                        "actor role",
-                        "999",
+                        "positive",
+                        "-999",
                         new TransitionRuleRecord(
                                 "TASLAK",
                                 "GONDER",
-                                999,
+                                -999,
                                 "CREATOR",
                                 "BSK_YRD_INCELEMESINDE",
                                 "ROLE",
@@ -514,9 +504,8 @@ class DbTransitionRuleSourceTest {
                 "ROLE",
                 targetId.value(),
                 "RECORD_FORWARD");
-        var source = new DbTransitionRuleSource(() -> List.of(record), Map.of(
-                actorId, RoleName.CALISAN, targetId, RoleName.BASKAN_YARDIMCISI));
-        var rule = source.find(RecordStatus.TASLAK, WorkflowAction.GONDER, RoleName.CALISAN).orElseThrow();
+        var source = new DbTransitionRuleSource(() -> List.of(record));
+        var rule = source.find(RecordStatus.TASLAK, WorkflowAction.GONDER, new RoleId(1001)).orElseThrow();
         assertThat(rule.actorRoleId()).isEqualTo(new RoleId(1001));
         assertThat(rule.expectedTargetRoleId()).isEqualTo(new RoleId(2002));
     }
@@ -556,23 +545,17 @@ class DbTransitionRuleSourceTest {
     }
 
     @Test
-    void dynamicTargetStillRequiresTheSecondRollout() {
-        var row = new TransitionRuleRecord(
-                "TASLAK",
-                "GONDER",
-                WorkflowRoleFixtures.value(RoleName.CALISAN),
-                "CREATOR",
-                "BSK_YRD_INCELEMESINDE",
-                "ROLE",
-                7007,
-                "RECORD_FORWARD");
-        assertThatThrownBy(() -> source(List.of(row)))
-                .isInstanceOf(TransitionRuleConfigurationException.class)
-                .hasMessageContaining("expectedTargetRoleId").hasMessageContaining("7007");
+    void dynamicActorAndTargetAreIndexedByTheirIds() {
+        var row = new TransitionRuleRecord("TASLAK", "GONDER", 7001, "CREATOR",
+                "BSK_YRD_INCELEMESINDE", "ROLE", 7007, "RECORD_FORWARD");
+        var source = source(List.of(row));
+        var rule = source.find(RecordStatus.TASLAK, WorkflowAction.GONDER, new RoleId(7001)).orElseThrow();
+        assertThat(rule.expectedTargetRoleId()).isEqualTo(new RoleId(7007));
+        assertThat(source.find(RecordStatus.TASLAK, WorkflowAction.GONDER, new RoleId(7002))).isEmpty();
     }
 
     private static DbTransitionRuleSource source(List<TransitionRuleRecord> records) {
-        return new DbTransitionRuleSource(() -> records, WorkflowRoleFixtures.legacyRoles());
+        return new DbTransitionRuleSource(() -> records);
     }
 
     private static TransitionRuleRecord validRecord() {

@@ -3,16 +3,12 @@ package btk.staj.WorkFlowProject.workflow.adapter;
 import btk.staj.WorkFlowProject.workflow.port.TransitionRuleRecordReader;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleId;
-import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRule;
 import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRuleSource;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
-
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Supplier;
 
 /**
  * Gecis kurallarini yeniden baslatma gerektirmeden tazeleyebilen kaynak (WF-4).
@@ -38,13 +34,11 @@ import java.util.function.Supplier;
 public final class ReloadableTransitionRuleSource implements TransitionRuleSource {
 
     private final TransitionRuleRecordReader reader;
-    private final Supplier<Map<RoleId, RoleName>> legacyRoles;
     private volatile TransitionRuleSource delegate;
 
-    public ReloadableTransitionRuleSource(TransitionRuleRecordReader reader, Supplier<Map<RoleId, RoleName>> legacyRoles) {
+    public ReloadableTransitionRuleSource(TransitionRuleRecordReader reader) {
         this.reader = Objects.requireNonNull(reader, "reader");
-        this.legacyRoles = Objects.requireNonNull(legacyRoles, "legacyRoles");
-        this.delegate = new DbTransitionRuleSource(reader, legacyRoles.get());
+        this.delegate = new DbTransitionRuleSource(reader);
     }
 
     /**
@@ -59,7 +53,7 @@ public final class ReloadableTransitionRuleSource implements TransitionRuleSourc
      *         yeni yapilandirma gecersizse. Bu durumda mevcut snapshot korunur.
      */
     public int reload() {
-        TransitionRuleSource refreshed = new DbTransitionRuleSource(reader, legacyRoles.get());
+        TransitionRuleSource refreshed = new DbTransitionRuleSource(reader);
         this.delegate = refreshed;
         return refreshed.all().size();
     }
@@ -70,8 +64,8 @@ public final class ReloadableTransitionRuleSource implements TransitionRuleSourc
     }
 
     @Override
-    public Optional<TransitionRule> find(RecordStatus from, WorkflowAction action, RoleName actorRole) {
-        return delegate.find(from, action, actorRole);
+    public Optional<TransitionRule> find(RecordStatus from, WorkflowAction action, RoleId actorRoleId) {
+        return delegate.find(from, action, actorRoleId);
     }
 
     @Override

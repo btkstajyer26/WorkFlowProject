@@ -1,11 +1,10 @@
 package btk.staj.WorkFlowProject.support;
 
+
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleId;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import btk.staj.WorkFlowProject.workflow.statemachine.StaticTransitionRuleSource;
-
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /** Synthetic identities for tests without PostgreSQL; never used to infer real DB IDs. */
 public final class WorkflowRoleFixtures {
@@ -22,10 +21,6 @@ public final class WorkflowRoleFixtures {
     public static RoleId id(RoleName role) { return role == null ? null : IDS.get(role); }
 
     public static Integer value(RoleName role) { return role == null ? null : id(role).value(); }
-
-    public static Map<RoleId, RoleName> legacyRoles() {
-        return IDS.entrySet().stream().collect(Collectors.toUnmodifiableMap(Map.Entry::getValue, Map.Entry::getKey));
-    }
 
     public static StaticTransitionRuleSource rules() { return new StaticTransitionRuleSource(IDS); }
 }

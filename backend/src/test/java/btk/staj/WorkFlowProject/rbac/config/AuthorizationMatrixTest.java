@@ -1,6 +1,7 @@
 package btk.staj.WorkFlowProject.rbac.config;
 
 import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
+import btk.staj.WorkFlowProject.support.WorkflowRoleFixtures;
 
 import btk.staj.WorkFlowProject.attachment.repository.FileRepository;
 import btk.staj.WorkFlowProject.audit.repository.AuditLogRepository;
@@ -143,6 +144,7 @@ class AuthorizationMatrixTest {
     /** SecurityCurrentActorProvider gercek bir AuthenticatedUser bekler. */
     private static AuthenticatedUser actor(RoleName role) {
         Role roleEntity = new Role();
+        roleEntity.setId(WorkflowRoleFixtures.value(role));
         roleEntity.setName(role.name());
         roleEntity.setActive(true);
         roleEntity.setSystemKey(role.name());

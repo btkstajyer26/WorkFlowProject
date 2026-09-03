@@ -7,21 +7,21 @@ import btk.staj.WorkFlowProject.notification.service.NotificationService;
 import btk.staj.WorkFlowProject.notification.service.PushNotificationService;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
+import btk.staj.WorkFlowProject.support.WorkflowRoleFixtures;
 import btk.staj.WorkFlowProject.user.entity.User;
 import btk.staj.WorkFlowProject.user.repository.UserRepository;
 import btk.staj.WorkFlowProject.workflow.model.WorkflowStatusChangedEvent;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
+import java.time.Instant;
+import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
-
-import java.time.Instant;
-import java.util.Optional;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -223,8 +223,15 @@ class WorkflowStatusChangedListenerTest {
                                                     UUID assignedTo,
                                                     String comment) {
         return new WorkflowStatusChangedEvent(
-                RECORD_ID, action, RecordStatus.BSK_YRD_INCELEMESINDE, newStatus,
-                ACTOR_ID, RoleName.BASKAN_YARDIMCISI, null, assignedTo, comment,
+                RECORD_ID,
+                action,
+                RecordStatus.BSK_YRD_INCELEMESINDE,
+                newStatus,
+                ACTOR_ID,
+                WorkflowRoleFixtures.id(RoleName.BASKAN_YARDIMCISI),
+                null,
+                assignedTo,
+                comment,
                 Instant.parse("2026-08-11T09:15:00Z"));
     }
 }

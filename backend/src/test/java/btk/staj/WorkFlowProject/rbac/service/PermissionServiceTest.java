@@ -32,32 +32,32 @@ class PermissionServiceTest {
 
     @Test
     void calisanTaslagiIncelemeyeGonderebilmeli() {
-        assertTrue(permissionService.canSendToReview(RoleName.CALISAN, RecordStatus.TASLAK, AuthorizationFixtures.permissions(RoleName.CALISAN)));
+        assertTrue(permissionService.canSendToReview(WorkflowRoleFixtures.id(RoleName.CALISAN), RecordStatus.TASLAK, AuthorizationFixtures.permissions(RoleName.CALISAN)));
     }
 
     @Test
     void calisanOnaylanmisKaydiTekrarGonderemeMeli() {
-        assertFalse(permissionService.canSendToReview(RoleName.CALISAN, RecordStatus.ONAYLANDI, AuthorizationFixtures.permissions(RoleName.CALISAN)));
+        assertFalse(permissionService.canSendToReview(WorkflowRoleFixtures.id(RoleName.CALISAN), RecordStatus.ONAYLANDI, AuthorizationFixtures.permissions(RoleName.CALISAN)));
     }
 
     @Test
     void baskanNihaiOnayVerebilmeli() {
-        assertTrue(permissionService.canApprove(RoleName.BASKAN, RecordStatus.BASKAN_INCELEMESINDE, AuthorizationFixtures.permissions(RoleName.BASKAN)));
+        assertTrue(permissionService.canApprove(WorkflowRoleFixtures.id(RoleName.BASKAN), RecordStatus.BASKAN_INCELEMESINDE, AuthorizationFixtures.permissions(RoleName.BASKAN)));
     }
 
     @Test
     void calisanNihaiOnayVeremeMeli() {
-        assertFalse(permissionService.canApprove(RoleName.CALISAN, RecordStatus.BASKAN_INCELEMESINDE, AuthorizationFixtures.permissions(RoleName.CALISAN)));
+        assertFalse(permissionService.canApprove(WorkflowRoleFixtures.id(RoleName.CALISAN), RecordStatus.BASKAN_INCELEMESINDE, AuthorizationFixtures.permissions(RoleName.CALISAN)));
     }
 
     @Test
     void baskanYardimcisiCalisanaGeriGonderebilmeli() {
-        assertTrue(permissionService.canReturnToCalisan(RoleName.BASKAN_YARDIMCISI, AuthorizationFixtures.permissions(RoleName.BASKAN_YARDIMCISI)));
+        assertTrue(permissionService.canReturnToCalisan(WorkflowRoleFixtures.id(RoleName.BASKAN_YARDIMCISI), AuthorizationFixtures.permissions(RoleName.BASKAN_YARDIMCISI)));
     }
 
     @Test
     void calisanBaskaCalisanaGeriGonderemeMeli() {
-        assertFalse(permissionService.canReturnToCalisan(RoleName.CALISAN, AuthorizationFixtures.permissions(RoleName.CALISAN)));
+        assertFalse(permissionService.canReturnToCalisan(WorkflowRoleFixtures.id(RoleName.CALISAN), AuthorizationFixtures.permissions(RoleName.CALISAN)));
     }
 
     @Test
@@ -72,7 +72,7 @@ class PermissionServiceTest {
 
     @Test
     void calisanGeriGonderilenKaydiDuzenleyipGonderebilmeli() {
-        assertTrue(permissionService.canEditAndResendReturnedRecord(RoleName.CALISAN, RecordStatus.DUZENLEME_BEKLIYOR, AuthorizationFixtures.permissions(RoleName.CALISAN)));
+        assertTrue(permissionService.canEditAndResendReturnedRecord(WorkflowRoleFixtures.id(RoleName.CALISAN), RecordStatus.DUZENLEME_BEKLIYOR, AuthorizationFixtures.permissions(RoleName.CALISAN)));
     }
 
     @Test

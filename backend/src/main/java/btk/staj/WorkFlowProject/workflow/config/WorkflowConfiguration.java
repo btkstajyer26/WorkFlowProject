@@ -9,16 +9,11 @@ import btk.staj.WorkFlowProject.workflow.port.WorkflowRecordPort;
 import btk.staj.WorkFlowProject.workflow.port.WorkflowUserPort;
 import btk.staj.WorkFlowProject.workflow.service.TargetUserResolver;
 import btk.staj.WorkFlowProject.workflow.service.WorkflowApplicationService;
-import btk.staj.WorkFlowProject.workflow.statemachine.RoleId;
-import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRuleSource;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowTransitionValidator;
+import java.time.Clock;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import java.time.Clock;
-import java.util.Map;
-import java.util.function.Supplier;
 
 /**
  * Onay akisi cekirdegini Spring'e tanitir.
@@ -57,9 +52,8 @@ public class WorkflowConfiguration {
      * (TZ-1) ve WF-2D2'den sonra yapilmalidir.
      */
     @Bean
-    public ReloadableTransitionRuleSource transitionRuleSource(TransitionRuleRecordReader ruleRecordReader,
-            Supplier<Map<RoleId, RoleName>> legacyRoles) {
-        return new ReloadableTransitionRuleSource(ruleRecordReader, legacyRoles);
+    public ReloadableTransitionRuleSource transitionRuleSource(TransitionRuleRecordReader ruleRecordReader) {
+        return new ReloadableTransitionRuleSource(ruleRecordReader);
     }
 
     @Bean

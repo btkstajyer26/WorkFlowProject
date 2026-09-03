@@ -8,10 +8,9 @@ import btk.staj.WorkFlowProject.workflow.port.TransitionRuleRecordReader;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
-import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
@@ -23,10 +22,10 @@ class ReloadableTransitionRuleSourceTest {
     @Test
     @DisplayName("acilista ilk snapshot'i kurar")
     void loadsInitialSnapshot() {
-        ReloadableTransitionRuleSource source = new ReloadableTransitionRuleSource(mutableReader(sendRule()), WorkflowRoleFixtures::legacyRoles);
+        ReloadableTransitionRuleSource source = new ReloadableTransitionRuleSource(mutableReader(sendRule()));
 
         assertThat(source.all()).hasSize(1);
-        assertThat(source.find(RecordStatus.TASLAK, WorkflowAction.GONDER, RoleName.CALISAN))
+        assertThat(source.find(RecordStatus.TASLAK, WorkflowAction.GONDER, WorkflowRoleFixtures.id(RoleName.CALISAN)))
                 .isPresent();
     }
 
@@ -34,7 +33,7 @@ class ReloadableTransitionRuleSourceTest {
     @DisplayName("reload veritabanindaki degisikligi gorur")
     void reloadPicksUpChangedRules() {
         MutableReader reader = mutableReader(sendRule());
-        ReloadableTransitionRuleSource source = new ReloadableTransitionRuleSource(reader, WorkflowRoleFixtures::legacyRoles);
+        ReloadableTransitionRuleSource source = new ReloadableTransitionRuleSource(reader);
         assertThat(source.all()).hasSize(1);
 
         reader.rows = List.of(sendRule(), approveRule());
@@ -42,7 +41,7 @@ class ReloadableTransitionRuleSourceTest {
 
         assertThat(count).isEqualTo(2);
         assertThat(source.all()).hasSize(2);
-        assertThat(source.find(RecordStatus.BASKAN_INCELEMESINDE, WorkflowAction.ONAYLA, RoleName.BASKAN))
+        assertThat(source.find(RecordStatus.BASKAN_INCELEMESINDE, WorkflowAction.ONAYLA, WorkflowRoleFixtures.id(RoleName.BASKAN)))
                 .as("reload sonrasi yeni kural bulunabilmeli")
                 .isPresent();
     }
@@ -55,7 +54,7 @@ class ReloadableTransitionRuleSourceTest {
     @DisplayName("basarisiz reload eski snapshot'i korur")
     void failedReloadKeepsPreviousSnapshot() {
         MutableReader reader = mutableReader(sendRule());
-        ReloadableTransitionRuleSource source = new ReloadableTransitionRuleSource(reader, WorkflowRoleFixtures::legacyRoles);
+        ReloadableTransitionRuleSource source = new ReloadableTransitionRuleSource(reader);
 
         reader.rows = List.of(new TransitionRuleRecord(
                 "TASLAK",
@@ -73,7 +72,7 @@ class ReloadableTransitionRuleSourceTest {
         assertThat(source.all())
                 .as("bozuk reload sonrasi kurallar korunmali")
                 .hasSize(1);
-        assertThat(source.find(RecordStatus.TASLAK, WorkflowAction.GONDER, RoleName.CALISAN))
+        assertThat(source.find(RecordStatus.TASLAK, WorkflowAction.GONDER, WorkflowRoleFixtures.id(RoleName.CALISAN)))
                 .isPresent();
     }
 
@@ -81,7 +80,7 @@ class ReloadableTransitionRuleSourceTest {
     @DisplayName("bos tablo ile yapilan reload da eski snapshot'i korur")
     void reloadWithEmptyTableKeepsPreviousSnapshot() {
         MutableReader reader = mutableReader(sendRule());
-        ReloadableTransitionRuleSource source = new ReloadableTransitionRuleSource(reader, WorkflowRoleFixtures::legacyRoles);
+        ReloadableTransitionRuleSource source = new ReloadableTransitionRuleSource(reader);
 
         reader.rows = List.of();
 
@@ -95,7 +94,7 @@ class ReloadableTransitionRuleSourceTest {
     @Test
     @DisplayName("acilista bos tablo uygulamayi durdurur")
     void stillFailsFastOnStartup() {
-        assertThatThrownBy(() -> new ReloadableTransitionRuleSource(mutableReader(), WorkflowRoleFixtures::legacyRoles))
+        assertThatThrownBy(() -> new ReloadableTransitionRuleSource(mutableReader()))
                 .isInstanceOf(TransitionRuleConfigurationException.class)
                 .hasMessageContaining("no active transition rules");
     }
@@ -104,7 +103,7 @@ class ReloadableTransitionRuleSourceTest {
     @DisplayName("reader olmadan olusturulamaz")
     void rejectsNullReader() {
         assertThatNullPointerException()
-                .isThrownBy(() -> new ReloadableTransitionRuleSource(null, WorkflowRoleFixtures::legacyRoles))
+                .isThrownBy(() -> new ReloadableTransitionRuleSource(null))
                 .withMessageContaining("reader");
     }
 

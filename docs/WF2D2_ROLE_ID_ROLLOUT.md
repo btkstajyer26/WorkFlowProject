@@ -23,28 +23,80 @@ sentetik ID'lerle production fallback olarak kullanılamaz.
 
 ## PR 2: aktör zinciri
 
-İlk PR `test` dalına merge edildikten sonra aktör, context, hedef, permission,
-audit ve event modelleri RoleId'ye geçirilecektir. Geçici çift taşıma ve
-eşleme kaldırılacak; dinamik roller gerekli permission, aktörlük bayrağı
-ve kayıt ilişkisi sağlandığında aksiyon alabilecektir.
+Aktör, context, hedef, permission, audit ve event modelleri RoleId taşır.
+Geçici çift taşıma ve `LegacyWorkflowRoleMapping` kaldırılmıştır. Güvenlik
+adaptörü principal'ın hazır rol ID'sini okur; `system_key = NULL` artık
+workflow reddi üretmez. Dinamik roller tanımlı geçiş, gerekli permission,
+aktörlük bayrağı ve kayıt ilişkisi sağlandığında aksiyon alabilir.
+
+Hedef sorgusu rol ID'si, aktif kullanıcı ve aktif rol üzerinden çalışır.
+`ROLE` stratejisi tam bir aktif kullanıcı ister; hedefin workflow aktörü
+olması gerekmez. Audit yazımı aktörün rol ID'sini doğrudan kullanır ve rol
+repository'sine yeniden gitmez. Olay payload'ı da aynı ID'yi korur.
 
 Validator'a zaten taşınan DB kaynaklı `workflowActor` boolean korunur.
 Validator saf Java kalır; hata sırası ve hedef stratejileri değişmez.
 Audit yazımı ID'yi doğrudan kaydeder; görünürlük ve geçmiş filtreleri bu
 işin dışındadır. HTTP sözleşmesi ve Flyway migration'ları değişmez.
 
+### Görünürlük sınırı
+
+`AuditLogController` ve `RecordSearchServiceImpl` de eski `CurrentActor`
+modelini tüketiyordu. Bu iki okuyucu `CurrentVisibilityActorProvider` ve
+`VisibilityActor` üzerinden aynı sistem rolü kimliğini alır. Güvenlik
+adaptöründeki eski görünürlük rol çözümü bu sınıra taşınmıştır; dinamik rol
+bu okuyucularda önceki `WORKFLOW_ROLE_NOT_ALLOWED` hatasıyla reddedilir.
+Workflow aktörü ise yalnız RoleId taşır. Bu ayrım görünürlük kurallarını
+ID'ye dönüştürmeden derleme bağımlılığını çözer.
+
+`RecordAccessPolicy`, `RecordSpecifications`, `RecordServiceImpl`,
+`RecordContentView`, dosya görünürlüğü ve audit geçmiş filtreleri değişmedi.
+Ayrımın HTTP regresyon testi de dinamik workflow yetkisinin arama/geçmiş
+kapsamını genişletmediğini doğrular.
+
 ## Doğrulama
 
-Başlangıç: 614 test, 0 failure, 0 error, 0 skipped.
-API değişikliklerinde `clean test-compile`, her PR kabulünde
-`DB_PORT=5433 ./mvnw --batch-mode clean verify` çalıştırılır.
-Öncesinde Docker Compose ve çalışan PostgreSQL konteyneri kontrol edilir.
+3 Eylül 2026, Git Bash ve backend Maven wrapper ile:
 
-İkinci PR'ın kabul kanıtı, gerçek HTTP güvenlik zinciri üzerinden dinamik
-aktör ve hedefle başarılı geçiş; doğru atama ve audit rol ID'sidir.
-Mevcut sekiz geçiş, transaction rollback ve sürüm çatışması testleri korunur.
-Geçersiz FK'nin DB tarafından reddi ve geçici DB'deki eksik hedef metadata'sının
-uygulama açılışını durdurması ayrı ayrı doğrulanır.
+| Aşama | Test | Failure | Error | Skipped |
+|---|---:|---:|---:|---:|
+| Başlangıç | 614 | 0 | 0 | 0 |
+| PR 1 | 626 | 0 | 0 | 0 |
+| PR 2 | 639 | 0 | 0 | 0 |
+
+API değişikliklerinden sonra `./mvnw --batch-mode clean test-compile` geçti.
+Her iki aşamada `DB_PORT=5433 ./mvnw --batch-mode clean verify` çalıştırıldı;
+test dışlanmadı veya atlanmadı. Öncesinde Compose ve çalışan konteynerler
+kontrol edildi; PostgreSQL `127.0.0.1:5433` üzerinden erişildi.
+
+- `DynamicWorkflowRoleIntegrationTest`: 11 gerçek PostgreSQL/HTTP testi.
+  İki `system_key = NULL` rol, gerçek JWT filtresi ve permission okumasıyla
+  geçişi tamamlar. Durum, atama, sürüm, audit aktör rol ID'si ve event ID'si
+  doğrulanır. Eksik permission/aktörlük/kayıt ilişkisi/geçiş, pasif hedef
+  kullanıcı/rol, birden fazla hedef ve yanlış hedef rolü reddedilir.
+- Yeni testler transaction sonunda rollback olur; `@AfterTransaction`
+  kural snapshot'ını yeniden yükleyip başlangıçtaki içerikle karşılaştırır.
+- `WorkflowTransitionPersistenceIntegrationTest`: mevcut sekiz geçiş,
+  audit hatasında rollback ve sürüm çatışmasında 409 kanıtları geçti.
+- Aynı sayısal ID'li farklı nesnelerin aktör ve hedef eşleşmesi ile farklı
+  ortam eşlemeleri test edildi. Parity bütün kural alanlarını, tüm
+  durum–aksiyon–rol kombinasyonlarını ve reload sonuçlarını karşılaştırır.
+- Geçersiz `actor_role_id`, gerçek DB'de `fk_transition_actor_role`
+  tarafından reddedildi.
+- Yeni backend imajı oluşturulup başlatıldı; `/actuator/health` → `UP`.
+- Ayrı, yeni bir geçici DB önce migration'larla açıldı ve `UP` oldu.
+  Ardından yalnız bu DB'de `CREATOR` satırının hedef rolü boşaltıldı.
+  Uygulama çıkış kodu 1 ile açılmayı reddetti:
+  `Inconsistent transition configuration at row 5: targetStrategy CREATOR requires expectedTargetRoleId`.
+  Geçici konteyner ve veritabanı kaldırıldı; normal backend sağlıklı kaldı.
+
+## Teslim sırası
+
+PR oluşturma ve merge kullanıcı tarafından yapılacak. İlk dal
+`feature/wf-2d2-role-id`, ikinci dal `feature/wf-2d2-role-id-actors`.
+İkinci dal, ilk aşamaya bağlı olarak hazırlanmıştır. Önce ilk PR `test`'e
+alınmalı; ardından ikinci dal güncel `test` tabanına getirilip ikinci PR
+yine `test` hedefiyle açılmalıdır.
 
 Eski sürüme geri dönüşten önce dinamik rol kullanan aktif geçişler eski
 sürümle uyumlu hale getirilmelidir; eski sürüm bu satırlarla açılmaz.

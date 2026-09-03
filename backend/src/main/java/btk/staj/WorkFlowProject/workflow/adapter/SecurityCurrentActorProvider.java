@@ -2,11 +2,15 @@ package btk.staj.WorkFlowProject.workflow.adapter;
 
 import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
 import btk.staj.WorkFlowProject.auth.security.CurrentUserProvider;
+import btk.staj.WorkFlowProject.auth.security.CurrentVisibilityActorProvider;
+import btk.staj.WorkFlowProject.auth.security.VisibilityActor;
+import btk.staj.WorkFlowProject.workflow.exception.WorkflowApplicationException;
 import btk.staj.WorkFlowProject.workflow.model.CurrentActor;
 import btk.staj.WorkFlowProject.workflow.port.CurrentActorProvider;
+import btk.staj.WorkFlowProject.workflow.statemachine.RoleId;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowErrorCode;
-import btk.staj.WorkFlowProject.workflow.exception.WorkflowApplicationException;
+import java.util.UUID;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.authentication.AuthenticationServiceException;
@@ -15,10 +19,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
-import java.util.UUID;
-
 @Component
-public final class SecurityCurrentActorProvider implements CurrentActorProvider, CurrentUserProvider {
+public final class SecurityCurrentActorProvider implements CurrentActorProvider, CurrentUserProvider,
+        CurrentVisibilityActorProvider {
 
     @Override
     public CurrentActor currentActor() {
@@ -30,6 +33,30 @@ public final class SecurityCurrentActorProvider implements CurrentActorProvider,
     @Override
     public UUID currentUserId() {
         return readId(currentUser());
+    }
+
+    @Override
+    public VisibilityActor currentVisibilityActor() {
+        AuthenticatedUser user = currentUser();
+        return new VisibilityActor(readId(user), readVisibilityRole(user));
+    }
+
+    // Preserve the existing visibility boundary independently of workflow eligibility.
+    private static RoleName readVisibilityRole(AuthenticatedUser user) {
+        String systemKey;
+        try {
+            systemKey = user.getSystemKey();
+        } catch (RuntimeException exception) {
+            throw malformedPrincipal("Unable to read authenticated user role", exception);
+        }
+        if (systemKey == null) {
+            throw new WorkflowApplicationException(WorkflowErrorCode.WORKFLOW_ROLE_NOT_ALLOWED);
+        }
+        try {
+            return RoleName.valueOf(systemKey);
+        } catch (IllegalArgumentException exception) {
+            throw malformedPrincipal("Authenticated user role is invalid", exception);
+        }
     }
 
     private static AuthenticatedUser currentUser() {
@@ -78,22 +105,11 @@ public final class SecurityCurrentActorProvider implements CurrentActorProvider,
         return id;
     }
 
-    private static RoleName readRole(AuthenticatedUser authenticatedUser) {
-        String roleName;
+    private static RoleId readRole(AuthenticatedUser authenticatedUser) {
         try {
-            roleName = authenticatedUser.getSystemKey();
+            return new RoleId(authenticatedUser.getRoleId());
         } catch (RuntimeException exception) {
-            throw malformedPrincipal("Unable to read authenticated user role", exception);
-        }
-        if (roleName == null) {
-            // Dynamic roles authenticate normally; workflow RoleId support belongs to WF-2D2.
-            throw new WorkflowApplicationException(WorkflowErrorCode.WORKFLOW_ROLE_NOT_ALLOWED);
-        }
-
-        try {
-            return RoleName.valueOf(roleName);
-        } catch (IllegalArgumentException exception) {
-            throw malformedPrincipal("Authenticated user role is invalid", exception);
+            throw malformedPrincipal("Authenticated user role id is missing or invalid", exception);
         }
     }
 

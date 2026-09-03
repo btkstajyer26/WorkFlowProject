@@ -1,13 +1,12 @@
 package btk.staj.WorkFlowProject.workflow.service;
 
-import btk.staj.WorkFlowProject.workflow.model.TargetResolution;
 import btk.staj.WorkFlowProject.workflow.model.TargetResolution.DataIntegrityReason;
+import btk.staj.WorkFlowProject.workflow.model.TargetResolution;
 import btk.staj.WorkFlowProject.workflow.model.WorkflowRecordSnapshot;
 import btk.staj.WorkFlowProject.workflow.model.WorkflowUserSnapshot;
 import btk.staj.WorkFlowProject.workflow.port.WorkflowUserPort;
-import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
+import btk.staj.WorkFlowProject.workflow.statemachine.RoleId;
 import btk.staj.WorkFlowProject.workflow.statemachine.TargetStrategy;
-
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -38,7 +37,7 @@ public final class TargetUserResolver {
 
     /**
      * @param strategy gecisin hedef cozum primitive'i (DB-1 SS7.2)
-     * @param expectedTargetRole {@code ROLE} stratejisinde aranacak rol; diger
+     * @param expectedTargetRoleId {@code ROLE} stratejisinde aranacak rol; diger
      *        stratejilerde bilgi amaclidir ve okunmaz
      * @param requestedTargetUserId istekten gelen hedef; <strong>bilerek yok
      *        sayilir</strong>. Hedefi her zaman backend cozdugu icin hicbir kol bu
@@ -48,7 +47,7 @@ public final class TargetUserResolver {
      */
     public TargetResolution resolve(
             TargetStrategy strategy,
-            RoleName expectedTargetRole,
+            RoleId expectedTargetRoleId,
             UUID requestedTargetUserId,
             WorkflowRecordSnapshot record) {
         Objects.requireNonNull(strategy, "strategy");
@@ -57,20 +56,20 @@ public final class TargetUserResolver {
         return switch (strategy) {
             case NONE -> new TargetResolution.NotProvided();
             case ROLE -> resolveSingleActiveRole(Objects.requireNonNull(
-                    expectedTargetRole, "expectedTargetRole"));
+                    expectedTargetRoleId, "expectedTargetRoleId"));
             case CREATOR -> resolveCreatedBy(record.createdBy());
             case CURRENT_ASSIGNEE -> resolveCurrentAssignee(record.assignedTo());
             case PREVIOUS_ACTOR -> resolveLastDeputy(record.lastDeputyId());
         };
     }
 
-    private TargetResolution resolveSingleActiveRole(RoleName role) {
+    private TargetResolution resolveSingleActiveRole(RoleId roleId) {
         List<WorkflowUserSnapshot> activeUsers = Objects.requireNonNull(
-                userPort.findActiveByRole(role),
-                "userPort.findActiveByRole(role)");
+                userPort.findActiveByRole(roleId),
+                "userPort.findActiveByRole(roleId)");
 
         if (activeUsers.size() != 1) {
-            return new TargetResolution.RoleNotConfigured(role, activeUsers.size());
+            return new TargetResolution.RoleNotConfigured(roleId, activeUsers.size());
         }
         return new TargetResolution.Resolved(activeUsers.getFirst());
     }
