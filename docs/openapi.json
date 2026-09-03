@@ -13,6 +13,9 @@
     "bearerAuth" : [ ]
   } ],
   "tags" : [ {
+    "name" : "Workflow Rules",
+    "description" : "Gecis kurallarinin yonetimi"
+  }, {
     "name" : "Mail Actions",
     "description" : "E-posta bildirimindeki tek tikla aksiyon baglantisi"
   }, {
@@ -211,6 +214,29 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/RecordResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/workflow/rules/reload" : {
+      "post" : {
+        "tags" : [ "Workflow Rules" ],
+        "summary" : "Gecis kurallarini veritabanindan yeniden okur (grafigi degistirmez)",
+        "operationId" : "reload",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object",
+                  "additionalProperties" : {
+                    "type" : "integer",
+                    "format" : "int32"
+                  }
                 }
               }
             }

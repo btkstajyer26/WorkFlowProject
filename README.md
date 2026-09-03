@@ -91,7 +91,7 @@ npx expo export --platform web
 | [Veritabanı](docs/database.md) | Şema ve Flyway yönetimi |
 | [Frontend–backend sözleşmesi](docs/FRONTEND_BACKEND_SOZLESMESI.md) | Web istemcisinin dayandığı alan ve hata sözleşmeleri |
 | [Mobil API envanteri](docs/MOBIL_API_ENVANTERI.md) | Mobil istemcinin kullandığı güncel REST sözleşmesi |
-| [OpenAPI anlık görüntüsü](docs/openapi.json) | Kod incelemesi için sürümlenmiş API şeması. Elle güncellenir: backend ayaktayken `curl -s localhost:8080/v3/api-docs \| python -m json.tool > docs/openapi.json`. Frontend istemcisi ayrı üretilir (`cd frontend && npm run api:generate`) |
+| [OpenAPI anlık görüntüsü](docs/openapi.json) | Kod incelemesi için sürümlenmiş API şeması. **Elle bakımlıdır:** canlı şema `localhost:8080/v3/api-docs` adresinde; uç eklendiğinde ilgili bölüm bu dosyaya mevcut biçim korunarak işlenir. Dosyayı toptan yeniden üretmeyin — biçimlendirme ve `servers.url` ortama göre değişip gereksiz diff üretir. Frontend istemcisi ayrı üretilir (`cd frontend && npm run api:generate`) |
 | [TEST ortamı notu](docs/TEST_ORTAMI_NOTU.md) | Güncel topoloji, dağıtım ve operasyon yönergeleri |
 | [Mimari kararlar](docs/decisions/README.md) | ADR dizini |
 
