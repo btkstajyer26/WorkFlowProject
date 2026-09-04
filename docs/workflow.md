@@ -530,7 +530,7 @@ kodda şu sapmalar vardır:
 
 | No | Sapma | Öncelik |
 | --- | --- | --- |
-| B02 | Dinamik departman rolü `BASKANA_ILET` yaptığında `last_deputy_id` bu üyeye yazılır; Başkan'ın `BASKAN_YARDIMCISINA_GERI_GONDER` geçişi V15 seed'i gereği hedefin yerleşik `BASKAN_YARDIMCISI` olmasını istediği için `WORKFLOW_TARGET_ROLE_INVALID` ile reddedilir. Dinamik aktörün geri dönüş kolu tamamlanmaz | P1 |
+| B02 | Dinamik departman rolü `BASKANA_ILET` yaptığında `last_deputy_id` bu üyeye yazılır; Başkan'ın `BASKAN_YARDIMCISINA_GERI_GONDER` geçişi V15 seed'i gereği hedefin yerleşik `BASKAN_YARDIMCISI` olmasını istediği için `WORKFLOW_TARGET_ROLE_INVALID` ile reddedilir. Dinamik aktörün geri dönüş kolu tamamlanmaz. **Karar verildi:** [ADR-0008](decisions/0008-hedef-rol-semantigi-ve-onceki-aktore-donus.md) — kolonun üç anlamı ayrıştırılır, statik rol dayatması yerine "hedef iniş durumunda işlem yapabiliyor mu?" kontrolü gelir, uygunsuz önceki aktör `WORKFLOW_PREVIOUS_ACTOR_UNAVAILABLE` ile reddedilir. `V24` ve kod henüz uygulanmadı | P1 |
 | B03 | Görev devri ve `last_deputy_id` toplu güncellemeleri `records.version` artırmadığı için, kaydı önceden yüklemiş bir workflow transaction'ı devir sonrası eski `lastDeputyId` ile çatışmasız yazabilir | P1 |
 | B01 | Workflow e-postasının hızlı işlem tokenı `AFTER_COMMIT` aşamasında üretilemez; dinleyici hatayı yakalar ve mail düğmesiz gider (NT-7 mail üzerinden işlem kabulü sağlanmaz) | P1 |
 | B04 | `RecordLockValidator` kayıt kilidi almaz ve dosya yükleme kaydın sürümüne dokunmaz; kontrol ile dosya satırının yazılması arasında kayıt incelemeye geçse bile yükleme commit edilir | P1 |
@@ -549,9 +549,9 @@ Yukarıdaki boşlukların bir kısmı **Workflow V1 açık işidir**, bir kısm�
 | Ortak görünürlük ve dinamik rol okuma erişimi | Departman/durum çiftleri dahil ortak policy/SQL, JWT okuma uçları ve sayfalama testleri uygulandı |
 | Departman, üyelik, routing ve atama veri katmanı | V18–V22 ile şema/entity/repository hazır; V22 ad uzunluğu, self-parent ve silme korumalarını DB-1 ile hizalar |
 | Departman runtime ve görünürlük | V23 + WF-5/WF-6 ve policy/SQL departman kolu uygulandı; yönetim ekranları (`AP-4`/`AP-5`) ve NT-5 ayrı teslim. Bildirim dinleyicisi departmana atanan kayıtta bilinçli olarak boş alıcı kümesi döner |
-| Dinamik aktörden Başkana iletilen kaydın geri dönüşü | Workflow V1 açık işi — B02; hedef rol kontrolünü koşulsuz kaldırmak güvenli çözüm değildir |
+| Dinamik aktörden Başkana iletilen kaydın geri dönüşü | Workflow V1 açık işi — B02; karar [ADR-0008](decisions/0008-hedef-rol-semantigi-ve-onceki-aktore-donus.md) ile verildi, uygulama açık |
 | Departman hedefinin kalıcı workflow audit'ine yazılması | Workflow V1 açık işi — B12; `WorkflowTransitionAudit` departman/kişi atama alanı taşımaz |
-| İstemcinin kullanılabilir aksiyonu backend'den öğrenmesi | Workflow V1 açık işi — B10; web paneli `systemKey` sabitlerine bağlı olduğu için dinamik rol düğme göremez |
+| İstemcinin kullanılabilir aksiyonu backend'den öğrenmesi | Workflow V1 açık işi — B10; sözleşme [APP-9](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md) ile verildi (`available-actions` ve `target-departments` uçları), uygulama açık |
 | Mevcut geçişe dinamik aktör rolü bağlama | WF-8 servis ve sözleşmesi uygulandı; AP-8 HTTP/UI açık |
 | Admin'den rol/permission yönetimi | Workflow V1 — `AP-2`/`AP-3` |
 | WebSocket bildirim kanalı | Workflow V1 — `NT-2`…`NT-4` |

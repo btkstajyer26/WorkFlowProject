@@ -7,6 +7,13 @@ Bir ADR'nin kabul edilmesi ilgili runtime'ın uygulandığı anlamına gelmez.
 Aynı biçimde “kod mevcut”, “dala birleşti”, “CI geçti”, “TEST'e dağıtıldı” ve
 “ürün kabulü geçti” ayrı durumlardır; bu belgede karıştırılmaz.
 
+> **Karar paketi — 4 Eylül 2026.** `B02` ve istemci/bildirim sözleşmeleri karara
+> bağlanmıştır: [ADR-0008](decisions/0008-hedef-rol-semantigi-ve-onceki-aktore-donus.md)
+> ve [APP-9/APP-10/B11 sözleşmesi](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md). İkisi de
+> **Önerildi** durumundadır — karar metni hazırdır, kod ve `V24` migration'ı henüz
+> uygulanmamıştır. Tamer (`B10`/`WEB-1`), Bahadır (`B09`/`MOB-1`/`NT-5`) ve
+> Alperen (`B12`) bu sözleşmelere göre çalışmaya başlayabilir.
+
 > **Açık davranış problemleri:** 4 Eylül 2026 tarihli
 > [inceleme raporu](PROJE_INCELEME_RAPORU_2026-09-04.md) çalıştırılmış regresyon
 > problarıyla sekiz backend davranış ihlali (B01–B08) ve dört istemci/sözleşme
@@ -24,6 +31,7 @@ Aynı biçimde “kod mevcut”, “dala birleşti”, “CI geçti”, “TEST'
 | Bağlayıcı veri modeli ve atama kısıtları | [DB-1](DB_1_VERI_MODELI_SOZLESMESI.md) |
 | Ortak kayıt görünürlüğü ve departman sorgu koşulları | [WF-2C2 / DB-8](WF2C2_DB8_GORUNURLUK_SOZLESMESI.md) |
 | Mevcut geçişe rol bağlama ve Admin entegrasyonu | [WF-8 / AP-8](WF8_AP8_AKTOR_ROL_BAGLAMA_SOZLESMESI.md) |
+| Kullanılabilir aksiyon, hedef departman keşfi, atama DTO'su ve bildirim alıcısı | [APP-9 / APP-10 / B11](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md) |
 | Web ve mobil HTTP sözleşmeleri | [Web](FRONTEND_BACKEND_SOZLESMESI.md), [mobil](MOBIL_API_ENVANTERI.md), [OpenAPI](openapi.json) |
 | TEST dağıtımı ve ortam sınırları | [TEST ortamı notu](TEST_ORTAMI_NOTU.md) |
 | Tasarım gerekçeleri ve karar durumları | [ADR dizini](decisions/README.md) |

@@ -366,8 +366,8 @@ doğrulanmış biçimde eksiktir; ilgili migration/kod işleri
 | `records.version` ve görev devri | `devretBekleyenIsleri` ve `updateLastDeputyId` toplu JPQL güncellemeleri sürümü artırmaz; eşzamanlı workflow yazımı çatışma almaz (B03) |
 | `records.version` ve dosya yükleme | Ek yükleme kaydın sürümüne dokunmaz; kilit kontrolü ile dosya satırının yazılması arasında durum değişebilir (B04) |
 | Soft-delete edilmiş kayıt | Detay okuması `deleted_at` dolu kaydı dışlar; update/delete ortak yükleyicisi dışlamaz (B08) |
-| Workflow audit | `WorkflowTransitionAudit` departman ve kişi atama alanı taşımaz; departman hedefi kalıcı geçmişe yazılmaz. Yapılandırılmış audit sözleşmesi ve ileri migration gerekir (B12) |
-| Dinamik önceki aktöre dönüş | V15 seed'i `BASKAN_YARDIMCISINA_GERI_GONDER` için yerleşik `BASKAN_YARDIMCISI` hedef rolünü ister; dinamik departman aktörüne dönüş `WORKFLOW_TARGET_ROLE_INVALID` alır. İleri migration + resolver kararı açıktır (B02) |
+| Workflow audit | `WorkflowTransitionAudit` departman ve kişi atama alanı taşımaz; departman hedefi kalıcı geçmişe yazılmaz. Yapılandırılmış audit sözleşmesi ve ileri migration gerekir (B12); alan şekli [APP-9/APP-10/B11 §3](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md#3-b11--ortak-atama-sözleşmesi) içindeki `kind` ayrımıyla uyumlu olmalıdır |
+| Dinamik önceki aktöre dönüş | V15 seed'i `BASKAN_YARDIMCISINA_GERI_GONDER` için yerleşik `BASKAN_YARDIMCISI` hedef rolünü ister; dinamik departman aktörüne dönüş `WORKFLOW_TARGET_ROLE_INVALID` alır (B02). **Karar verildi:** [ADR-0008](decisions/0008-hedef-rol-semantigi-ve-onceki-aktore-donus.md) — `V24` üç satırda `expected_target_role_id` değerini `NULL` yapar ve `chk_transition_target_strategy_role` kısıtını "yalnız `ROLE` dolu olabilir" biçiminde daraltır. Migration ve kod aynı teslimde gider; ayrı dağıtılırsa uygulama açılışta düşer |
 
 ### Numaralandırmadaki boşluk
 

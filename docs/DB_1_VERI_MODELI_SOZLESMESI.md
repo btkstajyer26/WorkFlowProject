@@ -11,8 +11,22 @@
   primitive/seed'leri hazırdır; WF-5/WF-6 runtime'ı uygulanmıştır. Açık kalanlar
   yönetim uçları (`AP-3`/`AP-4`/`AP-5`/`AP-8`), atama alanlarının yanıt DTO'larına
   taşınması (B11), workflow audit'inin departman hedefini yazması (B12) ve
-  dinamik önceki aktöre dönüşün hedef rol kararı (B02). Ayrıntı:
+  dinamik önceki aktöre dönüş (B02). B02, B11 ve alıcı çözümü **karara
+  bağlanmıştır** ([ADR-0008](decisions/0008-hedef-rol-semantigi-ve-onceki-aktore-donus.md),
+  [APP-9/APP-10/B11 sözleşmesi](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md)); `V24` ve
+  kod uygulaması açıktır. Ayrıntı:
   [inceleme raporu](PROJE_INCELEME_RAPORU_2026-09-04.md).
+
+> **§7.2 / §8 semantik düzeltmesi (ADR-0008, 4 Eylül 2026).**
+> `expected_target_role_id` bu sözleşmede "beklenen hedef rol" olarak tanımlanmış
+> ve `V15` seed'inde `CREATOR` / `PREVIOUS_ACTOR` satırlarında da **bilgi amaçlı**
+> doldurulmuştu. Uygulamada bu kolon üç ayrı işi birden görüyor: `ROLE` için arama
+> anahtarı, validator'da çözüm sonrası doğrulama ve iki aşamalı doğrulamanın
+> "hedef ister" nöbetçisi. ADR-0008 bu üç anlamı ayırır; `V24` sonrasında kolon
+> **yalnız `ROLE` stratejisinde dolu** olur ve yalnız arama anahtarı anlamını
+> taşır. Kimliği çalışma zamanında belirlenen stratejilerde hedefin uygunluğu,
+> statik rol eşitliği yerine "iniş durumunda işlem yapabiliyor mu?" kontrolüyle
+> doğrulanır.
 
 ## 1. Amaç
 

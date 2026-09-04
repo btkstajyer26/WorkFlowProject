@@ -7,7 +7,9 @@ güncellenir.
 4 Eylül 2026, `codex/ap-2-frontend-uyum` @ `c9b0297` tabanı ile hizalanmıştır.
 `DEPARTMANA_GONDER` aksiyonu ve `targetDepartmentId` alanı backend'de mevcuttur;
 mobil istemci bunları **kullanmaz**. AP-3/AP-4/AP-5/AP-8 yönetim uçları hâlâ
-yoktur. [Güncel teslim sınırları](README.md) ayrı izlenir.
+yoktur. Mobilin tüketeceği yeni uçlar ve ortak `assignment` nesnesi
+[APP-9 / APP-10 / B11 sözleşmesinde](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md)
+tanımlıdır. [Güncel teslim sınırları](README.md) ayrı izlenir.
 
 > **Açık kırılma — B09 (P1).** `mobile/src/api/users.ts` içindeki `roleName`
 > yalnız `CALISAN`, `BASKAN_YARDIMCISI`, `BASKAN`, `ADMIN` değerlerini kabul eden
@@ -21,6 +23,14 @@ yoktur. [Güncel teslim sınırları](README.md) ayrı izlenir.
 > dönüştürülmelidir. Kabul: yeni dinamik rol ve yeniden adlandırılmış yerleşik
 > rolle giriş sonrası liste, detay ve yetkili işlem çalışmalıdır.
 > Ayrıntı: [inceleme raporu](PROJE_INCELEME_RAPORU_2026-09-04.md).
+>
+> **Hedef model karara bağlanmıştır** (4 Eylül 2026,
+> [APP-9 / APP-10 / B11 sözleşmesi](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md)):
+> profil `roleId` + nullable `systemKey` + gösterim adı taşır; workflow düğmeleri
+> istemcide hesaplanmaz, `GET /api/records/{id}/workflow/available-actions`
+> yanıtından üretilir. `RecordWorkflowActions` içindeki istemci tarafı
+> `getAvailableActions()` kaldırılır. Sözleşme **Önerildi** durumundadır; uçlar
+> henüz uygulanmamıştır.
 
 Kanonik kaynaklar: [FRONTEND_BACKEND_SOZLESMESI.md](FRONTEND_BACKEND_SOZLESMESI.md)
 (alan sözleşmesi) · [workflow.md](workflow.md) (durum geçişleri ve görünürlük) ·
