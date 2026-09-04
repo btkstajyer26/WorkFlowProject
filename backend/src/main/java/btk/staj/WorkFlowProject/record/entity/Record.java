@@ -52,6 +52,18 @@ public class Record {
     @Column(name = "last_deputy_id")
     private UUID lastDeputyId;
 
+// ---- V21 (TASLAK) ile eklendi ----
+    // Kaydin kisiye DEGIL departmana atanmasi. assignedTo ile ayni anda
+    // dolu olamaz (bkz. chk_records_assignment_exclusive, V21).
+    // ADR-0006 kapanana kadar bu alani YAZAN kod yoktur - yalniz kolon
+    // ve kisit hazir.
+    @Column(name = "assigned_department_id")
+    private Integer assignedDepartmentId;
+
+    // Not: Record.java @Getter/@Setter (Lombok) kullaniyor - bu alan
+    // icin ayrica getter/setter yazmana gerek YOK, Lombok otomatik uretecek.
+
+    
     // Kayit Calisana geri gonderildigi anda icerigin dondurulmus kopyasi.
     // Baskan Yardimcisi, evrak duzeltmedeyken canli icerigi degil bunu gorur
     // (bkz. V9 migration ve RecordAccessPolicy.seesRecordAsOfHandoff).
