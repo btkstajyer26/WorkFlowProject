@@ -7,7 +7,6 @@ import btk.staj.WorkFlowProject.rbac.Role;
 import btk.staj.WorkFlowProject.rbac.SystemRoleKey;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
 import btk.staj.WorkFlowProject.user.dto.AdminUserSearchCriteria;
-import btk.staj.WorkFlowProject.user.dto.RoleResponse;
 import btk.staj.WorkFlowProject.user.dto.UserResponse;
 import btk.staj.WorkFlowProject.user.entity.User;
 import btk.staj.WorkFlowProject.user.repository.RoleRepository;
@@ -266,13 +265,6 @@ public class UserService {
                         : "Kullanıcının sisteme erişimi kapatıldı");
 
         return saved;
-    }
-
-    public List<RoleResponse> listAssignableRoles() {
-        return roleRepository.findAllByOrderByIdAsc().stream()
-                .filter(Role::isActive)
-                .map(RoleResponse::from)
-                .toList();
     }
 
 }

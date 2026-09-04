@@ -428,7 +428,9 @@ Başkan Yardımcısı ve Başkan frontend tarafından seçilmez. Backend beklene
 | `POST` | `/api/admin/users` | Varsayılan Çalışan rolüyle hesap açma; istek rol alanı içermez |
 | `PATCH` | `/api/admin/users/{id}/role` | Rol değiştirme; Başkan Yardımcısı koltuğunun devri de aynı istekte yapılır |
 | `PATCH` | `/api/admin/users/{id}/active` | Hesabı etkinleştirme/pasifleştirme |
-| `GET` | `/api/admin/roles` | Atanabilir roller; `ADMIN` dahil. AP-1 yalnız-okur rol ekranının (`/admin/roller`) da kaynağıdır: cevap sayfalanmamış düz dizidir, pasif roller hiç gelmez ve rol adı sabit rol listesine çevrilmeden gösterilir. `systemKey` bu cevapta henüz yoktur, AP-2'de eklenecektir |
+| `GET` | `/api/admin/roles?includeInactive=false` | Rol kataloğu; `ROLE_VIEW` ister. Cevap sayfalanmamış düz dizidir ve rol adı sabit rol listesine çevrilmeden gösterilir. Varsayılan çağrı yalnız **atanabilir (aktif)** rolleri döner; yönetim ekranı pasifleri de görmek için `includeInactive=true` gönderir |
+| `POST` | `/api/admin/roles` | Panelden dinamik rol açma; `ROLE_MANAGE` ister. Gövde `name` (zorunlu, ≤100), `description` (≤255) ve `workflowActor` taşır |
+| `PATCH` | `/api/admin/roles/{id}` | Rol güncelleme; `ROLE_MANAGE` ister. Kısmi gövde: yalnız gönderilen `name` / `description` / `workflowActor` / `active` alanları uygulanır |
 | `GET` | `/api/admin/audit-logs?type=USER|RECORD&page=0&size=20&q=` | Evrak ve kullanıcı/rol loglarını listeleme |
 | `POST` | `/api/workflow/rules/reload` | Geçiş kuralı snapshot'ını veritabanından yeniden okur; grafiği **yazmaz**. `WORKFLOW_MANAGE` ister, cevap `{"ruleCount": n}`. Geçersiz kural kümesi yüklenmez ve çalışan snapshot korunur |
 
@@ -445,6 +447,16 @@ kodları: [WF-8 / AP-8 sözleşmesi](WF8_AP8_AKTOR_ROL_BAGLAMA_SOZLESMESI.md).
 - Pasifleştirilen kullanıcının aktif tokenları iptal edilmelidir.
 - Hesap açma, rol değişikliği/devri ve aktiflik değişikliği append-only `user_audit_logs` kaydı üretmelidir.
 - `audit_logs` ve `user_audit_logs` tek sayfalı API modeliyle sunulur; update/delete audit endpointi olmaz.
+
+Rol yönetimi kuralları (`AP-2`):
+
+- Rol **silinmez**; DELETE ucu yoktur. Erişim `active=false` ile kapatılır.
+- `systemKey` ve `isSystem` istemciden hiçbir koşulda değiştirilemez. Yeni rol daima `systemKey=null`, `isSystem=false` ve `maxUsers=null` (sınırsız) olarak açılır.
+- Sistem rolü **yeniden adlandırılabilir** — `roles.name` görünen addır — ama pasifleştirilemez ve workflow aktörlüğü değiştirilemez.
+- Aktif kullanıcısı olan rol pasifleştirilemez; istek `400 BUSINESS_RULE_VIOLATION` ile reddedilir. Böylece hiçbir kullanıcı pasif rolde kalmaz.
+- Rol adı benzersizdir. Ön kontrol `400 BUSINESS_RULE_VIOLATION`, yarış durumunda benzersizlik kısıtı `409 CONFLICT` döner.
+- `workflowActor`, rolün mevcut geçişlere aktör olarak bağlanabilmesi için gerekir (`WF-8` şartı: `is_workflow_actor=true`, `is_system=false`, `system_key=NULL`).
+- Rol oluşturma ve güncelleme append-only `user_audit_logs` kaydı üretir: `ROLE_CREATED` ve `ROLE_UPDATED`. Bu kayıtlarda hedef kullanıcı yoktur; etkilenen rol `previous_role_id` / `new_role_id` alanlarında taşınır.
 
 ### 8.1 Başkan Yardımcısı koltuğunun devri
 

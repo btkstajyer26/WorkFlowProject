@@ -7,7 +7,6 @@ import btk.staj.WorkFlowProject.common.dto.PagedResponse;
 import btk.staj.WorkFlowProject.user.dto.AdminUserSearchCriteria;
 import btk.staj.WorkFlowProject.user.dto.ChangeRoleRequest;
 import btk.staj.WorkFlowProject.user.dto.CreateUserRequest;
-import btk.staj.WorkFlowProject.user.dto.RoleResponse;
 import btk.staj.WorkFlowProject.user.dto.SetActiveRequest;
 import btk.staj.WorkFlowProject.user.dto.UserResponse;
 import btk.staj.WorkFlowProject.user.service.UserService;
@@ -15,7 +14,6 @@ import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -73,12 +71,6 @@ public class AdminController {
     public UserResponse setActive(@PathVariable UUID id,
                                   @Valid @RequestBody SetActiveRequest request) {
         return UserResponse.from(userService.setActive(id, request.getActive()));
-    }
-
-    @GetMapping("/roles")
-    @PreAuthorize("hasAuthority('ROLE_VIEW')")
-    public List<RoleResponse> listRoles() {
-        return userService.listAssignableRoles();
     }
 
     /**
