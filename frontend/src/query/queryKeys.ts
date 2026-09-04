@@ -29,7 +29,7 @@ export const queryKeys = {
     },
     roles: {
       all: ['admin', 'roles'] as const,
-      list: () => ['admin', 'roles', 'list'] as const,
+      list: (includeInactive: boolean) => ['admin', 'roles', 'list', includeInactive] as const,
     },
     auditLogs: {
       all: ['admin', 'audit-logs'] as const,

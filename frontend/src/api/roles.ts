@@ -1,7 +1,7 @@
-import type { RoleResponse } from './generated/data-contracts'
+import type { CreateRoleRequest, RoleResponse, UpdateRoleRequest } from './generated/data-contracts'
 import { api } from './client'
 import { ApiClientError } from './errors'
-import type { AdminRole } from '../types/admin'
+import type { AdminRole, CreateAdminRoleInput, UpdateAdminRoleInput } from '../types/admin'
 
 function invalidRoleResponse(message: string): never {
   throw new ApiClientError({
@@ -17,7 +17,13 @@ function invalidRoleResponse(message: string): never {
  * değişmez anlamı `systemKey` ile gelir; `null` ise rol dinamiktir.
  */
 export function normalizeAdminRole(response: RoleResponse): AdminRole {
-  if (!Number.isSafeInteger(response.id) || !response.name?.trim()) {
+  if (
+    !Number.isSafeInteger(response.id) ||
+    !response.name?.trim() ||
+    typeof response.system !== 'boolean' ||
+    typeof response.workflowActor !== 'boolean' ||
+    typeof response.active !== 'boolean'
+  ) {
     return invalidRoleResponse('Sunucu geçerli rol bilgisi döndürmedi.')
   }
 
@@ -42,4 +48,26 @@ export function normalizeAdminRole(response: RoleResponse): AdminRole {
 export async function listRoles(includeInactive = false): Promise<AdminRole[]> {
   const response = await api.roles.listRoles({ includeInactive })
   return (response ?? []).map(normalizeAdminRole)
+}
+
+export async function createRole(input: CreateAdminRoleInput): Promise<AdminRole> {
+  const body: CreateRoleRequest = {
+    name: input.name.trim(),
+    description: input.description?.trim() || undefined,
+    workflowActor: input.workflowActor,
+  }
+  const response = await api.roles.createRole(body)
+  return normalizeAdminRole(response)
+}
+
+/** Kısmi güncelleme: yalnız verilen alanlar gönderilir. */
+export async function updateRole(id: number, input: UpdateAdminRoleInput): Promise<AdminRole> {
+  const body: UpdateRoleRequest = {
+    ...(input.name === undefined ? {} : { name: input.name.trim() }),
+    ...(input.description === undefined ? {} : { description: input.description.trim() }),
+    ...(input.workflowActor === undefined ? {} : { workflowActor: input.workflowActor }),
+    ...(input.active === undefined ? {} : { active: input.active }),
+  }
+  const response = await api.roles.updateRole({ id }, body)
+  return normalizeAdminRole(response)
 }
