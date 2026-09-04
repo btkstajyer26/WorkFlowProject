@@ -142,7 +142,7 @@ class RecordSpecificationsTest {
         RecordSearchCriteria criteria = new RecordSearchCriteria();
         criteria.setCreator("ahmet");
 
-        RecordSpecifications.withFilters(criteria, visibility(RoleName.CALISAN, USER_ID))
+        RecordSpecifications.withFilters(criteria, new btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy(actor -> java.util.Set.of()).scopeFor(visibility(RoleName.CALISAN, USER_ID)))
                 .toPredicate(root, query, cb);
 
         // Kapsam kosulu hala kuruluyor: filtre onun yerine gecmiyor, yanina ekleniyor.
@@ -157,7 +157,7 @@ class RecordSpecificationsTest {
         RecordSearchCriteria criteria = new RecordSearchCriteria();
         criteria.setCreator("   ");
 
-        RecordSpecifications.withFilters(criteria, visibility(RoleName.CALISAN, USER_ID))
+        RecordSpecifications.withFilters(criteria, new btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy(actor -> java.util.Set.of()).scopeFor(visibility(RoleName.CALISAN, USER_ID)))
                 .toPredicate(root, query, cb);
 
         verify(query, never()).subquery(UUID.class);
@@ -171,7 +171,7 @@ class RecordSpecificationsTest {
         assertThatNullPointerException().isThrownBy(
                 () -> RecordSpecifications.withFilters(criteria, null));
         assertThatNullPointerException().isThrownBy(
-                () -> RecordSpecifications.withFilters(null, visibility(RoleName.CALISAN, USER_ID)));
+                () -> RecordSpecifications.withFilters(null, new btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy(actor -> java.util.Set.of()).scopeFor(visibility(RoleName.CALISAN, USER_ID))));
     }
 
     /** Olusturan filtresi korele bir EXISTS alt sorgusu kurar. */
@@ -190,7 +190,7 @@ class RecordSpecificationsTest {
 
     private void build(RoleName role) {
         Specification<Record> specification =
-                RecordSpecifications.withFilters(new RecordSearchCriteria(), visibility(role, USER_ID));
+                RecordSpecifications.withFilters(new RecordSearchCriteria(), new btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy(actor -> java.util.Set.of()).scopeFor(visibility(role, USER_ID)));
         specification.toPredicate(root, query, cb);
     }
 }

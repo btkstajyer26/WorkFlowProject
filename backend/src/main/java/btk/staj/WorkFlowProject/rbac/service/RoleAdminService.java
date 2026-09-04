@@ -3,7 +3,9 @@ package btk.staj.WorkFlowProject.rbac.service;
 import btk.staj.WorkFlowProject.audit.service.UserAuditLogService;
 import btk.staj.WorkFlowProject.auth.security.CurrentUserProvider;
 import btk.staj.WorkFlowProject.common.exception.BusinessRuleException;
+import btk.staj.WorkFlowProject.common.exception.RoleInUseException;
 import btk.staj.WorkFlowProject.rbac.Role;
+import btk.staj.WorkFlowProject.rbac.port.WorkflowRoleUsagePort;
 import btk.staj.WorkFlowProject.rbac.dto.CreateRoleRequest;
 import btk.staj.WorkFlowProject.rbac.dto.RoleResponse;
 import btk.staj.WorkFlowProject.rbac.dto.UpdateRoleRequest;
@@ -25,6 +27,14 @@ import java.util.Locale;
  * <p>Silme ucu yoktur: erisim {@code is_active=false} ile kapatilir. Kullanimda
  * olan rolun pasiflestirilmesi engellenir, boylece hicbir kullanici pasif bir
  * rolde birakilmaz.
+ *
+ * <p><strong>Kullanim iki anlama gelir.</strong> Rolde aktif kullanici olmasi
+ * ilkidir; ikincisi rolun akista aktor olarak bagli oldugu gecislerde islem
+ * bekleyen acik kayit bulunmasidir ({@link WorkflowRoleUsagePort}). Ikincisi
+ * olmadan Admin, WF-8'in {@code unbind} uzerinde reddettigi sonucu bu ekrandan
+ * elde edebilirdi: aktorlugu kapatilan rolun kullanicilari, dogrulayicinin ilk
+ * kontrolune ({@code WORKFLOW_ROLE_NOT_ALLOWED}) takilir ve ellerindeki butun
+ * acik kayitlar kilitlenir.
  */
 @Service
 public class RoleAdminService {
@@ -35,15 +45,18 @@ public class RoleAdminService {
     private final UserRepository userRepository;
     private final UserAuditLogService userAuditLogService;
     private final CurrentUserProvider currentUserProvider;
+    private final WorkflowRoleUsagePort workflowRoleUsage;
 
     public RoleAdminService(RoleRepository roleRepository,
                             UserRepository userRepository,
                             UserAuditLogService userAuditLogService,
-                            CurrentUserProvider currentUserProvider) {
+                            CurrentUserProvider currentUserProvider,
+                            WorkflowRoleUsagePort workflowRoleUsage) {
         this.roleRepository = roleRepository;
         this.userRepository = userRepository;
         this.userAuditLogService = userAuditLogService;
         this.currentUserProvider = currentUserProvider;
+        this.workflowRoleUsage = workflowRoleUsage;
     }
 
     /**
@@ -115,6 +128,11 @@ public class RoleAdminService {
                 throw new BusinessRuleException(
                         "Sistem rolünün workflow aktörlüğü değiştirilemez: " + role.getName());
             }
+            // Aktorlugu kapatmak, rolun butun gecislerini bir anda kullanilamaz kilar;
+            // acmak boyle bir riski tasimaz.
+            if (!request.getWorkflowActor()) {
+                assertNotUsedByWorkflow(role);
+            }
             role.setWorkflowActor(request.getWorkflowActor());
             changes.add("workflow aktörlüğü: " + request.getWorkflowActor());
         }
@@ -150,6 +168,20 @@ public class RoleAdminService {
         if (activeUsers > 0) {
             throw new BusinessRuleException("Bu rol " + activeUsers
                     + " aktif kullanıcıda; önce onların rolünü değiştirin: " + role.getName());
+        }
+        // Aktif kullanicisi olmayan bir rolde de acik kayit bulunabilir: kaydin
+        // olusturucusu pasiflestirilmis olabilir. Etki analizi bu yuzden ayrica yapilir.
+        assertNotUsedByWorkflow(role);
+    }
+
+    /**
+     * WF-8'in kaldirma korumasiyla ayni etki analizi. Kontrol muhafazakardir:
+     * kullanici/rol pasifligi veya permission eksikligi sorguyu daraltmaz.
+     */
+    private void assertNotUsedByWorkflow(Role role) {
+        if (workflowRoleUsage.hasOpenWorkflowUsage(role.getId())) {
+            throw new RoleInUseException("Bu rolün işlem bekleyen açık kayıtları var; "
+                    + "önce o kayıtlar tamamlanmalı: " + role.getName());
         }
     }
 

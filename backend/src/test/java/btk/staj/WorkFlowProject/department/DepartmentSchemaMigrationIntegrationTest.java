@@ -49,8 +49,13 @@ class DepartmentSchemaMigrationIntegrationTest {
         }
     }
 
+    /**
+     * V22 is the department schema baseline: the tables exist but no runtime path
+     * writes them yet. Pinning the target here keeps that boundary observable —
+     * V23 must not retroactively change what V22 installs.
+     */
     @Test
-    void installsCompleteChainIntoEmptySchemaAndValidatesJpaMappings() {
+    void installsDepartmentSchemaBaselineThroughV22AndValidatesJpaMappings() {
         Flyway flyway = migrate("22");
         flyway.validate();
         assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("22");
@@ -59,6 +64,54 @@ class DepartmentSchemaMigrationIntegrationTest {
         assertThat(jdbc.queryForObject("SELECT count(*) FROM workflow_actions WHERE name = 'DEPARTMANA_GONDER'",
                 Integer.class)).isZero();
         entityManagerFactory(); // Hibernate validates the real department entity mappings.
+    }
+
+    /**
+     * V23 (ADR-0006) opens the write path: the {@code DEPARTMENT} strategy, the
+     * {@code DEPARTMANA_GONDER} action and its two transitions. Both new rows must
+     * carry a null expected target role — the department resolves the actor at
+     * runtime through {@code department_routing_rules}.
+     */
+    @Test
+    void installsDepartmentSendPathInV23() {
+        Flyway flyway = migrate("23");
+        flyway.validate();
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("23");
+        assertFinalSchema();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM workflow_transitions", Integer.class)).isEqualTo(10);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM workflow_actions WHERE name = 'DEPARTMANA_GONDER'",
+                Integer.class)).isOne();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM workflow_transitions "
+                + "WHERE target_strategy = 'DEPARTMENT' AND expected_target_role_id IS NULL",
+                Integer.class)).isEqualTo(2);
+        assertThat(jdbc.queryForObject("SELECT comment_required FROM workflow_actions "
+                + "WHERE name = 'DEPARTMANA_GONDER'", Boolean.class)).isFalse();
+        entityManagerFactory();
+    }
+
+    /**
+     * The widened CHECKs must stay closed: a DEPARTMENT row may not carry a target
+     * role, and the strategies DB-1 SS7.2 keeps frozen are still rejected.
+     */
+    @Test
+    void v23ChecksStillRejectInvalidTargetStrategies() {
+        migrate("23");
+
+        assertThatThrownBy(() -> jdbc.update("INSERT INTO workflow_transitions("
+                + "from_status_id, action_id, actor_role_id, actor_requirement, to_status_id, "
+                + "expected_target_role_id, target_strategy, required_permission_id) "
+                + "SELECT t.from_status_id, t.action_id, t.actor_role_id, t.actor_requirement, "
+                + "t.to_status_id, t.actor_role_id, 'DEPARTMENT', t.required_permission_id "
+                + "FROM workflow_transitions t WHERE t.target_strategy = 'DEPARTMENT' LIMIT 1"))
+                .hasMessageContaining("chk_transition_target_strategy_role");
+
+        assertThatThrownBy(() -> jdbc.update("INSERT INTO workflow_transitions("
+                + "from_status_id, action_id, actor_role_id, actor_requirement, to_status_id, "
+                + "expected_target_role_id, target_strategy, required_permission_id) "
+                + "SELECT t.from_status_id, t.action_id, t.actor_role_id, 'ASSIGNEE', "
+                + "t.to_status_id, NULL, 'DEPARTMENT_ROLE', t.required_permission_id "
+                + "FROM workflow_transitions t WHERE t.target_strategy = 'DEPARTMENT' LIMIT 1"))
+                .hasMessageContaining("chk_transition_target_strategy");
     }
 
     @Test

@@ -212,7 +212,7 @@ Liste ve detay aynı kuralı uygular — mobil ayrıca filtreleme yapmaz:
 
 | Rol | Görür |
 |---|---|
-| Dinamik rol / `CALISAN` | Kendi oluşturduğu veya doğrudan kendisine atanmış kayıtlar |
+| Dinamik rol / `CALISAN` | Kendi oluşturduğu, doğrudan kendisine atanan veya yetkili departman/durum kapsamındaki kayıtlar |
 | `BASKAN_YARDIMCISI` | Kendi oluşturduğu + kendisine atanan + `DUZENLEME_BEKLIYOR` + bir kez kendi elinden geçmiş (`last_deputy_id`) |
 | `BASKAN` | Kendi oluşturduğu + kendisine atanan + onayına gelen + sonuçlanan (`ONAYLANDI`/`REDDEDILDI`) |
 | `ADMIN` | Hiçbir kayıt |
@@ -223,7 +223,7 @@ doğrudan istenirse `403 FORBIDDEN`.
 > **Tablo kapalı bir liste değildir.** Dört yerleşik rolün bugünkü kapsamını
 > anlatır; rol kataloğu `roles` tablosundan gelir. Panelden rol oluşturma AP-2'de açıktır.
 > Rol adı (`roles.name`) değiştirilebilir — istemci rolü ada göre sabit bir listeye
-> karşı doğrulamamalıdır. Bütün kapsamlar aktif hesap/rol ve `RECORD_VIEW` gerektirir; ADMIN deny korunur. Dinamik rol erişimi uygulanmıştır; departman bağlantısı açıktır. [WF-2C2 sözleşmesi](WF2C2_DB8_GORUNURLUK_SOZLESMESI.md). Silinmiş kaydın detay/dosya/geçmiş okumaları `404` döner.
+> karşı doğrulamamalıdır. Bütün kapsamlar aktif hesap/rol ve `RECORD_VIEW` gerektirir; ADMIN deny korunur. Dinamik rol erişimi uygulanmıştır; uygun routing/rol/permission ile departman görünürlüğü de uygulanmıştır. [WF-2C2 sözleşmesi](WF2C2_DB8_GORUNURLUK_SOZLESMESI.md). Silinmiş kaydın detay/dosya/geçmiş okumaları `404` döner.
 
 **İçerik dondurma:** Kayıt `DUZENLEME_BEKLIYOR` iken onu geri gönderen Bşk. Yrd.
 **devir anındaki kopyayı** görür — başlık, açıklama, kategori ve ek dosyalar
@@ -240,16 +240,15 @@ Yetki `@PreAuthorize` ile değil, durum makinesiyle belirlenir.
 { "action": "BASKANA_ILET", "comment": "Uygun bulunmuştur." }
 ```
 
-**`targetUserId` gönderilmez.** Alan DTO'da duruyor ama backend bilerek yok
-sayıyor; hedefi her aksiyon için sunucu çözer.
+**`targetUserId` gönderilmez.** Gönderilirse `400 WORKFLOW_TARGET_NOT_ALLOWED` döner; kişi hedefini sunucu çözer.
 
-> [ADR-0006](decisions/0006-departman-hedefli-target-strategy.md) (**Kabul
-> Edildi**, 4 Eylül 2026) yeni bir `DEPARTMANA_GONDER` aksiyonu ve istekte
-> `targetDepartmentId` alanı getirir. `WorkflowAction` enum'u istemci
-> sözleşmesinde paylaşıldığı için mobil, aksiyonu tanımadan gönderim ekranını
-> açmamalıdır. Bu bölüm WF-5/WF-6 runtime'ı ve DB-13'ün ayrı ileri migration'ı
-> ile uçlar geldiğinde güncellenir. V18–V22 şema teslimi gönderim aksiyonunu
-> veya HTTP alanını eklemez.
+**V23 + WF-5/WF-6:** `DEPARTMANA_GONDER` ve Integer `targetDepartmentId` desteklenir. İki hedef alanı birlikte `400 VALIDATION_ERROR`; eksik hedef `400 WORKFLOW_TARGET_REQUIRED`, yanlış alan `400 WORKFLOW_TARGET_NOT_ALLOWED` üretir.
+
+```json
+{ "action": "DEPARTMANA_GONDER", "targetDepartmentId": 12, "comment": "Satın alma incelemesi" }
+```
+
+Departmana gönderim `assigned_department_id` alanını doldurur ve `assigned_to` alanını temizler. Hedef aktif olmalı; iniş durumu için aktif routing/transition, aktif workflow rolü, uygun aktif üye, `RECORD_VIEW` ve geçiş permission'ı bulunmalıdır. Eksik/pasif departman `400 WORKFLOW_DEPARTMENT_INVALID`, kullanılabilir iniş routing'i yoksa `409 WORKFLOW_DEPARTMENT_ROUTING_NOT_CONFIGURED` döner. Kayıt zaten departmandayken eksik routing veya yetkisiz üyelik `403 WORKFLOW_FORBIDDEN` üretir. Üyelik tek başına yetki vermez.
 
 Cevap:
 
@@ -269,6 +268,8 @@ Cevap:
 
 | Durum | Rol | Aksiyon | Yeni durum | `comment` |
 |---|---|---|---|---|
+| `TASLAK` | `CALISAN` (sahibi) | `DEPARTMANA_GONDER` | `BSK_YRD_INCELEMESINDE` | opsiyonel |
+| `DUZENLEME_BEKLIYOR` | `CALISAN` (sahibi ve atama sahibi) | `DEPARTMANA_GONDER` | `BSK_YRD_INCELEMESINDE` | opsiyonel |
 | `TASLAK` | `CALISAN` (sahibi) | `GONDER` | `BSK_YRD_INCELEMESINDE` | opsiyonel |
 | `DUZENLEME_BEKLIYOR` | `CALISAN` (sahibi) | `TEKRAR_GONDER` | `BSK_YRD_INCELEMESINDE` | opsiyonel |
 | `BSK_YRD_INCELEMESINDE` | `BASKAN_YARDIMCISI` (atanan) | `BASKANA_ILET` | `BASKAN_INCELEMESINDE` | opsiyonel |
@@ -292,7 +293,9 @@ Workflow ucu genel kod ailesini **kullanmaz**; `ApiError.code` alanında
 |---|---|---|
 | `WORKFLOW_INVALID_TRANSITION` | 400 | Bu durumda bu işlem yapılamaz |
 | `WORKFLOW_COMMENT_REQUIRED` | 400 | Açıklama zorunlu (boşluk kabul edilmez) |
-| `WORKFLOW_TARGET_REQUIRED` | 400 | Hedef kullanıcı gerekli |
+| `WORKFLOW_TARGET_REQUIRED` | 400 | Hedef departman gerekli |
+| `WORKFLOW_DEPARTMENT_INVALID` | 400 | Hedef departman yok/pasif |
+| `WORKFLOW_DEPARTMENT_ROUTING_NOT_CONFIGURED` | 409 | İniş durumunda kullanılabilir routing yok |
 | `WORKFLOW_TARGET_NOT_ALLOWED` | 400 | Hedef bu işlem için uygun değil |
 | `WORKFLOW_TARGET_ROLE_INVALID` | 400 | Hedefin rolü uygun değil |
 | `WORKFLOW_TARGET_INACTIVE` | 400 | Hedef kullanıcı pasif |

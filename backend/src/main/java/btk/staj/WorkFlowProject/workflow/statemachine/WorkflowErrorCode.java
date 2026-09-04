@@ -26,12 +26,7 @@ public enum WorkflowErrorCode {
     WORKFLOW_COMMENT_REQUIRED,
 
     /**
-     * Hedef kullanici gerekli ama istekte gonderilmemis.
-     *
-     * <p>Su an bu kodu ureten aksiyon <strong>yok</strong>: hedefi her aksiyon
-     * icin backend cozuyor. Kural
-     * {@link WorkflowTransitionValidator} icinde duruyor; ileride istemciden
-     * hedef bekleyen bir aksiyon eklenirse yeniden uretilir.
+     * Beklenen hedef istekte gonderilmemis; DEPARTMANA_GONDER departman ister.
      */
     WORKFLOW_TARGET_REQUIRED,
 
@@ -72,5 +67,9 @@ public enum WorkflowErrorCode {
      * <p>Istemci ayni istegi guncel veriyle tekrarlayabilir; bu yuzden kalici bir
      * kural ihlali degil, gecici bir catisma bildirir.
      */
+    WORKFLOW_DEPARTMENT_INVALID,
+
+    WORKFLOW_DEPARTMENT_ROUTING_NOT_CONFIGURED,
+
     WORKFLOW_VERSION_CONFLICT
 }

@@ -1,12 +1,5 @@
-import type {
-  CreateRoleData,
-  CreateRoleRequest,
-  ListRolesData,
-  RoleResponse,
-  UpdateRoleData,
-  UpdateRoleRequest,
-} from './generated/data-contracts'
-import { apiHttpClient } from './client'
+import type { CreateRoleRequest, RoleResponse, UpdateRoleRequest } from './generated/data-contracts'
+import { api } from './client'
 import { ApiClientError } from './errors'
 import type { AdminRole, CreateAdminRoleInput, UpdateAdminRoleInput } from '../types/admin'
 
@@ -20,7 +13,8 @@ function invalidRoleResponse(message: string): never {
 
 /**
  * Rol adı sabit bir listeye karşı doğrulanmaz: panelden dinamik rol
- * açılabildiği için sunucudan gelen ad olduğu gibi taşınır.
+ * açılabildiği için sunucudan gelen ad olduğu gibi taşınır. Yerleşik rolün
+ * değişmez anlamı `systemKey` ile gelir; `null` ise rol dinamiktir.
  */
 export function normalizeAdminRole(response: RoleResponse): AdminRole {
   if (
@@ -36,29 +30,23 @@ export function normalizeAdminRole(response: RoleResponse): AdminRole {
   return {
     id: response.id!,
     name: response.name.trim(),
-    // Yerleşik rolün değişmez anahtarı; dinamik rollerde yoktur.
     systemKey: response.systemKey?.trim() || null,
     description: response.description?.trim() || null,
-    isSystem: response.system,
-    isWorkflowActor: response.workflowActor,
-    maxUsers: response.maxUsers ?? null,
-    isActive: response.active,
+    isSystem: response.system === true,
+    isWorkflowActor: response.workflowActor === true,
+    maxUsers: typeof response.maxUsers === 'number' ? response.maxUsers : null,
+    isActive: response.active === true,
   }
 }
 
 /**
  * `/api/admin/roles` sayfalanmamış düz bir dizi döndürür (`/api/admin/users`'tan
  * farklı olarak `PagedResponse` değildir). Varsayılan çağrı yalnız atanabilir
- * rolleri getirir; yönetim ekranı pasifleri de görmek için `includeInactive`
- * gönderir, aksi halde pasifleştirdiği rol listeden düşer ve geri açılamaz.
+ * (aktif) rolleri döner; yönetim ekranı pasifleri de görmek için
+ * `includeInactive` gönderir.
  */
 export async function listRoles(includeInactive = false): Promise<AdminRole[]> {
-  const response = await apiHttpClient.request<ListRolesData>({
-    path: '/api/admin/roles',
-    method: 'GET',
-    query: { includeInactive },
-    secure: true,
-  })
+  const response = await api.roles.listRoles({ includeInactive })
   return (response ?? []).map(normalizeAdminRole)
 }
 
@@ -68,13 +56,7 @@ export async function createRole(input: CreateAdminRoleInput): Promise<AdminRole
     description: input.description?.trim() || undefined,
     workflowActor: input.workflowActor,
   }
-  const response = await apiHttpClient.request<CreateRoleData>({
-    path: '/api/admin/roles',
-    method: 'POST',
-    body,
-    type: 'application/json',
-    secure: true,
-  })
+  const response = await api.roles.createRole(body)
   return normalizeAdminRole(response)
 }
 
@@ -86,12 +68,6 @@ export async function updateRole(id: number, input: UpdateAdminRoleInput): Promi
     ...(input.workflowActor === undefined ? {} : { workflowActor: input.workflowActor }),
     ...(input.active === undefined ? {} : { active: input.active }),
   }
-  const response = await apiHttpClient.request<UpdateRoleData>({
-    path: `/api/admin/roles/${id}`,
-    method: 'PATCH',
-    body,
-    type: 'application/json',
-    secure: true,
-  })
+  const response = await api.roles.updateRole({ id }, body)
   return normalizeAdminRole(response)
 }

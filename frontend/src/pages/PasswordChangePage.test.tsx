@@ -11,7 +11,9 @@ const firstLoginUser: AuthUser = {
   firstName: 'İlk',
   lastName: 'Giriş',
   email: 'ilk.giris@kurum.gov.tr',
-  role: 'CALISAN',
+  roleId: 1,
+  systemKey: 'CALISAN',
+  roleName: 'CALISAN',
   mustChangePassword: true,
 }
 

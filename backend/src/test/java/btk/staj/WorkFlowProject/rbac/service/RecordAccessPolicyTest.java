@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class RecordAccessPolicyTest {
     private final UUID viewer = UUID.randomUUID();
     private final UUID other = UUID.randomUUID();
-    private final RecordAccessPolicy policy = new RecordAccessPolicy();
+    private final RecordAccessPolicy policy = new RecordAccessPolicy(actor -> java.util.Set.of());
 
     private VisibilityActor actor(SystemRoleKey key, boolean permission) {
         return new VisibilityActor(viewer, new RoleId(101), Optional.ofNullable(key),

@@ -2,11 +2,12 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { WorkflowActionRequest } from '../api/generated/data-contracts'
 import { performWorkflowAction } from '../api/workflow'
 import { queryKeys } from '../query/queryKeys'
-import { roleLabels, type AuthUser } from '../types/auth'
+import { roleLabelOf, type AuthUser } from '../types/auth'
 import type { WorkflowRecord } from '../types/record'
 
 const actionLabels: Record<NonNullable<WorkflowActionRequest['action']>, string> = {
   GONDER: 'Başkan Yardımcısına gönderildi',
+  DEPARTMANA_GONDER: 'Departmana gönderildi',
   TEKRAR_GONDER: 'Yeniden incelemeye gönderildi',
   BASKANA_ILET: 'Başkana iletildi',
   CALISANA_GERI_GONDER: 'Çalışana geri gönderildi',
@@ -38,7 +39,7 @@ export function useRecordWorkflowAction(recordId: string, actor: AuthUser) {
               action: actionLabel,
               actor: `${actor.firstName} ${actor.lastName}`,
               actorId: result.performedBy,
-              role: roleLabels[actor.role],
+              role: roleLabelOf(actor),
               note: request.comment?.trim() || undefined,
               date: result.performedAt,
             },

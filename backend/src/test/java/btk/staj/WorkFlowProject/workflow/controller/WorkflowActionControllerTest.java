@@ -71,6 +71,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @DisplayName("Onay akisi ucu")
 @Import(StaticTransitionRuleReaderConfiguration.class)
 class WorkflowActionControllerTest {
+    @MockitoBean
+    private btk.staj.WorkFlowProject.workflow.adapter.DepartmentRoutingAdapter departmentRoutingAdapter;
 
     private static final String ACTION_URL = "/api/records/{recordId}/workflow/actions";
     private static final int BASKAN_ROLE_ID = 3;

@@ -44,6 +44,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @DisplayName("Swagger erisimi")
 @Import(StaticTransitionRuleReaderConfiguration.class)
 class SecurityConfigTest {
+    @MockitoBean
+    private btk.staj.WorkFlowProject.workflow.adapter.DepartmentRoutingAdapter departmentRoutingAdapter;
 
     @Autowired
     private MockMvc mockMvc;

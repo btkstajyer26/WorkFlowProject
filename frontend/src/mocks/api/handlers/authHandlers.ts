@@ -13,6 +13,9 @@ import {
 } from '../auth'
 import { apiErrorResponse, unauthorizedResponse } from '../responses'
 
+/** V12 backfill'indeki yerleşik rol kimlikleri. */
+const systemRoleIds = { CALISAN: 1, BASKAN_YARDIMCISI: 2, BASKAN: 3, ADMIN: 4 } as const
+
 type ChangePasswordRequest = {
   currentPassword?: string
   newPassword?: string
@@ -41,6 +44,8 @@ export const authHandlers = [
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
+      roleId: systemRoleIds[user.role],
+      systemKey: user.role,
       roleName: user.role,
       active: true,
       createdAt: '2026-08-01T09:00:00Z',

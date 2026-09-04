@@ -3,10 +3,12 @@ package btk.staj.WorkFlowProject.rbac.service;
 import btk.staj.WorkFlowProject.audit.service.UserAuditLogService;
 import btk.staj.WorkFlowProject.auth.security.CurrentUserProvider;
 import btk.staj.WorkFlowProject.common.exception.BusinessRuleException;
+import btk.staj.WorkFlowProject.common.exception.RoleInUseException;
 import btk.staj.WorkFlowProject.rbac.Role;
 import btk.staj.WorkFlowProject.rbac.dto.CreateRoleRequest;
 import btk.staj.WorkFlowProject.rbac.dto.RoleResponse;
 import btk.staj.WorkFlowProject.rbac.dto.UpdateRoleRequest;
+import btk.staj.WorkFlowProject.rbac.port.WorkflowRoleUsagePort;
 import btk.staj.WorkFlowProject.user.repository.RoleRepository;
 import btk.staj.WorkFlowProject.user.repository.UserRepository;
 import btk.staj.WorkFlowProject.user.service.RoleNotFoundException;
@@ -37,6 +39,7 @@ class RoleAdminServiceTest {
     private RoleRepository roles;
     private UserRepository users;
     private UserAuditLogService audit;
+    private WorkflowRoleUsagePort workflowUsage;
     private RoleAdminService service;
 
     @BeforeEach
@@ -44,9 +47,10 @@ class RoleAdminServiceTest {
         roles = mock(RoleRepository.class);
         users = mock(UserRepository.class);
         audit = mock(UserAuditLogService.class);
+        workflowUsage = mock(WorkflowRoleUsagePort.class);
         CurrentUserProvider currentUser = mock(CurrentUserProvider.class);
         when(currentUser.currentUserId()).thenReturn(ADMIN_ID);
-        service = new RoleAdminService(roles, users, audit, currentUser);
+        service = new RoleAdminService(roles, users, audit, currentUser, workflowUsage);
         when(roles.save(any(Role.class))).thenAnswer(invocation -> invocation.getArgument(0));
         // Ad benzersizliği tüm katalogu Türkçe kurallarıyla tarar.
         when(roles.findAllByOrderByIdAsc()).thenReturn(List.of());
@@ -246,6 +250,77 @@ class RoleAdminServiceTest {
             assertThatThrownBy(() -> service.update(1, request))
                     .isInstanceOf(BusinessRuleException.class)
                     .hasMessageContaining("workflow aktörlüğü");
+            // Sistem rolu korumasi once calismali; akis sorgusuna hic gidilmemeli.
+            verify(workflowUsage, never()).hasOpenWorkflowUsage(anyInt());
+        }
+
+        /**
+         * WF-8 ayni sonucu {@code unbind} uzerinde BINDING_IN_USE ile reddediyor.
+         * Aktorlugu kapatmak daha genis etkilidir: rolun butun gecisleri birden
+         * kullanilamaz hale gelir ve o roldeki herkesin acik kaydi kilitlenir.
+         */
+        @Test
+        void acik_kaydi_olan_dinamik_rolun_workflow_aktorlugu_kapatilamaz() {
+            Role role = dynamicRole();
+            role.setWorkflowActor(true);
+            when(roles.findByIdForUpdate(9)).thenReturn(Optional.of(role));
+            when(workflowUsage.hasOpenWorkflowUsage(9)).thenReturn(true);
+            UpdateRoleRequest request = new UpdateRoleRequest();
+            request.setWorkflowActor(false);
+
+            assertThatThrownBy(() -> service.update(9, request))
+                    .isInstanceOf(RoleInUseException.class)
+                    .hasMessageContaining("işlem bekleyen açık kayıtları var");
+            assertThat(role.isWorkflowActor()).isTrue();
+            verify(roles, never()).save(any());
+        }
+
+        @Test
+        void acik_kaydi_olan_dinamik_rol_pasiflestirilemez() {
+            when(roles.findByIdForUpdate(9)).thenReturn(Optional.of(dynamicRole()));
+            when(users.countByRole_IdAndActiveTrue(9)).thenReturn(0L);
+            when(workflowUsage.hasOpenWorkflowUsage(9)).thenReturn(true);
+
+            assertThatThrownBy(() -> service.update(9, active(false)))
+                    .isInstanceOf(RoleInUseException.class)
+                    .hasMessageContaining("işlem bekleyen açık kayıtları var");
+            verify(roles, never()).save(any());
+        }
+
+        @Test
+        void kullanimda_olmayan_dinamik_rolun_aktorlugu_kapatilabilir() {
+            Role role = dynamicRole();
+            role.setWorkflowActor(true);
+            when(roles.findByIdForUpdate(9)).thenReturn(Optional.of(role));
+            when(workflowUsage.hasOpenWorkflowUsage(9)).thenReturn(false);
+            UpdateRoleRequest request = new UpdateRoleRequest();
+            request.setWorkflowActor(false);
+
+            assertThat(service.update(9, request).workflowActor()).isFalse();
+        }
+
+        /** Aktorlugu acmak hicbir kaydi kilitlemez; etki analizi gerekmez. */
+        @Test
+        void aktorlugu_acmak_akis_kullanimini_sorgulamaz() {
+            Role role = dynamicRole();
+            role.setWorkflowActor(false);
+            when(roles.findByIdForUpdate(9)).thenReturn(Optional.of(role));
+            UpdateRoleRequest request = new UpdateRoleRequest();
+            request.setWorkflowActor(true);
+
+            assertThat(service.update(9, request).workflowActor()).isTrue();
+            verify(workflowUsage, never()).hasOpenWorkflowUsage(anyInt());
+        }
+
+        /** Aktif kullanici kontrolu once calisir; daha ucuz ve daha anlasilir mesaj verir. */
+        @Test
+        void aktif_kullanici_kontrolu_akis_sorgusundan_once_calisir() {
+            when(roles.findByIdForUpdate(9)).thenReturn(Optional.of(dynamicRole()));
+            when(users.countByRole_IdAndActiveTrue(9)).thenReturn(3L);
+
+            assertThatThrownBy(() -> service.update(9, active(false)))
+                    .isInstanceOf(BusinessRuleException.class);
+            verify(workflowUsage, never()).hasOpenWorkflowUsage(anyInt());
         }
 
         @Test

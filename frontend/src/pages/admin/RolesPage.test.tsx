@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import App from '../../App'
 import { apiBaseUrl } from '../../api/config'
 import { apiMockServer } from '../../mocks/api/server'
+import { mockManagedUsers } from '../../mocks/admin'
 import { seedAuthenticatedUser } from '../../test/auth'
 
 async function renderRoles() {
@@ -116,6 +117,40 @@ describe('Admin rol yönetimi', () => {
     expect(await screen.findByText('Rol pasifleştirildi')).toBeInTheDocument()
     // Varsayılan görünüm yalnız aktifleri gösterdiği için satır listeden düşer.
     expect(screen.queryByRole('row', { name: /Mali İşler Uzmanı/ })).not.toBeInTheDocument()
+  })
+
+  it('aktif kullanıcı taşıyan dinamik rolün pasifleştirilmesini reddeder', async () => {
+    mockManagedUsers.push({
+      id: 'user-dynamic-role', firstName: 'Deniz', lastName: 'Yıldız',
+      email: 'deniz@kurum.gov.tr', roleId: 5, systemKey: null,
+      roleName: 'Mali İşler Uzmanı', isActive: true, createdAt: '2026-09-04T12:00:00',
+    })
+    const browser = userEvent.setup()
+    await renderRoles()
+    const row = await screen.findByRole('row', { name: /Mali İşler Uzmanı/ })
+
+    await browser.click(within(row).getByRole('button', { name: 'Pasifleştir' }))
+
+    expect(await screen.findByText(/Bu rol 1 aktif kullanıcıda/)).toBeInTheDocument()
+    expect(within(screen.getByRole('row', { name: /Mali İşler Uzmanı/ })).getByText('Aktif')).toBeInTheDocument()
+  })
+
+  it('workflow kullanım korumasının 409 hatasını formda gösterir ve değişikliği kaydetmez', async () => {
+    apiMockServer.use(http.patch(`${apiBaseUrl}/api/admin/roles/:id`, () => HttpResponse.json({
+      timestamp: new Date().toISOString(), status: 409, code: 'ROLE_IN_USE',
+      message: 'Bu rolün işlem bekleyen açık kayıtları var; önce o kayıtlar tamamlanmalı.',
+    }, { status: 409 })))
+    const browser = userEvent.setup()
+    await renderRoles()
+    const row = await screen.findByRole('row', { name: /Mali İşler Uzmanı/ })
+    await browser.click(within(row).getByRole('button', { name: 'Düzenle' }))
+    const dialog = screen.getByRole('dialog')
+    await browser.click(within(dialog).getByRole('checkbox', { name: /İş akışı aktörü/ }))
+    await browser.click(within(dialog).getByRole('button', { name: 'Kaydet' }))
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('işlem bekleyen açık kayıtları var')
+    expect(within(row).getByText('İş akışı aktörü')).toBeInTheDocument()
+    expect(screen.queryByText('Rol güncellendi')).not.toBeInTheDocument()
   })
 
   it('rolün adını ve açıklamasını günceller', async () => {

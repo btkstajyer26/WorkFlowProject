@@ -22,7 +22,7 @@ public enum NotificationType {
 
     public static NotificationType of(WorkflowAction action) {
         return switch (action) {
-            case GONDER, TEKRAR_GONDER -> RECORD_SUBMITTED;
+            case GONDER, TEKRAR_GONDER, DEPARTMANA_GONDER -> RECORD_SUBMITTED;
             case BASKANA_ILET -> RECORD_FORWARDED;
             case ONAYLA -> RECORD_APPROVED;
             case REDDET -> RECORD_REJECTED;

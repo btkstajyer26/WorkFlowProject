@@ -49,6 +49,16 @@ class WorkflowStatusChangedListenerTest {
             recordRepository, userRepository);
 
     @Test
+    void departmentAssignmentDoesNotFallBackToCreatorOrPreviousDeputy() {
+        var event = new WorkflowStatusChangedEvent(RECORD_ID, WorkflowAction.DEPARTMANA_GONDER,
+                RecordStatus.TASLAK, RecordStatus.BSK_YRD_INCELEMESINDE, ACTOR_ID,
+                WorkflowRoleFixtures.id(RoleName.CALISAN), null, null, null, Instant.now(), 42);
+        assertThat(listener.recipientsOf(event)).isEmpty();
+        listener.createInAppNotification(event);
+        verifyNoInteractions(recordRepository, notificationService);
+    }
+
+    @Test
     @DisplayName("bildirimi sirasi gelen kisiye yazar")
     void notifiesTheUserWhoseTurnItIs() {
         listener.createInAppNotification(event(

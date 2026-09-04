@@ -12,7 +12,7 @@ import { searchRecords } from '../api/recordSearch'
 import { RecordStatusBadge } from '../components/records/RecordStatusBadge'
 import { useCategories } from '../context/categoryState'
 import { queryKeys } from '../query/queryKeys'
-import type { AuthUser, UserRole } from '../types/auth'
+import type { AuthUser, SystemRoleKey } from '../types/auth'
 import type { RecordStatus } from '../types/record'
 
 type DashboardCard = {
@@ -23,7 +23,7 @@ type DashboardCard = {
   view: string
 }
 
-const dashboardCards: Record<UserRole, DashboardCard[]> = {
+const dashboardCards: Record<SystemRoleKey, DashboardCard[]> = {
   CALISAN: [
     { label: 'Taslaklarım', statuses: ['TASLAK'], tone: 'text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/30', icon: Files, view: 'taslaklar' },
     { label: 'Düzeltme bekleyen', statuses: ['DUZENLEME_BEKLIYOR'], tone: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40', icon: FilePenLine, view: 'duzeltme-bekleyenler' },
@@ -47,7 +47,7 @@ const dashboardCards: Record<UserRole, DashboardCard[]> = {
 
 export function DashboardPage({ user }: { user: AuthUser }) {
   const { categories, status: categoryStatus } = useCategories()
-  const cards = dashboardCards[user.role]
+  const cards = user.systemKey ? dashboardCards[user.systemKey] : []
   const categoryRevision = categories.map((category) => `${category.id}:${category.name}`).join('|')
   const dashboardStatuses = [...new Set(cards.flatMap((card) => card.statuses))]
   const countQueries = useQueries({

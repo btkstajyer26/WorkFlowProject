@@ -40,6 +40,9 @@ function toRoleResponse(role: AdminRole): RoleResponse {
   }
 }
 
+/** V12 backfill'indeki yerleşik rol kimlikleri; mock yanıtları da roleId taşımalı. */
+const systemRoleIds = { CALISAN: 1, BASKAN_YARDIMCISI: 2, BASKAN: 3, ADMIN: 4 } as const
+
 type PagedUserAuditLogResponse = {
   content: UserAuditLogResponse[]
   page: number
@@ -66,13 +69,15 @@ export const adminHandlers = [
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
-      role: user.role,
+      roleId: systemRoleIds[user.role],
+      systemKey: user.role,
+      roleName: user.role,
       isActive: true,
       createdAt: new Date().toISOString(),
     }))
     const filtered = [...mockManagedUsers, ...createdUsers]
       .filter((user) => !q || `${user.firstName} ${user.lastName} ${user.email}`.toLocaleLowerCase('tr-TR').includes(q))
-      .filter((user) => !role || user.role === role)
+      .filter((user) => !role || user.roleName === role)
       .filter((user) => active === undefined || user.isActive === active)
       .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
     const content: UserResponse[] = filtered
@@ -82,7 +87,9 @@ export const adminHandlers = [
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
-        roleName: user.role,
+        roleId: user.roleId,
+        systemKey: user.systemKey ?? undefined,
+        roleName: user.roleName,
         active: user.isActive,
         createdAt: user.createdAt,
       }))
@@ -174,7 +181,7 @@ export const adminHandlers = [
         return apiErrorResponse(400, 'BUSINESS_RULE_VIOLATION', 'Sistem rolü pasifleştirilemez: ' + role.name)
       }
       const activeUsers = mockManagedUsers.filter(
-        (user) => user.isActive && user.role === role.systemKey,
+        (user) => user.isActive && user.roleId === role.id,
       ).length
       if (!body.active && activeUsers > 0) {
         return apiErrorResponse(400, 'BUSINESS_RULE_VIOLATION',
@@ -262,6 +269,8 @@ export const adminHandlers = [
       firstName,
       lastName,
       email: normalizedEmail,
+      roleId: systemRoleIds.CALISAN,
+      systemKey: 'CALISAN',
       roleName: 'CALISAN',
       active: true,
       createdAt,
@@ -289,19 +298,26 @@ export const adminHandlers = [
 
     if (body.replacementBaskanYardimcisiId) {
       const replacement = mockManagedUsers.find((item) => item.id === body.replacementBaskanYardimcisiId)
-      if (!replacement || !replacement.isActive || replacement.role !== 'CALISAN') {
+      if (!replacement || !replacement.isActive || replacement.systemKey !== 'CALISAN') {
         return apiErrorResponse(400, 'INVALID_REPLACEMENT', 'Yerine atanacak aktif Çalışan bulunamadı')
       }
-      replacement.role = 'BASKAN_YARDIMCISI'
+      replacement.systemKey = 'BASKAN_YARDIMCISI'
+      replacement.roleName = 'BASKAN_YARDIMCISI'
+      replacement.roleId = systemRoleIds.BASKAN_YARDIMCISI
     }
-    user.role = body.roleName as typeof user.role
+    const nextRole = body.roleName as keyof typeof systemRoleIds
+    user.systemKey = nextRole
+    user.roleName = nextRole
+    user.roleId = systemRoleIds[nextRole]
 
     return HttpResponse.json({
       id: user.id,
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
-      roleName: user.role,
+      roleId: user.roleId,
+      systemKey: user.systemKey ?? undefined,
+      roleName: user.roleName,
       active: user.isActive,
       createdAt: user.createdAt,
     } satisfies UserResponse)
@@ -315,7 +331,7 @@ export const adminHandlers = [
     const body = await request.json() as SetActiveRequest
     const user = mockManagedUsers.find((item) => item.id === params.id)
     if (!user) return apiErrorResponse(404, 'NOT_FOUND', 'Kullanıcı bulunamadı')
-    if (!body.active && user.role === 'BASKAN_YARDIMCISI') {
+    if (!body.active && user.systemKey === 'BASKAN_YARDIMCISI') {
       return apiErrorResponse(400, 'ACTIVE_DEPUTY_REQUIRED', 'Önce Başkan Yardımcısı rolünü başka bir aktif Çalışana devredin.')
     }
     user.isActive = body.active
@@ -325,7 +341,9 @@ export const adminHandlers = [
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
-      roleName: user.role,
+      roleId: user.roleId,
+      systemKey: user.systemKey ?? undefined,
+      roleName: user.roleName,
       active: user.isActive,
       createdAt: user.createdAt,
     } satisfies UserResponse)

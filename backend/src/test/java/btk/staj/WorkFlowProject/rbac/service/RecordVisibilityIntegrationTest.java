@@ -106,7 +106,7 @@ class RecordVisibilityIntegrationTest {
             var expected = fixtureRecords.stream().filter(r -> policy.canView(actor, r)).map(Record::getId).toList();
             var criteria = new RecordSearchCriteria();
             criteria.setQ(prefix);
-            var specification = RecordSpecifications.withFilters(criteria, actor);
+            var specification = RecordSpecifications.withFilters(criteria, policy.scopeFor(actor));
             assertThat(records.findAll(specification)).as("scope for %s", actor)
                     .extracting(Record::getId).containsExactlyInAnyOrderElementsOf(expected);
             var page = records.findAll(specification, PageRequest.of(0, 7));

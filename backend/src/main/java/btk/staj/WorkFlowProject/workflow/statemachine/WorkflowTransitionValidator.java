@@ -69,11 +69,14 @@ public class WorkflowTransitionValidator {
         }
 
         // 6-7. Istekteki hedef alani, aksiyonun bekledigiyle uyusuyor mu?
-        boolean targetExpectedInRequest = context.action().isTargetUserIdRequiredInRequest();
-        if (targetExpectedInRequest && !context.targetProvidedInRequest()) {
+        boolean anyTargetProvided = context.targetUserProvidedInRequest()
+                || context.targetDepartmentProvidedInRequest();
+        if (context.action().isTargetExpectedInRequest() && !anyTargetProvided) {
             return TransitionDecision.rejected(WorkflowErrorCode.WORKFLOW_TARGET_REQUIRED);
         }
-        if (!targetExpectedInRequest && context.targetProvidedInRequest()) {
+        if ((context.targetUserProvidedInRequest() && !context.action().isTargetUserIdRequiredInRequest())
+                || (context.targetDepartmentProvidedInRequest()
+                    && !context.action().isTargetDepartmentIdRequiredInRequest())) {
             return TransitionDecision.rejected(WorkflowErrorCode.WORKFLOW_TARGET_NOT_ALLOWED);
         }
 

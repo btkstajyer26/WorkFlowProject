@@ -7,9 +7,9 @@ package btk.staj.WorkFlowProject.workflow.statemachine;
  * durumu backend hesaplar.
  *
  * <p>Aksiyon yalnizca <strong>istekle ilgili</strong> bilgiyi tasir: istemcinin
- * {@code targetUserId} gondermesi gerekip gerekmedigi ve aciklamanin zorunlu olup
- * olmadigi. Su an hicbir aksiyon istemciden hedef beklemiyor; bayrak yine de
- * tasiniyor, cunku istemci yine de gonderirse istek bu bayrak uzerinden reddedilir.
+ * {@code targetUserId} veya {@code targetDepartmentId} gondermesi gerekip
+ * gerekmedigi ve aciklamanin zorunlu olup olmadigi. Beklenmeyen bir alan
+ * gonderilirse istek bu bayraklar uzerinden reddedilir.
  *
  * <p><strong>Hedefin kim olacagi burada tutulmaz.</strong> Beklenen hedef rol ve hedef
  * cozum stratejisi gecisin ozelligidir; {@code TransitionRule} uzerinden
@@ -38,13 +38,30 @@ public enum WorkflowAction {
     ONAYLA(false, false),
 
     /** Baskanin kaydi nihai olarak reddetmesi. */
-    REDDET(false, true);
+    REDDET(false, true),
+
+    /**
+     * Calisanin kaydi bir <strong>departmana</strong> gondermesi (ADR-0006).
+     *
+     * <p>Hedef departman istekte gelir; {@code GONDER} ile birlikte durur ve onun
+     * yerine gecmez. Aciklama zorunlulugu {@code GONDER} ile aynidir.
+     */
+    DEPARTMANA_GONDER(false, true, false);
 
     private final boolean targetUserIdRequiredInRequest;
+    private final boolean targetDepartmentIdRequiredInRequest;
     private final boolean commentRequired;
 
+    /** Departman hedefi beklemeyen aksiyonlar icin kisa yol. */
     WorkflowAction(boolean targetUserIdRequiredInRequest, boolean commentRequired) {
+        this(targetUserIdRequiredInRequest, false, commentRequired);
+    }
+
+    WorkflowAction(boolean targetUserIdRequiredInRequest,
+                   boolean targetDepartmentIdRequiredInRequest,
+                   boolean commentRequired) {
         this.targetUserIdRequiredInRequest = targetUserIdRequiredInRequest;
+        this.targetDepartmentIdRequiredInRequest = targetDepartmentIdRequiredInRequest;
         this.commentRequired = commentRequired;
     }
 
@@ -56,6 +73,18 @@ public enum WorkflowAction {
      */
     public boolean isTargetUserIdRequiredInRequest() {
         return targetUserIdRequiredInRequest;
+    }
+
+    /**
+     * Istemcinin istekte {@code targetDepartmentId} gondermesi gerekip gerekmedigi.
+     * Yalniz {@code DEPARTMANA_GONDER} icin {@code true}.
+     */
+    public boolean isTargetDepartmentIdRequiredInRequest() {
+        return targetDepartmentIdRequiredInRequest;
+    }
+
+    public boolean isTargetExpectedInRequest() {
+        return targetUserIdRequiredInRequest || targetDepartmentIdRequiredInRequest;
     }
 
     /** Aksiyonun aciklama zorunlulugu. Butun geri gondermeler ve red icin {@code true}. */

@@ -52,6 +52,7 @@ public final class WorkflowApplicationService {
     private final WorkflowRecordPort recordPort;
     private final CurrentActorProvider currentActorProvider;
     private final TargetUserResolver targetUserResolver;
+    private final DepartmentRoutingResolver departmentRoutingResolver;
     private final WorkflowTransitionValidator validator;
     // Validator kurali kendi icinde okur ve disari sizdirmaz; servis ise hedefi cozmek icin
     // gecisin target_strategy degerine ihtiyac duyar. Bu yuzden ayni portu o da tutar.
@@ -64,6 +65,7 @@ public final class WorkflowApplicationService {
             WorkflowRecordPort recordPort,
             CurrentActorProvider currentActorProvider,
             TargetUserResolver targetUserResolver,
+            DepartmentRoutingResolver departmentRoutingResolver,
             WorkflowTransitionValidator validator,
             TransitionRuleSource ruleSource,
             AuditService auditService,
@@ -72,6 +74,7 @@ public final class WorkflowApplicationService {
         this.recordPort = Objects.requireNonNull(recordPort, "recordPort");
         this.currentActorProvider = Objects.requireNonNull(currentActorProvider, "currentActorProvider");
         this.targetUserResolver = Objects.requireNonNull(targetUserResolver, "targetUserResolver");
+        this.departmentRoutingResolver = Objects.requireNonNull(departmentRoutingResolver, "departmentRoutingResolver");
         this.validator = Objects.requireNonNull(validator, "validator");
         this.ruleSource = Objects.requireNonNull(ruleSource, "ruleSource");
         this.auditService = Objects.requireNonNull(auditService, "auditService");
@@ -91,14 +94,17 @@ public final class WorkflowApplicationService {
         WorkflowRecordSnapshot record = findActiveRecord(recordId);
 
         boolean targetProvidedInRequest = request.targetUserId() != null;
+        boolean departmentProvided = request.targetDepartmentId() != null;
+        boolean actorHoldsAssignment = departmentRoutingResolver.actorHoldsAssignment(actor, record, action);
         TransitionDecision preliminaryDecision = validator.validate(new TransitionContext(
                 record.status(),
                 action,
                 actor.roleId(),
                 actor.id().equals(record.createdBy()),
-                actor.id().equals(record.assignedTo()),
+                actorHoldsAssignment,
                 request.comment(),
                 targetProvidedInRequest,
+                departmentProvided,
                 null,
                 false,
                 actor.workflowActor(),
@@ -109,6 +115,9 @@ public final class WorkflowApplicationService {
         TransitionRule rule = requireRule(snapshot, record.status(), action, actor.roleId(), preliminaryDecision);
 
         validatePreliminaryDecision(rule, preliminaryDecision);
+        if (rule.targetStrategy() == TargetStrategy.DEPARTMENT) {
+            departmentRoutingResolver.validateTarget(request.targetDepartmentId(), rule.to(), record.createdBy(), snapshot);
+        }
 
         TargetResolution resolution = Objects.requireNonNull(
                 targetUserResolver.resolve(
@@ -126,9 +135,10 @@ public final class WorkflowApplicationService {
                         action,
                         actor.roleId(),
                         actor.id().equals(record.createdBy()),
-                        actor.id().equals(record.assignedTo()),
+                        actorHoldsAssignment,
                         request.comment(),
                         targetProvidedInRequest,
+                        departmentProvided,
                         target.roleId(),
                         target.active(),
                         actor.workflowActor(),
@@ -136,6 +146,8 @@ public final class WorkflowApplicationService {
         TransitionDecision.Allowed allowed = requireAllowed(finalDecision);
 
         UUID assignedTo = target == null ? null : target.id();
+        Integer assignedDepartmentId = rule.targetStrategy() == TargetStrategy.DEPARTMENT
+                ? request.targetDepartmentId() : null;
         UUID lastDeputyId = action == WorkflowAction.BASKANA_ILET
                 ? actor.id()
                 : record.lastDeputyId();
@@ -147,7 +159,8 @@ public final class WorkflowApplicationService {
                 assignedTo,
                 lastDeputyId,
                 record.version(),
-                performedAt));
+                performedAt,
+                assignedDepartmentId));
 
         auditService.record(new WorkflowTransitionAudit(
                 record.id(),
@@ -170,7 +183,8 @@ public final class WorkflowApplicationService {
                 record.assignedTo(),
                 assignedTo,
                 request.comment(),
-                performedAt));
+                performedAt,
+                assignedDepartmentId));
 
         return new WorkflowActionResponse(
                 record.id(),
@@ -244,7 +258,7 @@ public final class WorkflowApplicationService {
 
     /** Gecis bir hedef kullaniciya ihtiyac duyuyor mu. */
     private static boolean requiresTargetUser(TransitionRule rule) {
-        return rule.targetStrategy() != TargetStrategy.NONE;
+        return rule.targetStrategy() != TargetStrategy.NONE && rule.targetStrategy() != TargetStrategy.DEPARTMENT;
     }
 
     private static WorkflowUserSnapshot resolvedTarget(

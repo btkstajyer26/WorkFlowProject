@@ -60,6 +60,10 @@ public final class TargetUserResolver {
             case CREATOR -> resolveCreatedBy(record.createdBy());
             case CURRENT_ASSIGNEE -> resolveCurrentAssignee(record.assignedTo());
             case PREVIOUS_ACTOR -> resolveLastDeputy(record.lastDeputyId());
+            // Hedef bir kullanici degil departmandir; istekten okunur ve
+            // WorkflowApplicationService dogrular (ADR-0006 S6). Bu resolver
+            // yalniz kullanici cozer.
+            case DEPARTMENT -> new TargetResolution.NotProvided();
         };
     }
 

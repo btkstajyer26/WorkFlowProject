@@ -2,6 +2,7 @@ package btk.staj.WorkFlowProject.search.service;
 
 import btk.staj.WorkFlowProject.auth.security.CurrentVisibilityActorProvider;
 import btk.staj.WorkFlowProject.auth.security.VisibilityActor;
+import btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy;
 import btk.staj.WorkFlowProject.common.dto.PagedResponse;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
@@ -29,11 +30,14 @@ public class RecordSearchServiceImpl implements RecordSearchService {
     private final CurrentVisibilityActorProvider currentVisibilityActorProvider;
     private final RecordContentView recordContentView;
     private final UserRepository userRepository;
+    private final RecordAccessPolicy recordAccessPolicy;
 
     public RecordSearchServiceImpl(RecordRepository recordRepository,
                                    CurrentVisibilityActorProvider currentVisibilityActorProvider,
                                    RecordContentView recordContentView,
-                                   UserRepository userRepository) {
+                                   UserRepository userRepository,
+                                   RecordAccessPolicy recordAccessPolicy) {
+        this.recordAccessPolicy = Objects.requireNonNull(recordAccessPolicy, "recordAccessPolicy");
         this.recordRepository = Objects.requireNonNull(recordRepository, "recordRepository");
         this.currentVisibilityActorProvider = Objects.requireNonNull(
                 currentVisibilityActorProvider, "currentVisibilityActorProvider");
@@ -57,7 +61,7 @@ public class RecordSearchServiceImpl implements RecordSearchService {
         VisibilityActor actor = currentVisibilityActorProvider.currentVisibilityActor();
 
         Page<Record> recordPage = recordRepository.findAll(
-                RecordSpecifications.withFilters(criteria, actor),
+                RecordSpecifications.withFilters(criteria, recordAccessPolicy.scopeFor(actor)),
                 pageable);
 
         Map<UUID, String> creatorNames = creatorNamesOf(recordPage.getContent());

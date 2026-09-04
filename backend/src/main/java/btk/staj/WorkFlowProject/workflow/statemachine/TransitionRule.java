@@ -48,15 +48,24 @@ public record TransitionRule(
         // reddedilmelidir ve bu ancak beklenen rol doluysa gerceklesir. Rol bos olsaydi on
         // dogrulama gecisi kabul eder, servis de beklemedigi bir "Allowed" ile karsilasirdi.
         //
+        // DEPARTMENT bu kuraldan muaftir (ADR-0006): hedefi bir kullanici degil bir
+        // departmandir, hedef rol geciste degil department_routing_rules'ta durur ve
+        // iki gecisli dogrulama onu NONE gibi ele alir (requiresTargetUser false).
+        // V23'teki chk_transition_target_strategy_role de DEPARTMENT icin
+        // expected_target_role_id'nin NULL olmasini sart kosar; asagidaki ikinci
+        // kontrol bu kisitin Java karsiligidir.
+        //
         // Seed edilmis sekiz gecisin tamami bu kosulu zaten saglar (DB-1 SS8).
-        boolean targetExpected = targetStrategy != TargetStrategy.NONE;
-        if (targetExpected && expectedTargetRoleId == null) {
+        boolean targetRoleExpected = targetStrategy != TargetStrategy.NONE
+                && targetStrategy != TargetStrategy.DEPARTMENT;
+        if (targetRoleExpected && expectedTargetRoleId == null) {
             throw new IllegalArgumentException(
                     "targetStrategy " + targetStrategy + " requires expectedTargetRoleId");
         }
-        if (!targetExpected && expectedTargetRoleId != null) {
+        if (!targetRoleExpected && expectedTargetRoleId != null) {
             throw new IllegalArgumentException(
-                    "targetStrategy NONE must not carry expectedTargetRoleId but was "
+                    "targetStrategy " + targetStrategy
+                            + " must not carry expectedTargetRoleId but was "
                             + expectedTargetRoleId);
         }
     }

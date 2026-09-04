@@ -23,7 +23,7 @@ async function renderEmployeeRecords(initialEntry: string) {
     <MemoryRouter initialEntries={[initialEntry]}>
       <AppQueryProvider>
         <CategoryProvider>
-          <RecordsPage role={employee.role} />
+          <RecordsPage systemKey={employee.systemKey} />
           <LocationProbe />
         </CategoryProvider>
       </AppQueryProvider>

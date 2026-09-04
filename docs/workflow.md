@@ -2,9 +2,7 @@
 
 Bu belge, İş Akışı ve Onay Yönetim Sistemi'nin çalışan backend kodundaki workflow davranışını tanımlar. Ürün hedefinden çok **mevcut uygulamayı** esas alır; planlanan ancak henüz uygulanmayan davranışlar “Bilinen boşluklar” bölümünde ayrıca belirtilir. Durum makinesi, API veya hata eşlemesi değiştirildiğinde belge aynı değişiklik kapsamında güncellenir.
 
-4 Eylül 2026, `test` @ `3eb3691` tabanı: WF-8 ve mevcut ortak görünürlük uygulanmış,
-V18–V22 şema hazırdır. WF-5/WF-6 departman runtime'ı ve görünürlük entegrasyonu için
-[hazırlık sınırlarına](README.md#wf-5wf-6-öncesi-entegrasyon-sınırı) bakın.
+4 Eylül 2026 — `feature/wf-5-6-departman-runtime`: AP-2 hizalaması, V23, WF-5/WF-6 ve departman görünürlüğü birlikte uygulanmıştır. `test`/CI/ortam kabulü PR sonucuna bağlıdır.
 
 ## İçindekiler
 
@@ -120,7 +118,7 @@ Kayıt listeleme/detay görünürlüğü ile workflow aksiyonu yapma yetkisi ayn
 
 | Rol | Kayıt okuma kapsamı |
 | --- | --- |
-| Dinamik rol / `CALISAN` | Kendisinin oluşturduğu veya doğrudan kendisine atanmış kayıtlar |
+| Dinamik rol / `CALISAN` | Kendisinin oluşturduğu, doğrudan kendisine atanan veya yetkili departman/durum kapsamındaki kayıtlar |
 | `BASKAN_YARDIMCISI` | Kendisinin oluşturduğu veya kendisine atanmış kayıtlar, `DUZENLEME_BEKLIYOR` durumundakiler ve bir kez kendi elinden geçmiş kayıtlar (`last_deputy_id`) |
 | `BASKAN` | Kendisinin oluşturduğu, `BASKAN_INCELEMESINDE` durumundaki, sonuçlanmış (`ONAYLANDI`/`REDDEDILDI`) veya kendisine atanmış kayıtlar |
 | `ADMIN` | Hiçbir workflow kaydı |
@@ -132,9 +130,9 @@ Kapsamın iki kolu, `assigned_to`'nun geçişte boşalması yüzünden gerekli:
 
 Bütün okuma yolları aktif kullanıcı/rol ve `RECORD_VIEW` ister; ADMIN her durumda reddedilir. Soft-delete kayıtlar listede yoktur, tekil kayıt/dosya/geçmiş okumalarında `404` döner. Dinamik roller görünür kaydın güncel içeriğini ve tam geçmişini görür; ek `AUDIT_VIEW` şartı yoktur. Sistem rollerinin içerik/geçmiş kesimleri korunur.
 
-Kural tek bir saf Java `RecordVisibilityScope` tanımından gelir. `RecordAccessPolicy` tekil değerlendirmeyi, `RecordSpecifications` scope’un SQL çevirisini yapar; sorgu adapter’ı rol seçimi içermez. Liste toplamları SQL’de scope uygulandıktan sonra hesaplanır. Ayrıntı ve açık departman bağımlılıkları: [WF-2C2 / DB-8 sözleşmesi](WF2C2_DB8_GORUNURLUK_SOZLESMESI.md).
+Kural tek bir saf Java `RecordVisibilityScope` tanımından gelir. `RecordAccessPolicy` tekil değerlendirmeyi, `RecordSpecifications` scope’un SQL çevirisini yapar; sorgu adapter’ı rol seçimi içermez. Liste toplamları SQL’de scope uygulandıktan sonra hesaplanır. Ayrıntı ve departman kapsamı: [WF-2C2 / DB-8 sözleşmesi](WF2C2_DB8_GORUNURLUK_SOZLESMESI.md).
 
-Workflow controller'ı ayrıca `RecordAccessPolicy` çağırmaz. Aksiyon yetkisi; rol, durum ve `createdBy`/`assignedTo` ilişkisi üzerinden durum makinesinde belirlenir. Okuma kapsamı bir kaydı görünür kılması, o kayıt üzerinde aksiyon yapılabileceği anlamına gelmez: ilettiği evrağı izleyen Başkan Yardımcısı onu salt okunur görür.
+Workflow controller'ı ayrıca `RecordAccessPolicy` çağırmaz. Aksiyon yetkisi; rol, permission, durum ve oluşturucu/atama ilişkisi üzerinden durum makinesinde belirlenir. Okuma kapsamı bir kaydı görünür kılması, o kayıt üzerinde aksiyon yapılabileceği anlamına gelmez: ilettiği evrağı izleyen Başkan Yardımcısı onu salt okunur görür.
 
 ### Permission authorities (WF-2B)
 
@@ -202,13 +200,15 @@ Tabloda bulunmayan her durum–aksiyon–rol birleşimi geçersizdir.
 | `BASKAN_INCELEMESINDE` | `REDDET` | `BASKAN` | Atanan kullanıcı | Yok | Zorunlu | `REDDEDILDI` |
 | `BASKAN_INCELEMESINDE` | `CALISANA_GERI_GONDER` | `BASKAN` | Atanan kullanıcı | Kaydın `createdBy` kullanıcısı | Zorunlu | `DUZENLEME_BEKLIYOR` |
 | `BASKAN_INCELEMESINDE` | `BASKAN_YARDIMCISINA_GERI_GONDER` | `BASKAN` | Atanan kullanıcı | Kaydın `lastDeputyId` kullanıcısı | Zorunlu | `BSK_YRD_INCELEMESINDE` |
+| `TASLAK` | `DEPARTMANA_GONDER` | `CALISAN` | Kaydı oluşturan | İstekteki aktif departman | İsteğe bağlı | `BSK_YRD_INCELEMESINDE` |
+| `DUZENLEME_BEKLIYOR` | `DEPARTMANA_GONDER` | `CALISAN` | Hem oluşturan hem atanan | İstekteki aktif departman | İsteğe bağlı | `BSK_YRD_INCELEMESINDE` |
 
 Her geçiş ayrıca `required_permission_id` üzerinden okunan `requiredPermissionCode` değerini ister: gönderme, tekrar gönderme ve iletme için `RECORD_FORWARD`; onay için `RECORD_APPROVE`; ret için `RECORD_REJECT`; üç geri gönderme satırı için `RECORD_RETURN`. Aktif bir geçişte eksik/boş permission metadata'sı açılış hatasıdır. Permission pasifleştirilirse principal'a alınmaz ve geçiş `WORKFLOW_FORBIDDEN` ile reddedilir; snapshot'ın yenilenmesini beklemek gerekmez.
 
 Kayıt ilişkileri:
 
 - **Kaydı oluşturan:** oturum kullanıcısının kimliği `record.createdBy` ile aynıdır.
-- **Atanan kullanıcı:** oturum kullanıcısının kimliği `record.assignedTo` ile aynıdır.
+- **Atama sahibi:** kullanıcı `record.assignedTo` ile aynıdır veya atanan aktif departmanın aktif üyesidir ve mevcut durum/aksiyon routing'i kendi aktif workflow rolünü işaret eder. Geçiş permission'ı ayrıca validator tarafından denetlenir.
 - **Hem oluşturan hem atanan:** iki koşul aynı anda sağlanmalıdır. `TEKRAR_GONDER` yalnız düzenleme için kendisine dönmüş kaydın sahibi tarafından yapılabilir.
 
 ## HTTP API sözleşmesi
@@ -235,6 +235,7 @@ Content-Type: application/json
 | Alan | Tip | Genel kural |
 | --- | --- | --- |
 | `action` | `WorkflowAction` | Her zaman zorunlu. Bilinmeyen enum değeri `400 BAD_REQUEST` üretir. |
+| `targetDepartmentId` | Integer | Yalnız `DEPARTMANA_GONDER` için zorunlu. `targetUserId` ile birlikte verilirse `400 VALIDATION_ERROR`; başka aksiyonda verilirse `400 WORKFLOW_TARGET_NOT_ALLOWED`. |
 | `targetUserId` | UUID | **Hiçbir aksiyonda gönderilmez.** Hedefi her zaman backend çözer; alan yine de gönderilirse istek `400 WORKFLOW_TARGET_NOT_ALLOWED` ile reddedilir. |
 | `comment` | string | En fazla 2000 karakter. Geri gönderme aksiyonları ve `REDDET` için boş olmayan değer zorunludur. |
 
@@ -282,14 +283,23 @@ Hangi hata kodunun döneceği doğrulama sırasına bağlıdır. Uygulanan sıra
 3. Durum–aksiyon–rol birleşimi geçiş tablosunda var mı?
 4. Aktör, kuralın istediği kayıt ilişkisini ve `requiredPermissionCode` yetkisini sağlıyor mu? İkisinden biri eksikse `WORKFLOW_FORBIDDEN` döner.
 5. Zorunlu açıklama dolu mu?
-6. İstekte hedef bekleniyorsa `targetUserId` var mı? (Şu an hiçbir aksiyon beklemiyor.)
-7. İstekte yanlışlıkla `targetUserId` gönderilmiş mi?
+6. Aksiyon hedef bekliyorsa en az bir hedef alanı gönderilmiş mi? `DEPARTMANA_GONDER` hedef departman ister.
+7. Gönderilen hedef alanı aksiyonun beklediği tür mü? Yanlış alan `WORKFLOW_TARGET_NOT_ALLOWED` üretir; iki hedef alanı birlikte HTTP DTO doğrulamasında reddedilir.
 8. Çözülen hedef beklenen role sahip mi?
 9. Çözülen hedef aktif mi?
 
 Uygulama servisi hedef gerektiren aksiyonlarda iki aşamalı doğrulama yapar: önce aktör/durum/istek alanlarını kontrol eder, sonra hedef kullanıcıyı çözüp rol ve aktiflik doğrulamasını tamamlar. Bu sayede yetkisiz bir istek için gereksiz kullanıcı sorgusu yapılmaz.
 
 ## Hedef çözümleme ve atama
+
+```json
+{ "action": "DEPARTMANA_GONDER", "targetDepartmentId": 12, "comment": "Satın alma incelemesi" }
+```
+
+Departmana gönderim `assigned_department_id` alanını doldurur ve `assigned_to` alanını temizler. Hedef aktif olmalı; iniş durumu için aktif routing/transition, aktif workflow rolü, uygun aktif üye, `RECORD_VIEW` ve geçiş permission'ı bulunmalıdır. Eksik/pasif departman `400 WORKFLOW_DEPARTMENT_INVALID`, kullanılabilir iniş routing'i yoksa `409 WORKFLOW_DEPARTMENT_ROUTING_NOT_CONFIGURED` döner. Kayıt zaten departmandayken eksik routing veya yetkisiz üyelik `403 WORKFLOW_FORBIDDEN` üretir. Üyelik tek başına yetki vermez.
+
+Departman kontrolü ön validator kabulünden sonra çalışır; yetkisiz istek departman yapılandırma hatasıyla maskelenmez. Aktörün atama ilişkisi bir kez hesaplanıp her iki doğrulama geçişinde kullanılır.
+
 
 Hedefin nasıl çözüleceği **aksiyonun değil geçişin** özelliğidir:
 `workflow_transitions.target_strategy` ve `expected_target_role_id` kolonlarından okunur.
@@ -303,14 +313,15 @@ Yardımcısının hem Başkanın kullandığı iki ayrı satırda bulunur.
 | `CURRENT_ASSIGNEE` | `record.assignedTo` | Alan boşsa veya kullanıcı yoksa veri bütünlüğü hatası |
 | `PREVIOUS_ACTOR` | `record.lastDeputyId` | Alan boşsa veya kullanıcı yoksa veri bütünlüğü hatası; rolü/aktifliği yanlışsa hedef doğrulama hatası |
 | `NONE` | Hedef yok | `assignedTo=null` |
+| `DEPARTMENT` | İstekteki `targetDepartmentId`; kullanıcı seçilmez | Aktif departman ve kullanılabilir iniş routing'i zorunlu |
 
-Seed edilmiş sekiz geçişin dağılımı: `GONDER`, `TEKRAR_GONDER` ve `BASKANA_ILET` → `ROLE`;
+Seed edilmiş on geçişin dağılımı: `GONDER`, `TEKRAR_GONDER` ve `BASKANA_ILET` → `ROLE`;
 her iki `CALISANA_GERI_GONDER` → `CREATOR`; `BASKAN_YARDIMCISINA_GERI_GONDER` →
-`PREVIOUS_ACTOR`; `ONAYLA` ve `REDDET` → `NONE`. `CURRENT_ASSIGNEE` şu an hiçbir geçişte
+`PREVIOUS_ACTOR`; `ONAYLA` ve `REDDET` → `NONE`; iki `DEPARTMANA_GONDER` → `DEPARTMENT`. `CURRENT_ASSIGNEE` şu an hiçbir geçişte
 kullanılmıyor ama sözleşmede tanımlı olduğu için desteklenir.
 
 Kod tarafında ek bir kural vardır: hedef gerektiren bir geçiş beklenen hedef rolü de taşımak
-zorundadır (`target_strategy = NONE` ⇔ `expected_target_role_id` boş). Bu, veritabanı
+zorundadır. `NONE` ve `DEPARTMENT` için `expected_target_role_id` boş, kullanıcı hedefleyen stratejiler için doludur. Bu, veritabanı
 CHECK'inden daha katıdır — CHECK yalnız `ROLE` için rolü zorunlu kılar — ve iki aşamalı
 doğrulamanın çalışması için gereklidir. İhlal, isteği değil **açılışı** düşürür.
 
@@ -375,6 +386,7 @@ Okuma öncesinde `RecordAccessPolicy.assertCanView` çalışır. `AuditLogRespon
 | Geçiş sonucu | Uygulama içi bildirim, e-posta ve push alıcısı |
 | --- | --- |
 | Bir kullanıcıya atanan kayıt | Yeni `assignedTo` kullanıcısı |
+| Departmana atanan kayıt | Event `assignedDepartmentId` taşır; NT-5 tamamlanana kadar alıcı kümesi boştur, oluşturan/yardımcı fallback'ine düşmez |
 | `ONAYLANDI` veya `REDDEDILDI` | Kaydı oluşturan kullanıcı ve kaydı Başkana ileten son Başkan Yardımcısı; aynı kullanıcıysa tekilleştirilir |
 
 Uygulama içi mesaj 500 karaktere sığacak şekilde kısaltılır. Bildirim türü aksiyondan `RECORD_SUBMITTED`, `RECORD_FORWARDED`, `RECORD_RETURNED`, `RECORD_APPROVED` veya `RECORD_REJECTED` olarak türetilir.
@@ -429,8 +441,10 @@ Bean Validation hatalarında ayrıca `fieldErrors` bulunur. Mevcut `ApiError` mo
 | `WORKFLOW_RECORD_LOCKED` | `409` | Terminal kayıtta aksiyon denenirse |
 | `WORKFLOW_INVALID_TRANSITION` | `400` | Durum–aksiyon–rol birleşimi tanımlı değilse |
 | `WORKFLOW_COMMENT_REQUIRED` | `400` | Zorunlu açıklama yoksa veya boşsa |
-| `WORKFLOW_TARGET_REQUIRED` | `400` | Rezerve kod; hedefi her aksiyonda backend çözdüğü için bunu üreten bir aksiyon kalmadı |
-| `WORKFLOW_TARGET_NOT_ALLOWED` | `400` | İstek `targetUserId` taşırsa (artık bütün aksiyonlar için) |
+| `WORKFLOW_TARGET_REQUIRED` | `400` | `DEPARTMANA_GONDER` isteğinde hedef alanı yok |
+| `WORKFLOW_TARGET_NOT_ALLOWED` | `400` | Aksiyon için yanlış hedef alanı gönderildi |
+| `WORKFLOW_DEPARTMENT_INVALID` | `400` | Hedef departman yok veya pasif |
+| `WORKFLOW_DEPARTMENT_ROUTING_NOT_CONFIGURED` | `409` | İniş durumunda uygun üye/rol/permission/transition/routing birleşimi yok |
 | `WORKFLOW_TARGET_ROLE_INVALID` | `400` | Hedef bulunamazsa veya beklenen rolde değilse |
 | `WORKFLOW_TARGET_INACTIVE` | `400` | Hedef kullanıcı pasifse |
 | `WORKFLOW_STATUS_NOT_CONFIGURED` | `500` | Rezerve kod; durum kataloğu `workflow_statuses` ile FK altında olduğu için bunu üreten bir yol yoktur |
@@ -461,11 +475,14 @@ Sürüm çatışması `409 WORKFLOW_VERSION_CONFLICT` olarak döner. `RecordPort
 
 ## Test kapsamı
 
+`DepartmentWorkflowIntegrationTest` gönderim/geri dönüş, yanlış veya eksik hedef, pasif/eksik departman, routing/rol/permission/üyelik kaybı, gerçek JWT okuma uçları, policy–SQL ID eşitliği ve iki üyenin eşzamanlı sürüm yarışını kapsar. Yarışta tek geçiş/audit commit olur, diğer istek `409 WORKFLOW_VERSION_CONFLICT` alır. `WorkflowRecordUpdateTest` atama dışlamasını, listener testi departmanın terminal alıcılara düşmemesini korur.
+
+
 Mevcut otomatik testler şu katmanları kapsar:
 
-- merkezi geçiş tablosunun sekiz izinli geçişi;
+- merkezi geçiş tablosunun on izinli geçişi;
 - validator'ın rol, permission, terminal durum, ilişki, açıklama ve hedef kontrolleri ve hata öncelikleri;
-- sekiz geçişin DB/static permission ve hedef metadata parity'si;
+- on geçişin DB/static permission ve hedef metadata parity'si;
 - 12 endpoint için doğru, eksik ve farklı authority matrisi;
 - eski JWT ile permission kaldırma, pasif permission/rol ve dinamik rollerin gerçek servis/audit akışı;
 - yeniden adlandırılmış sistem rolleriyle bootstrap, hedef çözümü ve yardımcı devri;
@@ -510,16 +527,16 @@ Yukarıdaki boşlukların bir kısmı **Workflow V1 açık işidir**, bir kısm�
 
 | Boşluk | Nereye ait |
 | --- | --- |
-| Ortak görünürlük ve dinamik rol okuma erişimi | Mevcut şemada uygulandı; `WF-2C2` / `DB-8` departman entegrasyonu açık |
+| Ortak görünürlük ve dinamik rol okuma erişimi | Departman/durum çiftleri dahil ortak policy/SQL, JWT okuma uçları ve sayfalama testleri uygulandı |
 | Departman, üyelik, routing ve atama veri katmanı | V18–V22 ile şema/entity/repository hazır; V22 ad uzunluğu, self-parent ve silme korumalarını DB-1 ile hizalar |
-| Departman görünürlüğü, gönderim ve `actorHoldsAssignment`'ın departman anlamı | WF-5/WF-6 runtime'ı ve DB-13'ün `DEPARTMENT`/`DEPARTMANA_GONDER` constraint/seed migration'ı açık; ADR-0005, ADR-0006 ve ADR-0007 kabul edildi |
+| Departman runtime ve görünürlük | V23 + WF-5/WF-6 ve policy/SQL departman kolu uygulandı; yönetim ekranları ve NT-5 ayrı teslim |
 | Mevcut geçişe dinamik aktör rolü bağlama | WF-8 servis ve sözleşmesi uygulandı; AP-8 HTTP/UI açık |
 | Admin'den rol/permission yönetimi | Workflow V1 — `AP-2`/`AP-3` |
 | WebSocket bildirim kanalı | Workflow V1 — `NT-2`…`NT-4` |
 | Aksiyon metadata'sının enum'dan tabloya taşınması | V1 acceptance'ı için zorunlu değil |
 | Grafik topolojisinin arayüzden düzenlenmesi, workflow definition/versioning, draft/publish | **Workflow V2** — V1'de yasak (DB-1 §14) |
 
-Geçiş kuralları veritabanından okunur; `TransitionRules` statik tablosu test ağacındaki parity ve veritabanısız test referansıdır. Workflow rol kimliği `WF-2D2` ile tamamen `RoleId`'ye taşındı. Dinamik rol görünürlüğü mevcut şemada ortaktır; departman görünürlüğü ve WebSocket bildirim kanalı henüz uygulanmadı. HTTP istek audit'i `ADMIN` sistem anahtarında `audit_logs`, diğerlerinde `user_audit_logs` tablosuna gider; rolün yeniden adlandırılması bu dağılımı değiştirmez.
+Geçiş kuralları veritabanından okunur; `TransitionRules` statik tablosu test ağacındaki parity ve veritabanısız test referansıdır. Workflow rol kimliği `WF-2D2` ile tamamen `RoleId`'ye taşındı. Dinamik rol görünürlüğü mevcut şemada ortaktır; departman görünürlüğü uygulandı, WebSocket bildirim kanalı açıktır. HTTP istek audit'i `ADMIN` sistem anahtarında `audit_logs`, diğerlerinde `user_audit_logs` tablosuna gider; rolün yeniden adlandırılması bu dağılımı değiştirmez.
 
 ## Değişiklik kontrol listesi
 

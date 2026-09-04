@@ -605,7 +605,10 @@ export interface UserResponse {
   /** @format uuid */
   id?: string;
   lastName?: string;
+  /** @format int32 */
+  roleId?: number;
   roleName?: string;
+  systemKey?: string;
 }
 
 export type VerifyResetCodeData = VerifyResetCodeResponse;
@@ -637,12 +640,15 @@ export interface WorkflowActionRequest {
     | "CALISANA_GERI_GONDER"
     | "BASKAN_YARDIMCISINA_GERI_GONDER"
     | "ONAYLA"
-    | "REDDET";
+    | "REDDET"
+    | "DEPARTMANA_GONDER";
   /**
    * @minLength 0
    * @maxLength 2000
    */
   comment?: string;
+  /** @format int32 */
+  targetDepartmentId?: number;
   /** @format uuid */
   targetUserId?: string;
 }
@@ -655,7 +661,8 @@ export interface WorkflowActionResponse {
     | "CALISANA_GERI_GONDER"
     | "BASKAN_YARDIMCISINA_GERI_GONDER"
     | "ONAYLA"
-    | "REDDET";
+    | "REDDET"
+    | "DEPARTMANA_GONDER";
   /** @format uuid */
   assignedTo?: string;
   newStatus?:

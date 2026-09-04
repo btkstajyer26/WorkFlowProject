@@ -12,6 +12,18 @@ import {
 } from './authSession'
 
 describe('authSession', () => {
+  it.each([
+    { roleId: 101, systemKey: null, roleName: 'Satın Alma Uzmanı' },
+    { roleId: 1, systemKey: 'CALISAN', roleName: 'Kurum Personeli' },
+  ])('değiştirilebilir rol adıyla girişe izin verir: $roleName', async (role) => {
+    apiMockServer.use(http.get(`${apiBaseUrl}/api/users/me`, () => HttpResponse.json({
+      id: 'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa',
+      firstName: 'Test', lastName: 'Kullanıcı', email: 'john.doe@kurum.gov.tr',
+      active: true, ...role,
+    })))
+    await expect(startAuthSession('john.doe@kurum.gov.tr', 'demo123')).resolves.toMatchObject({ user: role })
+  })
+
   it('giriş tokenını korumalı isteklere ekler ve çıkışta temizler', async () => {
     await startAuthSession('john.doe@kurum.gov.tr', 'demo123')
 

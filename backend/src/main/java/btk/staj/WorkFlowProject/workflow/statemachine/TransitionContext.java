@@ -18,10 +18,11 @@ import java.util.Set;
  *                                {@code records.assigned_to} esitligi; ADR-0005 geregi
  *                                departmana atanmis kayitta aktorun departman uyeligi ve
  *                                akis kuralinin isaret ettigi rol de bu bayragi dogru yapar
- *                                (WF-6 ile gelir). Validator ayrimi gormez; yetkinin
+ *                                (WF-6). Validator ayrimi gormez; yetkinin
  *                                kaynagi servis katmanindaki cozumleyici sonucunda durur
  * @param comment                 istekteki aciklama; yoksa {@code null}
- * @param targetProvidedInRequest istemci istekte {@code targetUserId} gonderdi mi
+ * @param targetUserProvidedInRequest istemci targetUserId gonderdi mi
+ * @param targetDepartmentProvidedInRequest istemci targetDepartmentId gonderdi mi
  * @param targetRoleId              servis tarafindan cozulen hedef kullanicinin rolu;
  *                                hedef yoksa veya cozulemediyse {@code null}
  * @param targetActive            cozulen hedef kullanicinin {@code is_active} degeri
@@ -33,7 +34,8 @@ public record TransitionContext(
         boolean actorIsCreator,
         boolean actorHoldsAssignment,
         String comment,
-        boolean targetProvidedInRequest,
+        boolean targetUserProvidedInRequest,
+        boolean targetDepartmentProvidedInRequest,
         RoleId targetRoleId,
         boolean targetActive,
         boolean actorWorkflowActor,

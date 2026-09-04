@@ -21,7 +21,7 @@ class RecordContentViewTest {
     private static final UUID DEPUTY_ID = UUID.fromString("00000000-0000-0000-0000-000000000032");
     private static final LocalDateTime HANDOFF = LocalDateTime.of(2026, 8, 19, 10, 0);
 
-    private final RecordContentView view = new RecordContentView(new RecordAccessPolicy());
+    private final RecordContentView view = new RecordContentView(new RecordAccessPolicy(actor -> java.util.Set.of()));
 
     @Test
     @DisplayName("duzeltmedeki kaydin guncel halini Bsk. Yrd. gormez, devir anindakini gorur")

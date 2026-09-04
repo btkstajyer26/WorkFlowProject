@@ -28,7 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * SM-9 &mdash; statik gecis tablosu ile veritabani kaynagi ayni sekiz kurali
+ * SM-9 &mdash; statik gecis tablosu ile veritabani kaynagi ayni on kurali
  * uretmelidir.
  *
  * <p>Bu test refactor'un dogru yapildiginin tek kaniti. DB-1 SS17: "Eksik,
@@ -55,7 +55,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("Static-DB gecis kurali paritesi")
 class TransitionRuleSourceParityTest extends AbstractTransitionRuleInvariants {
 
-    private static final int EXPECTED_RULE_COUNT = 8;
+    private static final int EXPECTED_RULE_COUNT = 10;
 
     @Autowired
     private TransitionRuleRecordReader reader;
@@ -87,8 +87,8 @@ class TransitionRuleSourceParityTest extends AbstractTransitionRuleInvariants {
     }
 
     @Test
-    @DisplayName("veritabani sekiz aktif kural uretir")
-    void databaseProducesEightRules() {
+    @DisplayName("veritabani on aktif kural uretir")
+    void databaseProducesExpectedRules() {
         assertThat(databaseSource().all())
                 .as("workflow_transitions icindeki aktif kural sayisi")
                 .hasSize(EXPECTED_RULE_COUNT);
@@ -111,7 +111,7 @@ class TransitionRuleSourceParityTest extends AbstractTransitionRuleInvariants {
     /**
      * Kabul kriterinin cekirdegi. Sadece iki kumeyi karsilastirmak, iki kaynagin
      * ayni <em>sorguya</em> ayni cevabi verdigini kanitlamaz; bu test butun
-     * durum-aksiyon-rol uzayini (6 x 7 x 4) tarar ve negatif cevaplari da
+     * durum-aksiyon-rol uzayini (6 x 8 x 4) tarar ve negatif cevaplari da
      * karsilastirir. Fazladan bir DB satiri burada da yakalanir.
      */
     @Test

@@ -441,14 +441,14 @@ class DbTransitionRuleSourceTest {
                 WorkflowRoleFixtures.value(RoleName.CALISAN),
                 "CREATOR",
                 "BSK_YRD_INCELEMESINDE",
-                "DEPARTMENT",
+                "UNKNOWN_STRATEGY",
                 WorkflowRoleFixtures.value(RoleName.BASKAN_YARDIMCISI),
                 AuthorizationFixtures.requiredPermission("GONDER"));
 
         assertThatThrownBy(() -> source(List.of(unknown)))
                 .isInstanceOf(TransitionRuleConfigurationException.class)
                 .hasMessageContaining("targetStrategy")
-                .hasMessageContaining("DEPARTMENT");
+                .hasMessageContaining("UNKNOWN_STRATEGY");
     }
 
     @Test
@@ -470,11 +470,12 @@ class DbTransitionRuleSourceTest {
     }
 
     @Test
-    @DisplayName("bes hedef stratejisinin tamamini cozer")
+    @DisplayName("alti hedef stratejisinin tamamini cozer")
     void mapsEveryTargetStrategy() {
-        assertThat(TargetStrategy.values()).hasSize(5);
+        assertThat(TargetStrategy.values()).hasSize(6);
         for (TargetStrategy strategy : TargetStrategy.values()) {
-            Integer role = strategy == TargetStrategy.NONE ? null : WorkflowRoleFixtures.value(RoleName.CALISAN);
+            Integer role = strategy == TargetStrategy.NONE || strategy == TargetStrategy.DEPARTMENT
+                    ? null : WorkflowRoleFixtures.value(RoleName.CALISAN);
             DbTransitionRuleSource source = source(List.of(new TransitionRuleRecord(
                     "TASLAK",
                     "GONDER",

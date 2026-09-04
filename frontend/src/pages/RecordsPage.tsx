@@ -18,7 +18,7 @@ import { useCategories } from '../context/categoryState'
 import { useDebouncedSearchParam } from '../hooks/useDebouncedSearchParam'
 import { searchRecords, type RecordSearchListItem } from '../api/recordSearch'
 import { queryKeys } from '../query/queryKeys'
-import type { UserRole } from '../types/auth'
+import type { SystemRoleKey } from '../types/auth'
 import type { RecordStatus } from '../types/record'
 import { ListLoadingSkeleton } from '../components/feedback/LoadingSkeleton'
 
@@ -85,8 +85,8 @@ type RecordListViewItem = {
   createdByFullName?: string
 }
 
-function canEditRecord(role: UserRole, record: RecordListViewItem) {
-  return role === 'CALISAN' && (record.status === 'TASLAK' || record.status === 'DUZENLEME_BEKLIYOR')
+function canEditRecord(systemKey: SystemRoleKey | null, record: RecordListViewItem) {
+  return systemKey === 'CALISAN' && (record.status === 'TASLAK' || record.status === 'DUZENLEME_BEKLIYOR')
 }
 
 function toRecordListViewItem(record: RecordSearchListItem): RecordListViewItem {
@@ -103,13 +103,13 @@ function toRecordListViewItem(record: RecordSearchListItem): RecordListViewItem 
   }
 }
 
-export function RecordsPage({ role }: { role: UserRole }) {
+export function RecordsPage({ systemKey }: { systemKey: SystemRoleKey | null }) {
   const { categories, status: categoryStatus, reloadCategories } = useCategories()
   const [searchParams, setSearchParams] = useSearchParams()
   const rawView = searchParams.get('gorunum')
   const view = rawView && rawView in viewConfigs ? rawView : null
   const viewConfig = view ? viewConfigs[view] : undefined
-  const title = viewConfig?.title ?? (role === 'CALISAN' ? 'Tüm Kayıtlarım' : 'Tüm Kayıtlar')
+  const title = viewConfig?.title ?? (systemKey === 'CALISAN' ? 'Tüm Kayıtlarım' : 'Tüm Kayıtlar')
   const [filtersOpen, setFiltersOpen] = useState(false)
 
   const search = searchParams.get('q') ?? ''
@@ -410,11 +410,11 @@ export function RecordsPage({ role }: { role: UserRole }) {
                       <td className="truncate whitespace-nowrap px-4 py-4 text-xs font-medium text-app-text-secondary">{formatCreatorName(record.createdBy, record.createdByFullName)}</td>
                       <td className="px-5 py-4 text-right">
                         <Link
-                          to={canEditRecord(role, record) ? `/kayitlar/${record.id}/duzenle` : `/kayitlar/${record.id}`}
+                          to={canEditRecord(systemKey, record) ? `/kayitlar/${record.id}/duzenle` : `/kayitlar/${record.id}`}
                           className="inline-flex size-10 items-center justify-center rounded-xl border border-app-border text-app-text-subtle transition hover:border-brand-200 dark:hover:border-brand-700/60 hover:bg-app-surface hover:text-brand-700 dark:hover:text-brand-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
-                          aria-label={`${record.title} kaydını ${canEditRecord(role, record) ? 'düzenle' : 'görüntüle'}`}
+                          aria-label={`${record.title} kaydını ${canEditRecord(systemKey, record) ? 'düzenle' : 'görüntüle'}`}
                         >
-                          {canEditRecord(role, record) ? <FilePenLine className="size-4" aria-hidden="true" /> : <Eye className="size-4" aria-hidden="true" />}
+                          {canEditRecord(systemKey, record) ? <FilePenLine className="size-4" aria-hidden="true" /> : <Eye className="size-4" aria-hidden="true" />}
                         </Link>
                       </td>
                     </tr>
@@ -447,11 +447,11 @@ export function RecordsPage({ role }: { role: UserRole }) {
                     </div>
                   </dl>
                   <Link
-                    to={canEditRecord(role, record) ? `/kayitlar/${record.id}/duzenle` : `/kayitlar/${record.id}`}
+                    to={canEditRecord(systemKey, record) ? `/kayitlar/${record.id}/duzenle` : `/kayitlar/${record.id}`}
                     className="mt-4 flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-app-border text-xs font-bold text-app-text-secondary transition hover:border-brand-200 dark:hover:border-brand-700/60 hover:bg-brand-50 dark:hover:bg-brand-900/30 hover:text-brand-700 dark:hover:text-brand-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
                   >
-                    {canEditRecord(role, record) ? <FilePenLine className="size-4" aria-hidden="true" /> : <Eye className="size-4" aria-hidden="true" />}
-                    {canEditRecord(role, record) ? 'Düzenlemeye Devam Et' : 'Kaydı Görüntüle'}
+                    {canEditRecord(systemKey, record) ? <FilePenLine className="size-4" aria-hidden="true" /> : <Eye className="size-4" aria-hidden="true" />}
+                    {canEditRecord(systemKey, record) ? 'Düzenlemeye Devam Et' : 'Kaydı Görüntüle'}
                   </Link>
                 </article>
               ))}

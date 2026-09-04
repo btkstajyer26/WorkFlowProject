@@ -1,11 +1,15 @@
-import type { UserRole } from './auth'
+import type { SystemRoleKey } from './auth'
 
 export type ManagedUser = {
   id: string
   firstName: string
   lastName: string
   email: string
-  role: UserRole
+  roleId: number
+  /** Yerleşik rolün değişmez anahtarı; dinamik rolde `null`. Kararlar buna bakar. */
+  systemKey: SystemRoleKey | null
+  /** Yalnız gösterim adı; panelden değiştirilebilir. */
+  roleName: string
   isActive: boolean
   createdAt: string
 }

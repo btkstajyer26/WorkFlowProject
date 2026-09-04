@@ -1,12 +1,13 @@
 # Frontend - Backend Entegrasyon Sözleşmesi
 
-> **WF-2C2 (4 Eylül 2026):** Kayıt, liste, dosya ve geçmiş okumaları ortak visibility scope kullanır. Dinamik roller `RECORD_VIEW` ile oluşturdukları veya kendilerine atanmış kayıtları okuyabilir. ADMIN deny ve sistem rollerinin içerik/geçmiş kesimleri korunur. HTTP alanları değişmedi; departman entegrasyonu açıktır. [Sözleşme ve hata davranışları](WF2C2_DB8_GORUNURLUK_SOZLESMESI.md).
+> **WF-2C2 (4 Eylül 2026):** Kayıt, liste, dosya ve geçmiş okumaları ortak visibility scope kullanır. Dinamik roller `RECORD_VIEW` ile oluşturdukları veya kendilerine atanmış kayıtları okuyabilir. ADMIN deny ve sistem rollerinin içerik/geçmiş kesimleri korunur. WF-5/WF-6 ile uygun departman/durum kapsamı da uygulanmıştır; `targetDepartmentId` ve `DEPARTMANA_GONDER` HTTP sözleşmesine eklenmiştir. [Sözleşme ve hata davranışları](WF2C2_DB8_GORUNURLUK_SOZLESMESI.md).
 
 Bu belge EBYS frontendinin kullandığı API sözleşmesini ve henüz tamamlanmamış entegrasyon ihtiyaçlarını tanımlar. Mevcut endpoint ve cevap modellerinde backend kodu ile çalışan uygulamanın `/v3/api-docs` çıktısı esas alınır; `docs/openapi.json` bunun sürümlenmiş inceleme anlık görüntüsüdür. Gelecekte eklenmesi beklenen işlemler ayrıca "backend bekleniyor" olarak işaretlenir.
 
-> Son dokümantasyon karşılaştırması: 4 Eylül 2026, `test` @ `3eb3691` (PR #66).
-> WF-8 ve V18–V22 yeni HTTP uçları/alanları eklemedi; aşağıdaki departman gönderim
-> notları planlanan sözleşmedir. [Teslim sınırları](README.md).
+> Son dokümantasyon karşılaştırması: 4 Eylül 2026, `feature/wf-5-6-departman-runtime` (AP-2 hizalaması + V23 + WF-5/WF-6).
+> WF-8 ve V18–V22 yeni HTTP uçları/alanları eklemedi. AP-2 ile rol yönetimi uçları
+> ve `UserResponse`'un rol alanları değişti (aşağıda). Departman gönderimi
+> bu dalda uygulanmıştır. [Teslim sınırları](README.md).
 
 ## 1. Temel kararlar
 
@@ -34,9 +35,11 @@ Bu belge EBYS frontendinin kullandığı API sözleşmesini ve henüz tamamlanma
 > **Bu tablo kapalı bir liste değildir.** Dinamik rol de `RECORD_VIEW` ile oluşturduğu
 > veya doğrudan atandığı kaydı okuyabilir. Kapsamlar aktif kullanıcı/rol ve
 > `RECORD_VIEW` gerektirir; ADMIN deny korunur. Rol kataloğu `roles` tablosundan
-> gelir; liste `GET /api/admin/roles` ile okunur ve panelden rol açma/düzenleme
-> `AP-2` ile gelmiştir. `roles.name` gösterim adıdır ve değiştirilebilir; backend sistem
-> istisnalarını `system_key`, workflow kimliğini `RoleId` ile belirler.
+> gelir; liste `GET /api/admin/roles` ile okunur ve panelden rol oluşturma/düzenleme
+> `AP-2` backend uçları ve rol yönetimi ekranıyla açıktır. `roles.name`
+> gösterim adıdır ve **değiştirilebilir** — istemci rolü ada göre sabit bir listeye
+> karşı doğrulamamalıdır. Backend sistem istisnalarını `system_key`, workflow
+> kimliğini `RoleId` ile belirler.
 
 ### Kayıt durumları
 
@@ -304,6 +307,7 @@ Content-Type: application/json
 |---|---|---|
 | `action` | Her zaman zorunlu | `WorkflowAction` enum değerlerinden biri |
 | `targetUserId` | **Hiçbir aksiyonda gönderilmez** | Hedefi her zaman backend çözer. Alan yine de gönderilirse istek `400 WORKFLOW_TARGET_NOT_ALLOWED` ile reddedilir — sessizce yok sayılmaz |
+| `targetDepartmentId` | Yalnız `DEPARTMANA_GONDER` için zorunlu | Integer departman ID; `targetUserId` ile birlikte gönderilmez |
 | `comment` | Geri gönderme ve `REDDET` için zorunlu | En fazla 2000 karakter; diğer aksiyonlarda isteğe bağlı |
 
 `GONDER` ve `TEKRAR_GONDER` isteği şu biçimdedir:
@@ -317,9 +321,17 @@ Content-Type: application/json
 
 > **Karar — Başkan Yardımcısı hedefleme (kapandı):** `GONDER`/`TEKRAR_GONDER` hedefini backend, `BASKANA_ILET` ile aynı yoldan sistemdeki tek aktif Başkan Yardımcısından çözer. Gerekçe: Çalışana açık tek kullanıcı ucu `GET /api/users/me`'dir ve tekil rol kararı gereği kullanıcı listeleme ucu ona açılmayacaktır — yani hedefin UUID'sini güvenle keşfetmesinin bir yolu yok. Frontend'de **kişi** hedefi seçim arayüzü **yapılmayacak**.
 >
-> Bu karar kişi hedefi içindir. Departmana gönderim ayrı bir yoldur: [ADR-0006](decisions/0006-departman-hedefli-target-strategy.md) (**Kabul Edildi**, 4 Eylül 2026) yeni bir `DEPARTMANA_GONDER` aksiyonu ve istekte `targetDepartmentId` alanı getirir. `targetUserId` ile `targetDepartmentId` aynı anda dolu olamaz — aksi hâlde `400 VALIDATION_ERROR`. Departman seçici kişi seçici değildir ve `GONDER` yolunu değiştirmez; ikisi bir arada durduğu için gönderim ekranı kişi ve departman yollarını açıkça ayırmalıdır. Bu bölüm WF-5/WF-6 runtime'ı ve DB-13'ün ayrı ileri migration'ı ile uçlar geldiğinde alan düzeyinde tamamlanır. V18–V22 şema teslimi bu aksiyonu veya HTTP alanını eklemez.
+> Bu karar kişi hedefi içindir. Departmana gönderim ayrı bir yoldur: [ADR-0006](decisions/0006-departman-hedefli-target-strategy.md) (**Kabul Edildi**, 4 Eylül 2026) yeni bir `DEPARTMANA_GONDER` aksiyonu ve istekte `targetDepartmentId` alanı getirir. `targetUserId` ile `targetDepartmentId` aynı anda dolu olamaz — aksi hâlde `400 VALIDATION_ERROR`. Departman seçici kişi seçici değildir ve `GONDER` yolunu değiştirmez; ikisi bir arada durduğu için gönderim ekranı kişi ve departman yollarını açıkça ayırmalıdır. V23 + WF-5/WF-6 bu aksiyonu ve HTTP alanını uygular. `TASLAK` için oluşturucu, `DUZENLEME_BEKLIYOR` için oluşturucu ve atama sahibi gönderebilir; gerekli permission `RECORD_FORWARD`, hedef durum `BSK_YRD_INCELEMESINDE` olur.
 >
 > Sistemde tam olarak bir aktif Başkan Yardımcısı yoksa (devir sırasında sıfır, hatalı yapılandırmada birden fazla) istek `409 WORKFLOW_ROLE_NOT_CONFIGURED` döner. Bu geçici bir durumdur; kullanıcıya "İşlemi devralacak yetkili şu anda belirlenemedi, yöneticinize başvurun" mesajı gösterilmeli, istek daha sonra tekrarlanabilir.
+
+```json
+{ "action": "DEPARTMANA_GONDER", "targetDepartmentId": 12, "comment": "Satın alma incelemesi" }
+```
+
+Departmana gönderim `assigned_department_id` alanını doldurur ve `assigned_to` alanını temizler. Hedef aktif olmalı; iniş durumu için aktif routing/transition, aktif workflow rolü, uygun aktif üye, `RECORD_VIEW` ve geçiş permission'ı bulunmalıdır. Eksik/pasif departman `400 WORKFLOW_DEPARTMENT_INVALID`, kullanılabilir iniş routing'i yoksa `409 WORKFLOW_DEPARTMENT_ROUTING_NOT_CONFIGURED` döner. Kayıt zaten departmandayken eksik routing veya yetkisiz üyelik `403 WORKFLOW_FORBIDDEN` üretir. Üyelik tek başına yetki vermez.
+
+Yetkili departman üyeleri liste/detay/geçmiş/dosya uçlarında ortak kapsamla görünürlük kazanır. Dinamik workflow aksiyon arayüzü ve departman yönetim ekranları ayrı frontend teslimidir.
 
 Başarılı aksiyon cevabı tam kayıt modeli değil, backend tarafından hesaplanan geçiş özetidir:
 
@@ -437,9 +449,9 @@ Başkan Yardımcısı ve Başkan frontend tarafından seçilmez. Backend beklene
 | `POST` | `/api/admin/users` | Varsayılan Çalışan rolüyle hesap açma; istek rol alanı içermez |
 | `PATCH` | `/api/admin/users/{id}/role` | Rol değiştirme; Başkan Yardımcısı koltuğunun devri de aynı istekte yapılır |
 | `PATCH` | `/api/admin/users/{id}/active` | Hesabı etkinleştirme/pasifleştirme |
-| `GET` | `/api/admin/roles?includeInactive=false` | Rol kataloğu; `ROLE_VIEW` ister. Cevap sayfalanmamış düz dizidir ve rol adı sabit rol listesine çevrilmeden gösterilir. Varsayılan çağrı yalnız **atanabilir (aktif)** rolleri döner; panelin rol ekranı (`/admin/roller`) pasifleri de görmek için `includeInactive=true` gönderir |
-| `POST` | `/api/admin/roles` | Panelden dinamik rol açma; `ROLE_MANAGE` ister. Gövde `name` (zorunlu, ≤100), `description` (≤255) ve `workflowActor` taşır |
-| `PATCH` | `/api/admin/roles/{id}` | Rol güncelleme; `ROLE_MANAGE` ister. Kısmi gövde: yalnız gönderilen `name` / `description` / `workflowActor` / `active` alanları uygulanır |
+| `GET` | `/api/admin/roles?includeInactive=false` | Rol kataloğu; `ROLE_VIEW` ister. Cevap sayfalanmamış düz dizidir ve rol adı sabit rol listesine çevrilmeden gösterilir. Varsayılan çağrı yalnız **atanabilir (aktif)** rolleri döner; yönetim ekranı pasifleri de görmek için `includeInactive=true` gönderir. AP-2 rol yönetimi ekranının (`/admin/roller`) kaynağıdır. Cevap `id`, `name`, `description`, `systemKey`, `system`, `workflowActor`, `maxUsers` ve `active` taşır |
+| `POST` | `/api/admin/roles` | Panelden dinamik rol açma; `ROLE_MANAGE` ister. Gövde `name` (zorunlu, ≤100), `description` (≤255) ve `workflowActor` taşır. Yeni rol daima dinamik (`systemKey = null`) ve sınırsız kapasiteli açılır |
+| `PATCH` | `/api/admin/roles/{id}` | Rol güncelleme; `ROLE_MANAGE` ister. Kısmi gövde: yalnız gönderilen `name` / `description` / `workflowActor` / `active` alanları uygulanır. Sistem rolü yeniden adlandırılabilir ama pasifleştirilemez ve workflow aktörlüğü değiştirilemez; `systemKey` ve `system` istemciden hiçbir koşulda değiştirilemez. Rol **silinmez** |
 | `GET` | `/api/admin/audit-logs?type=USER\|RECORD&page=0&size=20&q=` | Evrak ve kullanıcı/rol loglarını listeleme |
 | `POST` | `/api/workflow/rules/reload` | Geçiş kuralı snapshot'ını veritabanından yeniden okur; grafiği **yazmaz**. `WORKFLOW_MANAGE` ister, cevap `{"ruleCount": n}`. Geçersiz kural kümesi yüklenmez ve çalışan snapshot korunur |
 
@@ -463,13 +475,49 @@ Rol yönetimi kuralları (`AP-2`):
 - `systemKey` ve `isSystem` istemciden hiçbir koşulda değiştirilemez. Yeni rol daima `systemKey=null`, `isSystem=false` ve `maxUsers=null` (sınırsız) olarak açılır.
 - Sistem rolü **yeniden adlandırılabilir** — `roles.name` görünen addır — ama pasifleştirilemez ve workflow aktörlüğü değiştirilemez. Panel bu iki işlemi kilitli gösterir; asıl kararı backend verir.
 - Aktif kullanıcısı olan rol pasifleştirilemez; istek `400 BUSINESS_RULE_VIOLATION` ile reddedilir. Böylece hiçbir kullanıcı pasif rolde kalmaz.
+- Açık workflow kaydı bulunan rolün pasifleştirilmesi veya workflow aktörlüğünün kapatılması `409 ROLE_IN_USE` ile reddedilir; kontrol departman kuyruklarını da kapsar (WF-8 ile aynı kullanım koruması).
 - Rol adı benzersizdir ve **büyük/küçük harf ayrımı yapmaz**: "Muhasebe" varken "muhasebe" açılamaz. Karşılaştırma Türkçe kurallarıyla yapılır — "İdari" ile "idari" aynı sayılır, "Isıtma" ile "İsıtma" farklıdır. Pasif rollerin adı da yeniden kullanılamaz. Ön kontrol `400 BUSINESS_RULE_VIOLATION` döner ve mesaj çakışılan kaydın kendi yazımını gösterir.
 - Bu kural uygulama katmanındadır; `roles.name` veritabanı kısıtı harf duyarlıdır. Eşzamanlı iki isteğin aynı adı farklı harflerle yazması teorik olarak geçebilir. Kalıcı çözüm `upper(name)` üzerinde bir unique index'tir ve ayrı bir migration ister (DB kulvarı).
 - `workflowActor`, rolün mevcut geçişlere aktör olarak bağlanabilmesi için gerekir (`WF-8` şartı: `is_workflow_actor=true`, `is_system=false`, `system_key=NULL`).
 - Rol oluşturma ve güncelleme append-only `user_audit_logs` kaydı üretir: `ROLE_CREATED` ve `ROLE_UPDATED`. Bu kayıtlarda hedef kullanıcı yoktur; etkilenen rol `previous_role_id` / `new_role_id` alanlarında taşınır.
 - İstemci rolü ada göre sabit bir listeye karşı doğrulamaz. Panelin `AdminRole` tipi `UserRole` union'ından bağımsızdır ve rol adı sunucudan geldiği gibi gösterilir.
 
-### 8.1 Başkan Yardımcısı koltuğunun devri
+### 8.1 `UserResponse`'ta rol kimliği ve gösterim adı
+
+`GET /api/users/me` ve bütün `/api/admin/users` cevapları rolü **üç ayrı alanla**
+taşır. Karıştırılmamalıdır:
+
+| Alan | Anlam | İstemci nasıl kullanır |
+| --- | --- | --- |
+| `roleId` | İlişkisel kimlik (`roles.id`) | Rol değiştirme isteğinde `roleId` olarak geri gönderilir |
+| `systemKey` | Yerleşik rolün **değişmez** teknik anahtarı; dinamik rolde `null` | **Davranış ve arayüz kararları yalnız buna bakar** |
+| `roleName` | Gösterim adı (`roles.name`) | Yalnız ekranda gösterilir |
+
+```json
+{
+  "id": "user-uuid",
+  "firstName": "Ayşe",
+  "lastName": "Kaya",
+  "email": "ayse.kaya@kurum.gov.tr",
+  "roleId": 2,
+  "systemKey": "BASKAN_YARDIMCISI",
+  "roleName": "Başkan Yardımcısı",
+  "active": true,
+  "createdAt": "2026-08-01T09:00:00"
+}
+```
+
+> **İstemci rol adını sabit bir listeye karşı doğrulamamalıdır.** AP-2 ile panelden
+> dinamik rol açılabiliyor ve yerleşik rol yeniden adlandırılabiliyor; adı kapalı bir
+> listeye karşı denetleyen bir istemci, dinamik role atanmış kullanıcının oturum
+> açmasını tamamen engeller. `systemKey` bilinen bir anahtar değilse rol dinamiktir
+> ve o kullanıcı hiçbir sistem rolüne özel arayüz almaz — bu bir hata durumu değildir.
+
+`roleName` yerleşik roller için başlangıçta teknik adla aynıdır (`"CALISAN"`);
+arayüz bu durumda kendi yerelleştirilmiş etiketini gösterir, Admin rolü yeniden
+adlandırdığında ise sunucudan gelen ad kazanır.
+
+### 8.2 Başkan Yardımcısı koltuğunun devri
 
 Bu kural iki kez değişti; aşağıdaki metin **çalışan kodun** karşılığıdır
 (`UserService.changeRole` / `UserService.setActive`).
