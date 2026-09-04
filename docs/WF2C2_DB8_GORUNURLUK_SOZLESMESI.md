@@ -77,7 +77,7 @@ Departman kolunun sağlanması için kayıt departmana atanmış olmalı; aktör
 
 Tekil policy, SQL predicate ve notification eligibility aynı koşulları izlemelidir. Persistence bağlandığında ortak scope departman ilişkisini ifade edecek şekilde genişletilmeli; yalnız boolean kontrolü veya yalnız liste sorgusu değiştirilmemelidir. Geçici allow-all/deny-all departman adapter'ı bu teslimde yoktur.
 
-**Açık bağımlılıklar:** DB-11/12/13 departman/member/routing/assignment kalıcılığı; WF-5/6 assignment ve resolver; departman policy–SQL parity ve V1 E2E kabulü.
+**4 Eylül 2026 durumu:** DB-11/12/13'ün departman/member/routing/assignment şeması, entity ve repository katmanı V18–V22 ile hazırdır. **Açık bağımlılıklar:** WF-5/6 assignment ve resolver; DB-13'ün gönderim stratejisi/aksiyonu/seed migration'ı; departman scope–SQL bağlantısı, parity ve V1 E2E kabulü. Şema testlerinin geçmesi WF-2C2 departman kabulünü kapatmaz.
 
 ## 6. Kabul kanıtı
 

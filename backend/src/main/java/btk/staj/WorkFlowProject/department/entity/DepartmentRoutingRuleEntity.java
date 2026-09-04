@@ -7,8 +7,8 @@ import jakarta.persistence.*;
  * roldeki uyenin islem yapabilecegini tanimlar.
  * bkz. WORKFLOW_V1_V2_PLANI.md SS11.
  *
- * TASLAK: Burak'in (WF-6) final routing semantigini onaylamasi
- * bekleniyor - kolon/kisit onaydan sonra degisebilir.
+ * Veri sekli DB-1 SS15.3 ve kabul edilmis ADR-0005/0006'ya dayanir.
+ * Sema V20/V22 ile hazirdir; WF-6 runtime baglantisi ayri teslimdir.
  *
  * FK'ler WorkflowTransitionEntity/Record.java konvansiyonuna uyarak duz
  * Integer alan olarak tutulur, @ManyToOne kurulmaz.

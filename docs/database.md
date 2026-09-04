@@ -2,10 +2,10 @@
 
 Bu belge PostgreSQL şemasını, tasarım kararlarını ve migration yönetimini tanımlar. Kaynağı `backend/src/main/resources/db/migration/` altındaki Flyway dosyalarıdır.
 
-> Son kod doğrulaması 31 Ağustos 2026 tarihinde `test` dalının `4491a80` commit'i üzerinde yapılmıştır. Şema değiştiğinde bu belge aynı değişiklik kapsamında güncellenmelidir.
+> Departman şeması 4 Eylül 2026 tarihinde WF-8 ve Alperen'in veri katmanını birleştiren `codex/fix-department-schema` dalında V22 ile güncellendi. Şema değiştiğinde bu belge aynı değişiklik kapsamında güncellenmelidir.
 
 - **Veritabanı:** PostgreSQL 15.18
-- **Migration:** Flyway (`V1`–`V21`; `V3` tarihsel olarak yoktur). Aşağıdaki gövde `V1`–`V11` tabanını anlatır; `V12`–`V17` ile gelen katalog/capability/FK değişiklikleri ve `V18`–`V21` ile gelen departman şeması belgenin sonundaki bölümlerde ele alınır.
+- **Migration:** Flyway (`V1`–`V22`; `V3` tarihsel olarak yoktur). Aşağıdaki gövde `V1`–`V11` tabanını anlatır; `V12`–`V17` ile gelen katalog/capability/FK değişiklikleri ve `V18`–`V22` ile gelen departman şeması belgenin sonundaki bölümlerde ele alınır.
 - **ORM:** Spring Data JPA / Hibernate, `ddl-auto=validate`
 
 ## İçindekiler
@@ -18,7 +18,7 @@ Bu belge PostgreSQL şemasını, tasarım kararlarını ve migration yönetimini
 - [İndeksler](#i̇ndeksler)
 - [Başlangıç verisi](#başlangıç-verisi)
 - [Migration yönetimi](#migration-yönetimi)
-- [Departman veri modeli (V18–V21) — TASLAK](#departman-veri-modeli-v18v21--taslak)
+- [Departman veri modeli (V18–V22)](#departman-veri-modeli-v18v22)
 - [Bilinen eksikler](#bilinen-eksikler)
 
 ## Tasarım ilkeleri
@@ -330,7 +330,7 @@ Kullanıcı tohumlanmaz. İlk Admin, `BOOTSTRAP_ADMIN_EMAIL` ve `BOOTSTRAP_ADMIN
 ## Migration yönetimi
 
 | Migration                                   | İçerik                                                                                        |
-| ------------------------------------------- | --------------------------------------------------------------------------------------------- | --- |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | `V1__init_database_schema.sql`              | Kanonik başlangıç şeması: 9 tablo, 17 indeks, kısıtlar ve başlangıç verisi                    |
 | `V2__create_record_notes.sql`               | Kayıt çalışma notları — **kullanılmıyor**, `V6` ile geri alındı                               |
 | `V4__add_soft_delete_to_files.sql`          | `files.deleted_at`, `deleted_by` ve kısmi indeks                                              |
@@ -349,8 +349,9 @@ Kullanıcı tohumlanmaz. İlk Admin, `BOOTSTRAP_ADMIN_EMAIL` ve `BOOTSTRAP_ADMIN
 | `V17__authorization_capabilities.sql`       | `FILE_MANAGE`, `RECORD_DELETE` → `CALISAN`; `AUDIT_VIEW` → `ADMIN`                            |
 | `V18__departments.sql`                      | `departments` — self-FK, `is_active`                                                          |
 | `V19__department_members.sql`               | `department_members` — N:N üyelik                                                             |
-| `V20__department_routing_rules.sql`         | **Taslak.** `department_routing_rules` — `(dept, durum, aksiyon) → rol`                       |
-| `V21__records_assigned_department.sql`      | **Taslak.** `records.assigned_department_id` + mutual exclusion CHECK                         |     |
+| `V20__department_routing_rules.sql`         | `department_routing_rules` — `(dept, durum, aksiyon) → rol`                                  |
+| `V21__records_assigned_department.sql`      | `records.assigned_department_id` + mutual exclusion CHECK                                    |
+| `V22__align_department_schema_contract.sql` | Departman adı 150 karakter, kendine-parent CHECK'i ve üyelik/routing FK'lerinde RESTRICT       |
 
 ### Numaralandırmadaki boşluk
 
@@ -370,50 +371,59 @@ Kullanıcı tohumlanmaz. İlk Admin, `BOOTSTRAP_ADMIN_EMAIL` ve `BOOTSTRAP_ADMIN
 
 PostgreSQL parolası veri volume'ü **ilk oluşturulurken** sabitlenir. `.env` içindeki `DB_PASSWORD` sonradan değiştirilirse `docker-compose.yml`'deki değer etkisiz kalır ve bağlantı `password authentication failed for user "postgres"` ile reddedilir. Çözüm `docker compose down -v` (veri silinir) veya parolayı veritabanında elle güncellemektir.
 
-## Departman veri modeli (V18–V21) — TASLAK
+## Departman veri modeli (V18–V22)
 
-> Kaynak: `ADR-0005` (Kabul Edildi), `WORKFLOW_V1_V2_PLANI.md` §5, §10, §11, §14.
-> Amaç: Kayıtların kişiye değil bir organizasyon birimine (departmana)
-> atanabilmesi ve departman içindeki uygun rolün işlem yapabilmesi —
-> Workflow V1 teslim kapsamı (10 Eylül 2026).
+Kaynak: `DB-1` §15 ve kabul edilmiş `ADR-0005`/`ADR-0006`. Departman,
+üyelik, routing ve kayıt ataması için şema, entity ve repository katmanı hazırdır.
+Departmana gönderim, yetki/görünürlük sorguları ve workflow runtime bağlantısı
+`WF-5`/`WF-6` kapsamında açıktır; şemanın hazır olması V1 kabulünü tamamlamaz.
 
-| Migration                            | Durum     | Bekleyen karar                                  |
-| ------------------------------------ | --------- | ----------------------------------------------- |
-| `V18` departments                    | ✅ Kesin  | Yok                                             |
-| `V19` department_members             | ✅ Kesin  | Yok                                             |
-| `V20` department_routing_rules       | 🔶 Taslak | Burak'ın (`WF-6`) final routing semantiği onayı |
-| `V21` records.assigned_department_id | 🔶 Taslak | `ADR-0006` (departman hedefli gönderim kararı)  |
+| Migration | Teslim durumu |
+| --- | --- |
+| `V18` departments | Tablo ve parent FK hazır; ad uzunluğu ve self-parent koruması V22 ile hizalandı |
+| `V19` department_members | Çoklu üyelik hazır; iki FK V22 ile RESTRICT oldu |
+| `V20` department_routing_rules | Routing şeması hazır; departman FK'si V22 ile RESTRICT oldu |
+| `V21` records.assigned_department_id | Kolon, FK ve karşılıklı dışlama CHECK'i hazır |
+| `V22` sözleşme düzeltmeleri | Mevcut satırları koruyan ileri migration; V18–V21 dosyaları değiştirilmedi |
 
-### `departments` (`V18`)
+### `departments` (`V18`, `V22`)
 
 | Kolon                  | Tip            | Null  | Açıklama                                    |
 | ---------------------- | -------------- | ----- | ------------------------------------------- |
 | `id`                   | `SERIAL`       | hayır | Birincil anahtar                            |
-| `name`                 | `VARCHAR(100)` | hayır | Benzersiz                                   |
+| `name`                 | `VARCHAR(150)` | hayır | Benzersiz; JPA eşlemesi de 150 karakter      |
 | `parent_department_id` | `INT`          | evet  | Self-FK, `RESTRICT`. `NULL` = kök departman |
 | `is_active`            | `BOOLEAN`      | hayır | Varsayılan `TRUE`                           |
+
+`chk_department_parent_not_self` kısıtı
+`CHECK (parent_department_id IS NULL OR parent_department_id <> id)` uygular.
+Kendine parent ataması hem INSERT hem UPDATE sırasında reddedilir. Daha uzun
+hiyerarşi döngülerini önleyecek yönetim servisi bu teslimin dışındadır.
 
 **V1'de hiyerarşi yalnız yapısal bilgidir.** Uygun kullanıcı bulunamazsa üst
 departmana otomatik eskalasyon **yapılmaz** (plan §14).
 
-### `department_members` (`V19`)
+### `department_members` (`V19`, `V22`)
 
-Bileşik PK `(department_id, user_id)`, iki `CASCADE` FK. Üyeliğin **kendi
+Bileşik PK `(department_id, user_id)`, iki `RESTRICT` FK. Üyeliği bulunan kullanıcı
+veya departman fiziksel olarak silinemez; üyelik satırları örtük silinmez.
+`fk_department_member_department` ve `fk_department_member_user` adları korunur.
+Üyeliğin **kendi
 rolü yoktur** — kullanıcının rolü her zaman `users.role_id`'den global
 çözülür (plan §5.3). Bir kullanıcı birden fazla departmana üye olabilir.
 
-`department_members` tablosunda `is_active` kolonu yoktur; aktiflik her zaman
-`users.is_active`'ten gelir. Bu yüzden "bu departmanın aktif üyeleri" sorgusu
-(`WF-6` resolver'ın ihtiyacı) `department_members` ve `users`'ı birlikte
-sorgulayan bir `JOIN` gerektirir — repository'de `findActiveUsersByDepartmentId`
-bunu sağlar.
+`department_members` tablosunda `is_active` kolonu yoktur; satırın bulunması
+güncel üyeliği ifade eder. Repository'deki `findActiveUsersByDepartmentId`
+yalnız kullanıcı aktifliğini filtreler. WF-6 ve görünürlük entegrasyonu ayrıca
+departman/rol aktifliği, uygun aktif transition/routing, gerekli permission
+ve aktör-kayıt ilişkisini ortak koşullarla doğrulamalıdır.
 
-### `department_routing_rules` (`V20`, taslak)
+### `department_routing_rules` (`V20`, `V22`)
 
 | Kolon            | Tip       | Null  | Açıklama                                |
 | ---------------- | --------- | ----- | --------------------------------------- |
 | `id`             | `SERIAL`  | hayır | Birincil anahtar                        |
-| `department_id`  | `INT`     | hayır | FK → `departments.id`, `CASCADE`        |
+| `department_id`  | `INT`     | hayır | FK → `departments.id`, `RESTRICT`       |
 | `from_status_id` | `INT`     | hayır | FK → `workflow_statuses.id`, `RESTRICT` |
 | `action_id`      | `INT`     | hayır | FK → `workflow_actions.id`, `RESTRICT`  |
 | `target_role_id` | `INT`     | hayır | FK → `roles.id`, `RESTRICT`             |
@@ -424,16 +434,16 @@ bunu sağlar.
 
 > _Hukuk + BSK_YRD_INCELEMESINDE + BASKANA_ILET → HUKUK_UZMANI_
 
-Departmana atanmış olmak tek başına yetki vermez — rol, üyelik ve (varsa)
-gerekli permission birlikte aranır (plan §12). Aynı departmanda birden fazla
-uygun kullanıcı varsa **first-action-wins**: hangisi önce işlem tamamlarsa
-kayıt versiyonu değişir, diğeri optimistic locking çatışması alır (plan §13).
+Departmana atanmış olmak tek başına yetki vermez; rol, üyelik ve geçişin
+gerektirdiği permission birlikte aranmalıdır. WF-6 runtime sözleşmesinde aynı
+departmanda birden fazla uygun kullanıcı varsa **first-action-wins** uygulanır:
+önce tamamlayan kayıt versiyonunu değiştirir, diğeri optimistic locking çatışması alır.
 
-**Taslak notu:** Burak'ın final routing semantiğini onaylaması bekleniyor.
-Onay sonrası değişiklik gerekirse `V20` değiştirilmez, yeni bir `V` dosyası
-eklenir.
+`fk_routing_department` adı korunur. Routing bulunan departmanın silinmesi
+reddedilir ve routing satırları korunur. Şema için bekleyen ADR onayı yoktur;
+yetki çözümlemesi henüz runtime'a bağlanmamıştır.
 
-### `records.assigned_department_id` (`V21`, taslak)
+### `records.assigned_department_id` (`V21`)
 
 Nullable, `RESTRICT` FK. Zorunlu invariant (plan §10):
 
@@ -444,8 +454,36 @@ CHECK (assigned_to IS NULL OR assigned_department_id IS NULL)
 Kayıt aynı anda hem kişiye hem departmana atanamaz. `TASLAK` ve terminal
 durumlarda ikisinin de `NULL` olması geçerlidir.
 
-**Taslak notu:** Kolon/FK/CHECK hazır, ama **hangi transition bu kolonu ne
-zaman yazar/temizler** sorusu `ADR-0006`'ya bağlı — henüz kapanmadı.
+`ADR-0006` 4 Eylül 2026'da kabul edildi. Kolonu yazan `DEPARTMENT` stratejisi,
+`DEPARTMANA_GONDER` aksiyonu ve geçiş seed'leri WF-5/WF-6 ile birlikte ayrı
+bir ileri migration ve runtime değişikliği gerektirir. Bunlar V18–V22'de yoktur;
+kullanılmış V18 numarası bu gelecek çalışma için tekrar kullanılmaz.
+
+### V22 yükseltme ve geri alma davranışı
+
+V22 önce ad uzunluğunu genişletir, ardından CHECK ve FK'leri ekler. Üyelik,
+routing ve atama satırlarını değiştirmez. Mevcut kendine-parent verisi varsa
+CHECK kurulamaz; PostgreSQL transaction'ı ad uzunluğu değişikliği dahil bütün
+V22 işlemlerini geri alır. Otomatik veri silme veya parent temizleme yapılmaz.
+Paylaşılmış V18–V21 dosyaları, tarihsel taslak yorumları dahil, checksum için korunur.
+
+`DepartmentSchemaMigrationIntegrationTest` her senaryo için ayrı PostgreSQL
+şeması kurar: boş kurulum, dolu V21 yükseltmesi, başarısız yükseltmenin geri
+alınması, üç FK'nin silmeyi reddetmesi, self-parent INSERT/UPDATE, JPA ad
+sınırları/benzersizliği ve mevcut üyelik/routing/atama kısıtları. Çalıştırmadan
+önce Docker Compose, sağlıklı PostgreSQL konteyneri ve host portu doğrulanmalıdır.
+
+**Yerel kabul kanıtı — 4 Eylül 2026, 12:37 TRT:** Birleşik taban üzerinde
+`mvn -o verify` başarılıdır: **712 test (703 mevcut + 9 yeni), 0 failure,
+0 error, 0 skipped**; çalıştırılabilir JAR üretilmiştir. PostgreSQL 15.18,
+sağlıklı `workflow-db` ve `127.0.0.1:5433 → 5432` doğrulanmıştır. Yeni testler
+senaryo başına `dept_schema_test_<UUID>`, tam Spring test paketi ayrı
+`dept_verify_<UUID>` şeması kullanmıştır (`SPRING_DATASOURCE_URL` içindeki
+`currentSchema` ile `SPRING_FLYWAY_SCHEMAS`/`SPRING_FLYWAY_DEFAULT_SCHEMA` aynı
+şemaya ayarlandı). Test şemaları işlem sonunda kaldırılır. Maven çıktısı
+`backend/target/department-schema-verify.log` dosyasındadır. V18–V21 Git blob
+kimlikleri Alperen'in `origin/feature/Veri-katmanı` dalıyla aynıdır. Bu yerel
+kanıt, departman runtime/E2E kabulü veya `test` dalına merge anlamına gelmez.
 
 ## Bilinen eksikler
 

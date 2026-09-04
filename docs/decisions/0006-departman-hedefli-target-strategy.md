@@ -13,11 +13,17 @@ bilinçli olarak kapsam dışı bıraktı, çünkü bir geçişin departmanı he
 `target_strategy`'de departman değerlerini gerektiriyor ve `DB-1` §7.2 bunları
 dondurmuş durumda.
 
-Sonuç bugün şu: `records.assigned_department_id` ve `department_routing_rules`
+Karar hazırlanırken durum şuydu: `records.assigned_department_id` ve `department_routing_rules`
 **şekil olarak** kabul edildi (`DB-1` §15), `DepartmentRoutingResolver` tasarlandı —
 fakat migration'lar `V17`'de duruyor, kodda departman kavramı yok ve bu kolonu yazan
 hiçbir çalışma zamanı yolu tanımlı değil. Karar verilmezse `DB-11`/`DB-12`/`DB-13` ve
 `WF-6` tamamlansa bile özellik üretimde hiç tetiklenmez.
+
+**Uygulama durumu — 4 Eylül 2026:** V18–V21 departman, üyelik, routing ve kayıt
+ataması şemasını/entity/repository katmanını ekledi; V22 DB-1 şema kısıtlarını
+hizaladı. Bu ADR kabul edilmiştir, ancak `DEPARTMENT`, `DEPARTMANA_GONDER`,
+geçiş seed'leri ve WF-5/WF-6 runtime'ı henüz uygulanmamıştır. Aşağıdaki gönderim
+DDL'i için yeni bir ileri migration gerekir; V18 numarası artık kullanılmıştır.
 
 > **Kapsam notu.** Bu ADR yalnız yazma yolunu açar. Departman gönderiminin anlamlı
 > olması için routing kuralının işaret ettiği rolün **kapasite sınırı olmayan** bir rol
@@ -157,7 +163,8 @@ korunur (ADR-0005 `S8`).
 
 ### Şema karşılığı
 
-DDL `DB-1`'e aittir, burada tekrarlanmaz. `V18` migration'ının kapsamı:
+DDL `DB-1`'e aittir, burada tekrarlanmaz. WF-5/WF-6 ile birlikte hazırlanacak
+ayrı ileri migration'ın kapsamı:
 `chk_transition_target_strategy` ve `chk_transition_target_strategy_role` kısıtları
 `DEPARTMENT` değerini (ve onun için `expected_target_role_id IS NULL` koşulunu)
 kapsayacak biçimde yeniden oluşturulur; `workflow_actions`'a `DEPARTMANA_GONDER`
@@ -219,7 +226,7 @@ Maliyet ve riskler:
 
 Takip işleri:
 
-- `DB-13` · `V18` — CHECK'lerin genişletilmesi, aksiyon ve iki geçiş satırının seed'i
+- `DB-13` · ayrı ileri migration — CHECK'lerin genişletilmesi, aksiyon ve iki geçiş satırının seed'i
 - `WF-5` — `WorkflowRecordSnapshot` ve `WorkflowRecordUpdate`'in departman alanı;
   `WorkflowRecordUpdate` compact constructor'ında karşılıklı dışlama
 - `WF-5` — `TransitionRule` invariant'ının `DEPARTMENT` muafiyeti,
@@ -241,7 +248,7 @@ açık soru — aşağıya bakınız).
 
 Karar 4 Eylül 2026'da kabul edildi. Kabul, `S1`–`S6` seçimlerinin ve aşağıdaki
 "Kapatılan sorular" başlığının bağlayıcı olduğu anlamına gelir; uygulama işleri
-`DB-13`/`V18`, `WF-5`, `WF-6`, `AP-4`/`AP-5` ve `NT-5` altında yürür ve
+`DB-13` ileri migration'ı, `WF-5`, `WF-6`, `AP-4`/`AP-5` ve `NT-5` altında yürür ve
 Workflow V1'in 10 Eylül teslim kapsamındadır.
 
 Kabul sırasında iki düzeltme yapıldı:

@@ -217,7 +217,8 @@ yazılmış departman atamalarına karşı test edilebilir; uçtan uca gönderim
 **ADR-0006** (departman hedefli `target_strategy` ve gönderim sözleşmesi) ile
 karara bağlanır. Bu ayrım bilinçlidir: `DB-11`/`DB-12`/`DB-13`, `WF-5`, `WF-6`,
 `AP-4`/`AP-5` ve `NT-5` bu ADR ile paralel yürüyebilir; yalnız son gönderim adımı
-ADR-0006'yı bekler.
+ADR-0006'nın kararına bağlıdır. ADR-0006 4 Eylül 2026'da kabul edilmiştir;
+karar bağımlılığı kapanmış, gönderim runtime'ı ve geçiş seed'leri açık kalmıştır.
 
 > **Zamanlama güncellemesi (4 Eylül 2026).** Bu ADR yazıldığında gönderim yolu
 > "sonraki iterasyon" idi. Plan güncellemesiyle departman uygulaması **10 Eylül

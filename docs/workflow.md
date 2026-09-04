@@ -498,7 +498,8 @@ Yukarıdaki boşlukların bir kısmı **Workflow V1 açık işidir**, bir kısm�
 | Boşluk | Nereye ait |
 | --- | --- |
 | Ortak görünürlük ve dinamik rol okuma erişimi | Mevcut şemada uygulandı; `WF-2C2` / `DB-8` departman entegrasyonu açık |
-| Departmana atama, üyelik, routing ve `actorHoldsAssignment`'ın departman anlamı | Workflow V1 — `DB-11`/`DB-12`/`DB-13`, `WF-5`/`WF-6`; ADR-0005, ADR-0006 ve ADR-0007 kabul edildi |
+| Departman, üyelik, routing ve atama veri katmanı | V18–V22 ile şema/entity/repository hazır; V22 ad uzunluğu, self-parent ve silme korumalarını DB-1 ile hizalar |
+| Departman görünürlüğü, gönderim ve `actorHoldsAssignment`'ın departman anlamı | WF-5/WF-6 runtime'ı ve DB-13'ün `DEPARTMENT`/`DEPARTMANA_GONDER` constraint/seed migration'ı açık; ADR-0005, ADR-0006 ve ADR-0007 kabul edildi |
 | Mevcut geçişe dinamik aktör rolü bağlama | WF-8 servis ve sözleşmesi uygulandı; AP-8 HTTP/UI açık |
 | Admin'den rol/permission yönetimi | Workflow V1 — `AP-2`/`AP-3` |
 | WebSocket bildirim kanalı | Workflow V1 — `NT-2`…`NT-4` |
