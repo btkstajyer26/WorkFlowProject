@@ -2,7 +2,9 @@
 
 > **4 Eylül 2026 güncellemesi:** Aşağıdaki envanter tarihsel durumu da içerir. WF-2C2 mevcut şemada ortak scope ve dinamik rol erişimiyle uygulanmıştır; eski “DB-8 tasarımı yok / görünürlük bloke” kayıtlarının güncel karşılığı [WF-2C2 / DB-8 sözleşmesidir](WF2C2_DB8_GORUNURLUK_SOZLESMESI.md). Departman entegrasyonu açık kalır.
 
-> Güncel uygulama durumu ve kabul kararları [§18.8](#188-wf-2b-ve-wf-2c1-uygulama-kapanışı--23-eylül-2026) içindedir. Önceki envanter/gate tabloları tarihsel snapshot'tır.
+> WF-2B/2C1 kapanışı [§18.8](#188-wf-2b-ve-wf-2c1-uygulama-kapanışı--23-eylül-2026)
+> içindedir; 4 Eylül mevcut durum düzeltmesi belgenin sonundadır. Önceki
+> envanter/gate tabloları tarihsel snapshot'tır; güncel teslimler [dizinde](README.md) izlenir.
 
 ## 1. Amaç
 
@@ -1074,8 +1076,11 @@ ve okuyan biri bunları güncel sanmamalıdır:
 | "`AdminController` class-level `hasRole('ADMIN')`" (§8) | Sınıf düzeyinde anotasyon yok; her metot kendi permission'ını istiyor |
 | Test sayıları: `506 / 14 error`, `522`, `532`, `592` (§18.4, §18.8) | Tarihli ölçümlerdir, baseline değil. Güncel eşik için ekip belgesine bakınız |
 
-Bu errata'nın kendisi de kısmen eskidi: `WF-2D2` (PR #61/#60) sonrasında
-`TransitionRule` ve `PermissionService` `RoleId` taşıyor. `RoleName` bugün yalnız
-görünürlük `switch`'lerinde, istemci uyumluluk alanlarında ve test referanslarında
-duruyor; kaldırılması `WF-2E`'nin işidir. §13'teki PR sırası `WF-2C2` için hâlâ yol
-gösterici.
+**4 Eylül 2026 düzeltmesi:** WF-2D2 (PR #61/#60) sonrasında `TransitionRule` ve
+`PermissionService` RoleId taşıyor. WF-2C2 ile `VisibilityActor` da RoleId,
+isteğe bağlı SystemRoleKey ve permission kümesine geçti; `RecordVisibilityScope`
+tekil policy ve SQL predicate'in ortak kaynağıdır. Görünürlükte RoleName switch'i
+kalmadı. Legacy uyumluluk/test sınırlarının tamamen temizliği WF-2E'dir.
+WF-2C2'nin mevcut kod teslimi ve WF-8 backend servisi tamamlandı; departman
+policy/query ve WF-5/WF-6 runtime kabulü açıktır. §13'teki tarihsel PR/gate
+sırası, bugün tamamlanmış işleri yeniden açmaz.
