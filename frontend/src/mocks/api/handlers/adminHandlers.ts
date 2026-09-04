@@ -1,18 +1,44 @@
 import { http, HttpResponse } from 'msw'
 import type {
+  CreateRoleRequest,
   CreateUserRequest,
   ChangeRoleRequest,
   PagedResponseUserResponse,
   RoleResponse,
+  UpdateRoleRequest,
   UserAuditLogResponse,
   UserResponse,
   SetActiveRequest,
 } from '../../../api/generated/data-contracts'
 import { apiBaseUrl } from '../../../api/config'
 import { mockAdminAuditLogs, mockAdminRoles, mockManagedUsers } from '../../admin'
+import type { AdminRole } from '../../../types/admin'
 import { getAuthenticatedMockUser, mockApiUsers } from '../auth'
 import { mockApiDb } from '../db'
 import { apiErrorResponse, forbiddenResponse, unauthorizedResponse } from '../responses'
+
+/**
+ * Rol adı benzersizliği büyük/küçük harf ayrımı yapmaz. Karşılaştırma Türkçe
+ * kurallarıyla yapılır (backend ile aynı): "İdari" ile "idari" aynı, "Isıtma"
+ * ile "İsıtma" farklıdır.
+ */
+function sameRoleName(left: string, right: string) {
+  return left.toLocaleUpperCase('tr-TR') === right.toLocaleUpperCase('tr-TR')
+}
+
+/** Fixture veritabanı gerçeğini tutar; uç yalnız sözleşmedeki alanları verir. */
+function toRoleResponse(role: AdminRole): RoleResponse {
+  return {
+    id: role.id,
+    name: role.name,
+    description: role.description ?? undefined,
+    systemKey: role.systemKey ?? undefined,
+    system: role.isSystem,
+    workflowActor: role.isWorkflowActor,
+    maxUsers: role.maxUsers ?? undefined,
+    active: role.isActive,
+  }
+}
 
 type PagedUserAuditLogResponse = {
   content: UserAuditLogResponse[]
@@ -71,21 +97,93 @@ export const adminHandlers = [
   }),
 
   /**
-   * Uç sayfalanmamış düz bir dizi döndürür ve pasif rolleri hiç göndermez.
-   * `RoleResponse` id/name/description'dan ibaret olduğu için fixture'daki
-   * `systemKey` dışarı verilmez.
+   * Uç sayfalanmamış düz bir dizi döndürür. Varsayılan çağrı yalnız aktif
+   * rolleri verir; yönetim ekranı `includeInactive=true` gönderir.
    */
   http.get(`${apiBaseUrl}/api/admin/roles`, ({ request }) => {
     const actor = getAuthenticatedMockUser(request)
     if (!actor) return unauthorizedResponse()
     if (actor.role !== 'ADMIN') return forbiddenResponse()
 
-    const content: RoleResponse[] = mockAdminRoles.map((role) => ({
-      id: role.id,
-      name: role.name,
-      description: role.description ?? undefined,
-    }))
+    const includeInactive = new URL(request.url).searchParams.get('includeInactive') === 'true'
+    const content: RoleResponse[] = mockAdminRoles
+      .filter((role) => includeInactive || role.isActive)
+      .map(toRoleResponse)
     return HttpResponse.json(content)
+  }),
+
+  http.post(`${apiBaseUrl}/api/admin/roles`, async ({ request }) => {
+    const actor = getAuthenticatedMockUser(request)
+    if (!actor) return unauthorizedResponse()
+    if (actor.role !== 'ADMIN') return forbiddenResponse()
+
+    const body = await request.json() as CreateRoleRequest
+    const name = body.name?.trim() ?? ''
+    if (!name) {
+      return apiErrorResponse(400, 'VALIDATION_ERROR', 'Girilen veriler geçersiz',
+        [{ field: 'name', message: 'Rol adı boş olamaz' }])
+    }
+    const clash = mockAdminRoles.find((role) => sameRoleName(role.name, name))
+    if (clash) {
+      return apiErrorResponse(400, 'BUSINESS_RULE_VIOLATION', 'Bu rol adı zaten kullanılıyor: ' + clash.name)
+    }
+
+    // Panelden açılan rol daima dinamik ve sınırsız kapasitelidir.
+    const created: AdminRole = {
+      id: Math.max(...mockAdminRoles.map((role) => role.id)) + 1,
+      name,
+      description: body.description?.trim() || null,
+      systemKey: null,
+      isSystem: false,
+      isWorkflowActor: Boolean(body.workflowActor),
+      maxUsers: null,
+      isActive: true,
+    }
+    mockAdminRoles.push(created)
+    return HttpResponse.json(toRoleResponse(created))
+  }),
+
+  http.patch(`${apiBaseUrl}/api/admin/roles/:id`, async ({ params, request }) => {
+    const actor = getAuthenticatedMockUser(request)
+    if (!actor) return unauthorizedResponse()
+    if (actor.role !== 'ADMIN') return forbiddenResponse()
+
+    const role = mockAdminRoles.find((item) => String(item.id) === params.id)
+    if (!role) return apiErrorResponse(400, 'ROLE_NOT_FOUND', 'Rol bulunamadı: ' + params.id)
+
+    const body = await request.json() as UpdateRoleRequest
+    if (body.name !== undefined) {
+      const name = body.name.trim()
+      if (!name) return apiErrorResponse(400, 'BUSINESS_RULE_VIOLATION', 'Rol adı boş olamaz')
+      const clash = mockAdminRoles.find((item) => sameRoleName(item.name, name) && item.id !== role.id)
+      if (clash) {
+        return apiErrorResponse(400, 'BUSINESS_RULE_VIOLATION', 'Bu rol adı zaten kullanılıyor: ' + clash.name)
+      }
+      role.name = name
+    }
+    if (body.description !== undefined) role.description = body.description.trim() || null
+    if (body.workflowActor !== undefined && body.workflowActor !== role.isWorkflowActor) {
+      if (role.isSystem) {
+        return apiErrorResponse(400, 'BUSINESS_RULE_VIOLATION',
+          'Sistem rolünün workflow aktörlüğü değiştirilemez: ' + role.name)
+      }
+      role.isWorkflowActor = body.workflowActor
+    }
+    if (body.active !== undefined && body.active !== role.isActive) {
+      if (!body.active && role.isSystem) {
+        return apiErrorResponse(400, 'BUSINESS_RULE_VIOLATION', 'Sistem rolü pasifleştirilemez: ' + role.name)
+      }
+      const activeUsers = mockManagedUsers.filter(
+        (user) => user.isActive && user.role === role.systemKey,
+      ).length
+      if (!body.active && activeUsers > 0) {
+        return apiErrorResponse(400, 'BUSINESS_RULE_VIOLATION',
+          `Bu rol ${activeUsers} aktif kullanıcıda; önce onların rolünü değiştirin: ${role.name}`)
+      }
+      role.isActive = body.active
+    }
+
+    return HttpResponse.json(toRoleResponse(role))
   }),
 
   http.get(`${apiBaseUrl}/api/admin/audit-logs`, ({ request }) => {

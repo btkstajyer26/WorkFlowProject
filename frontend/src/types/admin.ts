@@ -27,6 +27,26 @@ export type AdminRole = {
   name: string
   systemKey: string | null
   description: string | null
+  /** Yerleşik rol: yeniden adlandırılabilir ama pasifleştirilemez. */
+  isSystem: boolean
+  /** Rolün mevcut geçişlere aktör olarak bağlanabilmesi (WF-8 şartı). */
+  isWorkflowActor: boolean
+  /** null = sınırsız. Panelden açılan roller daima sınırsızdır. */
+  maxUsers: number | null
+  isActive: boolean
+}
+
+export type CreateAdminRoleInput = {
+  name: string
+  description?: string
+  workflowActor: boolean
+}
+
+export type UpdateAdminRoleInput = {
+  name?: string
+  description?: string
+  workflowActor?: boolean
+  active?: boolean
 }
 
 export type AdminLogType = 'USER' | 'RECORD'

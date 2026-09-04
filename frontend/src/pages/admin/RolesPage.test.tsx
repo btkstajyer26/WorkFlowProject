@@ -17,20 +17,18 @@ async function renderRoles() {
   )
 }
 
-describe('Admin rol listesi', () => {
+describe('Admin rol yönetimi', () => {
   beforeEach(() => window.sessionStorage.clear())
 
-  it('yerleşik ve panelden açılmış rolleri yalnız-okur tabloda listeler', async () => {
+  it('varsayılan görünümde yalnız aktif rolleri listeler', async () => {
     await renderRoles()
 
     expect(await screen.findByRole('heading', { name: 'Roller' })).toBeInTheDocument()
     const dynamicRow = await screen.findByRole('row', { name: /Mali İşler Uzmanı/ })
-    expect(within(dynamicRow).getByText('Panelden açılmış dinamik rol')).toBeInTheDocument()
+    expect(within(dynamicRow).getByText('Dinamik rol')).toBeInTheDocument()
     expect(screen.getByRole('row', { name: /BASKAN_YARDIMCISI/ })).toBeInTheDocument()
-    expect(screen.getByText('5')).toBeInTheDocument()
-
-    // Yalnız-okur ekran: hiçbir yazma eylemi sunulmaz.
-    expect(screen.queryByRole('button', { name: /Yeni rol|Düzenle|Sil/ })).not.toBeInTheDocument()
+    // Pasif rol varsayılan çağrıda gelmez.
+    expect(screen.queryByRole('row', { name: /Arşiv Sorumlusu/ })).not.toBeInTheDocument()
   })
 
   it('rol adlarını sabit rol listesine göre çevirmeden, sunucudan geldiği gibi gösterir', async () => {
@@ -48,6 +46,106 @@ describe('Admin rol listesi', () => {
     expect(within(roleTable).queryByText('Sistem Yöneticisi')).not.toBeInTheDocument()
   })
 
+  it('pasif rolleri göster seçilince pasifleştirilmiş rol listeye gelir', async () => {
+    const browser = userEvent.setup()
+    await renderRoles()
+    await screen.findByRole('row', { name: /Mali İşler Uzmanı/ })
+
+    await browser.click(screen.getByRole('checkbox', { name: /Pasif rolleri de göster/ }))
+
+    const passiveRow = await screen.findByRole('row', { name: /Arşiv Sorumlusu/ })
+    expect(within(passiveRow).getByText('Pasif')).toBeInTheDocument()
+  })
+
+  it('panelden yeni dinamik rol açar', async () => {
+    const browser = userEvent.setup()
+    await renderRoles()
+    await screen.findByRole('row', { name: /Mali İşler Uzmanı/ })
+
+    await browser.click(screen.getByRole('button', { name: 'Yeni rol' }))
+    const dialog = screen.getByRole('dialog')
+    await browser.type(within(dialog).getByLabelText('Rol adı'), 'Evrak Kayıt Memuru')
+    await browser.type(within(dialog).getByLabelText('Açıklama'), 'Gelen evrakı kaydeder')
+    await browser.click(within(dialog).getByRole('checkbox', { name: /İş akışı aktörü/ }))
+    await browser.click(within(dialog).getByRole('button', { name: 'Rol Oluştur' }))
+
+    expect(await screen.findByText('Rol oluşturuldu')).toBeInTheDocument()
+    const createdRow = await screen.findByRole('row', { name: /Evrak Kayıt Memuru/ })
+    expect(within(createdRow).getByText('Dinamik rol')).toBeInTheDocument()
+    expect(within(createdRow).getByText('İş akışı aktörü')).toBeInTheDocument()
+  })
+
+  it('aynı adla ikinci rol açılmasını sunucu reddeder ve hata formda görünür', async () => {
+    const browser = userEvent.setup()
+    await renderRoles()
+    await screen.findByRole('row', { name: /Mali İşler Uzmanı/ })
+
+    await browser.click(screen.getByRole('button', { name: 'Yeni rol' }))
+    const dialog = screen.getByRole('dialog')
+    await browser.type(within(dialog).getByLabelText('Rol adı'), 'Mali İşler Uzmanı')
+    await browser.click(within(dialog).getByRole('button', { name: 'Rol Oluştur' }))
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('zaten kullanılıyor')
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('yalnız harf büyüklüğü farklı adla rol açılmasını engeller', async () => {
+    const browser = userEvent.setup()
+    await renderRoles()
+    await screen.findByRole('row', { name: /Mali İşler Uzmanı/ })
+
+    await browser.click(screen.getByRole('button', { name: 'Yeni rol' }))
+    const dialog = screen.getByRole('dialog')
+    await browser.type(within(dialog).getByLabelText('Rol adı'), 'mali işler uzmanı')
+    await browser.click(within(dialog).getByRole('button', { name: 'Rol Oluştur' }))
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Mali İşler Uzmanı')
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('sistem rolü pasifleştirilemez, dinamik rol pasifleştirilebilir', async () => {
+    const browser = userEvent.setup()
+    await renderRoles()
+
+    const systemRow = await screen.findByRole('row', { name: /CALISAN/ })
+    expect(within(systemRow).getByRole('button', { name: 'Pasifleştir' })).toBeDisabled()
+
+    const dynamicRow = screen.getByRole('row', { name: /Mali İşler Uzmanı/ })
+    await browser.click(within(dynamicRow).getByRole('button', { name: 'Pasifleştir' }))
+
+    expect(await screen.findByText('Rol pasifleştirildi')).toBeInTheDocument()
+    // Varsayılan görünüm yalnız aktifleri gösterdiği için satır listeden düşer.
+    expect(screen.queryByRole('row', { name: /Mali İşler Uzmanı/ })).not.toBeInTheDocument()
+  })
+
+  it('rolün adını ve açıklamasını günceller', async () => {
+    const browser = userEvent.setup()
+    await renderRoles()
+    const dynamicRow = await screen.findByRole('row', { name: /Mali İşler Uzmanı/ })
+
+    await browser.click(within(dynamicRow).getByRole('button', { name: 'Düzenle' }))
+    const dialog = screen.getByRole('dialog')
+    const nameInput = within(dialog).getByLabelText('Rol adı')
+    await browser.clear(nameInput)
+    await browser.type(nameInput, 'Bütçe Uzmanı')
+    await browser.click(within(dialog).getByRole('button', { name: 'Kaydet' }))
+
+    expect(await screen.findByText('Rol güncellendi')).toBeInTheDocument()
+    expect(await screen.findByRole('row', { name: /Bütçe Uzmanı/ })).toBeInTheDocument()
+  })
+
+  it('sistem rolü düzenlenirken iş akışı aktörü kutusu kilitlidir', async () => {
+    const browser = userEvent.setup()
+    await renderRoles()
+    const systemRow = await screen.findByRole('row', { name: /CALISAN/ })
+
+    await browser.click(within(systemRow).getByRole('button', { name: 'Düzenle' }))
+
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByRole('checkbox', { name: /İş akışı aktörü/ })).toBeDisabled()
+    expect(dialog).toHaveTextContent('Sistem rolünün aktörlüğü değiştirilemez')
+  })
+
   it('rol listesi alınamazsa hata bloğunu gösterip yeniden denemeye izin verir', async () => {
     const browser = userEvent.setup()
     // 403 seçildi: sorgu istemcisi yalnızca 5xx ve ağ hatalarını yeniden dener,
@@ -63,7 +161,6 @@ describe('Admin rol listesi', () => {
     await renderRoles()
 
     expect(await screen.findByRole('heading', { name: 'Roller yüklenemedi' })).toBeInTheDocument()
-    expect(screen.getByRole('alert')).toBeInTheDocument()
 
     apiMockServer.resetHandlers()
     await browser.click(screen.getByRole('button', { name: 'Tekrar dene' }))

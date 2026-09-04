@@ -47,12 +47,19 @@ export const mockManagedUsers: ManagedUser[] = [
  * döndürmediği için handler onu dışarı vermez (bkz. api/roles.ts TODO).
  */
 export const mockAdminRoles: AdminRole[] = [
-  { id: 1, name: 'CALISAN', systemKey: 'CALISAN', description: 'Evrak oluşturur ve düzenler' },
-  { id: 2, name: 'BASKAN_YARDIMCISI', systemKey: 'BASKAN_YARDIMCISI', description: 'Evrakları inceler ve yönlendirir' },
-  { id: 3, name: 'BASKAN', systemKey: 'BASKAN', description: 'Evrakları onaylar veya reddeder' },
-  { id: 4, name: 'ADMIN', systemKey: 'ADMIN', description: 'Sistem yönetimi yapar' },
-  { id: 5, name: 'Mali İşler Uzmanı', systemKey: null, description: 'Panelden açılmış dinamik rol' },
+  { id: 1, name: 'CALISAN', systemKey: 'CALISAN', description: 'Evrak oluşturur ve düzenler', isSystem: true, isWorkflowActor: true, maxUsers: null, isActive: true },
+  { id: 2, name: 'BASKAN_YARDIMCISI', systemKey: 'BASKAN_YARDIMCISI', description: 'Evrakları inceler ve yönlendirir', isSystem: true, isWorkflowActor: true, maxUsers: 1, isActive: true },
+  { id: 3, name: 'BASKAN', systemKey: 'BASKAN', description: 'Evrakları onaylar veya reddeder', isSystem: true, isWorkflowActor: true, maxUsers: 1, isActive: true },
+  { id: 4, name: 'ADMIN', systemKey: 'ADMIN', description: 'Sistem yönetimi yapar', isSystem: true, isWorkflowActor: false, maxUsers: 1, isActive: true },
+  { id: 5, name: 'Mali İşler Uzmanı', systemKey: null, description: 'Panelden açılmış dinamik rol', isSystem: false, isWorkflowActor: true, maxUsers: null, isActive: true },
+  { id: 6, name: 'Arşiv Sorumlusu', systemKey: null, description: 'Pasifleştirilmiş dinamik rol', isSystem: false, isWorkflowActor: false, maxUsers: null, isActive: false },
 ]
+
+const initialAdminRoles = mockAdminRoles.map((role) => ({ ...role }))
+
+export function resetMockAdminRoles() {
+  mockAdminRoles.splice(0, mockAdminRoles.length, ...initialAdminRoles.map((role) => ({ ...role })))
+}
 
 const initialManagedUsers = mockManagedUsers.map((user) => ({ ...user }))
 

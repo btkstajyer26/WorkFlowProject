@@ -34,8 +34,8 @@ Bu belge EBYS frontendinin kullandığı API sözleşmesini ve henüz tamamlanma
 > **Bu tablo kapalı bir liste değildir.** Dinamik rol de `RECORD_VIEW` ile oluşturduğu
 > veya doğrudan atandığı kaydı okuyabilir. Kapsamlar aktif kullanıcı/rol ve
 > `RECORD_VIEW` gerektirir; ADMIN deny korunur. Rol kataloğu `roles` tablosundan
-> gelir; liste `GET /api/admin/roles` ile okunur, panelden rol oluşturma `AP-2`'de
-> henüz açıktır. `roles.name` gösterim adıdır ve değiştirilebilir; backend sistem
+> gelir; liste `GET /api/admin/roles` ile okunur ve panelden rol açma/düzenleme
+> `AP-2` ile gelmiştir. `roles.name` gösterim adıdır ve değiştirilebilir; backend sistem
 > istisnalarını `system_key`, workflow kimliğini `RoleId` ile belirler.
 
 ### Kayıt durumları
@@ -437,7 +437,9 @@ Başkan Yardımcısı ve Başkan frontend tarafından seçilmez. Backend beklene
 | `POST` | `/api/admin/users` | Varsayılan Çalışan rolüyle hesap açma; istek rol alanı içermez |
 | `PATCH` | `/api/admin/users/{id}/role` | Rol değiştirme; Başkan Yardımcısı koltuğunun devri de aynı istekte yapılır |
 | `PATCH` | `/api/admin/users/{id}/active` | Hesabı etkinleştirme/pasifleştirme |
-| `GET` | `/api/admin/roles` | Atanabilir roller; `ADMIN` dahil. AP-1 yalnız-okur rol ekranının (`/admin/roller`) da kaynağıdır: cevap sayfalanmamış düz dizidir, pasif roller hiç gelmez ve rol adı sabit rol listesine çevrilmeden gösterilir. `systemKey` bu cevapta henüz yoktur, AP-2'de eklenecektir |
+| `GET` | `/api/admin/roles?includeInactive=false` | Rol kataloğu; `ROLE_VIEW` ister. Cevap sayfalanmamış düz dizidir ve rol adı sabit rol listesine çevrilmeden gösterilir. Varsayılan çağrı yalnız **atanabilir (aktif)** rolleri döner; panelin rol ekranı (`/admin/roller`) pasifleri de görmek için `includeInactive=true` gönderir |
+| `POST` | `/api/admin/roles` | Panelden dinamik rol açma; `ROLE_MANAGE` ister. Gövde `name` (zorunlu, ≤100), `description` (≤255) ve `workflowActor` taşır |
+| `PATCH` | `/api/admin/roles/{id}` | Rol güncelleme; `ROLE_MANAGE` ister. Kısmi gövde: yalnız gönderilen `name` / `description` / `workflowActor` / `active` alanları uygulanır |
 | `GET` | `/api/admin/audit-logs?type=USER\|RECORD&page=0&size=20&q=` | Evrak ve kullanıcı/rol loglarını listeleme |
 | `POST` | `/api/workflow/rules/reload` | Geçiş kuralı snapshot'ını veritabanından yeniden okur; grafiği **yazmaz**. `WORKFLOW_MANAGE` ister, cevap `{"ruleCount": n}`. Geçersiz kural kümesi yüklenmez ve çalışan snapshot korunur |
 
@@ -454,6 +456,18 @@ kodları: [WF-8 / AP-8 sözleşmesi](WF8_AP8_AKTOR_ROL_BAGLAMA_SOZLESMESI.md).
 - Pasifleştirilen kullanıcının aktif tokenları iptal edilmelidir.
 - Hesap açma, rol değişikliği/devri ve aktiflik değişikliği append-only `user_audit_logs` kaydı üretmelidir.
 - `audit_logs` ve `user_audit_logs` tek sayfalı API modeliyle sunulur; update/delete audit endpointi olmaz.
+
+Rol yönetimi kuralları (`AP-2`):
+
+- Rol **silinmez**; DELETE ucu yoktur. Erişim `active=false` ile kapatılır.
+- `systemKey` ve `isSystem` istemciden hiçbir koşulda değiştirilemez. Yeni rol daima `systemKey=null`, `isSystem=false` ve `maxUsers=null` (sınırsız) olarak açılır.
+- Sistem rolü **yeniden adlandırılabilir** — `roles.name` görünen addır — ama pasifleştirilemez ve workflow aktörlüğü değiştirilemez. Panel bu iki işlemi kilitli gösterir; asıl kararı backend verir.
+- Aktif kullanıcısı olan rol pasifleştirilemez; istek `400 BUSINESS_RULE_VIOLATION` ile reddedilir. Böylece hiçbir kullanıcı pasif rolde kalmaz.
+- Rol adı benzersizdir ve **büyük/küçük harf ayrımı yapmaz**: "Muhasebe" varken "muhasebe" açılamaz. Karşılaştırma Türkçe kurallarıyla yapılır — "İdari" ile "idari" aynı sayılır, "Isıtma" ile "İsıtma" farklıdır. Pasif rollerin adı da yeniden kullanılamaz. Ön kontrol `400 BUSINESS_RULE_VIOLATION` döner ve mesaj çakışılan kaydın kendi yazımını gösterir.
+- Bu kural uygulama katmanındadır; `roles.name` veritabanı kısıtı harf duyarlıdır. Eşzamanlı iki isteğin aynı adı farklı harflerle yazması teorik olarak geçebilir. Kalıcı çözüm `upper(name)` üzerinde bir unique index'tir ve ayrı bir migration ister (DB kulvarı).
+- `workflowActor`, rolün mevcut geçişlere aktör olarak bağlanabilmesi için gerekir (`WF-8` şartı: `is_workflow_actor=true`, `is_system=false`, `system_key=NULL`).
+- Rol oluşturma ve güncelleme append-only `user_audit_logs` kaydı üretir: `ROLE_CREATED` ve `ROLE_UPDATED`. Bu kayıtlarda hedef kullanıcı yoktur; etkilenen rol `previous_role_id` / `new_role_id` alanlarında taşınır.
+- İstemci rolü ada göre sabit bir listeye karşı doğrulamaz. Panelin `AdminRole` tipi `UserRole` union'ından bağımsızdır ve rol adı sunucudan geldiği gibi gösterilir.
 
 ### 8.1 Başkan Yardımcısı koltuğunun devri
 
