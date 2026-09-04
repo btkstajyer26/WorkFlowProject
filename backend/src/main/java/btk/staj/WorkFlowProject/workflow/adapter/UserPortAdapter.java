@@ -5,14 +5,13 @@ import btk.staj.WorkFlowProject.user.entity.User;
 import btk.staj.WorkFlowProject.user.repository.UserRepository;
 import btk.staj.WorkFlowProject.workflow.model.WorkflowUserSnapshot;
 import btk.staj.WorkFlowProject.workflow.port.WorkflowUserPort;
-import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
-import org.springframework.stereotype.Component;
-
+import btk.staj.WorkFlowProject.workflow.statemachine.RoleId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.stereotype.Component;
 
 @Component
 public final class UserPortAdapter implements WorkflowUserPort {
@@ -37,11 +36,11 @@ public final class UserPortAdapter implements WorkflowUserPort {
     }
 
     @Override
-    public List<WorkflowUserSnapshot> findActiveByRole(RoleName role) {
-        RoleName requiredRole = Objects.requireNonNull(role, "role");
-        List<User> users = userRepository.findByRole_NameAndActive(requiredRole.name(), true);
+    public List<WorkflowUserSnapshot> findActiveByRole(RoleId roleId) {
+        RoleId requiredRole = Objects.requireNonNull(roleId, "roleId");
+        List<User> users = userRepository.findByRole_IdAndRole_ActiveTrueAndActiveTrue(requiredRole.value());
         if (users == null) {
-            throw new IllegalStateException("UserRepository.findByRole_NameAndActive returned null");
+            throw new IllegalStateException("UserRepository.findByRole_IdAndRole_ActiveTrueAndActiveTrue returned null");
         }
 
         List<WorkflowUserSnapshot> snapshots = new ArrayList<>(users.size());
@@ -66,18 +65,13 @@ public final class UserPortAdapter implements WorkflowUserPort {
             throw new IllegalStateException("Repository User has a null role");
         }
 
-        String entityRoleName = entityRole.getName();
-        if (entityRoleName == null) {
-            throw new IllegalStateException("Repository User role has a null name");
-        }
-
-        RoleName roleName;
+        RoleId roleId;
         try {
-            roleName = RoleName.valueOf(entityRoleName);
-        } catch (IllegalArgumentException exception) {
-            throw new IllegalStateException("Repository User has an unknown role name", exception);
+            roleId = new RoleId(entityRole.getId());
+        } catch (RuntimeException exception) {
+            throw new IllegalStateException("Repository User has a missing or invalid role id", exception);
         }
 
-        return new WorkflowUserSnapshot(userId, roleName, user.isActive());
+        return new WorkflowUserSnapshot(userId, roleId, user.isActive() && entityRole.isActive());
     }
 }

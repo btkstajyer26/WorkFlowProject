@@ -21,8 +21,8 @@ public class UserAuditLogController {
         this.userAuditLogService = userAuditLogService;
     }
 
-    // Yalnizca ADMIN erisebilir. Sadece GET var - degistirme/silme ucu yok.
-    @PreAuthorize("hasRole('ADMIN')")
+    // AUDIT_VIEW gerekir. Sadece GET var - degistirme/silme ucu yok.
+    @PreAuthorize("hasAuthority('AUDIT_VIEW')")
     @GetMapping("/{targetUserId}")
     public List<UserAuditLogResponse> getGecmis(@PathVariable UUID targetUserId) {
         return userAuditLogService.getGecmis(targetUserId);

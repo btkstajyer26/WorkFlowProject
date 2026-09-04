@@ -8,9 +8,10 @@ import java.util.Optional;
  * geldigini bilmez; yalnizca bu port uzerinden sorar.
  *
  * <p>Bu arayuz bilerek saf Java'dir: Spring, JPA veya repository bagimliligi
- * yoktur. Bugun {@link StaticTransitionRuleSource} ile merkezi statik tabloyu
- * sarar; ilerideki bir iterasyonda yalnizca adapter degistirilerek kurallar
- * veritabanindan okunabilir.
+ * yoktur. Production'da {@code workflow_transitions} tablosunu okuyan
+ * {@code DbTransitionRuleSource} tarafindan uygulanir. Test agacindaki
+ * {@code StaticTransitionRuleSource} yalnizca parity testinin ve veritabanisiz
+ * testlerin referansi olarak durur; production artifact'inda bulunmaz (TZ-1).
  *
  * <p>Port yalnizca <em>okuma</em> sozlesmesidir. Cache, reload, kayit veya
  * silme gibi yonetim metotlari bu portun sorumlulugu degildir; onlar
@@ -21,12 +22,12 @@ public interface TransitionRuleSource {
     /**
      * Verilen birlesime karsilik gelen kurali arar.
      *
-     * <p>{@code (from, action, actorRole)} birlesimi domain seviyesinde tekildir:
+     * <p>{@code (from, action, actorRoleId)} birlesimi domain seviyesinde tekildir:
      * bir birlesim en fazla bir gecise karsilik gelir.
      *
      * @return kural varsa dolu, tanimli degilse bos {@code Optional}
      */
-    Optional<TransitionRule> find(RecordStatus from, WorkflowAction action, RoleName actorRole);
+    Optional<TransitionRule> find(RecordStatus from, WorkflowAction action, RoleId actorRoleId);
 
     /**
      * Tanimli butun gecis kurallari.

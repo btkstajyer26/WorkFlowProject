@@ -35,7 +35,7 @@ public class WorkflowTransitionValidator {
     public TransitionDecision validate(TransitionContext context) {
 
         // 1. Workflow aktoru olmayan roller (ADMIN) hicbir gecis yapamaz.
-        if (!context.actorRole().isWorkflowActor()) {
+        if (!context.actorWorkflowActor()) {
             return TransitionDecision.rejected(WorkflowErrorCode.WORKFLOW_ROLE_NOT_ALLOWED);
         }
 
@@ -46,13 +46,14 @@ public class WorkflowTransitionValidator {
 
         // 3. Durum + aksiyon + rol birlesimi tabloda tanimli mi?
         Optional<TransitionRule> rule = ruleSource.find(
-                context.currentStatus(), context.action(), context.actorRole());
+                context.currentStatus(), context.action(), context.actorRoleId());
         if (rule.isEmpty()) {
             return TransitionDecision.rejected(WorkflowErrorCode.WORKFLOW_INVALID_TRANSITION);
         }
 
-        // 4. Aktor kaydin sahibi ve/veya atanani mi?
-        if (!rule.get().actorRequirement().isSatisfiedBy(context.actorIsCreator(), context.actorIsAssignee())) {
+        // 4. Aktor iliskisi ve gecisin gerekli permission'i birlikte saglanmali.
+        if (!rule.get().actorRequirement().isSatisfiedBy(context.actorIsCreator(), context.actorHoldsAssignment())
+                || !context.actorPermissionCodes().contains(rule.get().requiredPermissionCode())) {
             return TransitionDecision.rejected(WorkflowErrorCode.WORKFLOW_FORBIDDEN);
         }
 
@@ -70,13 +71,17 @@ public class WorkflowTransitionValidator {
             return TransitionDecision.rejected(WorkflowErrorCode.WORKFLOW_TARGET_NOT_ALLOWED);
         }
 
-        // 8-9. Hedef kullanici gerektiren aksiyonlarda hedefin rolu ve aktifligi.
-        RoleName expectedTargetRole = context.action().getExpectedTargetRole();
-        if (expectedTargetRole != null) {
+        // 8-9. Hedef kullanici gerektiren gecislerde hedefin rolu ve aktifligi.
+        //
+        // Beklenen rol aksiyonun degil GECISIN ozelligidir: ayni aksiyon farkli gecislerde
+        // farkli hedefe gidebilir (DB-1 SS6.5). Ornegin CALISANA_GERI_GONDER hem Baskan
+        // Yardimcisinin hem Baskanin kullandigi iki ayri satirda bulunur.
+        RoleId expectedTargetRoleId = rule.get().expectedTargetRoleId();
+        if (expectedTargetRoleId != null) {
             // ADMIN veya yanlis roldeki hedef burada elenir. Hedef cozulememisse
             // (null) yine gecersiz sayilir; servis bu durumu zaten daha once
             // WORKFLOW_ROLE_NOT_CONFIGURED ile durdurmus olmalidir.
-            if (context.targetRole() != expectedTargetRole) {
+            if (!expectedTargetRoleId.equals(context.targetRoleId())) {
                 return TransitionDecision.rejected(WorkflowErrorCode.WORKFLOW_TARGET_ROLE_INVALID);
             }
             if (!context.targetActive()) {

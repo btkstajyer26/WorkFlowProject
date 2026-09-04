@@ -205,12 +205,18 @@ Liste ve detay aynı kuralı uygular — mobil ayrıca filtreleme yapmaz:
 
 | Rol | Görür |
 |---|---|
-| `CALISAN` | Yalnız kendi oluşturduğu kayıtlar |
-| `BASKAN_YARDIMCISI` | Kendisine atanan + `DUZENLEME_BEKLIYOR` + bir kez kendi elinden geçmiş (`last_deputy_id`) |
-| `BASKAN` | Onayına gelen + sonuçlanan (`ONAYLANDI`/`REDDEDILDI`) |
+| Dinamik rol / `CALISAN` | Kendi oluşturduğu veya doğrudan kendisine atanmış kayıtlar |
+| `BASKAN_YARDIMCISI` | Kendi oluşturduğu + kendisine atanan + `DUZENLEME_BEKLIYOR` + bir kez kendi elinden geçmiş (`last_deputy_id`) |
+| `BASKAN` | Kendi oluşturduğu + kendisine atanan + onayına gelen + sonuçlanan (`ONAYLANDI`/`REDDEDILDI`) |
+| `ADMIN` | Hiçbir kayıt |
 
 Kapsam dışı kayıt listede **hiç dönmez**, sayfa sayısına da girmez. Kimliğiyle
 doğrudan istenirse `403 FORBIDDEN`.
+
+> **Tablo kapalı bir liste değildir.** Dört yerleşik rolün bugünkü kapsamını
+> anlatır; rol katalogu `roles` tablosundan gelir ve panelden yeni rol açılabilir.
+> Rol adı (`roles.name`) değiştirilebilir — istemci rolü ada göre sabit bir listeye
+> karşı doğrulamamalıdır. Bütün kapsamlar aktif hesap/rol ve `RECORD_VIEW` gerektirir; ADMIN deny korunur. Dinamik rol erişimi uygulanmıştır; departman bağlantısı açıktır. [WF-2C2 sözleşmesi](WF2C2_DB8_GORUNURLUK_SOZLESMESI.md). Silinmiş kaydın detay/dosya/geçmiş okumaları `404` döner.
 
 **İçerik dondurma:** Kayıt `DUZENLEME_BEKLIYOR` iken onu geri gönderen Bşk. Yrd.
 **devir anındaki kopyayı** görür — başlık, açıklama, kategori ve ek dosyalar
@@ -229,6 +235,12 @@ Yetki `@PreAuthorize` ile değil, durum makinesiyle belirlenir.
 
 **`targetUserId` gönderilmez.** Alan DTO'da duruyor ama backend bilerek yok
 sayıyor; hedefi her aksiyon için sunucu çözer.
+
+> [ADR-0006](decisions/0006-departman-hedefli-target-strategy.md) (**Kabul
+> Edildi**, 4 Eylül 2026) yeni bir `DEPARTMANA_GONDER` aksiyonu ve istekte
+> `targetDepartmentId` alanı getirir. `WorkflowAction` enum'u istemci
+> sözleşmesinde paylaşıldığı için mobil, aksiyonu tanımadan gönderim ekranını
+> açmamalıdır. Bu bölüm uçlar `DB-13`/`V18` ile geldiğinde güncellenir.
 
 Cevap:
 

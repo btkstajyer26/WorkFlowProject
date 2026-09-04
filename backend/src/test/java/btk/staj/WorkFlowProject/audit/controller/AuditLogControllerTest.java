@@ -1,23 +1,26 @@
 package btk.staj.WorkFlowProject.audit.controller;
 
+import static btk.staj.WorkFlowProject.support.AuthorizationFixtures.visibility;
+
+
+
 import btk.staj.WorkFlowProject.audit.dto.AuditLogResponse;
 import btk.staj.WorkFlowProject.audit.service.AuditLogService;
+import btk.staj.WorkFlowProject.auth.security.CurrentVisibilityActorProvider;
+import btk.staj.WorkFlowProject.auth.security.VisibilityActor;
 import btk.staj.WorkFlowProject.common.exception.ForbiddenException;
 import btk.staj.WorkFlowProject.common.exception.ResourceNotFoundException;
 import btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
-import btk.staj.WorkFlowProject.workflow.model.CurrentActor;
-import btk.staj.WorkFlowProject.workflow.port.CurrentActorProvider;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -37,9 +40,9 @@ class AuditLogControllerTest {
 
     private final AuditLogService auditLogService = mock(AuditLogService.class);
     private final RecordRepository recordRepository = mock(RecordRepository.class);
-    private final CurrentActorProvider currentActorProvider = mock(CurrentActorProvider.class);
+    private final CurrentVisibilityActorProvider currentVisibilityActorProvider = mock(CurrentVisibilityActorProvider.class);
     private final AuditLogController controller = new AuditLogController(
-            auditLogService, recordRepository, new RecordAccessPolicy(), currentActorProvider);
+            auditLogService, recordRepository, new RecordAccessPolicy(), currentVisibilityActorProvider);
 
     @Test
     @DisplayName("kaydin sahibi kendi evraginin gecmisini gorur")
@@ -181,7 +184,7 @@ class AuditLogControllerTest {
     }
 
     private void givenActor(UUID userId, RoleName role) {
-        when(currentActorProvider.currentActor()).thenReturn(new CurrentActor(userId, role));
+        when(currentVisibilityActorProvider.currentVisibilityActor()).thenReturn(visibility(role, userId));
     }
 
     private void givenRecord(UUID createdBy, UUID assignedTo, RecordStatus status) {

@@ -19,11 +19,11 @@ Expo mobil ┘                         ├── dosya deposu
 | Mobil | React Native, Expo Router, TypeScript |
 | Veri ve yerel servisler | PostgreSQL 15, Docker Compose, Mailpit |
 
-Workflow geçişleri merkezi bir statik tablodan gelir. `StaticTransitionRuleSource`, bu tabloyu `TransitionRuleSource` sınırının arkasında hem doğrulayıcıya hem yetki servisine sunar. İstemciler hedef durumu hesaplamaz.
+Workflow geçişleri `workflow_transitions` tablosundan okunur. `DbTransitionRuleSource`, kuralları `TransitionRuleSource` sınırının arkasında hem doğrulayıcıya hem yetki servisine sunar; kurallar açılışta bir kez okunur ve `POST /api/workflow/rules/reload` ile yeniden başlatmadan tazelenebilir. İstemciler hedef durumu hesaplamaz.
 
 ## Hızlı başlangıç
 
-Gereksinimler: Docker Compose 2.24 veya üzeri. Yerel geliştirme için ayrıca Java 21, Maven ve Node.js 22.13 veya üzeri gerekir.
+Gereksinimler: Docker ve Docker Compose. Yerel geliştirme için ayrıca Java 21 ve Node.js 22.13 veya üzeri gerekir; Maven'ı ayrıca kurmanız gerekmez, wrapper (`backend/mvnw`) repoda gelir. TEST dağıtımı `!reset` kullandığı için orada Compose 2.24 veya üzeri şarttır (bkz. [TEST ortamı notu](docs/TEST_ORTAMI_NOTU.md)).
 
 ```bash
 cp .env.example .env
@@ -57,7 +57,7 @@ Backend doğrulaması PostgreSQL gerektirir:
 ```bash
 docker compose up -d db
 cd backend
-mvn verify
+./mvnw verify
 ```
 
 Frontend:
@@ -91,7 +91,7 @@ npx expo export --platform web
 | [Veritabanı](docs/database.md) | Şema ve Flyway yönetimi |
 | [Frontend–backend sözleşmesi](docs/FRONTEND_BACKEND_SOZLESMESI.md) | Web istemcisinin dayandığı alan ve hata sözleşmeleri |
 | [Mobil API envanteri](docs/MOBIL_API_ENVANTERI.md) | Mobil istemcinin kullandığı güncel REST sözleşmesi |
-| [OpenAPI anlık görüntüsü](docs/openapi.json) | Kod incelemesi için sürümlenmiş API şeması |
+| [OpenAPI anlık görüntüsü](docs/openapi.json) | Kod incelemesi için sürümlenmiş API şeması. **Elle bakımlıdır:** canlı şema `localhost:8080/v3/api-docs` adresinde; uç eklendiğinde ilgili bölüm bu dosyaya mevcut biçim korunarak işlenir. Dosyayı toptan yeniden üretmeyin — biçimlendirme ve `servers.url` ortama göre değişip gereksiz diff üretir. Frontend istemcisi ayrı üretilir (`cd frontend && npm run api:generate`) |
 | [TEST ortamı notu](docs/TEST_ORTAMI_NOTU.md) | Güncel topoloji, dağıtım ve operasyon yönergeleri |
 | [Mimari kararlar](docs/decisions/README.md) | ADR dizini |
 

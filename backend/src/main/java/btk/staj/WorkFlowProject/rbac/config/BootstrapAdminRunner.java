@@ -2,6 +2,11 @@ package btk.staj.WorkFlowProject.rbac.config;
 
 import btk.staj.WorkFlowProject.audit.service.UserAuditLogService;
 import btk.staj.WorkFlowProject.rbac.Role;
+import btk.staj.WorkFlowProject.rbac.SystemRoleKey;
+import btk.staj.WorkFlowProject.user.service.RoleCapacityService;
+import org.springframework.transaction.annotation.Transactional;
+import java.util.List;
+import java.util.Map;
 import btk.staj.WorkFlowProject.user.entity.User;
 import btk.staj.WorkFlowProject.user.repository.RoleRepository;
 import btk.staj.WorkFlowProject.user.repository.UserRepository;
@@ -25,6 +30,7 @@ public class BootstrapAdminRunner implements ApplicationRunner {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserAuditLogService userAuditLogService;
+    private final RoleCapacityService roleCapacity;
 
     @Value("${bootstrap.admin.email:}")
     private String adminEmail;
@@ -35,31 +41,31 @@ public class BootstrapAdminRunner implements ApplicationRunner {
     public BootstrapAdminRunner(UserRepository userRepository,
                                 RoleRepository roleRepository,
                                 PasswordEncoder passwordEncoder,
-                                UserAuditLogService userAuditLogService) {
+                                UserAuditLogService userAuditLogService, RoleCapacityService roleCapacity) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.userAuditLogService = userAuditLogService;
+        this.roleCapacity = roleCapacity;
     }
 
     @Override
+    @Transactional
     public void run(ApplicationArguments args) {
         if (adminEmail == null || adminEmail.isBlank()
                 || adminPassword == null || adminPassword.isBlank()) {
             return;
         }
 
-        // Kosul "hic kullanici yok" degil "hic Admin yok": Admin silinip
-        // kullanicilar dururken sistem yonetimsiz kalmasin.
-        if (!userRepository.findByRole_NameAndActive("ADMIN", true).isEmpty()) {
-            return;
-        }
-
-        Role adminRole = roleRepository.findByName("ADMIN").orElse(null);
-        if (adminRole == null) {
+        Role candidate = roleRepository.findBySystemKey(SystemRoleKey.ADMIN.name()).orElse(null);
+        if (candidate == null) {
             log.warn("ADMIN rolü bulunamadı; bootstrap atlandı");
             return;
         }
+        Role adminRole = roleCapacity.lockRoles(List.of(candidate.getId())).get(candidate.getId());
+        if (userRepository.countByRole_IdAndActiveTrue(adminRole.getId()) > 0) return;
+        roleCapacity.assertAssignable(adminRole);
+        roleCapacity.validate(Map.of(adminRole.getId(), adminRole), List.of(RoleCapacityService.Change.create(adminRole)));
 
         User admin = new User();
         admin.setFirstName("Bootstrap");

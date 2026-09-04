@@ -10,13 +10,13 @@ TEST ortamında ürün web frontend'i yayınlanmaz. `docker-compose.yml` içinde
 
 | Dış yol | Hedef | Koruma |
 | --- | --- | --- |
-| `/api/**` | backend:8080 | JWT; yalnız mail-action uçları public |
+| `/api/**` | backend:8080 | JWT; `/api/auth/**` kimlik uçları (giriş, token yenileme, çıkış, parola sıfırlama) ve mail-action uçları public |
 | `/api/public/mail-actions/preview`, `/consume` | backend:8080 | Süreli, tek kullanımlık token |
 | `/actuator/health` | backend:8080 | Ayrıntısız sağlık cevabı |
 | `/swagger-ui.html`, `/v3/api-docs` | backend:8080 | Public; kalıcı ortamda korunmalı |
 | `/mail*` | mailpit:8025 | Caddy basic auth |
 
-Birleştirilmiş TEST yapılandırması `db`, `backend`, `mailpit` ve `frontend` host portlarını kaldırır; dışarıya yalnız Caddy'nin `80/443` portları açılır. Temel Compose dosyasında backend mobil LAN geliştirmesi için `0.0.0.0:8080` yayınladığından TEST'te `docker-compose.test.yml` mutlaka kullanılmalıdır. `!reset` desteği için Docker Compose 2.24 veya üzeri gerekir.
+Birleştirilmiş TEST yapılandırması `db`, `backend` ve `mailpit` host portlarını kaldırır; `frontend` zaten `profiles` arkasında olduğu için TEST birleşiminde hiç oluşmaz. dışarıya yalnız Caddy'nin `80/443` portları açılır. Temel Compose dosyasında backend mobil LAN geliştirmesi için `0.0.0.0:8080` yayınladığından TEST'te `docker-compose.test.yml` mutlaka kullanılmalıdır. `!reset` desteği için Docker Compose 2.24 veya üzeri gerekir.
 
 ## E-posta derin bağlantısı sınırlaması
 

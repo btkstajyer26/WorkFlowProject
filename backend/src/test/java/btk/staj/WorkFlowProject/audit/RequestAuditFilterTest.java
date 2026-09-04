@@ -1,5 +1,7 @@
 package btk.staj.WorkFlowProject.audit;
 
+import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
+
 import btk.staj.WorkFlowProject.audit.model.RequestAccessEvent;
 import btk.staj.WorkFlowProject.audit.service.AuditLogService;
 import btk.staj.WorkFlowProject.audit.service.UserAuditLogService;
@@ -65,7 +67,7 @@ class RequestAuditFilterTest {
 
         RequestAccessEvent event = captor.getValue();
         assertThat(event.action()).isEqualTo("LOGIN");
-        assertThat(event.roleName()).isEqualTo("ADMIN");
+        assertThat(event.systemKey()).isEqualTo("ADMIN");
         assertThat(event.httpStatus()).isEqualTo(200);
         assertThat(event.errorCode()).isEqualTo("OK");
     }
@@ -86,14 +88,14 @@ class RequestAuditFilterTest {
         verify(userAuditLogService).recordAccess(captor.capture());
         verifyNoInteractions(auditLogService);
         assertThat(captor.getValue().action()).isEqualTo("LOGIN");
-        assertThat(captor.getValue().roleName()).isEqualTo("CALISAN");
+        assertThat(captor.getValue().systemKey()).isEqualTo("CALISAN");
     }
 
     @Test
     @DisplayName("hata kodu JSON govdeden okunur")
     void errorCodeIsReadFromApiErrorBody() throws Exception {
         User calisan = user("CALISAN");
-        AuthenticatedUser authenticatedUser = new AuthenticatedUser(calisan);
+        AuthenticatedUser authenticatedUser = AuthorizationFixtures.authenticated(calisan);
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(authenticatedUser, null, List.of()));
 
@@ -131,9 +133,25 @@ class RequestAuditFilterTest {
         Role role = new Role();
         role.setId("ADMIN".equals(roleName) ? 4 : 1);
         role.setName(roleName);
+        role.setActive(true);
+        role.setSystemKey(roleName);
+        role.setWorkflowActor(AuthorizationFixtures.workflowActor(roleName));
         User user = new User();
         user.setId(UUID.randomUUID());
         user.setRole(role);
         return user;
+    }
+
+    @Test
+    void renamedAdminStillUsesAdminAuditTable() throws Exception {
+        User admin = user("ADMIN");
+        admin.getRole().setName("Sistem Yöneticisi");
+        context.mark("LOGIN", admin);
+        filter().doFilter(new MockHttpServletRequest("POST", "/api/auth/login"),
+                new MockHttpServletResponse(), (req, res) -> {});
+        ArgumentCaptor<RequestAccessEvent> captor = ArgumentCaptor.forClass(RequestAccessEvent.class);
+        verify(auditLogService).recordAccess(captor.capture());
+        verifyNoInteractions(userAuditLogService);
+        assertThat(captor.getValue().systemKey()).isEqualTo("ADMIN");
     }
 }

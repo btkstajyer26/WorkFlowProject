@@ -4,26 +4,23 @@ import btk.staj.WorkFlowProject.audit.dto.AuditLogResponse;
 import btk.staj.WorkFlowProject.audit.entity.AuditLog;
 import btk.staj.WorkFlowProject.audit.model.RequestAccessEvent;
 import btk.staj.WorkFlowProject.audit.repository.AuditLogRepository;
-import btk.staj.WorkFlowProject.rbac.Role;
-import btk.staj.WorkFlowProject.user.repository.RoleRepository;
+import btk.staj.WorkFlowProject.support.WorkflowRoleFixtures;
 import btk.staj.WorkFlowProject.workflow.model.WorkflowTransitionAudit;
 import btk.staj.WorkFlowProject.workflow.port.AuditService;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
+import btk.staj.WorkFlowProject.workflow.statemachine.RoleId;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
-
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -39,8 +36,7 @@ class AuditLogServiceTest {
     private static final Instant PERFORMED_AT = Instant.parse("2026-08-11T09:15:00Z");
 
     private final AuditLogRepository auditLogRepository = mock(AuditLogRepository.class);
-    private final RoleRepository roleRepository = mock(RoleRepository.class);
-    private final AuditLogService service = new AuditLogService(auditLogRepository, roleRepository);
+    private final AuditLogService service = new AuditLogService(auditLogRepository);
 
     @Test
     @DisplayName("onay akisinin port sozlesmesini uygular")
@@ -51,7 +47,6 @@ class AuditLogServiceTest {
     @Test
     @DisplayName("gecis bilgisini audit_logs satirina cevirir")
     void mapsEveryTransitionFieldOntoTheRow() {
-        givenRole("BASKAN_YARDIMCISI", 2);
 
         service.record(transition(
                 WorkflowAction.BASKANA_ILET,
@@ -73,7 +68,6 @@ class AuditLogServiceTest {
     @Test
     @DisplayName("islem zamani olarak gecisin gerceklestigi ani kullanir")
     void keepsTheTransitionInstantInsteadOfTheWriteTime() {
-        givenRole("BASKAN", 3);
 
         service.record(transition(
                 WorkflowAction.ONAYLA,
@@ -89,7 +83,6 @@ class AuditLogServiceTest {
     @Test
     @DisplayName("aciklamasiz gecisi de yazar")
     void acceptsATransitionWithoutAComment() {
-        givenRole("CALISAN", 1);
 
         service.record(transition(
                 WorkflowAction.GONDER,
@@ -102,35 +95,21 @@ class AuditLogServiceTest {
     }
 
     @Test
-    @DisplayName("rol adini roles tablosundaki id'ye cevirir")
-    void resolvesTheRoleIdByRoleName() {
-        givenRole("CALISAN", 7);
-
-        service.record(transition(
-                WorkflowAction.GONDER,
-                RecordStatus.TASLAK,
-                RecordStatus.BSK_YRD_INCELEMESINDE,
-                RoleName.CALISAN,
-                null));
-
-        verify(roleRepository).findByName("CALISAN");
-        assertThat(captureSaved().getRoleId()).isEqualTo(7);
+    @DisplayName("dinamik aktorun ID'sini rol sorgulamadan yazar")
+    void writesDynamicRoleIdentityDirectly() {
+        service.record(new WorkflowTransitionAudit(RECORD_ID, WorkflowAction.GONDER,
+                RecordStatus.TASLAK, RecordStatus.BSK_YRD_INCELEMESINDE, ACTOR_ID,
+                new RoleId(7007), ASSIGNED_TO, null, PERFORMED_AT));
+        assertThat(captureSaved().getRoleId()).isEqualTo(7007);
     }
 
     @Test
-    @DisplayName("rol roles tablosunda yoksa yazmaz ve hata firlatir")
-    void failsWithoutWritingWhenTheRoleRowIsMissing() {
-        when(roleRepository.findByName("BASKAN")).thenReturn(Optional.empty());
-
-        assertThatIllegalStateException()
-                .isThrownBy(() -> service.record(transition(
-                        WorkflowAction.ONAYLA,
-                        RecordStatus.BASKAN_INCELEMESINDE,
-                        RecordStatus.ONAYLANDI,
-                        RoleName.BASKAN,
-                        null)))
-                .withMessageContaining("BASKAN");
-
+    @DisplayName("aktor rol ID'si eksikse audit verisi olusturulamaz")
+    void missingRoleIdentityCannotReachPersistence() {
+        assertThatNullPointerException().isThrownBy(() -> service.record(new WorkflowTransitionAudit(
+                RECORD_ID, WorkflowAction.ONAYLA, RecordStatus.BASKAN_INCELEMESINDE,
+                RecordStatus.ONAYLANDI, ACTOR_ID, null, null, null, PERFORMED_AT)))
+                .withMessageContaining("actorRoleId");
         verifyNoInteractions(auditLogRepository);
     }
 
@@ -295,13 +274,6 @@ class AuditLogServiceTest {
                 action, previousStatus, newStatus, null, null, null, null, null, createdAt);
     }
 
-    private void givenRole(String roleName, Integer roleId) {
-        Role role = new Role();
-        role.setId(roleId);
-        role.setName(roleName);
-        when(roleRepository.findByName(roleName)).thenReturn(Optional.of(role));
-    }
-
     private AuditLog captureSaved() {
         ArgumentCaptor<AuditLog> captor = ArgumentCaptor.forClass(AuditLog.class);
         verify(auditLogRepository).save(captor.capture());
@@ -315,7 +287,7 @@ class AuditLogServiceTest {
                                                       String comment) {
         return new WorkflowTransitionAudit(
                 RECORD_ID, action, previousStatus, newStatus,
-                ACTOR_ID, actorRole, ASSIGNED_TO, comment, PERFORMED_AT);
+                ACTOR_ID, WorkflowRoleFixtures.id(actorRole), ASSIGNED_TO, comment, PERFORMED_AT);
     }
 
     // ------------------------------------------------------------------
@@ -325,9 +297,7 @@ class AuditLogServiceTest {
     @Test
     @DisplayName("yasam dongusu olayini durum gecisi olmadan yazar")
     void writesALifecycleEventWithoutATransition() {
-        givenRole("CALISAN", 1);
-
-        service.recordLifecycleEvent(RECORD_ID, ACTOR_ID, RoleName.CALISAN,
+        service.recordLifecycleEvent(RECORD_ID, ACTOR_ID, 1,
                 "RECORD_CREATED", RecordStatus.TASLAK, "Kayit olusturuldu");
 
         AuditLog saved = captureSaved();
@@ -345,15 +315,13 @@ class AuditLogServiceTest {
     }
 
     @Test
-    @DisplayName("yasam dongusu olayinda rol roles tablosunda yoksa yazmaz")
-    void failsWithoutWritingWhenTheLifecycleRoleRowIsMissing() {
-        when(roleRepository.findByName("CALISAN")).thenReturn(Optional.empty());
-
-        assertThatIllegalStateException()
+    @DisplayName("yasam dongusu olayinda rol kimligi eksikse yazmaz")
+    void failsWithoutWritingWhenTheLifecycleRoleIdIsMissing() {
+        org.assertj.core.api.Assertions.assertThatNullPointerException()
                 .isThrownBy(() -> service.recordLifecycleEvent(
-                        RECORD_ID, ACTOR_ID, RoleName.CALISAN,
+                        RECORD_ID, ACTOR_ID, null,
                         "RECORD_CREATED", RecordStatus.TASLAK, null))
-                .withMessageContaining("CALISAN");
+                .withMessageContaining("actorRoleId");
 
         verifyNoInteractions(auditLogRepository);
     }

@@ -3,8 +3,8 @@ package btk.staj.WorkFlowProject.workflow.entity;
 import jakarta.persistence.*;
 
 /**
- * TransitionRules.java'daki WorkflowAction enum degerlerinin veritabani
- * karsiligi. bkz. DB_1_VERI_MODELI_SOZLESMESI.md SS6.5.
+ * {@code WorkflowAction} enum degerlerinin veritabani karsiligi.
+ * bkz. DB_1_VERI_MODELI_SOZLESMESI.md SS6.5.
  *
  * ONEMLI: target_strategy ve expected_target_role_id burada YOKTUR - sozlesme
  * bunlarin workflow_transitions'a ait oldugunu acikca belirtiyor (ayni aksiyon

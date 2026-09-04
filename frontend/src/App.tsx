@@ -31,6 +31,7 @@ const RecordsPage = lazy(() => import('./pages/RecordsPage').then((module) => ({
 const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage').then((module) => ({ default: module.AdminDashboardPage })))
 const AdminLogsPage = lazy(() => import('./pages/admin/AdminLogsPage').then((module) => ({ default: module.AdminLogsPage })))
 const AdminUsersPage = lazy(() => import('./pages/admin/AdminUsersPage').then((module) => ({ default: module.AdminUsersPage })))
+const RolesPage = lazy(() => import('./pages/admin/RolesPage').then((module) => ({ default: module.RolesPage })))
 
 function App() {
   const navigate = useNavigate()
@@ -240,6 +241,7 @@ function AdminApplication({
       <Suspense fallback={<RoutePageSkeleton />}><Routes>
         <Route path="/admin" element={<AdminDashboardPage />} />
         <Route path="/admin/kullanicilar" element={<AdminUsersPage />} />
+        <Route path="/admin/roller" element={<RolesPage />} />
         <Route path="/admin/loglar" element={<AdminLogsPage />} />
         <Route path="/profil" element={<ProfilePage user={user} />} />
         <Route path="/403" element={<ErrorStatePage type="403" />} />

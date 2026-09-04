@@ -1,5 +1,7 @@
 # Frontend - Backend Entegrasyon Sözleşmesi
 
+> **WF-2C2 (4 Eylül 2026):** Kayıt, liste, dosya ve geçmiş okumaları ortak visibility scope kullanır. Dinamik roller `RECORD_VIEW` ile oluşturdukları veya kendilerine atanmış kayıtları okuyabilir. ADMIN deny ve sistem rollerinin içerik/geçmiş kesimleri korunur. HTTP alanları değişmedi; departman entegrasyonu açıktır. [Sözleşme ve hata davranışları](WF2C2_DB8_GORUNURLUK_SOZLESMESI.md).
+
 Bu belge EBYS frontendinin kullandığı API sözleşmesini ve henüz tamamlanmamış entegrasyon ihtiyaçlarını tanımlar. Mevcut endpoint ve cevap modellerinde backend kodu ile çalışan uygulamanın `/v3/api-docs` çıktısı esas alınır; `docs/openapi.json` bunun sürümlenmiş inceleme anlık görüntüsüdür. Gelecekte eklenmesi beklenen işlemler ayrıca "backend bekleniyor" olarak işaretlenir.
 
 > Son kod doğrulaması 31 Ağustos 2026 tarihinde `test` dalının `4491a80` commit'i üzerinde yapılmıştır.
@@ -26,6 +28,8 @@ Bu belge EBYS frontendinin kullandığı API sözleşmesini ve henüz tamamlanma
 | `ADMIN` | Sistem Yöneticisi | Kullanıcı/rol yönetimi ve sistem genelindeki audit kayıtlarını görüntüleme |
 
 `ADMIN` workflow aktörü veya hedefi olamaz. Yetkili bir Admin başka bir aktif kullanıcıya `ADMIN` rolü atayabilir.
+
+> **Bu tablo kapalı bir liste değildir.** Dört yerleşik rolün seed davranışını anlatır. Rol katalogu `roles` tablosundan gelir ve panelden yeni rol açılabilir; güncel liste `GET /api/admin/roles` ile okunur. Arayüz etiketi `roles.name`'dir ve **değiştirilebilir** — istemci rolü ada göre sabit bir listeye karşı doğrulamamalıdır. Yerleşik rol semantiği değişmez `system_key` ile, workflow aktör/hedef kimliği `RoleId` ile taşınır.
 
 ### Kayıt durumları
 
@@ -304,7 +308,9 @@ Content-Type: application/json
 }
 ```
 
-> **Karar — Başkan Yardımcısı hedefleme (kapandı):** `GONDER`/`TEKRAR_GONDER` hedefini backend, `BASKANA_ILET` ile aynı yoldan sistemdeki tek aktif Başkan Yardımcısından çözer. Gerekçe: Çalışana açık tek kullanıcı ucu `GET /api/users/me`'dir ve tekil rol kararı gereği kullanıcı listeleme ucu ona açılmayacaktır — yani hedefin UUID'sini güvenle keşfetmesinin bir yolu yok. Frontend'de hedef seçim arayüzü **yapılmayacak**.
+> **Karar — Başkan Yardımcısı hedefleme (kapandı):** `GONDER`/`TEKRAR_GONDER` hedefini backend, `BASKANA_ILET` ile aynı yoldan sistemdeki tek aktif Başkan Yardımcısından çözer. Gerekçe: Çalışana açık tek kullanıcı ucu `GET /api/users/me`'dir ve tekil rol kararı gereği kullanıcı listeleme ucu ona açılmayacaktır — yani hedefin UUID'sini güvenle keşfetmesinin bir yolu yok. Frontend'de **kişi** hedefi seçim arayüzü **yapılmayacak**.
+>
+> Bu karar kişi hedefi içindir. Departmana gönderim ayrı bir yoldur: [ADR-0006](decisions/0006-departman-hedefli-target-strategy.md) (**Kabul Edildi**, 4 Eylül 2026) yeni bir `DEPARTMANA_GONDER` aksiyonu ve istekte `targetDepartmentId` alanı getirir. `targetUserId` ile `targetDepartmentId` aynı anda dolu olamaz — aksi hâlde `400 VALIDATION_ERROR`. Departman seçici kişi seçici değildir ve `GONDER` yolunu değiştirmez; ikisi bir arada durduğu için gönderim ekranı kişi ve departman yollarını açıkça ayırmalıdır. Bu bölüm uçlar `DB-13`/`V18` ile geldiğinde alan düzeyinde tamamlanır.
 >
 > Sistemde tam olarak bir aktif Başkan Yardımcısı yoksa (devir sırasında sıfır, hatalı yapılandırmada birden fazla) istek `409 WORKFLOW_ROLE_NOT_CONFIGURED` döner. Bu geçici bir durumdur; kullanıcıya "İşlemi devralacak yetkili şu anda belirlenemedi, yöneticinize başvurun" mesajı gösterilmeli, istek daha sonra tekrarlanabilir.
 
@@ -422,8 +428,9 @@ Başkan Yardımcısı ve Başkan frontend tarafından seçilmez. Backend beklene
 | `POST` | `/api/admin/users` | Varsayılan Çalışan rolüyle hesap açma; istek rol alanı içermez |
 | `PATCH` | `/api/admin/users/{id}/role` | Rol değiştirme; Başkan Yardımcısı koltuğunun devri de aynı istekte yapılır |
 | `PATCH` | `/api/admin/users/{id}/active` | Hesabı etkinleştirme/pasifleştirme |
-| `GET` | `/api/admin/roles` | Atanabilir roller; `ADMIN` dahil |
+| `GET` | `/api/admin/roles` | Atanabilir roller; `ADMIN` dahil. AP-1 yalnız-okur rol ekranının (`/admin/roller`) da kaynağıdır: cevap sayfalanmamış düz dizidir, pasif roller hiç gelmez ve rol adı sabit rol listesine çevrilmeden gösterilir. `systemKey` bu cevapta henüz yoktur, AP-2'de eklenecektir |
 | `GET` | `/api/admin/audit-logs?type=USER|RECORD&page=0&size=20&q=` | Evrak ve kullanıcı/rol loglarını listeleme |
+| `POST` | `/api/workflow/rules/reload` | Geçiş kuralı snapshot'ını veritabanından yeniden okur; grafiği **yazmaz**. `WORKFLOW_MANAGE` ister, cevap `{"ruleCount": n}`. Geçersiz kural kümesi yüklenmez ve çalışan snapshot korunur |
 
 Admin kuralları:
 

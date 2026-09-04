@@ -73,11 +73,14 @@ Kurulum için [E2E rehberine](./e2e/README.md) bakın.
 ```text
 src/
 ├── api/            OpenAPI istemcisi, token ve hata sınırı
+├── auth/           Oturum durumu ve token saklama
 ├── components/     Ortak layout ve kayıt bileşenleri
 ├── config/         Rol bazlı navigasyon
 ├── context/        Uygulama çapındaki UI ve önbellek koordinasyonu
+├── hooks/          Bildirim merkezi ve paylaşılan ekran hook'ları
 ├── mocks/          Yalnız Vitest fixture ve handler'ları
 ├── pages/          Route ekranları
+├── query/          TanStack Query istemcisi ve sorgu anahtarları
 ├── schemas/        Form doğrulama şemaları
 ├── test/           Ortak Vitest/MSW kurulumu
 └── types/          Uygulama domain tipleri

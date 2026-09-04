@@ -2,9 +2,14 @@ package btk.staj.WorkFlowProject.workflow.adapter;
 
 import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
 import btk.staj.WorkFlowProject.rbac.Role;
+import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
 import btk.staj.WorkFlowProject.user.entity.User;
 import btk.staj.WorkFlowProject.workflow.model.CurrentActor;
+import btk.staj.WorkFlowProject.workflow.statemachine.RoleId;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,9 +22,6 @@ import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-
-import java.util.List;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -49,7 +51,11 @@ class SecurityCurrentActorProviderTest {
         CurrentActor actor = provider.currentActor();
 
         assertThat(actor.id()).isEqualTo(USER_ID);
-        assertThat(actor.role()).isEqualTo(role);
+        assertThat(actor.roleId()).isEqualTo(new RoleId(1001));
+        assertThat(actor.workflowActor()).isEqualTo(AuthorizationFixtures.workflowActor(role));
+        assertThat(provider.currentVisibilityActor().systemRole()).contains(btk.staj.WorkFlowProject.rbac.SystemRoleKey.valueOf(role.name()));
+        assertThat(provider.currentVisibilityActor().roleId()).isEqualTo(new RoleId(1001));
+        assertThat(provider.currentVisibilityActor().id()).isEqualTo(USER_ID);
     }
 
     @Test
@@ -116,11 +122,9 @@ class SecurityCurrentActorProviderTest {
     }
 
     @Test
-    void translatesNullBackingUserToAuthenticationServiceException() {
-        authenticate(new AuthenticatedUser(null));
-
-        assertThatExceptionOfType(AuthenticationServiceException.class)
-                .isThrownBy(provider::currentActor);
+    void rejectsNullBackingUserAtConstruction() {
+        assertThatExceptionOfType(NullPointerException.class)
+                .isThrownBy(() -> AuthorizationFixtures.authenticated(null));
     }
 
     @Test
@@ -132,37 +136,51 @@ class SecurityCurrentActorProviderTest {
     }
 
     @Test
-    void translatesNullRoleToAuthenticationServiceException() {
+    void rejectsMissingRoleAsDisabled() {
         User user = user(USER_ID, RoleName.CALISAN.name(), true);
         user.setRole(null);
-        authenticate(new AuthenticatedUser(user));
+        authenticate(AuthorizationFixtures.authenticated(user));
 
-        assertThatExceptionOfType(AuthenticationServiceException.class)
+        assertThatExceptionOfType(DisabledException.class)
                 .isThrownBy(provider::currentActor);
     }
 
     @Test
-    void rejectsNullRoleName() {
-        authenticate(authenticatedUser(USER_ID, null, true));
+    void dynamicRoleSuppliesWorkflowIdentityEligibilityAndPermissions() {
+        User user = user(USER_ID, null, true);
+        user.getRole().setName("Dynamic reviewer");
+        user.getRole().setWorkflowActor(true);
+        authenticate(new AuthenticatedUser(user, Set.of("RECORD_FORWARD")));
 
-        assertThatExceptionOfType(AuthenticationServiceException.class)
-                .isThrownBy(provider::currentActor);
+        assertThat(provider.currentVisibilityActor().systemRole()).isEmpty();
+        assertThat(provider.currentVisibilityActor().permissionCodes()).containsExactly("RECORD_FORWARD");
+        assertThat(provider.currentUserId()).isEqualTo(USER_ID);
+        assertThat(provider.currentActor()).isEqualTo(
+                new CurrentActor(USER_ID, new RoleId(1001), true, Set.of("RECORD_FORWARD")));
     }
 
     @Test
-    void rejectsUnknownRoleName() {
-        authenticate(authenticatedUser(USER_ID, "SUPER_ADMIN", true));
-
-        assertThatExceptionOfType(AuthenticationServiceException.class)
-                .isThrownBy(provider::currentActor);
+    void rejectsZeroRoleId() {
+        assertInvalidRoleId(0);
     }
 
     @Test
-    void rejectsLowercaseRoleNameWithoutNormalizingIt() {
-        authenticate(authenticatedUser(USER_ID, "calisan", true));
+    void rejectsNegativeRoleId() {
+        assertInvalidRoleId(-1);
+    }
 
+    @Test
+    void rejectsMissingRoleId() {
+        assertInvalidRoleId(null);
+    }
+
+    private void assertInvalidRoleId(Integer roleId) {
+        User user = user(USER_ID, "CALISAN", true);
+        user.getRole().setId(roleId);
+        authenticate(AuthorizationFixtures.authenticated(user));
         assertThatExceptionOfType(AuthenticationServiceException.class)
-                .isThrownBy(provider::currentActor);
+                .isThrownBy(provider::currentActor)
+                .withMessageContaining("role id");
     }
 
     private static void authenticate(Object principal) {
@@ -171,12 +189,16 @@ class SecurityCurrentActorProviderTest {
     }
 
     private static AuthenticatedUser authenticatedUser(UUID id, String roleName, boolean active) {
-        return new AuthenticatedUser(user(id, roleName, active));
+        return AuthorizationFixtures.authenticated(user(id, roleName, active));
     }
 
     private static User user(UUID id, String roleName, boolean active) {
         Role role = new Role();
+        role.setId(1001);
         role.setName(roleName);
+        role.setActive(true);
+        role.setSystemKey(roleName);
+        role.setWorkflowActor(AuthorizationFixtures.workflowActor(roleName));
 
         User user = new User();
         user.setId(id);
@@ -188,7 +210,7 @@ class SecurityCurrentActorProviderTest {
     private static final class DerivedAuthenticatedUser extends AuthenticatedUser {
 
         private DerivedAuthenticatedUser(User user) {
-            super(user);
+            super(user, java.util.Set.of());
         }
     }
 }

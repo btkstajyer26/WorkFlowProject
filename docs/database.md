@@ -2,7 +2,7 @@
 
 Bu belge PostgreSQL şemasını, tasarım kararlarını ve migration yönetimini tanımlar. Kaynağı `backend/src/main/resources/db/migration/` altındaki Flyway dosyalarıdır.
 
-> Son kod doğrulaması 4 Eylül 2026 tarihinde `test` dalı üzerinde yapılmıştır. Şema değiştiğinde bu belge aynı değişiklik kapsamında güncellenmelidir.
+> Son kod doğrulaması 31 Ağustos 2026 tarihinde `test` dalının `4491a80` commit'i üzerinde yapılmıştır. Şema değiştiğinde bu belge aynı değişiklik kapsamında güncellenmelidir.
 
 - **Veritabanı:** PostgreSQL 15.18
 - **Migration:** Flyway (`V1`–`V21`; `V3` tarihsel olarak yoktur). Aşağıdaki gövde `V1`–`V11` tabanını anlatır; `V12`–`V17` ile gelen katalog/capability/FK değişiklikleri ve `V18`–`V21` ile gelen departman şeması belgenin sonundaki bölümlerde ele alınır.
@@ -18,7 +18,6 @@ Bu belge PostgreSQL şemasını, tasarım kararlarını ve migration yönetimini
 - [İndeksler](#i̇ndeksler)
 - [Başlangıç verisi](#başlangıç-verisi)
 - [Migration yönetimi](#migration-yönetimi)
-- [Dinamik rol, yetki ve workflow veri modeli (V12–V17)](#dinamik-rol-yetki-ve-workflow-veri-modeli-v12v17)
 - [Departman veri modeli (V18–V21) — TASLAK](#departman-veri-modeli-v18v21--taslak)
 - [Bilinen eksikler](#bilinen-eksikler)
 
@@ -39,8 +38,6 @@ Bu belge PostgreSQL şemasını, tasarım kararlarını ve migration yönetimini
 erDiagram
     roles ||--o{ users : "role_id"
     roles ||--o{ audit_logs : "role_id"
-    roles ||--o{ role_permissions : "role_id"
-    permissions ||--o{ role_permissions : "permission_id"
     categories ||--o{ records : "category_id"
     users ||--o{ tokens : "user_id"
     users ||--o{ records : "created_by"
@@ -58,50 +55,23 @@ erDiagram
     records ||--o{ notifications : "record_id"
     records ||--o{ mail_action_tokens : "record_id"
     categories |o--o{ records : "snapshot_category_id"
-    workflow_statuses ||--o{ records : "status -> name"
-    workflow_statuses ||--o{ workflow_transitions : "from_status_id"
-    workflow_statuses ||--o{ workflow_transitions : "to_status_id"
-    workflow_actions ||--o{ workflow_transitions : "action_id"
-    roles ||--o{ workflow_transitions : "actor_role_id"
-    roles |o--o{ workflow_transitions : "expected_target_role_id"
-    permissions |o--o{ workflow_transitions : "required_permission_id"
-    departments |o--o{ departments : "parent_department_id"
-    departments ||--o{ department_members : "department_id"
-    users ||--o{ department_members : "user_id"
-    departments ||--o{ department_routing_rules : "department_id"
-    workflow_statuses ||--o{ department_routing_rules : "from_status_id"
-    workflow_actions ||--o{ department_routing_rules : "action_id"
-    roles ||--o{ department_routing_rules : "target_role_id"
-    departments |o--o{ records : "assigned_department_id"
 ```
 
 ## Tablo sözlüğü
 
 ### `roles`
 
-Kullanıcı yetki seviyeleri. Aşağıdaki kolonlar `V1` tabanıdır; `V12` bu tabloya `system_key`, `is_system`, `is_workflow_actor`, `max_users` ve `is_active` kolonlarını ekledi (bkz. [Dinamik rol, yetki ve workflow veri modeli](#dinamik-rol-yetki-ve-workflow-veri-modeli-v12v17)). Yerleşik rol artık `name` ile değil `system_key` ile tanınır; `name` panelden değiştirilebilir.
+Kullanıcı yetki seviyeleri. Aşağıdaki kolonlar `V1` tabanıdır; `V12` bu tabloya `system_key`, `is_system`, `is_workflow_actor`, `max_users` ve `is_active` kolonlarını ekledi (belgenin sonundaki `V12` bölümüne bakın). Yerleşik rol artık `name` ile değil `system_key` ile tanınır; `name` panelden değiştirilebilir.
 
-| Kolon                                                      | Tip            | Null  | Açıklama                                         |
-| ---------------------------------------------------------- | -------------- | ----- | ------------------------------------------------ |
-| `id`                                                       | `SERIAL`       | hayır | Birincil anahtar                                 |
-| `name`                                                     | `VARCHAR(100)` | hayır | Benzersiz. `V12` ile `VARCHAR(50)`'den büyütüldü |
-| `description`                                              | `VARCHAR(255)` | evet  | Rolün insan okur açıklaması                      |
-| `system_key`                                               | `VARCHAR(50)`  | evet  | `V12`. Benzersiz, değişmez semantik anahtar      |
-| `is_system`, `is_workflow_actor`, `max_users`, `is_active` | —              | —     | `V12`, ayrıntı aşağıdaki bölümde                 |
-
-### `permissions` / `role_permissions` / `workflow_statuses` / `workflow_actions` / `workflow_transitions`
-
-`V12`–`V17` ile eklendi, kolon detayları [Dinamik rol, yetki ve workflow veri modeli](#dinamik-rol-yetki-ve-workflow-veri-modeli-v12v17) bölümünde.
-
-### `departments` / `department_members` / `department_routing_rules`
-
-`V18`–`V21` ile eklendi (taslak kısımları işaretli), kolon detayları [Departman veri modeli](#departman-veri-modeli-v18v21--taslak) bölümünde.
+| Kolon         | Tip            | Null  | Açıklama                                                     |
+| ------------- | -------------- | ----- | ------------------------------------------------------------ |
+| `id`          | `SERIAL`       | hayır | Birincil anahtar                                             |
+| `name`        | `VARCHAR(50)`  | hayır | Benzersiz. `CALISAN`, `BASKAN_YARDIMCISI`, `BASKAN`, `ADMIN` |
+| `description` | `VARCHAR(255)` | evet  | Rolün insan okur açıklaması                                  |
 
 ### `categories`
 
-Kayıt kategorisi listesi. Dinamiktir, uygulamadan yönetilir.
-
-> Not: Bu tablo evrak **kategorisi** içindir (İdari, Mali vb.), `departments` tablosuyla karıştırılmamalı — ikincisi kullanıcıların üye olduğu organizasyon birimidir.
+Kayıt kategorisi / departman listesi. Dinamiktir, uygulamadan yönetilir.
 
 | Kolon  | Tip            | Null  | Açıklama         |
 | ------ | -------------- | ----- | ---------------- |
@@ -140,25 +110,24 @@ JWT refresh token yaşam döngüsü. Access token'lar saklanmaz; yalnız yenilem
 
 Sistemin ana varlığı.
 
-| Kolon                    | Tip            | Null  | Açıklama                                                                                                                       |
-| ------------------------ | -------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `id`                     | `UUID`         | hayır |                                                                                                                                |
-| `title`                  | `VARCHAR(255)` | hayır |                                                                                                                                |
-| `description`            | `TEXT`         | hayır |                                                                                                                                |
-| `category_id`            | `INT`          | hayır |                                                                                                                                |
-| `status`                 | `VARCHAR(50)`  | hayır | `RecordStatus` enum **adı**. `V16` ile `chk_records_status` kaldırıldı; yerine `workflow_statuses(name)` foreign key'i geldi   |
-| `created_by`             | `UUID`         | hayır | Kaydı oluşturan Çalışan. Değişmez                                                                                              |
-| `assigned_to`            | `UUID`         | evet  | Kaydın o an işlem beklediği kullanıcı. Terminal durumda `NULL`                                                                 |
-| `assigned_department_id` | `INT`          | evet  | `V21`, **taslak**. Kaydın kişi yerine departmana atanması; `assigned_to` ile aynı anda dolu olamaz. Ayrıntı aşağıda            |
-| `last_deputy_id`         | `UUID`         | evet  | Kaydı Başkana ileten Başkan Yardımcısı. Yalnız `BASKANA_ILET` sırasında yazılır; Başkanın geri gönderme hedefi buradan bulunur |
-| `version`                | `INT`          | hayır | JPA `@Version`. Eşzamanlı geçiş `409 WORKFLOW_VERSION_CONFLICT` verir                                                          |
-| `created_at`             | `TIMESTAMP`    | hayır |                                                                                                                                |
-| `updated_at`             | `TIMESTAMP`    | evet  | Her workflow geçişinde güncellenir                                                                                             |
-| `deleted_at`             | `TIMESTAMP`    | evet  | Soft delete işareti. Dolu kayıt okuma ve workflow uçlarında `404` sayılır                                                      |
-| `snapshot_title`         | `VARCHAR(255)` | evet  | `V9` — devir anındaki başlık                                                                                                   |
-| `snapshot_description`   | `TEXT`         | evet  | `V9` — devir anındaki açıklama                                                                                                 |
-| `snapshot_category_id`   | `INT`          | evet  | `V9` — devir anındaki kategori                                                                                                 |
-| `snapshot_at`            | `TIMESTAMP`    | evet  | `V9` — anlık görüntünün alındığı an                                                                                            |
+| Kolon                  | Tip            | Null  | Açıklama                                                                                                                       |
+| ---------------------- | -------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `id`                   | `UUID`         | hayır |                                                                                                                                |
+| `title`                | `VARCHAR(255)` | hayır |                                                                                                                                |
+| `description`          | `TEXT`         | hayır |                                                                                                                                |
+| `category_id`          | `INT`          | hayır |                                                                                                                                |
+| `status`               | `VARCHAR(50)`  | hayır | `RecordStatus` enum **adı**. `V16` ile `chk_records_status` kaldırıldı; yerine `workflow_statuses(name)` foreign key'i geldi   |
+| `created_by`           | `UUID`         | hayır | Kaydı oluşturan Çalışan. Değişmez                                                                                              |
+| `assigned_to`          | `UUID`         | evet  | Kaydın o an işlem beklediği kullanıcı. Terminal durumda `NULL`                                                                 |
+| `last_deputy_id`       | `UUID`         | evet  | Kaydı Başkana ileten Başkan Yardımcısı. Yalnız `BASKANA_ILET` sırasında yazılır; Başkanın geri gönderme hedefi buradan bulunur |
+| `version`              | `INT`          | hayır | JPA `@Version`. Eşzamanlı geçiş `409 WORKFLOW_VERSION_CONFLICT` verir                                                          |
+| `created_at`           | `TIMESTAMP`    | hayır |                                                                                                                                |
+| `updated_at`           | `TIMESTAMP`    | evet  | Her workflow geçişinde güncellenir                                                                                             |
+| `deleted_at`           | `TIMESTAMP`    | evet  | Soft delete işareti. Dolu kayıt okuma ve workflow uçlarında `404` sayılır                                                      |
+| `snapshot_title`       | `VARCHAR(255)` | evet  | `V9` — devir anındaki başlık                                                                                                   |
+| `snapshot_description` | `TEXT`         | evet  | `V9` — devir anındaki açıklama                                                                                                 |
+| `snapshot_category_id` | `INT`          | evet  | `V9` — devir anındaki kategori                                                                                                 |
+| `snapshot_at`          | `TIMESTAMP`    | evet  | `V9` — anlık görüntünün alındığı an                                                                                            |
 
 > **`snapshot_*` kolonları neden var?** Başkan Yardımcısı, Çalışana geri gönderdiği evrağı izlemeye devam eder; ama evrak o sırada Çalışanın elindedir. Bu kolonlar olmadan Çalışanın kaydettiği her değişiklik yardımcının ekranına anında yansırdı. Yardımcı düzeltmeleri ancak `TEKRAR_GONDER` ile geri geldiğinde görmelidir — bu yüzden gördüğü içerik devir anında dondurulur.
 >
@@ -223,7 +192,7 @@ Kayıt odaklı denetim izi. Append-only kullanılır. `V7` ile HTTP istek deneti
 
 ### `user_audit_logs`
 
-Evraktan bağımsız kullanıcı yönetimi denetim izi.
+Evraktan bağımsız kullanıcı yönetimi denetim izi. Ayrı tablo olmasının sebebi `audit_logs.record_id`'nin başlangıçta zorunlu olmasıydı; kullanıcı oluşturma veya rol değiştirme işleminin bağlanacağı bir evrak yoktur.
 
 | Kolon                                                      | Tip           | Null  | Açıklama                                                                                             |
 | ---------------------------------------------------------- | ------------- | ----- | ---------------------------------------------------------------------------------------------------- |
@@ -241,15 +210,15 @@ Evraktan bağımsız kullanıcı yönetimi denetim izi.
 
 ### `notifications`
 
-| Kolon               | Tip            | Null  | Açıklama                           |
-| ------------------- | -------------- | ----- | ---------------------------------- |
-| `id`                | `UUID`         | hayır |                                    |
-| `user_id`           | `UUID`         | hayır | Alıcı                              |
-| `record_id`         | `UUID`         | hayır | İlgili kayıt                       |
-| `message`           | `VARCHAR(500)` | hayır | Uzun mesajlar bu sınıra kısaltılır |
-| `is_read`           | `BOOLEAN`      | hayır | Varsayılan `FALSE`                 |
-| `notification_type` | `VARCHAR(50)`  | hayır | `V5` ile eklendi                   |
-| `created_at`        | `TIMESTAMP`    | hayır |                                    |
+| Kolon               | Tip            | Null  | Açıklama                                                                                            |
+| ------------------- | -------------- | ----- | --------------------------------------------------------------------------------------------------- |
+| `id`                | `UUID`         | hayır |                                                                                                     |
+| `user_id`           | `UUID`         | hayır | Alıcı                                                                                               |
+| `record_id`         | `UUID`         | hayır | İlgili kayıt                                                                                        |
+| `message`           | `VARCHAR(500)` | hayır | Uzun mesajlar bu sınıra kısaltılır                                                                  |
+| `is_read`           | `BOOLEAN`      | hayır | Varsayılan `FALSE`                                                                                  |
+| `notification_type` | `VARCHAR(50)`  | hayır | `V5` ile eklendi. Arayüz ikon ve gruplamayı buradan yapar, mesaj metnini ayrıştırmak zorunda kalmaz |
+| `created_at`        | `TIMESTAMP`    | hayır |                                                                                                     |
 
 ### `device_tokens`
 
@@ -262,79 +231,106 @@ Evraktan bağımsız kullanıcı yönetimi denetim izi.
 | `token`       | `TEXT`         | hayır | **UNIQUE.** FCM token'ı cihaz + uygulama başına tekildir, kullanıcı başına değil |
 | `platform`    | `VARCHAR(20)`  | hayır | `ANDROID` veya `IOS`                                                             |
 | `device_name` | `VARCHAR(120)` | evet  | Kullanıcıya gösterilen cihaz adı                                                 |
-| `is_active`   | `BOOLEAN`      | hayır | Varsayılan `TRUE`                                                                |
+| `is_active`   | `BOOLEAN`      | hayır | Varsayılan `TRUE`. Çıkışta ve geçersiz FCM cevabında `FALSE` yapılır             |
 | `created_at`  | `TIMESTAMP`    | hayır |                                                                                  |
 | `updated_at`  | `TIMESTAMP`    | evet  | Ölü token ayıklaması için son görülme bilgisi                                    |
+
+`token` UNIQUE olduğu için kayıt bir **upsert**'tir: aynı token yeniden
+gönderilirse satır güncellenir. `user_id` de güncellenir; aynı telefonda başka
+bir kullanıcı giriş yaptığında token yeni kullanıcıya geçmezse push **yanlış
+kişinin** evrağını bildirir.
 
 ### `mail_action_tokens`
 
 `V11` ile eklendi. E-posta bildirimindeki hızlı işlem bağlantısının tek
-kullanımlık, süreli ve alıcıya bağlı yetki kanıtını taşır.
+kullanımlık, süreli ve alıcıya bağlı yetki kanıtını taşır. Ham anahtar hiçbir
+zaman saklanmaz; yalnız SHA-256 özeti bulunur.
 
-| Kolon         | Tip           | Null  | Açıklama                                                 |
-| ------------- | ------------- | ----- | -------------------------------------------------------- |
-| `id`          | `UUID`        | hayır | Birincil anahtar; `gen_random_uuid()`                    |
-| `token_hash`  | `VARCHAR(64)` | hayır | **UNIQUE.** 256 bit rastgele anahtarın SHA-256 hex özeti |
-| `record_id`   | `UUID`        | hayır | Anahtarın bağlı olduğu evrak                             |
-| `user_id`     | `UUID`        | hayır | Aksiyonu yürütecek alıcı                                 |
-| `action`      | `VARCHAR(50)` | hayır | `WorkflowAction` enum adı                                |
-| `expires_at`  | `TIMESTAMP`   | hayır | Son geçerlilik anı                                       |
-| `consumed_at` | `TIMESTAMP`   | evet  | Doluysa anahtar daha önce kullanılmıştır                 |
-| `created_at`  | `TIMESTAMP`   | hayır | Varsayılan `CURRENT_TIMESTAMP`                           |
+| Kolon         | Tip           | Null  | Açıklama                                                     |
+| ------------- | ------------- | ----- | ------------------------------------------------------------ |
+| `id`          | `UUID`        | hayır | Birincil anahtar; `gen_random_uuid()`                        |
+| `token_hash`  | `VARCHAR(64)` | hayır | **UNIQUE.** 256 bit rastgele anahtarın SHA-256 hex özeti     |
+| `record_id`   | `UUID`        | hayır | Anahtarın bağlı olduğu evrak                                 |
+| `user_id`     | `UUID`        | hayır | Aksiyonu yürütecek alıcı; tüketimde aktör bu alandan çözülür |
+| `action`      | `VARCHAR(50)` | hayır | `WorkflowAction` enum adı                                    |
+| `expires_at`  | `TIMESTAMP`   | hayır | Son geçerlilik anı                                           |
+| `consumed_at` | `TIMESTAMP`   | evet  | Doluysa anahtar daha önce kullanılmıştır                     |
+| `created_at`  | `TIMESTAMP`   | hayır | Varsayılan `CURRENT_TIMESTAMP`                               |
+
+`preview` yalnız anahtarı ve güncel workflow uygunluğunu doğrular; mutasyon
+yapmaz. `consume`, satırı kilitleyip `consumed_at` değerini yazar ve gerçek
+durum makinesini yeniden çalıştırır. Evrak arada el değiştirdiyse tablo satırı
+tek başına yetki vermez.
 
 ## Foreign key silme politikaları
 
-| Politika   | Nerede                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Gerekçe                                                                             |
-| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `RESTRICT` | `users.role_id`, `records.category_id`, `records.snapshot_category_id`, `records.created_by`, `records.status`, `files.uploaded_by`, `audit_logs.user_id`, `audit_logs.role_id`, `user_audit_logs.target_user_id`, `user_audit_logs.previous_role_id`, `user_audit_logs.new_role_id`, `workflow_transitions.*` (6 FK), `departments.parent_department_id`, `records.assigned_department_id`, `department_routing_rules.from_status_id/action_id/target_role_id` | Geçmişi olan bir kullanıcı, rol, kategori, workflow tanımı veya departman silinemez |
-| `CASCADE`  | `tokens.user_id`, `audit_logs.record_id`, `files.record_id`, `notifications.user_id`, `notifications.record_id`, `password_reset_codes.user_id`, `device_tokens.user_id`, `mail_action_tokens.user_id`, `mail_action_tokens.record_id`, `role_permissions.role_id`, `role_permissions.permission_id`, `department_members.department_id`, `department_members.user_id`, `department_routing_rules.department_id`                                                | Sahibi olmadan anlamı kalmayan yan veriler                                          |
-| `SET NULL` | `records.assigned_to`, `records.last_deputy_id`, `files.deleted_by`, `user_audit_logs.performed_by`                                                                                                                                                                                                                                                                                                                                                             | Referans kaybolabilir ama satırın kendisi anlamlı kalır                             |
+Üç politika bilinçli olarak farklı yerlerde kullanılmıştır.
+
+| Politika   | Nerede                                                                                                                                                                                                                                                             | Gerekçe                                                                                                               |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| `RESTRICT` | `users.role_id`, `records.category_id`, `records.snapshot_category_id`, `records.created_by`, `files.uploaded_by`, `audit_logs.user_id`, `audit_logs.role_id`, `user_audit_logs.target_user_id`, `user_audit_logs.previous_role_id`, `user_audit_logs.new_role_id` | Geçmişi olan bir kullanıcı, rol veya kategori silinemez. Denetim izinin "kim, hangi rolle" bilgisi kaybolamaz         |
+| `CASCADE`  | `tokens.user_id`, `audit_logs.record_id`, `files.record_id`, `notifications.user_id`, `notifications.record_id`, `password_reset_codes.user_id`, `device_tokens.user_id`, `mail_action_tokens.user_id`, `mail_action_tokens.record_id`                             | Sahibi olmadan anlamı kalmayan yan veriler. Kayıtlar zaten soft delete edildiği için record yolu pratikte tetiklenmez |
+| `SET NULL` | `records.assigned_to`, `records.last_deputy_id`, `files.deleted_by`, `user_audit_logs.performed_by`                                                                                                                                                                | Referans kaybolabilir ama satırın kendisi anlamlı kalır                                                               |
 
 ## Kısıtlar
 
-| Kısıt                                               | Tablo                                                                         | İşlevi                                                                             |
-| --------------------------------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `records.status` FK                                 | `records`                                                                     | `V16` ile `chk_records_status` kaldırıldı; katalog FK'sine geçirildi               |
-| `chk_records_assignment_exclusive`                  | `records`                                                                     | `V21`, **taslak**. `assigned_to` ve `assigned_department_id` aynı anda dolu olamaz |
-| `UNIQUE (email)`                                    | `users`                                                                       | Aynı e-postayla ikinci hesap açılamaz; ihlali `409` döner                          |
-| `UNIQUE (token)`                                    | `tokens`                                                                      |                                                                                    |
-| `UNIQUE (token_hash)`                               | `mail_action_tokens`                                                          | Aynı hızlı işlem anahtarının ikinci satırda kullanılmasını engeller                |
-| `UNIQUE (stored_name)`                              | `files`                                                                       | Diskte ad çakışması olamaz                                                         |
-| `UNIQUE (name)`                                     | `roles`, `categories`, `workflow_statuses`, `workflow_actions`, `departments` |                                                                                    |
-| `UNIQUE (system_key)`                               | `roles`                                                                       | `V12`                                                                              |
-| `UNIQUE (code)`                                     | `permissions`                                                                 | `V13`                                                                              |
-| `UNIQUE (from_status_id, action_id, actor_role_id)` | `workflow_transitions`                                                        | `V15`                                                                              |
-| `UNIQUE (department_id, from_status_id, action_id)` | `department_routing_rules`                                                    | `V20`, **taslak**. Aynı departman+durum+aksiyon için birden fazla hedef rol olamaz |
+| Kısıt                  | Tablo                 | İşlevi                                                                                                          |
+| ---------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `records.status` FK    | `records`             | `V16` ile `chk_records_status` kaldırıldı; `status` artık `workflow_statuses(name)` kataloğuna FK ile bağlıdır  |
+| `UNIQUE (email)`       | `users`               | Aynı e-postayla ikinci hesap açılamaz; ihlali `409` döner                                                       |
+| `UNIQUE (token)`       | `tokens`              |                                                                                                                 |
+| `UNIQUE (token_hash)`  | `mail_action_tokens`  | Aynı hızlı işlem anahtarının ikinci satırda kullanılmasını engeller; aynı zamanda tüketim sorgusunun indeksidir |
+| `UNIQUE (stored_name)` | `files`               | Diskte ad çakışması olamaz                                                                                      |
+| `UNIQUE (name)`        | `roles`, `categories` |                                                                                                                 |
+
+> `chk_records_status` `V16` ile kaldırıldı. **Yeni bir durum eklenirse `workflow_statuses` tablosuna yeni bir satır eklenir**; sabit bir CHECK listesi güncellenmez.
 
 ## İndeksler
 
-En son eklenenler:
+Toplam 26 açıkça tanımlanmış indeks; hepsi bir sorgu deseninden türetilmiştir.
 
-| İndeks                                                                     | Tablo / kolonlar                     | Not                                                 |
-| -------------------------------------------------------------------------- | ------------------------------------ | --------------------------------------------------- |
-| `idx_departments_parent`                                                   | `departments (parent_department_id)` | `V18`                                               |
-| `idx_departments_is_active`                                                | `departments (is_active)`            | `V18`                                               |
-| `idx_department_members_user_id`                                           | `department_members (user_id)`       | `V19` — "bu kullanıcı hangi departmanlarda" sorgusu |
-| `idx_routing_from_status`, `idx_routing_action`, `idx_routing_target_role` | `department_routing_rules (...)`     | `V20`, taslak                                       |
-| `idx_records_assigned_department_id`                                       | `records (assigned_department_id)`   | `V21`, taslak                                       |
-
-`V1`–`V17` ile eklenen 26 indeksin tam listesi ve gerekçeleri değişmedi; bu bölümün önceki hâli korunmuştur.
+| İndeks                              | Tablo / kolonlar                                                       | Hangi sorgu için                                                                                                       |
+| ----------------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `idx_users_role_id`                 | `users (role_id)`                                                      | Tekil rol çözümlemesi — "sistemdeki aktif Başkan kim?"                                                                 |
+| `idx_users_is_active`               | `users (is_active)`                                                    | Aktiflik filtreli kullanıcı listesi                                                                                    |
+| `idx_tokens_user_id`                | `tokens (user_id)`                                                     | Çıkış ve pasifleştirmede kullanıcının token'larını iptal etme                                                          |
+| `idx_records_status`                | `records (status)`                                                     | Duruma göre filtreleme                                                                                                 |
+| `idx_records_created_by`            | `records (created_by)`                                                 | "Kayıtlarım" — Çalışan görünürlük kapsamı                                                                              |
+| `idx_records_assigned_to`           | `records (assigned_to)`                                                | "Bana atananlar" — yönetici görünürlük kapsamı                                                                         |
+| `idx_records_category_id`           | `records (category_id)`                                                | Kategoriye göre filtreleme                                                                                             |
+| `idx_records_last_deputy_id`        | `records (last_deputy_id)`                                             | Başkanın yardımcıya geri gönderme hedefi                                                                               |
+| **`idx_records_not_deleted`**       | `records (created_at) WHERE deleted_at IS NULL`                        | **Kısmi indeks.** Silinmemiş kayıtların tarihe göre listelenmesi en sık sorgudur; silinmiş satırlar indekse hiç girmez |
+| `idx_audit_record_id`               | `audit_logs (record_id)`                                               | Kayıt detayındaki işlem geçmişi tablosu                                                                                |
+| `idx_audit_user_id`                 | `audit_logs (user_id)`                                                 | Kullanıcı bazlı denetim sorgusu                                                                                        |
+| `idx_audit_created_at`              | `audit_logs (created_at)`                                              | Zaman sıralı denetim listesi                                                                                           |
+| `idx_audit_http_status`             | `audit_logs (http_status)`                                             | `V7` — hatalı isteklerin taranması                                                                                     |
+| `idx_files_record_id`               | `files (record_id)`                                                    | Kaydın eklerini listeleme                                                                                              |
+| **`idx_files_not_deleted`**         | `files (record_id) WHERE deleted_at IS NULL`                           | `V4` — kısmi indeks; silinmemiş ekler                                                                                  |
+| `idx_notifications_user_unread`     | `notifications (user_id, is_read)`                                     | **Bileşik.** Okunmamış bildirim sayacı en sık çağrılan uçtur                                                           |
+| `idx_notifications_type`            | `notifications (notification_type)`                                    | `V5` — tür filtresi                                                                                                    |
+| `idx_user_audit_target_user_id`     | `user_audit_logs (target_user_id)`                                     | Bir kullanıcının işlem geçmişi                                                                                         |
+| `idx_user_audit_performed_by`       | `user_audit_logs (performed_by)`                                       | Admin'in yaptığı işlemler                                                                                              |
+| `idx_user_audit_created_at`         | `user_audit_logs (created_at)`                                         | Zaman sıralı liste                                                                                                     |
+| `idx_user_audit_http_status`        | `user_audit_logs (http_status)`                                        | `V7`                                                                                                                   |
+| **`idx_password_reset_user_open`**  | `password_reset_codes (user_id, created_at) WHERE consumed_at IS NULL` | `V8` — **kısmi + bileşik.** Kullanıcının açık kodunu bulmak en sık sorgudur; tüketilmiş satırlar indekse hiç girmez    |
+| `idx_password_reset_expires_at`     | `password_reset_codes (expires_at)`                                    | `V8` — süresi dolmuş kodların temizlenmesi                                                                             |
+| `idx_device_tokens_user_active`     | `device_tokens (user_id, is_active)`                                   | `V10` — **bileşik.** Push gönderimi "bu kullanıcının aktif cihazları" diye sorar                                       |
+| `idx_mail_action_tokens_expires_at` | `mail_action_tokens (expires_at)`                                      | `V11` — süresi geçmiş hızlı işlem anahtarlarının toplu temizliği                                                       |
+| **`idx_mail_action_tokens_open`**   | `mail_action_tokens (record_id, user_id) WHERE consumed_at IS NULL`    | `V11` — **kısmi + bileşik.** Aynı evrak/alıcı için önceki açık anahtarları geçersizleştirme                            |
 
 ## Başlangıç verisi
 
-`V1` iki tabloyu tohumlar: `roles` (4 yerleşik rol) ve `categories` (5 kategori).
-`V12`–`V17` rol/permission/workflow kataloglarını tohumlar (aşağıdaki bölüme
-bakın). `V18`–`V21` ile eklenen departman tabloları **tohumlanmaz** — boş
-başlar, Admin Paneli'nden (`AP-4`) doldurulur.
+`V1` iki tabloyu tohumlar:
 
-Kullanıcı tohumlanmaz. İlk Admin, `BOOTSTRAP_ADMIN_EMAIL` ve
-`BOOTSTRAP_ADMIN_PASSWORD` birlikte verildiğinde ve sistemde aktif Admin
-yokken uygulama açılışında oluşturulur.
+- **`roles`** — `CALISAN`, `BASKAN_YARDIMCISI`, `BASKAN`, `ADMIN`. `V12` sonrasında rol çözümlemesi `system_key` üzerinden yapılır; `name` değiştirilebilir ve çözümlemeyi bozmaz.
+- **`categories`** — İdari, Mali, İnsan Kaynakları, Bilgi İşlem, Teknik.
+
+Kullanıcı tohumlanmaz. İlk Admin, `BOOTSTRAP_ADMIN_EMAIL` ve `BOOTSTRAP_ADMIN_PASSWORD` birlikte verildiğinde ve sistemde aktif Admin yokken uygulama açılışında oluşturulur.
 
 ## Migration yönetimi
 
 | Migration                                   | İçerik                                                                                        |
-| ------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------- | --- |
 | `V1__init_database_schema.sql`              | Kanonik başlangıç şeması: 9 tablo, 17 indeks, kısıtlar ve başlangıç verisi                    |
 | `V2__create_record_notes.sql`               | Kayıt çalışma notları — **kullanılmıyor**, `V6` ile geri alındı                               |
 | `V4__add_soft_delete_to_files.sql`          | `files.deleted_at`, `deleted_by` ve kısmi indeks                                              |
@@ -346,19 +342,19 @@ yokken uygulama açılışında oluşturulur.
 | `V10__device_tokens.sql`                    | `device_tokens` tablosu ve `(user_id, is_active)` bileşik indeksi                             |
 | `V11__mail_action_tokens.sql`               | Süreli, tek kullanımlık e-posta hızlı işlem anahtarları; iki foreign key ve iki sorgu indeksi |
 | `V12__extend_roles.sql`                     | `roles`'a `system_key`, `is_system`, `is_workflow_actor`, `max_users`, `is_active`            |
-| `V13__permissions_and_role_permissions.sql` | `permissions` ve `role_permissions` katalogları — 15 kod, 4 rolün başlangıç eşlemesi          |
+| `V13__permissions_and_role_permissions.sql` | `permissions` ve `role_permissions` katalogları; 16 kod, 20 eşleme                            |
 | `V14__workflow_statuses_and_actions.sql`    | Altı durum ve yedi aksiyon katalogları                                                        |
 | `V15__workflow_transitions.sql`             | Sekiz geçiş; aktör ilişkisi, hedef stratejisi ve gerekli permission metadata'sı               |
 | `V16__records_status_fk.sql`                | `chk_records_status` kaldırıldı; `records.status` → `workflow_statuses(name)` FK'si           |
-| `V17__authorization_capabilities.sql`       | `FILE_MANAGE`, `RECORD_DELETE` → `CALISAN`; `AUDIT_VIEW` → `ADMIN`. Katalog 15→18 kod         |
+| `V17__authorization_capabilities.sql`       | `FILE_MANAGE`, `RECORD_DELETE` → `CALISAN`; `AUDIT_VIEW` → `ADMIN`                            |
 | `V18__departments.sql`                      | `departments` — self-FK, `is_active`                                                          |
 | `V19__department_members.sql`               | `department_members` — N:N üyelik                                                             |
 | `V20__department_routing_rules.sql`         | **Taslak.** `department_routing_rules` — `(dept, durum, aksiyon) → rol`                       |
-| `V21__records_assigned_department.sql`      | **Taslak.** `records.assigned_department_id` + mutual exclusion CHECK                         |
+| `V21__records_assigned_department.sql`      | **Taslak.** `records.assigned_department_id` + mutual exclusion CHECK                         |     |
 
 ### Numaralandırmadaki boşluk
 
-**`V3` yoktur.** Şema hiçbir ortak veritabanına uygulanmadan önce, ayrı hazırlanan üç taslak (`V1` temel şema, `V2` ADMIN paketi, `V3` workflow kolonları) tek dosyada birleştirildi. Bu yüzden `records.last_deputy_id` ve `records.version` ayrı bir migration'da değil, doğrudan `V1` içindedir.
+**`V3` yoktur.** Şema hiçbir ortak veritabanına uygulanmadan önce, ayrı hazırlanan üç taslak (`V1` temel şema, `V2` ADMIN paketi, `V3` workflow kolonları) tek dosyada birleştirildi. Bu yüzden `records.last_deputy_id` ve `records.version` ayrı bir migration'da değil, doğrudan `V1` içindedir. Boşluk tarihsel bir tasarım kararının sonucudur, eksik dosya değildir.
 
 `V2` numarası ise sonradan farklı bir iş için kullanıldı ve `V6` ile geri alındı; dosya tarihsel kayıt olarak bırakılmıştır.
 
@@ -369,77 +365,17 @@ yokken uygulama açılışında oluşturulur.
 - Paralel geliştirmede sürüm çakışmasını önlemek için ekipler timestamp tabanlı adlandırma kullanır: `V20260810_1430__aciklama.sql`.
 - Entity uyumu `ddl-auto=validate` ile doğrulanır; şema Hibernate tarafından üretilmez.
 - Eski veya dolu bir veritabanını taşımadan önce `flyway_schema_history` ve mevcut şema envanteri kontrol edilir.
-- `V20`/`V21` **taslak** işaretlidir: sırasıyla Burak'ın (`WF-6`) routing semantiği onayı ve `ADR-0006` (departman hedefli gönderim kararı) kapanana kadar final sayılmaz. Onay sonrası değişiklik gerekirse **bu dosyalar değiştirilmez**, yeni bir `V` dosyası eklenir.
 
 ### Yerel veritabanı parolası
 
 PostgreSQL parolası veri volume'ü **ilk oluşturulurken** sabitlenir. `.env` içindeki `DB_PASSWORD` sonradan değiştirilirse `docker-compose.yml`'deki değer etkisiz kalır ve bağlantı `password authentication failed for user "postgres"` ile reddedilir. Çözüm `docker compose down -v` (veri silinir) veya parolayı veritabanında elle güncellemektir.
 
-## Dinamik rol, yetki ve workflow veri modeli (V12–V17)
-
-> Kaynak: `DB_1_VERI_MODELI_SOZLESMESI.md` (kabul edildi, 1 Eylül 2026).
-
-### `roles` genişletmesi (`V12`)
-
-| Kolon               | Tip                             | Anlamı                                                           |
-| ------------------- | ------------------------------- | ---------------------------------------------------------------- |
-| `system_key`        | `VARCHAR(50)`, UNIQUE, nullable | Yerleşik rolün **değişmez** semantik anahtarı                    |
-| `is_system`         | `BOOLEAN`                       | Sistem rolü mü                                                   |
-| `is_workflow_actor` | `BOOLEAN`                       | Rol workflow aktörü olarak seçilebilir mi (`ADMIN` için `FALSE`) |
-| `max_users`         | `INTEGER`, nullable             | `NULL` = sınırsız. Doluysa en az 1                               |
-| `is_active`         | `BOOLEAN`                       | Pasif rol yeni atama alamaz                                      |
-
-**`max_users` artık DB seviyesinde değil ama uygulama seviyesinde sıkı sıkıya
-zorlanıyor** (`WF-2C1`, `RoleCapacityService`): kullanıcı oluşturma, bootstrap,
-rol değişimi, yeniden etkinleştirme ve koltuk devri aynı transaction içinde
-etkilenen rolleri ID sırasıyla `PESSIMISTIC_WRITE` kilitler, aktif kullanıcı
-sayımını rol ID'sine göre yapar; sınır aşımında `409 ADMIN_LIMIT_EXCEEDED`
-döner.
-
-### `permissions` + `role_permissions` (`V13`, `V17`)
-
-`permissions.code` sabit bir capability kataloğudur. `V13`'te 15 kodla
-başladı, `V17` (`WF-2B`) ile üç kapasite daha eklendi:
-
-| Kod             | Eklendiği yer | Başlangıç eşlemesi                                        |
-| --------------- | ------------- | --------------------------------------------------------- |
-| `FILE_MANAGE`   | `V17`         | `CALISAN` — kendi kaydına dosya ekler/siler               |
-| `RECORD_DELETE` | `V17`         | `CALISAN` — kendi taslak kaydını siler                    |
-| `AUDIT_VIEW`    | `V17`         | `ADMIN` — kullanıcı/sistem denetim kayıtlarını görüntüler |
-
-Toplam katalog **18 kod**. Authentication yalnız aktif rolün aktif permission
-kodlarını taşır; `ROLE_<rol adı>` yayını yoktur. JWT her istekte DB'den
-yeniden yüklenir.
-
-### `workflow_statuses` + `workflow_actions` (`V14`)
-
-- `workflow_statuses`: `name`, `display_name`, `is_terminal`,
-  `is_editable_by_creator`, `display_order`, `is_active`
-- `workflow_actions`: `name`, `display_name`, `comment_required`, `is_active`
-
-### `workflow_transitions` (`V15`)
-
-`(from_status_id, action_id, actor_role_id)` UNIQUE. `actor_requirement`,
-`target_strategy`, `required_permission_id` ile hedef çözümü ve ek yetki
-koşulu veri katmanında.
-
-### `records.status` → katalog FK (`V16`)
-
-`records.status` `VARCHAR(50)` kalır; `chk_records_status` yerine
-`workflow_statuses(name)`'e FK.
-
-### Üretim kural kaynağı ve statik referans
-
-Üretim zinciri `ReloadableTransitionRuleSource → DbTransitionRuleSource →
-JpaTransitionRuleRecordReader → PostgreSQL`. Açılışta yüklenen immutable
-snapshot `POST /api/workflow/rules/reload` ile yeniden başlatmadan
-tazelenebilir; tazeleme başarısız olursa çalışan kurallar korunur. Test
-ağacındaki `TransitionRules` yalnız parity referansıdır, production kodunda
-değildir.
-
 ## Departman veri modeli (V18–V21) — TASLAK
 
 > Kaynak: `ADR-0005` (Kabul Edildi), `WORKFLOW_V1_V2_PLANI.md` §5, §10, §11, §14.
+> Amaç: Kayıtların kişiye değil bir organizasyon birimine (departmana)
+> atanabilmesi ve departman içindeki uygun rolün işlem yapabilmesi —
+> Workflow V1 teslim kapsamı (10 Eylül 2026).
 
 | Migration                            | Durum     | Bekleyen karar                                  |
 | ------------------------------------ | --------- | ----------------------------------------------- |
@@ -450,43 +386,157 @@ değildir.
 
 ### `departments` (`V18`)
 
-`id`, `name` (UNIQUE), `parent_department_id` (self-FK, `RESTRICT`, NULL=kök),
-`is_active`. **V1'de hiyerarşi yalnız yapısal bilgidir** — otomatik
-eskalasyon yapılmaz.
+| Kolon                  | Tip            | Null  | Açıklama                                    |
+| ---------------------- | -------------- | ----- | ------------------------------------------- |
+| `id`                   | `SERIAL`       | hayır | Birincil anahtar                            |
+| `name`                 | `VARCHAR(100)` | hayır | Benzersiz                                   |
+| `parent_department_id` | `INT`          | evet  | Self-FK, `RESTRICT`. `NULL` = kök departman |
+| `is_active`            | `BOOLEAN`      | hayır | Varsayılan `TRUE`                           |
+
+**V1'de hiyerarşi yalnız yapısal bilgidir.** Uygun kullanıcı bulunamazsa üst
+departmana otomatik eskalasyon **yapılmaz** (plan §14).
 
 ### `department_members` (`V19`)
 
 Bileşik PK `(department_id, user_id)`, iki `CASCADE` FK. Üyeliğin **kendi
-rolü yoktur** — rol her zaman `users.role_id`'den global çözülür. `is_active`
-kolonu yok; aktiflik `users.is_active`'ten gelir, bu yüzden "aktif üyeler"
-sorgusu `department_members` ve `users`'ı birlikte sorgulayan bir `JOIN`
-gerektirir (`findActiveUsersByDepartmentId`).
+rolü yoktur** — kullanıcının rolü her zaman `users.role_id`'den global
+çözülür (plan §5.3). Bir kullanıcı birden fazla departmana üye olabilir.
+
+`department_members` tablosunda `is_active` kolonu yoktur; aktiflik her zaman
+`users.is_active`'ten gelir. Bu yüzden "bu departmanın aktif üyeleri" sorgusu
+(`WF-6` resolver'ın ihtiyacı) `department_members` ve `users`'ı birlikte
+sorgulayan bir `JOIN` gerektirir — repository'de `findActiveUsersByDepartmentId`
+bunu sağlar.
 
 ### `department_routing_rules` (`V20`, taslak)
 
-`(department_id, from_status_id, action_id)` UNIQUE → `target_role_id`.
-Örnek: _Hukuk + BSK_YRD_INCELEMESINDE + BASKANA_ILET → HUKUK_UZMANI_.
-Departmana atanmış olmak tek başına yetki vermez — rol, üyelik ve gerekli
-permission birlikte aranır. Birden fazla uygun kullanıcı varsa
-**first-action-wins**; ayrı bir claim mekanizması yoktur.
+| Kolon            | Tip       | Null  | Açıklama                                |
+| ---------------- | --------- | ----- | --------------------------------------- |
+| `id`             | `SERIAL`  | hayır | Birincil anahtar                        |
+| `department_id`  | `INT`     | hayır | FK → `departments.id`, `CASCADE`        |
+| `from_status_id` | `INT`     | hayır | FK → `workflow_statuses.id`, `RESTRICT` |
+| `action_id`      | `INT`     | hayır | FK → `workflow_actions.id`, `RESTRICT`  |
+| `target_role_id` | `INT`     | hayır | FK → `roles.id`, `RESTRICT`             |
+| `is_active`      | `BOOLEAN` | hayır | Varsayılan `TRUE`                       |
+
+`UNIQUE (department_id, from_status_id, action_id)`. Anlamı plan §11'deki
+örnekle birebir:
+
+> _Hukuk + BSK_YRD_INCELEMESINDE + BASKANA_ILET → HUKUK_UZMANI_
+
+Departmana atanmış olmak tek başına yetki vermez — rol, üyelik ve (varsa)
+gerekli permission birlikte aranır (plan §12). Aynı departmanda birden fazla
+uygun kullanıcı varsa **first-action-wins**: hangisi önce işlem tamamlarsa
+kayıt versiyonu değişir, diğeri optimistic locking çatışması alır (plan §13).
+
+**Taslak notu:** Burak'ın final routing semantiğini onaylaması bekleniyor.
+Onay sonrası değişiklik gerekirse `V20` değiştirilmez, yeni bir `V` dosyası
+eklenir.
 
 ### `records.assigned_department_id` (`V21`, taslak)
 
-Nullable, `RESTRICT` FK. Zorunlu invariant:
+Nullable, `RESTRICT` FK. Zorunlu invariant (plan §10):
 
 ```sql
 CHECK (assigned_to IS NULL OR assigned_department_id IS NULL)
 ```
 
-Kolon/FK/CHECK hazır; **hangi transition bu kolonu ne zaman
-yazar/temizler** sorusu `ADR-0006`'ya bağlı, henüz kapanmadı.
+Kayıt aynı anda hem kişiye hem departmana atanamaz. `TASLAK` ve terminal
+durumlarda ikisinin de `NULL` olması geçerlidir.
+
+**Taslak notu:** Kolon/FK/CHECK hazır, ama **hangi transition bu kolonu ne
+zaman yazar/temizler** sorusu `ADR-0006`'ya bağlı — henüz kapanmadı.
 
 ## Bilinen eksikler
 
-- **Append-only kuralı veritabanında zorlanmıyor.** `audit_logs` ve `user_audit_logs` uygulama üzerinden güncellenemez veya silinemez, ancak bunu garanti eden bir trigger ya da rol kısıtı yoktur.
-- **Bildirim geçmişi için bileşik indeks yok.** Mevcut `(user_id, is_read)` okunmamış sayacına hizmet ediyor; sayfalı geçmiş sorgusu `(user_id, created_at DESC)` indeksinden faydalanır.
-- ~~Süresi dolmuş e-posta hızlı işlem anahtarları için temizlik işi yok.~~ **Kapandı (`NT-6`).** `TokenCleanupJob` her gece 03:00'te ilgili tabloları temizler.
+- **Append-only kuralı veritabanında zorlanmıyor.** `audit_logs` ve `user_audit_logs` uygulama üzerinden güncellenemez veya silinemez, ancak bunu garanti eden bir trigger ya da rol kısıtı yoktur. Şartname §4.2 "silinemez tablo" diyor; garanti şu an yalnız uygulama seviyesinde.
+- **Bildirim geçmişi için bileşik indeks yok.** Mevcut `(user_id, is_read)` okunmamış sayacına hizmet ediyor; sayfalı geçmiş sorgusu `(user_id, created_at DESC)` indeksinden faydalanır. Veri büyüdükçe değerlendirilmelidir.
+- ~~Süresi dolmuş e-posta hızlı işlem anahtarları için temizlik işi yok.~~ **Kapandı (`NT-6`).** `TokenCleanupJob` her gece 03:00'te `tokens`, `password_reset_codes` ve `mail_action_tokens` tablolarını birlikte temizler; mail aksiyon anahtarları destek soruları için bir gün bekletilir ve `idx_mail_action_tokens_expires_at` indeksi kullanılır.
 - **`records.version` yalnız workflow tarafında kullanılıyor.** Kayıt CRUD'u aynı korumayı almıyor.
-- ~~`max_users` sınırı DB seviyesinde zorlanmıyor.~~ **Kapandı (`WF-2C1`).** Uygulama katmanında transaction içinde kilitli olarak doğrulanıyor.
-- **Departman görünürlüğü (`DB-8`) henüz tasarlanmadı.** `RecordAccessPolicy`/`RecordSpecifications` hâlâ eski rol switch'ini kullanıyor; departman üyesi olmak henüz kayıt görünürlüğüne yansımıyor. Burak'ın `WF-2C2` tasarımını bekliyor.
-- **`V20`/`V21` taslak.** Yukarıdaki [Departman veri modeli](#departman-veri-modeli-v18v21--taslak) bölümüne bakın.
+
+## Dinamik rol, yetki ve workflow veri modeli (V12–V17)
+
+> Kaynak: `DB_1_VERI_MODELI_SOZLESMESI.md` (kabul edildi, 1 Eylül 2026).
+> Amaç: rol, yetki ve workflow geçiş verisinin derleme zamanında sabit
+> (Java enum/statik liste) olmaktan çıkıp veritabanına taşınması — mevcut
+> davranış değiştirilmeden.
+
+### `roles` genişletmesi (`V12`)
+
+Mevcut `roles(id, name, description)` tablosuna beş yeni kolon eklendi:
+
+| Kolon               | Tip                             | Anlamı                                                                                                                                                            |
+| ------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `system_key`        | `VARCHAR(50)`, UNIQUE, nullable | Yerleşik rolün **değişmez** semantik anahtarı. `name` kullanıcıya gösterilir ve değişebilir; `system_key` asla değişmez                                           |
+| `is_system`         | `BOOLEAN`                       | Sistem rolü mü (fiziksel silinemez, `system_key` değiştirilemez)                                                                                                  |
+| `is_workflow_actor` | `BOOLEAN`                       | Rol workflow aktörü olarak seçilebilir mi (`ADMIN` için `FALSE`)                                                                                                  |
+| `max_users`         | `INTEGER`, nullable             | `NULL` = sınırsız. Doluysa en az 1. Sayım yalnız aktif kullanıcıları kapsar — bu sınır genel `CHECK` ile değil, uygulama katmanında transaction içinde doğrulanır |
+| `is_active`         | `BOOLEAN`                       | Pasif rol yeni atama alamaz                                                                                                                                       |
+
+`roles.id` ilişkisel kimlik olarak kalır (FK'lerde kullanılan budur). `system_key`
+yerleşik rolün iş anlamıdır — örn. farklı ortamlarda `BASKAN` satırının sayısal
+ID'si farklı olabilir, ama `system_key = 'BASKAN'` her zaman aynıdır.
+
+### `permissions` + `role_permissions` (`V13`, `V17`)
+
+Yetkilendirmenin rol adına bağlı (`hasRole(...)`) olmaktan çıkıp permission
+tabanlı (`hasAuthority(...)`) hale gelmesinin temeli. `permissions.code` sabit
+bir capability kataloğudur (`RECORD_CREATE`, `USER_MANAGE`, `ADMIN_PANEL_ACCESS`
+vb.; `V13` ile 16, `V17` sonrasında 19 kod) — yeni kodlar backend desteği ve migration gerektirir.
+`role_permissions` bileşik PK'li (`role_id, permission_id`) klasik N:N eşleme
+tablosu.
+
+`V17`, `FILE_MANAGE` ve `RECORD_DELETE` kodlarını `CALISAN`, `AUDIT_VIEW` kodunu
+`ADMIN` sistem rolüne `system_key` üzerinden atar. Authentication yalnız aktif
+rolün aktif permission'larını yükler. JWT her istekte DB'den yeniler; e-posta
+aksiyonları aynı principal factory'yi kullanır. `ROLE_<rol adı>` üretilmez.
+
+WF-2C1'de `RoleCapacityService` kullanıcı oluşturma, bootstrap, rol değişimi,
+yeniden etkinleştirme ve devir için ortak kapasite kontrolüdür. Mevcut kullanıcılar
+UUID, sonra etkilenen roller ID sırasıyla `PESSIMISTIC_WRITE` kilitlenir. Rol
+ID'sine göre aktif kullanıcı sayımı ve yazım tek transaction'da yapılır;
+`max_users=NULL` sınırsızdır, aşım `409 ADMIN_LIMIT_EXCEEDED` döndürür.
+
+### `workflow_statuses` + `workflow_actions` (`V14`)
+
+`records.status`'ta bugüne kadar sabit metin olarak tutulan 6 durum ve
+Test ağacındaki `TransitionRules`'ta duran 7 aksiyon artık veri:
+
+- `workflow_statuses`: `name` (teknik anahtar, `RecordStatus` enum adıyla
+  birebir), `display_name`, `is_terminal`, `is_editable_by_creator`,
+  `display_order`, `is_active`
+- `workflow_actions`: `name`, `display_name`, **`comment_required`**,
+  `is_active` — yorum zorunluluğu geçişe değil aksiyona ait (iki farklı
+  aktörün kullandığı `CALISANA_GERI_GONDER` aynı kuralı paylaşır)
+
+### `workflow_transitions` (`V15`)
+
+Test ağacındaki 8 satırlık statik geçiş tablosunun veri karşılığı.
+`(from_status_id, action_id, actor_role_id)` UNIQUE — tabloda bulunmayan her
+durum-aksiyon-rol birleşimi geçersizdir. Ayrıca:
+
+- `actor_requirement`: aktörün kayıtla ilişkisi (`CREATOR` / `ASSIGNEE` /
+  `CREATOR_AND_ASSIGNEE`) — rol yetkisi tek başına yetmez
+- `target_strategy`: hedef kullanıcının nasıl çözüleceği (`NONE` / `ROLE` /
+  `CREATOR` / `CURRENT_ASSIGNEE` / `PREVIOUS_ACTOR`)
+- `required_permission_id`: geçiş için ek yetki koşulu — 8 aktif satırın
+  hepsinde dolu
+
+### `records.status` → katalog FK (`V16`)
+
+`records.status` kolonu **`VARCHAR(50)` olarak kalır** — `status_id`'ye
+dönüştürülmedi. `@Enumerated(EnumType.STRING)` eşlemesi ve mevcut API
+sözleşmesi bozulmadan, sabit `chk_records_status` CHECK kısıtı kaldırılıp
+yerine `workflow_statuses(name)`'e `ON UPDATE RESTRICT ON DELETE RESTRICT`
+foreign key eklendi. Aynı garanti, çok daha az invaziv değişiklik.
+
+### Üretim kural kaynağı ve statik referans
+
+Üretim zinciri `ReloadableTransitionRuleSource → DbTransitionRuleSource → JpaTransitionRuleRecordReader → PostgreSQL`
+şeklindedir; bean sarmalayıcıdır, tazelemeyi o yürütür. Açılışta yüklenen immutable snapshot, `TransitionRuleSource` üzerinden
+saf validator'a sunulur. Tabloya dışarıdan dokunulduğunda snapshot
+`POST /api/workflow/rules/reload` ile yeniden başlatmadan tazelenebilir;
+tazeleme başarısız olursa çalışan kurallar korunur. Boş/geçersiz kural verisi ve aktif geçişte eksik permission
+metadata'sı açılışı durdurur. Test ağacındaki `TransitionRules`, sekiz geçişin hedef ve permission
+metadata'sını da kapsayan parity ve veritabanısız test referansıdır. Yeni kurallar
+yeni Flyway migration'ı ve eşleşen parity referansıyla birlikte eklenir.

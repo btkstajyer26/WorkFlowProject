@@ -3,8 +3,8 @@ package btk.staj.WorkFlowProject.search.specification;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.search.dto.RecordSearchCriteria;
 import btk.staj.WorkFlowProject.user.entity.User;
-import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
-import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
+import btk.staj.WorkFlowProject.auth.security.VisibilityActor;
+import btk.staj.WorkFlowProject.rbac.visibility.RecordVisibilityScope;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.jpa.domain.Specification;
@@ -27,17 +27,15 @@ public final class RecordSpecifications {
      */
     public static Specification<Record> withFilters(
             RecordSearchCriteria criteria,
-            UUID currentUserId,
-            RoleName currentUserRole) {
+            VisibilityActor actor) {
 
         Objects.requireNonNull(criteria, "criteria");
-        Objects.requireNonNull(currentUserId, "currentUserId");
-        Objects.requireNonNull(currentUserRole, "currentUserRole");
+        RecordVisibilityScope scope = RecordVisibilityScope.forActor(actor);
 
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            predicates.add(visibilityScope(root, cb, currentUserId, currentUserRole));
+            predicates.add(visibilityScope(root, cb, scope));
 
             if (criteria.getQ() != null && !criteria.getQ().isBlank()) {
                 String text = "%" + criteria.getQ().toLowerCase() + "%";
@@ -66,7 +64,6 @@ public final class RecordSpecifications {
                 predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), criteria.getTo()));
             }
 
-            predicates.add(cb.isNull(root.get("deletedAt")));
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };
@@ -104,47 +101,23 @@ public final class RecordSpecifications {
         return cb.exists(subquery);
     }
 
-    /**
-     * Sartnamedeki "Kayit Gorunurlugu Kapsami" (§2) kuralinin SQL karsiligi.
-     *
-     * <p>Tek kayit icin ayni kural
-     * {@code btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy} icinde
-     * duruyor. Ayni kuralin iki bicimi olmasinin sebebi teknik: orasi tek kayda
-     * bakan bir boolean, burasi sorguya giren bir kosul. <strong>Biri
-     * degisirse digeri de degismeli.</strong>
-     */
+    /** Mechanical SQL translation of the shared scope; no role-specific rules here. */
     private static Predicate visibilityScope(
             jakarta.persistence.criteria.Root<Record> root,
             jakarta.persistence.criteria.CriteriaBuilder cb,
-            UUID currentUserId,
-            RoleName role) {
-
-        return switch (role) {
-            // Calisan yalnizca kendi olusturdugu kayitlari gorur.
-            case CALISAN -> cb.equal(root.get("createdBy"), currentUserId);
-
-            // Bsk. Yrd. kendisine atanan kayitlari, duzeltme bekleyen kayitlari VE
-            // bir kez kendi elinden gecmis kayitlari gorur. Ucuncu kol
-            // RecordAccessPolicy'de vardi ama burada yoktu: detay ucu kaydi
-            // aciyor, liste ucu ise ayni kaydi hic dondurmuyordu. Yardimcinin
-            // "Sonuclananlar" ve panodaki "Son Kayitlar" listeleri bu yuzden
-            // bos gorunuyordu.
-            case BASKAN_YARDIMCISI -> cb.or(
-                    cb.equal(root.get("assignedTo"), currentUserId),
-                    cb.equal(root.get("status"), RecordStatus.DUZENLEME_BEKLIYOR),
-                    cb.equal(root.get("lastDeputyId"), currentUserId));
-
-            // Baskan onay asamasina gelenleri, sonuclandirdiklarini ve
-            // kendisine atananlari gorur. ONAYLA/REDDET assignedTo'yu
-            // bosalttigi icin sonuclanan iki durum acikca sayilmali.
-            case BASKAN -> cb.or(
-                    cb.equal(root.get("status"), RecordStatus.BASKAN_INCELEMESINDE),
-                    cb.equal(root.get("status"), RecordStatus.ONAYLANDI),
-                    cb.equal(root.get("status"), RecordStatus.REDDEDILDI),
-                    cb.equal(root.get("assignedTo"), currentUserId));
-
-            // ADMIN yalnizca kullanici ve rol yonetiminden sorumludur; evrak goremez.
-            case ADMIN -> cb.disjunction();
-        };
+            RecordVisibilityScope scope) {
+        List<Predicate> alternatives = new ArrayList<>();
+        for (var relation : scope.relations()) {
+            String attribute = switch (relation) {
+                case CREATOR -> "createdBy";
+                case ASSIGNEE -> "assignedTo";
+                case PREVIOUS_DEPUTY -> "lastDeputyId";
+            };
+            alternatives.add(cb.equal(root.get(attribute), scope.actorId()));
+        }
+        for (var status : scope.statuses()) alternatives.add(cb.equal(root.get("status"), status));
+        Predicate allowed = alternatives.isEmpty() ? cb.disjunction()
+                : cb.or(alternatives.toArray(new Predicate[0]));
+        return cb.and(cb.isNull(root.get("deletedAt")), allowed);
     }
 }

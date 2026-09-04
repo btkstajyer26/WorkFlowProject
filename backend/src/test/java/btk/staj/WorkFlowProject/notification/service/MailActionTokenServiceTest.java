@@ -1,5 +1,7 @@
 package btk.staj.WorkFlowProject.notification.service;
 
+import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
+
 import btk.staj.WorkFlowProject.notification.dto.MailActionPreview;
 import btk.staj.WorkFlowProject.notification.entity.MailActionToken;
 import btk.staj.WorkFlowProject.notification.exception.InvalidMailActionTokenException;
@@ -53,8 +55,13 @@ class MailActionTokenServiceTest {
     private WorkflowActionService workflowActionService;
 
     private MailActionTokenService service() {
+        var permissions = org.mockito.Mockito.mock(
+                btk.staj.WorkFlowProject.rbac.repository.RolePermissionRepository.class);
+        org.mockito.Mockito.lenient().when(permissions.findActiveCodesByRoleId(3))
+                .thenReturn(java.util.List.of("RECORD_APPROVE"));
         return new MailActionTokenService(
-                mailActionTokenRepository, recordRepository, workflowActionService, TTL_HOURS);
+                mailActionTokenRepository, recordRepository, workflowActionService,
+                new btk.staj.WorkFlowProject.auth.security.AuthenticatedUserFactory(permissions), TTL_HOURS);
     }
 
     @AfterEach
@@ -283,6 +290,9 @@ class MailActionTokenServiceTest {
         Role role = new Role();
         role.setId(3);
         role.setName("BASKAN");
+        role.setActive(true);
+        role.setSystemKey("BASKAN");
+        role.setWorkflowActor(AuthorizationFixtures.workflowActor("BASKAN"));
 
         User user = new User();
         user.setId(id);

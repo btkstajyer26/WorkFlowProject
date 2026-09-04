@@ -13,7 +13,7 @@ import btk.staj.WorkFlowProject.record.mapper.RecordMapper;
 import btk.staj.WorkFlowProject.record.view.RecordContentView;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
-import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
+import btk.staj.WorkFlowProject.auth.security.VisibilityActor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -72,10 +72,6 @@ public class RecordServiceImpl implements RecordService {
         return getCurrentUser().getId();
     }
 
-    private RoleName getCurrentUserRole() {
-        return RoleName.valueOf(getCurrentUser().getRoleName());
-    }
-
     private Record findRecordOrThrow(UUID id) {
         return recordRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Kayıt bulunamadı! ID: " + id));
@@ -88,9 +84,8 @@ public class RecordServiceImpl implements RecordService {
     @Override
     @Transactional
     public RecordResponse createRecord(RecordCreateRequest request) {
-        RoleName role = getCurrentUserRole();
 
-        if (!permissionService.canCreateRecord(role)) {
+        if (!permissionService.canCreateRecord(getCurrentUser().getPermissionCodes())) {
             throw new ForbiddenException("Kayıt oluşturma yetkiniz yok!");
         }
 
@@ -105,7 +100,7 @@ public class RecordServiceImpl implements RecordService {
         auditLogService.recordLifecycleEvent(
                 savedRecord.getId(),
                 getCurrentUserId(),
-                role,
+                getCurrentUser().getRoleId(),
                 "RECORD_CREATED",
                 savedRecord.getStatus(),
                 "Kayıt oluşturuldu.");
@@ -115,23 +110,18 @@ public class RecordServiceImpl implements RecordService {
 
     @Override
     public RecordResponse getRecordById(UUID id) {
-        Record record = findRecordOrThrow(id);
-        RoleName role = getCurrentUserRole();
-        UUID userId = getCurrentUserId();
+        Record record = recordRepository.findById(id)
+                .filter(found -> found.getDeletedAt() == null)
+                .orElseThrow(() -> new ResourceNotFoundException("Kayıt bulunamadı! ID: " + id));
+        VisibilityActor actor = VisibilityActor.from(getCurrentUser());
 
-        recordAccessPolicy.assertCanView(
-                role,
-                userId,
-                record.getCreatedBy(),
-                record.getAssignedTo(),
-                record.getLastDeputyId(),
-                record.getStatus());
+        recordAccessPolicy.assertCanView(actor, record);
 
         // Kaydi gorebilmek guncel icerigi gormek demek degil: geri gonderen
         // yetkiliye devir anindaki kopya gosterilir.
         return recordMapper.toResponse(
                 record,
-                recordContentView.visibleContent(record, role, userId),
+                recordContentView.visibleContent(record, actor),
                 creatorFullName(record.getCreatedBy()));
     }
 
@@ -157,9 +147,8 @@ public class RecordServiceImpl implements RecordService {
     @Transactional
     public RecordResponse updateRecord(UUID id, RecordUpdateRequest request) {
         Record record = findRecordOrThrow(id);
-        RoleName role = getCurrentUserRole();
 
-        if (!permissionService.canEditOrDeleteDraft(role, record.getStatus())) {
+        if (!permissionService.canEditRecord(getCurrentUser().getPermissionCodes(), record.getStatus())) {
             throw new BusinessRuleException("Bu kayıt şu anki durumunda düzenlenemez!");
         }
 
@@ -177,7 +166,7 @@ public class RecordServiceImpl implements RecordService {
         auditLogService.recordLifecycleEvent(
                 updatedRecord.getId(),
                 getCurrentUserId(),
-                role,
+                getCurrentUser().getRoleId(),
                 "RECORD_UPDATED",
                 updatedRecord.getStatus(),
                 "Başlık ve kategori güncellendi.");
@@ -189,13 +178,9 @@ public class RecordServiceImpl implements RecordService {
     @Transactional
     public void deleteRecord(UUID id) {
         Record record = findRecordOrThrow(id);
-        RoleName role = getCurrentUserRole();
 
-        // Silme, duzenlemeden daha dar: PermissionService.canEditOrDeleteDraft
-        // hem TASLAK hem DUZENLEME_BEKLIYOR'da true donebilir, ama silme
-        // yalnizca TASLAK durumunda gecerlidir (PermissionService javadoc'u).
-        if (!permissionService.canEditOrDeleteDraft(role, record.getStatus())
-                || record.getStatus() != RecordStatus.TASLAK) {
+        // Silme yalniz TASLAK durumunda ve ayri RECORD_DELETE yetkisiyle yapilir.
+        if (!permissionService.canDeleteRecord(getCurrentUser().getPermissionCodes(), record.getStatus())) {
             throw new BusinessRuleException("Sadece taslak durumundaki kayıtlar silinebilir!");
         }
 
@@ -209,7 +194,7 @@ public class RecordServiceImpl implements RecordService {
         auditLogService.recordLifecycleEvent(
                 record.getId(),
                 getCurrentUserId(),
-                role,
+                getCurrentUser().getRoleId(),
                 "RECORD_DELETED",
                 record.getStatus(),
                 "Kayıt soft delete işlemiyle silindi.");

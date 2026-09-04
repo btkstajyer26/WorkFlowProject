@@ -1,6 +1,6 @@
 import { mockRecords } from './records'
 import { demoAccounts } from './users'
-import type { AdminAuditLog, ManagedUser } from '../types/admin'
+import type { AdminAuditLog, AdminRole, ManagedUser } from '../types/admin'
 
 const demoDates = [
   '2026-07-11T09:15:00',
@@ -37,6 +37,21 @@ export const mockManagedUsers: ManagedUser[] = [
     isActive: false,
     createdAt: '2026-06-12T09:10:00',
   },
+]
+
+/**
+ * V12 backfill'iyle tutarlı dört yerleşik rol ve panelden açılmış bir dinamik
+ * rol. Dinamik rol bilerek `UserRole` union'ında yer almayan bir ad taşır;
+ * rol ekranının sabit rol listesine bağlanmadığını doğrulamak için gerekli.
+ * `systemKey` burada veritabanı gerçeğini yansıtır; uç bu alanı henüz
+ * döndürmediği için handler onu dışarı vermez (bkz. api/roles.ts TODO).
+ */
+export const mockAdminRoles: AdminRole[] = [
+  { id: 1, name: 'CALISAN', systemKey: 'CALISAN', description: 'Evrak oluşturur ve düzenler' },
+  { id: 2, name: 'BASKAN_YARDIMCISI', systemKey: 'BASKAN_YARDIMCISI', description: 'Evrakları inceler ve yönlendirir' },
+  { id: 3, name: 'BASKAN', systemKey: 'BASKAN', description: 'Evrakları onaylar veya reddeder' },
+  { id: 4, name: 'ADMIN', systemKey: 'ADMIN', description: 'Sistem yönetimi yapar' },
+  { id: 5, name: 'Mali İşler Uzmanı', systemKey: null, description: 'Panelden açılmış dinamik rol' },
 ]
 
 const initialManagedUsers = mockManagedUsers.map((user) => ({ ...user }))

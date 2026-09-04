@@ -1,5 +1,7 @@
 package btk.staj.WorkFlowProject.attachment.service;
 
+import static btk.staj.WorkFlowProject.support.AuthorizationFixtures.visibility;
+
 import btk.staj.WorkFlowProject.attachment.dto.FileResponseDto;
 import btk.staj.WorkFlowProject.attachment.entity.FileEntity;
 import btk.staj.WorkFlowProject.attachment.repository.FileRepository;
@@ -93,10 +95,10 @@ class FileServiceAuthorizationTest {
         when(fileRepository.findByIdAndDeletedAtIsNull(fileId)).thenReturn(Optional.of(fileEntity));
         when(recordRepository.findById(recordId)).thenReturn(Optional.of(recordEntity));
         doThrow(new ForbiddenException("Görüntüleme yetkisi yok"))
-                .when(recordAccessPolicy).assertCanView(eq(RoleName.CALISAN), eq(otherUserId), eq(ownerId), any(), any(), eq(RecordStatus.TASLAK));
+                .when(recordAccessPolicy).assertCanView(eq(visibility(RoleName.CALISAN, otherUserId)), eq(recordEntity));
 
         assertThrows(ForbiddenException.class, () ->
-                fileService.downloadFile(fileId, RoleName.CALISAN, otherUserId)
+                fileService.downloadFile(fileId, visibility(RoleName.CALISAN, otherUserId))
         );
     }
 
@@ -135,10 +137,10 @@ class FileServiceAuthorizationTest {
         when(fileStorageService.loadAsResource(fileEntity.getStoredName())).thenReturn(new ByteArrayResource("pdf".getBytes()));
 
         assertDoesNotThrow(() ->
-                fileService.downloadFile(fileId, RoleName.BASKAN_YARDIMCISI, otherUserId)
+                fileService.downloadFile(fileId, visibility(RoleName.BASKAN_YARDIMCISI, otherUserId))
         );
 
-        verify(recordAccessPolicy).assertCanView(RoleName.BASKAN_YARDIMCISI, otherUserId, ownerId, otherUserId, null, RecordStatus.BSK_YRD_INCELEMESINDE);
+        verify(recordAccessPolicy).assertCanView(visibility(RoleName.BASKAN_YARDIMCISI, otherUserId), recordEntity);
     }
 
     @Test
@@ -159,12 +161,12 @@ class FileServiceAuthorizationTest {
         when(recordRepository.findById(recordId)).thenReturn(Optional.of(recordEntity));
         when(fileRepository.findAllByRecordIdAndDeletedAtIsNull(recordId)).thenReturn(List.of(fileEntity));
 
-        List<FileResponseDto> result = fileService.listByRecord(recordId, RoleName.CALISAN, ownerId);
+        List<FileResponseDto> result = fileService.listByRecord(recordId, visibility(RoleName.CALISAN, ownerId));
 
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(fileId, result.get(0).getId());
-        verify(recordAccessPolicy).assertCanView(RoleName.CALISAN, ownerId, ownerId, null, null, RecordStatus.TASLAK);
+        verify(recordAccessPolicy).assertCanView(visibility(RoleName.CALISAN, ownerId), recordEntity);
     }
 
     @Test
@@ -204,7 +206,7 @@ class FileServiceAuthorizationTest {
                 .thenReturn(List.of(fileEntity, addedDuringCorrection, deletedDuringCorrection));
 
         List<FileResponseDto> result =
-                fileService.listByRecord(recordId, RoleName.BASKAN_YARDIMCISI, deputyId);
+                fileService.listByRecord(recordId, visibility(RoleName.BASKAN_YARDIMCISI, deputyId));
 
         assertEquals(2, result.size());
         assertTrue(result.stream().anyMatch(dto -> "test.pdf".equals(dto.getOriginalName())));
@@ -217,10 +219,10 @@ class FileServiceAuthorizationTest {
     void listByRecord_WhenUnauthorized_ShouldThrowForbiddenException() {
         when(recordRepository.findById(recordId)).thenReturn(Optional.of(recordEntity));
         doThrow(new ForbiddenException("Görüntüleme yetkisi yok"))
-                .when(recordAccessPolicy).assertCanView(eq(RoleName.CALISAN), eq(otherUserId), eq(ownerId), any(), any(), eq(RecordStatus.TASLAK));
+                .when(recordAccessPolicy).assertCanView(eq(visibility(RoleName.CALISAN, otherUserId)), eq(recordEntity));
 
         assertThrows(ForbiddenException.class, () ->
-                fileService.listByRecord(recordId, RoleName.CALISAN, otherUserId)
+                fileService.listByRecord(recordId, visibility(RoleName.CALISAN, otherUserId))
         );
     }
 }

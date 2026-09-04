@@ -13,6 +13,9 @@
     "bearerAuth" : [ ]
   } ],
   "tags" : [ {
+    "name" : "Workflow Rules",
+    "description" : "Gecis kurallarinin yonetimi"
+  }, {
     "name" : "Mail Actions",
     "description" : "E-posta bildirimindeki tek tikla aksiyon baglantisi"
   }, {
@@ -211,6 +214,29 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/RecordResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/workflow/rules/reload" : {
+      "post" : {
+        "tags" : [ "Workflow Rules" ],
+        "summary" : "Gecis kurallarini veritabanindan yeniden okur (grafigi degistirmez)",
+        "operationId" : "reload",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object",
+                  "additionalProperties" : {
+                    "type" : "integer",
+                    "format" : "int32"
+                  }
                 }
               }
             }
@@ -1431,6 +1457,7 @@
       },
       "ChangeRoleRequest" : {
         "type" : "object",
+        "description" : "roleId (pozitif) veya eski roleName alanlarından tam biri zorunludur. İkisi birlikte veya ikisi de eksikse 400 döner.",
         "properties" : {
           "replacementBaskanYardimcisiId" : {
             "type" : "string",
@@ -1438,10 +1465,16 @@
           },
           "roleName" : {
             "type" : "string",
-            "minLength" : 1
+            "deprecated" : true,
+            "description" : "Eski istemciler için rol adı; roleId ile birlikte gönderilemez"
+          },
+          "roleId" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Atanacak rolün kimliği; roleName ile birlikte gönderilemez",
+            "minimum" : 1
           }
-        },
-        "required" : [ "roleName" ]
+        }
       },
       "SetActiveRequest" : {
         "type" : "object",

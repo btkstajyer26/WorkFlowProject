@@ -87,7 +87,6 @@ flowchart TB
         APP[WorkflowApplicationService]
         RES[TargetUserResolver]
         VAL[WorkflowTransitionValidator]
-        RULES[TransitionRules - merkezî geçiş tablosu]
         PERM[PermissionService]
     end
     subgraph Portlar["port/ — çekirdeğin tanımladığı arayüzler"]
@@ -104,14 +103,14 @@ flowchart TB
         A3[AuditLogService - audit modülü]
         A4[SpringWorkflowEventPublisher]
         A5[SecurityCurrentActorProvider]
-        A6[StaticTransitionRuleSource]
+        A6[DbTransitionRuleSource - JPA]
     end
 
     C --> TX --> APP
     APP --> RES
     APP --> VAL --> P6
     PERM --> P6
-    P6 -.-> A6 --> RULES
+    P6 -.-> A6 --> DBRULES[(workflow_transitions)]
     APP --> P1 & P2 & P3 & P4 & P5
     P1 -.-> A1
     P2 -.-> A2
@@ -127,10 +126,10 @@ Yapının üç somut sonucu:
 | Karar | Sonuç |
 | --- | --- |
 | Çekirdek sınıfları `@Service` taşımaz | `new` ile örneklenip test edilir; bean tanımları `WorkflowConfiguration`'da dışarıdan yapılır |
-| Kural tüketicileri `TransitionRuleSource` kullanır | Validator ve yetki servisi somut statik tabloya bağlanmaz; güncel adapter `TransitionRules` listesini sunar |
+| Kural tüketicileri `TransitionRuleSource` kullanır | Validator ve yetki servisi kural kaynağına doğrudan bağlanmaz; güncel adapter kuralları `workflow_transitions` tablosundan okur. Kurallar açılışta bir kez okunup belleğe alınır; `ReloadableTransitionRuleSource` bunu yeniden başlatmadan tazeleyebilir ve tazeleme başarısız olursa **eski snapshot yerinde kalır** |
 | Transaction sınırı ayrı bir sınıfta (`WorkflowActionService`) | Çekirdek Spring bilmediği için transaction'ı kendisi açamaz; kayıt güncellemesi ve audit yazımı ya birlikte olur ya hiç olmaz |
 
-Bir geçişin sırası: aktörü oku → kaydı bul → hedefi çöz → **validator'a sor** → kaydı güncelle → audit yaz → olay yayınla. Bütün kural kararları tek noktada, validator'da verilir; servis katmanında hiçbir geçiş kuralı tekrarlanmaz.
+Bir geçişin sırası: aktörü oku → kaydı bul → **ön doğrulama** → geçiş kuralını bul → hedefi çöz → **nihai doğrulama** → kaydı güncelle → audit yaz → olay yayınla. Doğrulama bilerek iki aşamalıdır: yetkisiz bir istek, hedef için veritabanına hiç gidilmeden elenir. Bütün kural kararları validator'da verilir; servis kuraldan yalnız hedef çözüm stratejisini okur, geçiş kuralı tekrarlamaz.
 
 Ayrıntı için [workflow.md](workflow.md).
 
@@ -140,7 +139,7 @@ Ayrıntı için [workflow.md](workflow.md).
 | --- | --- | --- |
 | Hata yönetimi | `common/exception/GlobalExceptionHandler` (`@RestControllerAdvice`) | Tüm hatalar tek `ApiError` biçiminde döner; workflow hata kodları burada HTTP durumlarına eşlenir |
 | Kimlik doğrulama | `auth/security/JwtAuthenticationFilter` | Pasif hesabı ve parola değişimi bekleyen kullanıcıyı zincirin başında durdurur |
-| Yetkilendirme | `@PreAuthorize` + `RecordAccessPolicy` | Workflow ucunda rol kontrolü bilinçli olarak controller'da değil durum makinesindedir |
+| Yetkilendirme | `@PreAuthorize("hasAuthority(...)")` + `RecordAccessPolicy` | Uç yetkileri rol adına değil **permission koduna** bağlıdır (`USER_MANAGE`, `RECORD_CREATE`, `AUDIT_VIEW`, …); authority listesi her istekte `role_permissions`'tan üretilir. Workflow ucunda kontrol bilinçli olarak controller'da değil durum makinesindedir |
 | Denetim izi | `AuditLogService`, workflow transaction'ı **içinde** | Geçiş geri alınırsa audit satırı da geri alınır |
 | Uygulama içi bildirim | `@EventListener`, transaction **içinde** | Geçişle birlikte yazılır veya hiç yazılmaz |
 | E-posta | `@TransactionalEventListener(AFTER_COMMIT)` + `@Async` | Geri alınabilir bir işlem için dışarıya e-posta çıkmasın diye commit sonrası; gönderim best-effort |
@@ -177,8 +176,8 @@ Aşağıdakiler uygulanmış davranışlardır:
 
 - Yeni kullanıcıları yalnız Admin oluşturur ve **her hesap daima Çalışan rolüyle başlar**; başlangıç rolü dışarıdan seçilemez (`UserService.createUser`).
 - Başkan Yardımcısı, Başkan ve Admin rolleri yalnız ayrı ve audit'lenen bir Admin işlemiyle (`changeRole`) atanır.
-- Bu üç rol **tekildir**: aynı anda yalnız bir aktif kullanıcı tutabilir.
-- Pasif tekil rol sahibi yeniden etkinleştirilirken de `ensureSingletonRoleAvailable` çalışır; aynı rolde başka aktif kullanıcı varsa yazma işlemi reddedilir.
+- Bu üç rol **tekildir**: aynı anda yalnız bir aktif kullanıcı tutabilir. Tekillik artık kodda sabit bir rol listesiyle değil, `roles.max_users` kolonuyla taşınır (`V12`; üçü için değer `1`).
+- Kapasite kontrolü ortak `RoleCapacityService` içindedir; oluşturma, bootstrap, rol değiştirme, yeniden etkinleştirme ve yardımcı devri aynı yolu kullanır. Pasif tekil rol sahibi yeniden etkinleştirilirken de çalışır; aynı rolde başka aktif kullanıcı varsa yazma işlemi reddedilir.
 - Admin rolü tek başına iş akışı kayıtlarına erişim vermez; `RecordAccessPolicy` Admin için boş kapsam üretir.
 - Nihai onay ve ret yalnız Başkan tarafından, yalnız kendisine atanmış kayıtta yapılabilir.
 - Admin hesabı aktiflik ucundan pasifleştirilemez (`UserService.setActive`).
@@ -190,7 +189,8 @@ Aşağıdakiler uygulanmış davranışlardır:
 - **Son Admin'in rolü korunmuyor.** `setActive` Admin hesabının pasifleştirilmesini engelliyor, ancak `changeRole` sistemdeki tek Admin'in rolünü başka bir role çevirmeyi engellemiyor. Tekil rol kontrolü yalnız bir role *girerken* çalışıyor, *çıkarken* değil. Sistem yönetimsiz kalabilir.
 - **Audit append-only kuralı veritabanında zorlanmıyor.** Uygulama güncelleme veya silme ucu sunmuyor, fakat DB trigger'ı ya da rol kısıtı yok.
 - **E-posta teslim garantisi yok.** Gönderim asenkron ve best-effort; retry, outbox veya DLQ bulunmuyor.
-- **Bu belgedeki kararların çoğu ADR olarak kaydedilmedi.** `decisions/` altında iki ADR var (modül bazlı paketleme, mobil istemci teknolojisi); ancak port/adapter sınırı, tekil rol modeli ve enum tabanlı durum kolonu kararları yalnız bu belgede anlatılıyor, ayrı birer ADR'leri yok.
+- **Bu belgedeki kararların çoğu ADR olarak kaydedilmedi.** `decisions/` altında bugün beş ADR var (modül bazlı paketleme, mobil istemci teknolojisi, veri tanımlı akış motoru, departman ataması, departman hedefli `target_strategy`); ancak port/adapter sınırı ve tekil rol modeli kararları yalnız bu belgede anlatılıyor, ayrı birer ADR'leri yok. (`records.status` `V16` ile sabit CHECK'ten `workflow_statuses(name)` FK'sine geçti; kolon `VARCHAR` kalmaya devam ediyor.)
 
-- **Dinamik workflow kaynağı uygulanmadı.** `TransitionRuleSource` değiştirilebilir okuma sınırını sağlar, fakat güncel `StaticTransitionRuleSource` hâlâ `TransitionRules` tablosunu kullanır.
-- **Dinamik rol kaynağı ve WebSocket bildirim kanalı yoktur.** Bunlar çalışan mimarinin parçası değildir.
+- **Departman görünürlüğü açık.** Mevcut görünürlük artık ortak `RecordVisibilityScope` üzerinden tekil policy ve SQL predicate üretir. Dinamik rol, `RECORD_VIEW` ile oluşturduğu/atandığı kaydı okuyabilir; içerik/geçmiş kesimleri ayrı tutulur. Departman persistence ve runtime bağlantısı tamamlanmadı. Sınırlar ve DB-8 entegrasyonu: [WF-2C2 sözleşmesi](WF2C2_DB8_GORUNURLUK_SOZLESMESI.md).
+- **Geçiş grafiği arayüzden düzenlenemiyor.** `workflow_transitions` yalnız Flyway seed'i ile değişir; versiyonlama olmadan aktif grafiği düzenleyen bir yönetim arayüzü bilinçli olarak açılmadı (DB-1 §14). Workflow V1 bu sınırı korur; grafik topolojisinin düzenlenmesi Workflow V2 kapsamındadır.
+- **WebSocket bildirim kanalı yoktur.** Bildirimler REST/polling ile taşınır.

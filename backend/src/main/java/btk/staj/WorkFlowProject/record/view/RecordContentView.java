@@ -2,12 +2,11 @@ package btk.staj.WorkFlowProject.record.view;
 
 import btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy;
 import btk.staj.WorkFlowProject.record.entity.Record;
-import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
+import btk.staj.WorkFlowProject.auth.security.VisibilityActor;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
-import java.util.UUID;
 
 /**
  * Bir kaydin icerigini, ona bakan kullaniciya gore cozer.
@@ -45,11 +44,11 @@ public class RecordContentView {
         }
     }
 
-    public Content visibleContent(Record record, RoleName viewerRole, UUID viewerId) {
+    public Content visibleContent(Record record, VisibilityActor actor) {
         Objects.requireNonNull(record, "record");
 
         boolean asOfHandoff = recordAccessPolicy.seesRecordAsOfHandoff(
-                viewerRole, viewerId, record.getAssignedTo(), record.getStatus());
+                actor, record.getAssignedTo(), record.getStatus());
 
         // snapshotAt bos ise dondurulacak bir sey yok. V9 migration'i mevcut
         // duzeltmedeki kayitlari geri doldurdugu ve gecis her seferinde anlik

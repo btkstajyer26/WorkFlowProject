@@ -4,6 +4,7 @@ import btk.staj.WorkFlowProject.audit.service.UserAuditLogService;
 import btk.staj.WorkFlowProject.common.dto.PagedResponse;
 import btk.staj.WorkFlowProject.common.exception.BusinessRuleException;
 import btk.staj.WorkFlowProject.rbac.Role;
+import btk.staj.WorkFlowProject.rbac.SystemRoleKey;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
 import btk.staj.WorkFlowProject.user.dto.AdminUserSearchCriteria;
 import btk.staj.WorkFlowProject.user.dto.RoleResponse;
@@ -13,7 +14,7 @@ import btk.staj.WorkFlowProject.user.repository.RoleRepository;
 import btk.staj.WorkFlowProject.user.repository.TokenRepository;
 import btk.staj.WorkFlowProject.user.repository.UserRepository;
 import btk.staj.WorkFlowProject.user.specification.UserSpecifications;
-import btk.staj.WorkFlowProject.workflow.port.CurrentActorProvider;
+import btk.staj.WorkFlowProject.auth.security.CurrentUserProvider;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -24,36 +25,41 @@ import btk.staj.WorkFlowProject.common.exception.ResourceNotFoundException;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Stream;
 import java.util.UUID;
 
 @Service
 public class UserService {
-
-    private static final Set<String> SINGLETON_ROLES = Set.of("ADMIN", "BASKAN", "BASKAN_YARDIMCISI");
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final TokenRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserAuditLogService userAuditLogService;
-    private final CurrentActorProvider currentActorProvider;
+    private final CurrentUserProvider currentUserProvider;
     private final RecordRepository recordRepository;
+    private final RoleCapacityService roleCapacity;
 
     public UserService(UserRepository userRepository,
                        RoleRepository roleRepository,
                        TokenRepository tokenRepository,
                        PasswordEncoder passwordEncoder,
                        UserAuditLogService userAuditLogService,
-                       CurrentActorProvider currentActorProvider,
-                       RecordRepository recordRepository) {
+                       CurrentUserProvider currentUserProvider,
+                       RecordRepository recordRepository,
+                       RoleCapacityService roleCapacity) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.tokenRepository = tokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.userAuditLogService = userAuditLogService;
-        this.currentActorProvider = currentActorProvider;
+        this.currentUserProvider = currentUserProvider;
         this.recordRepository = recordRepository;
+        this.roleCapacity = roleCapacity;
     }
 
     /**
@@ -63,8 +69,12 @@ public class UserService {
     @Transactional
     public User createUser(String firstName, String lastName, String email, String rawPassword) {
 
-        Role role = roleRepository.findByName("CALISAN")
+        Role defaultRole = roleRepository.findBySystemKey(SystemRoleKey.CALISAN.name())
                 .orElseThrow(() -> new RoleNotFoundException("Varsayılan rol (CALISAN) bulunamadı"));
+
+        Role role = roleCapacity.lockRoles(List.of(defaultRole.getId())).get(defaultRole.getId());
+        roleCapacity.assertAssignable(role);
+        roleCapacity.validate(Map.of(role.getId(), role), List.of(RoleCapacityService.Change.create(role)));
 
         User user = new User();
         user.setFirstName(firstName);
@@ -80,7 +90,7 @@ public class UserService {
 
         userAuditLogService.logIslem(
                 saved.getId(),
-                currentActorProvider.currentActor().id(),
+                currentUserProvider.currentUserId(),
                 "USER_CREATED",
                 null,
                 role.getId(),
@@ -91,97 +101,75 @@ public class UserService {
         return saved;
     }
 
-    /**
-     * Kurumsal gorevlendirme degistiginde rolu gunceller.
-     *
-     * <p>ADMIN, BASKAN ve BASKAN_YARDIMCISI rolleri "tekil" roller: ayni anda
-     * yalnizca bir kisi tutabilir. Bu rollerden birine atama yapilirken, o rol
-     * zaten baska bir kullaniciya aitse istek reddedilir.
-     *
-     * <p>Bir kullanici BASKAN_YARDIMCISI rolundeyken baska bir tekil role
-     * (BASKAN veya ADMIN) geciyorsa, BASKAN_YARDIMCISI koltugu bosalir.
-     * Bu durumda istekte {@code replacementBaskanYardimcisiId} zorunludur;
-     * belirtilen kullanici ayni istekte yeni BASKAN_YARDIMCISI yapilir.
-     * Otomatik/rastgele atama yapilmaz — devir Admin'in acikca sectigi
-     * kullaniciya, ayni transaction icinde uygulanir. Eski yardimcinin
-     * uzerindeki kayitlar da yeni yardimciya atanir.
-     */
+    /** Legacy API boundary: resolve a display name once, then use role identity. */
     @Transactional
-    public User changeRole(UUID userId, String newRoleName, UUID replacementBaskanYardimcisiId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Kullanıcı bulunamadı: " + userId));
+    public User changeRole(UUID userId, String roleName, UUID replacementId) {
+        Integer roleId = roleRepository.findByName(roleName)
+                .orElseThrow(() -> new RoleNotFoundException("Rol bulunamadı: " + roleName)).getId();
+        return changeRole(userId, roleId, replacementId);
+    }
 
+    /** Locks existing users first, then all affected role rows in a deterministic order. */
+    @Transactional
+    public User changeRole(UUID userId, Integer roleId, UUID replacementId) {
+        Map<UUID, User> lockedUsers = lockUsers(userId, replacementId);
+        User user = requireUser(lockedUsers, userId);
         Role previousRole = user.getRole();
+        List<Integer> roleIds = new ArrayList<>();
+        roleIds.add(roleId);
+        lockedUsers.values().forEach(u -> roleIds.add(u.getRole().getId()));
+        Map<Integer, Role> lockedRoles = roleCapacity.lockRoles(roleIds);
+        Role newRole = lockedRoles.get(roleId);
+        roleCapacity.assertAssignable(newRole);
 
-        Role newRole = roleRepository.findByName(newRoleName)
-                .orElseThrow(() -> new RoleNotFoundException("Rol bulunamadı: " + newRoleName));
-
-        ensureSingletonRoleAvailable(newRole.getName(), userId);
-
-        boolean wasBaskanYardimcisi = previousRole != null && "BASKAN_YARDIMCISI".equals(previousRole.getName());
-        boolean leavingBaskanYardimcisi = wasBaskanYardimcisi && !"BASKAN_YARDIMCISI".equals(newRole.getName());
-
-        if (leavingBaskanYardimcisi && replacementBaskanYardimcisiId == null) {
-            throw new BusinessRuleException(
+        boolean leavingDeputy = SystemRoleKey.BASKAN_YARDIMCISI.matches(previousRole)
+                && !SystemRoleKey.BASKAN_YARDIMCISI.matches(newRole);
+        User replacement = null;
+        Role replacementPreviousRole = null;
+        List<RoleCapacityService.Change> changes = new ArrayList<>();
+        changes.add(RoleCapacityService.Change.of(user, newRole, user.isActive()));
+        if (leavingDeputy) {
+            if (replacementId == null) throw new BusinessRuleException(
                     "Başkan Yardımcısı koltuğu boşalıyor; aynı istekte yerine atanacak kullanıcı (replacementBaskanYardimcisiId) belirtilmeli");
+            if (replacementId.equals(userId)) throw new BusinessRuleException(
+                    "Yerine atanacak kullanıcı, koltuğu boşaltan kişiyle aynı olamaz");
+            replacement = requireUser(lockedUsers, replacementId);
+            if (!replacement.isActive()) throw new BusinessRuleException("Pasif bir kullanıcı Başkan Yardımcısı yapılamaz");
+            if (!SystemRoleKey.CALISAN.matches(replacement.getRole())) throw new BusinessRuleException(
+                    "Başkan Yardımcısı yalnızca Çalışan rolündeki bir kullanıcıya devredilebilir");
+            roleCapacity.assertAssignable(previousRole);
+            replacementPreviousRole = replacement.getRole();
+            changes.add(RoleCapacityService.Change.of(replacement, previousRole, true));
         }
+        roleCapacity.validate(lockedRoles, changes);
 
         user.setRole(newRole);
         User saved = userRepository.save(user);
-
-        userAuditLogService.logIslem(
-                userId,
-                currentActorProvider.currentActor().id(),
-                "ROLE_CHANGED",
-                previousRole != null ? previousRole.getId() : null,
-                newRole.getId(),
-                null,
-                null,
-                "Kullanıcı rolü " + (previousRole != null ? previousRole.getName() : "?")
-                        + " → " + newRole.getName() + " olarak değiştirildi");
-
-        if (leavingBaskanYardimcisi) {
-            assignBaskanYardimcisi(replacementBaskanYardimcisiId, userId);
+        userAuditLogService.logIslem(userId, currentUserProvider.currentUserId(), "ROLE_CHANGED",
+                previousRole.getId(), newRole.getId(), null, null,
+                "Kullanıcı rolü " + previousRole.getName() + " → " + newRole.getName() + " olarak değiştirildi");
+        if (replacement != null) {
+            replacement.setRole(previousRole);
+            userRepository.save(replacement);
+            kullaniciIsleriniDevret(userId, replacementId);
+            userAuditLogService.logIslem(replacementId, currentUserProvider.currentUserId(), "ROLE_CHANGED",
+                    replacementPreviousRole.getId(), previousRole.getId(), null, null,
+                    "Başkan Yardımcısı koltuğu boşaldığı için admin tarafından atandı ve görev devri yapıldı");
         }
-
         return saved;
     }
 
-    private void assignBaskanYardimcisi(UUID replacementUserId, UUID previousHolderId) {
-        User replacement = userRepository.findById(replacementUserId)
-                .orElseThrow(() -> new ResourceNotFoundException("Belirtilen kullanıcı bulunamadı: " + replacementUserId));
+    private Map<UUID, User> lockUsers(UUID userId, UUID replacementId) {
+        Map<UUID, User> result = new LinkedHashMap<>();
+        Stream.of(userId, replacementId).filter(Objects::nonNull).distinct().sorted()
+                .forEach(id -> userRepository.findByIdForUpdate(id).ifPresent(user -> result.put(id, user)));
+        return result;
+    }
 
-        if (replacement.getId().equals(previousHolderId)) {
-            throw new BusinessRuleException("Yerine atanacak kullanıcı, koltuğu boşaltan kişiyle aynı olamaz");
-        }
-        if (!replacement.isActive()) {
-            throw new BusinessRuleException("Pasif bir kullanıcı Başkan Yardımcısı yapılamaz");
-        }
-
-        if (!"CALISAN".equals(replacement.getRole().getName())) {
-            throw new BusinessRuleException(
-                    "Başkan Yardımcısı yalnızca Çalışan rolündeki bir kullanıcıya devredilebilir");
-        }
-
-        Role baskanYardimcisiRole = roleRepository.findByName("BASKAN_YARDIMCISI")
-                .orElseThrow(() -> new RoleNotFoundException("BASKAN_YARDIMCISI rolü bulunamadı"));
-
-        replacement.setRole(baskanYardimcisiRole);
-        userRepository.save(replacement);
-
-        // --- YENİ EKLENEN KISIM: OTOMATİK GÖREV DEVRİ ---
-        // Başkan Yardımcısı değiştiğinde eski Bşk. Yrd. üzerindeki tüm kayıtları yenisine devrediyoruz.
-        kullaniciIsleriniDevret(previousHolderId, replacementUserId);
-
-        userAuditLogService.logIslem(
-                replacement.getId(),
-                currentActorProvider.currentActor().id(),
-                "ROLE_CHANGED",
-                null,
-                baskanYardimcisiRole.getId(),
-                null,
-                null,
-                "Başkan Yardımcısı koltuğu boşaldığı için admin tarafından atandı ve görev devri yapıldı");
+    private User requireUser(Map<UUID, User> users, UUID id) {
+        User user = users.get(id);
+        if (user == null) throw new ResourceNotFoundException("Kullanıcı bulunamadı: " + id);
+        return user;
     }
 
     /**
@@ -201,7 +189,7 @@ public class UserService {
 
         userAuditLogService.logIslem(
                 yeniKullaniciId,
-                currentActorProvider.currentActor().id(),
+                currentUserProvider.currentUserId(),
                 "TASKS_REASSIGNED",
                 null,
                 null,
@@ -234,10 +222,10 @@ public class UserService {
      */
     @Transactional
     public User setActive(UUID userId, boolean active) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Kullanıcı bulunamadı: " + userId));
+        User user = requireUser(lockUsers(userId, null), userId);
+        Map<Integer, Role> lockedRoles = roleCapacity.lockRoles(List.of(user.getRole().getId()));
 
-        if ("ADMIN".equals(user.getRole().getName())) {
+        if (SystemRoleKey.ADMIN.matches(user.getRole())) {
             throw new BusinessRuleException("Admin hesabı bu ekrandan pasifleştirilemez");
         }
 
@@ -245,13 +233,14 @@ public class UserService {
             return user;
         }
 
-        if (!active && "BASKAN_YARDIMCISI".equals(user.getRole().getName())) {
+        if (!active && SystemRoleKey.BASKAN_YARDIMCISI.matches(user.getRole())) {
             throw new BusinessRuleException(
                     "Önce Başkan Yardımcısı rolünü başka bir aktif kullanıcıya devredin");
         }
 
         if (active) {
-            ensureSingletonRoleAvailable(user.getRole().getName(), userId);
+            roleCapacity.assertAssignable(user.getRole());
+            roleCapacity.validate(lockedRoles, List.of(RoleCapacityService.Change.of(user, user.getRole(), true)));
         }
 
         boolean previousActive = user.isActive();
@@ -266,7 +255,7 @@ public class UserService {
 
         userAuditLogService.logIslem(
                 userId,
-                currentActorProvider.currentActor().id(),
+                currentUserProvider.currentUserId(),
                 active ? "ACCOUNT_ACTIVATED" : "ACCOUNT_DEACTIVATED",
                 null,
                 null,
@@ -281,30 +270,9 @@ public class UserService {
 
     public List<RoleResponse> listAssignableRoles() {
         return roleRepository.findAllByOrderByIdAsc().stream()
+                .filter(Role::isActive)
                 .map(RoleResponse::from)
                 .toList();
     }
 
-    /**
-     * {@code roleName} tekil bir rolse (bkz. {@link #SINGLETON_ROLES}), o
-     * rolde {@code excludingUserId} disinda aktif baska bir kullanici
-     * olmadigini dogrular. Hem yeni rol atamada ({@link #changeRole}) hem
-     * de pasif bir tekil rol sahibini yeniden aktiflestirirken
-     * ({@link #setActive}) kullanilir — ikisi de ayni invariant'i korur:
-     * bir tekil rolde ayni anda en fazla bir aktif kullanici olabilir.
-     */
-    private void ensureSingletonRoleAvailable(String roleName, UUID excludingUserId) {
-        if (!SINGLETON_ROLES.contains(roleName)) {
-            return;
-        }
-
-        boolean alreadyHeldByAnother = userRepository.findByRole_NameAndActive(roleName, true)
-                .stream()
-                .anyMatch(existing -> !existing.getId().equals(excludingUserId));
-
-        if (alreadyHeldByAnother) {
-            throw new AdminLimitExceededException(
-                    "Bu rol zaten başka bir kullanıcıya atanmış: " + roleName);
-        }
-    }
 }

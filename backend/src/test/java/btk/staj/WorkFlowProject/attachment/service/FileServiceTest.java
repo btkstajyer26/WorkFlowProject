@@ -1,5 +1,7 @@
 package btk.staj.WorkFlowProject.attachment.service;
 
+import static btk.staj.WorkFlowProject.support.AuthorizationFixtures.visibility;
+
 import btk.staj.WorkFlowProject.attachment.dto.FileResponseDto;
 import btk.staj.WorkFlowProject.attachment.entity.FileEntity;
 import btk.staj.WorkFlowProject.attachment.repository.FileRepository;
@@ -237,7 +239,7 @@ class FileServiceTest {
         when(fileStorageService.loadAsResource("stored-guid.pdf"))
                 .thenReturn(new ByteArrayResource("pdf-content".getBytes()));
 
-        ResponseEntity<Resource> response = fileService().downloadFile(fileId, RoleName.CALISAN, UPLOADER_ID);
+        ResponseEntity<Resource> response = fileService().downloadFile(fileId, visibility(RoleName.CALISAN, UPLOADER_ID));
 
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
         assertThat(response.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PDF);
@@ -267,7 +269,7 @@ class FileServiceTest {
         when(fileStorageService.loadAsResource("stored-guid.png"))
                 .thenReturn(new ByteArrayResource("image-content".getBytes()));
 
-        ResponseEntity<Resource> response = fileService().previewFile(fileId, RoleName.CALISAN, UPLOADER_ID);
+        ResponseEntity<Resource> response = fileService().previewFile(fileId, visibility(RoleName.CALISAN, UPLOADER_ID));
 
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
         assertThat(response.getHeaders().getContentType()).isEqualTo(MediaType.IMAGE_PNG);

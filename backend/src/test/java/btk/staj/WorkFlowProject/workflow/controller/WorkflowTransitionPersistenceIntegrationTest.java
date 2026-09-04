@@ -4,13 +4,18 @@ import btk.staj.WorkFlowProject.audit.service.AuditLogService;
 import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
 import btk.staj.WorkFlowProject.notification.service.MailService;
 import btk.staj.WorkFlowProject.rbac.Role;
+import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
 import btk.staj.WorkFlowProject.user.entity.User;
 import btk.staj.WorkFlowProject.workflow.adapter.UserPortAdapter;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
+import btk.staj.WorkFlowProject.workflow.statemachine.RoleId;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -25,10 +30,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
-
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -390,7 +391,7 @@ class WorkflowTransitionPersistenceIntegrationTest {
             doAnswer(invocation -> {
                 jdbc.update("UPDATE records SET version = version + 1 WHERE id = ?", record);
                 return invocation.callRealMethod();
-            }).when(userPortAdapter).findActiveByRole(RoleName.BASKAN_YARDIMCISI);
+            }).when(userPortAdapter).findActiveByRole(new RoleId(roleId(RoleName.BASKAN_YARDIMCISI)));
 
             perform(record, actor(calisan, RoleName.CALISAN),
                     "{\"action\":\"GONDER\"}")
@@ -577,6 +578,9 @@ class WorkflowTransitionPersistenceIntegrationTest {
         Role role = new Role();
         role.setId(roleId(roleName));
         role.setName(roleName.name());
+        role.setActive(true);
+        role.setSystemKey(roleName.name());
+        role.setWorkflowActor(AuthorizationFixtures.workflowActor(roleName.name()));
 
         User user = new User();
         user.setId(userId);
@@ -585,6 +589,6 @@ class WorkflowTransitionPersistenceIntegrationTest {
         user.setRole(role);
         user.setActive(true);
 
-        return new AuthenticatedUser(user);
+        return AuthorizationFixtures.authenticated(user);
     }
 }

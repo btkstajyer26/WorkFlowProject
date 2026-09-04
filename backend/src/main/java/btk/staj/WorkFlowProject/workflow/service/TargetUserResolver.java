@@ -1,28 +1,31 @@
 package btk.staj.WorkFlowProject.workflow.service;
 
-import btk.staj.WorkFlowProject.workflow.model.TargetResolution;
 import btk.staj.WorkFlowProject.workflow.model.TargetResolution.DataIntegrityReason;
+import btk.staj.WorkFlowProject.workflow.model.TargetResolution;
 import btk.staj.WorkFlowProject.workflow.model.WorkflowRecordSnapshot;
 import btk.staj.WorkFlowProject.workflow.model.WorkflowUserSnapshot;
 import btk.staj.WorkFlowProject.workflow.port.WorkflowUserPort;
-import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
-import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
-
+import btk.staj.WorkFlowProject.workflow.statemachine.RoleId;
+import btk.staj.WorkFlowProject.workflow.statemachine.TargetStrategy;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Resolves the workflow target dictated by an action without applying transition
- * validation. Role and active-state checks deliberately remain the state
+ * Resolves the workflow target dictated by the transition's strategy without applying
+ * transition validation. Role and active-state checks deliberately remain the state
  * machine's responsibility.
  *
- * <p>Hedefi her aksiyon icin backend cozer; istekten gelen {@code targetUserId}
- * hicbir kolda kullanilmaz. {@code GONDER} ve {@code TEKRAR_GONDER} hedefini
- * {@code BASKANA_ILET} ile ayni yoldan, sistemdeki tek aktif kullanicidan
- * bulur: Calisanin aktif Baskan Yardimcisinin kimligini ogrenebilecegi guvenli
- * bir uc yoktur ve tekil rol karari geregi acilmayacaktir.</p>
+ * <p>Hangi stratejinin uygulanacagi <strong>aksiyondan degil gecisten</strong> gelir:
+ * {@code workflow_transitions.target_strategy} kolonu, {@code TransitionRule} uzerinden
+ * buraya tasinir. Boylece ayni aksiyon farkli gecislerde farkli hedefe gidebilir
+ * (DB-1 SS6.5).
+ *
+ * <p>Hedefi her zaman backend cozer; istekten gelen {@code targetUserId} hicbir kolda
+ * kullanilmaz. {@code ROLE} stratejisi sistemdeki tek aktif kullaniciyi bulur:
+ * Calisanin aktif Baskan Yardimcisinin kimligini ogrenebilecegi guvenli bir uc yoktur
+ * ve tekil rol karari geregi acilmayacaktir.</p>
  */
 public final class TargetUserResolver {
 
@@ -33,35 +36,40 @@ public final class TargetUserResolver {
     }
 
     /**
+     * @param strategy gecisin hedef cozum primitive'i (DB-1 SS7.2)
+     * @param expectedTargetRoleId {@code ROLE} stratejisinde aranacak rol; diger
+     *        stratejilerde bilgi amaclidir ve okunmaz
      * @param requestedTargetUserId istekten gelen hedef; <strong>bilerek yok
-     *        sayilir</strong>. Hedefi artik her aksiyon icin backend cozdugu
-     *        icin hicbir kol bu degeri okumaz. Parametre, istegin hedef tasiyip
-     *        tasimadigini {@code WorkflowApplicationService}'in ayrica
-     *        dogruladigini gizlememek ve imzayi bozmamak icin duruyor.
+     *        sayilir</strong>. Hedefi her zaman backend cozdugu icin hicbir kol bu
+     *        degeri okumaz. Parametre, istegin hedef tasiyip tasimadigini
+     *        {@code WorkflowApplicationService}'in ayrica dogruladigini gizlememek
+     *        ve imzayi bozmamak icin duruyor.
      */
     public TargetResolution resolve(
-            WorkflowAction action,
+            TargetStrategy strategy,
+            RoleId expectedTargetRoleId,
             UUID requestedTargetUserId,
             WorkflowRecordSnapshot record) {
-        Objects.requireNonNull(action, "action");
+        Objects.requireNonNull(strategy, "strategy");
         Objects.requireNonNull(record, "record");
 
-        return switch (action) {
-            case GONDER, TEKRAR_GONDER -> resolveSingleActiveRole(RoleName.BASKAN_YARDIMCISI);
-            case BASKANA_ILET -> resolveSingleActiveRole(RoleName.BASKAN);
-            case CALISANA_GERI_GONDER -> resolveCreatedBy(record.createdBy());
-            case BASKAN_YARDIMCISINA_GERI_GONDER -> resolveLastDeputy(record.lastDeputyId());
-            case ONAYLA, REDDET -> new TargetResolution.NotProvided();
+        return switch (strategy) {
+            case NONE -> new TargetResolution.NotProvided();
+            case ROLE -> resolveSingleActiveRole(Objects.requireNonNull(
+                    expectedTargetRoleId, "expectedTargetRoleId"));
+            case CREATOR -> resolveCreatedBy(record.createdBy());
+            case CURRENT_ASSIGNEE -> resolveCurrentAssignee(record.assignedTo());
+            case PREVIOUS_ACTOR -> resolveLastDeputy(record.lastDeputyId());
         };
     }
 
-    private TargetResolution resolveSingleActiveRole(RoleName role) {
+    private TargetResolution resolveSingleActiveRole(RoleId roleId) {
         List<WorkflowUserSnapshot> activeUsers = Objects.requireNonNull(
-                userPort.findActiveByRole(role),
-                "userPort.findActiveByRole(role)");
+                userPort.findActiveByRole(roleId),
+                "userPort.findActiveByRole(roleId)");
 
         if (activeUsers.size() != 1) {
-            return new TargetResolution.RoleNotConfigured(role, activeUsers.size());
+            return new TargetResolution.RoleNotConfigured(roleId, activeUsers.size());
         }
         return new TargetResolution.Resolved(activeUsers.getFirst());
     }
@@ -72,6 +80,30 @@ public final class TargetUserResolver {
             return new TargetResolution.DataIntegrityFailure(
                     DataIntegrityReason.CREATED_BY_USER_NOT_FOUND,
                     createdBy);
+        }
+        return new TargetResolution.Resolved(user.get());
+    }
+
+    /**
+     * Hedef, gecis oncesindeki atanan kullanicidir.
+     *
+     * <p>Seed edilmis sekiz gecisin hicbiri bu stratejiyi kullanmiyor; yine de
+     * uygulanmistir, cunku {@code chk_transition_target_strategy} bu degere izin verir ve
+     * DB-1 SS7.2 anlamini kesin olarak tanimlar. Desteklenmemesi, gecerli bir veritabani
+     * satirinin uygulamayi acilista dusurmesi anlamina gelirdi.
+     */
+    private TargetResolution resolveCurrentAssignee(UUID assignedTo) {
+        if (assignedTo == null) {
+            return new TargetResolution.DataIntegrityFailure(
+                    DataIntegrityReason.CURRENT_ASSIGNEE_MISSING,
+                    null);
+        }
+
+        Optional<WorkflowUserSnapshot> user = findById(assignedTo);
+        if (user.isEmpty()) {
+            return new TargetResolution.DataIntegrityFailure(
+                    DataIntegrityReason.CURRENT_ASSIGNEE_USER_NOT_FOUND,
+                    assignedTo);
         }
         return new TargetResolution.Resolved(user.get());
     }

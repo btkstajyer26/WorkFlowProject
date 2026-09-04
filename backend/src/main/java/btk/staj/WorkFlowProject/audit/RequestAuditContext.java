@@ -12,7 +12,7 @@ import java.util.UUID;
 @Component
 public class RequestAuditContext {
 
-    public record Snapshot(String action, UUID userId, Integer roleId, String roleName) {
+    public record Snapshot(String action, UUID userId, Integer roleId, String systemKey) {
     }
 
     private static final ThreadLocal<Snapshot> HOLDER = new ThreadLocal<>();
@@ -23,12 +23,12 @@ public class RequestAuditContext {
             return;
         }
         Integer roleId = user.getRole() != null ? user.getRole().getId() : null;
-        String roleName = user.getRole() != null ? user.getRole().getName() : null;
-        mark(action, user.getId(), roleId, roleName);
+        String systemKey = user.getRole() != null ? user.getRole().getSystemKey() : null;
+        mark(action, user.getId(), roleId, systemKey);
     }
 
-    public void mark(String action, UUID userId, Integer roleId, String roleName) {
-        HOLDER.set(new Snapshot(action, userId, roleId, roleName));
+    public void mark(String action, UUID userId, Integer roleId, String systemKey) {
+        HOLDER.set(new Snapshot(action, userId, roleId, systemKey));
     }
 
     public Snapshot peek() {

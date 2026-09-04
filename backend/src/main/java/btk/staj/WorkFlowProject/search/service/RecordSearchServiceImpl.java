@@ -1,5 +1,7 @@
 package btk.staj.WorkFlowProject.search.service;
 
+import btk.staj.WorkFlowProject.auth.security.CurrentVisibilityActorProvider;
+import btk.staj.WorkFlowProject.auth.security.VisibilityActor;
 import btk.staj.WorkFlowProject.common.dto.PagedResponse;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
@@ -9,12 +11,6 @@ import btk.staj.WorkFlowProject.search.dto.RecordSearchResponse;
 import btk.staj.WorkFlowProject.search.specification.RecordSpecifications;
 import btk.staj.WorkFlowProject.user.entity.User;
 import btk.staj.WorkFlowProject.user.repository.UserRepository;
-import btk.staj.WorkFlowProject.workflow.model.CurrentActor;
-import btk.staj.WorkFlowProject.workflow.port.CurrentActorProvider;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -22,22 +18,25 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
 
 @Service
 public class RecordSearchServiceImpl implements RecordSearchService {
 
     private final RecordRepository recordRepository;
-    private final CurrentActorProvider currentActorProvider;
+    private final CurrentVisibilityActorProvider currentVisibilityActorProvider;
     private final RecordContentView recordContentView;
     private final UserRepository userRepository;
 
     public RecordSearchServiceImpl(RecordRepository recordRepository,
-                                   CurrentActorProvider currentActorProvider,
+                                   CurrentVisibilityActorProvider currentVisibilityActorProvider,
                                    RecordContentView recordContentView,
                                    UserRepository userRepository) {
         this.recordRepository = Objects.requireNonNull(recordRepository, "recordRepository");
-        this.currentActorProvider = Objects.requireNonNull(
-                currentActorProvider, "currentActorProvider");
+        this.currentVisibilityActorProvider = Objects.requireNonNull(
+                currentVisibilityActorProvider, "currentVisibilityActorProvider");
         this.recordContentView = Objects.requireNonNull(recordContentView, "recordContentView");
         this.userRepository = Objects.requireNonNull(userRepository, "userRepository");
     }
@@ -55,10 +54,10 @@ public class RecordSearchServiceImpl implements RecordSearchService {
             RecordSearchCriteria criteria,
             Pageable pageable) {
 
-        CurrentActor actor = currentActorProvider.currentActor();
+        VisibilityActor actor = currentVisibilityActorProvider.currentVisibilityActor();
 
         Page<Record> recordPage = recordRepository.findAll(
-                RecordSpecifications.withFilters(criteria, actor.id(), actor.role()),
+                RecordSpecifications.withFilters(criteria, actor),
                 pageable);
 
         Map<UUID, String> creatorNames = creatorNamesOf(recordPage.getContent());
@@ -101,10 +100,10 @@ public class RecordSearchServiceImpl implements RecordSearchService {
      * devam ederdi.
      */
     private RecordSearchResponse toResponse(Record record,
-                                            CurrentActor actor,
+                                            VisibilityActor actor,
                                             Map<UUID, String> creatorNames) {
         RecordContentView.Content content =
-                recordContentView.visibleContent(record, actor.role(), actor.id());
+                recordContentView.visibleContent(record, actor);
 
         RecordSearchResponse response = new RecordSearchResponse();
 

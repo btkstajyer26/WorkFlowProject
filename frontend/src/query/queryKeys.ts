@@ -27,6 +27,10 @@ export const queryKeys = {
       list: (query: object) => ['admin', 'users', 'list', query] as const,
       options: ['admin', 'users', 'options'] as const,
     },
+    roles: {
+      all: ['admin', 'roles'] as const,
+      list: () => ['admin', 'roles', 'list'] as const,
+    },
     auditLogs: {
       all: ['admin', 'audit-logs'] as const,
       list: (query: object) => ['admin', 'audit-logs', 'list', query] as const,

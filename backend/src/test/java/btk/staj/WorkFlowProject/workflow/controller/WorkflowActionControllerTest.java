@@ -4,6 +4,7 @@ import btk.staj.WorkFlowProject.attachment.repository.FileRepository;
 import btk.staj.WorkFlowProject.audit.entity.AuditLog;
 import btk.staj.WorkFlowProject.audit.repository.AuditLogRepository;
 import btk.staj.WorkFlowProject.audit.repository.UserAuditLogRepository;
+import btk.staj.WorkFlowProject.auth.repository.PasswordResetCodeRepository;
 import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
 import btk.staj.WorkFlowProject.notification.repository.DeviceTokenRepository;
 import btk.staj.WorkFlowProject.notification.repository.MailActionTokenRepository;
@@ -12,13 +13,19 @@ import btk.staj.WorkFlowProject.rbac.Role;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.repository.CategoryRepository;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
+import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
+import btk.staj.WorkFlowProject.support.WorkflowRoleFixtures;
 import btk.staj.WorkFlowProject.user.entity.User;
 import btk.staj.WorkFlowProject.user.repository.RoleRepository;
-import btk.staj.WorkFlowProject.auth.repository.PasswordResetCodeRepository;
 import btk.staj.WorkFlowProject.user.repository.TokenRepository;
 import btk.staj.WorkFlowProject.user.repository.UserRepository;
+import btk.staj.WorkFlowProject.workflow.StaticTransitionRuleReaderConfiguration;
+import btk.staj.WorkFlowProject.workflow.repository.WorkflowTransitionRepository;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -27,6 +34,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -34,10 +42,6 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.SimpleTransactionStatus;
-
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
@@ -65,6 +69,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 @AutoConfigureMockMvc
 @DisplayName("Onay akisi ucu")
+@Import(StaticTransitionRuleReaderConfiguration.class)
 class WorkflowActionControllerTest {
 
     private static final String ACTION_URL = "/api/records/{recordId}/workflow/actions";
@@ -85,6 +90,8 @@ class WorkflowActionControllerTest {
     @MockitoBean private NotificationRepository notificationRepository;
     @MockitoBean private DeviceTokenRepository deviceTokenRepository;
     @MockitoBean private MailActionTokenRepository mailActionTokenRepository;
+    @MockitoBean private WorkflowTransitionRepository workflowTransitionRepository;
+    @MockitoBean private btk.staj.WorkFlowProject.rbac.repository.RolePermissionRepository rolePermissionRepository;
 
     @TestConfiguration
     static class NoOpTransactionConfig {
@@ -114,7 +121,6 @@ class WorkflowActionControllerTest {
         UUID recordId = UUID.randomUUID();
         AuthenticatedUser baskan = actor(RoleName.BASKAN);
         givenRecord(recordId, RecordStatus.BASKAN_INCELEMESINDE, baskan.getId());
-        givenRole(RoleName.BASKAN, BASKAN_ROLE_ID);
 
         mockMvc.perform(post(ACTION_URL, recordId)
                         .with(user(baskan))
@@ -214,7 +220,7 @@ class WorkflowActionControllerTest {
         UUID recordId = UUID.randomUUID();
         AuthenticatedUser calisan = actor(RoleName.CALISAN);
         givenOwnedRecord(recordId, RecordStatus.TASLAK, calisan.getId());
-        when(userRepository.findByRole_NameAndActive(RoleName.BASKAN_YARDIMCISI.name(), true))
+        when(userRepository.findByRole_IdAndRole_ActiveTrueAndActiveTrue(WorkflowRoleFixtures.value(RoleName.BASKAN_YARDIMCISI)))
                 .thenReturn(List.of());
 
         mockMvc.perform(post(ACTION_URL, recordId)
@@ -279,16 +285,13 @@ class WorkflowActionControllerTest {
         when(recordRepository.findById(recordId)).thenReturn(Optional.of(record));
     }
 
-    private void givenRole(RoleName roleName, int roleId) {
-        Role role = new Role();
-        role.setId(roleId);
-        role.setName(roleName.name());
-        when(roleRepository.findByName(roleName.name())).thenReturn(Optional.of(role));
-    }
-
     private static AuthenticatedUser actor(RoleName roleName) {
         Role role = new Role();
+        role.setId(WorkflowRoleFixtures.value(roleName));
         role.setName(roleName.name());
+        role.setActive(true);
+        role.setSystemKey(roleName.name());
+        role.setWorkflowActor(AuthorizationFixtures.workflowActor(roleName.name()));
 
         User user = new User();
         user.setId(UUID.randomUUID());
@@ -297,6 +300,6 @@ class WorkflowActionControllerTest {
         user.setRole(role);
         user.setActive(true);
 
-        return new AuthenticatedUser(user);
+        return AuthorizationFixtures.authenticated(user);
     }
 }
