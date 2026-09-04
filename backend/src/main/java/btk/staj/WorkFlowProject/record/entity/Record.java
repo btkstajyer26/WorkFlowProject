@@ -52,6 +52,13 @@ public class Record {
     @Column(name = "last_deputy_id")
     private UUID lastDeputyId;
 
+    // Kaydin kisiye DEGIL departmana atanmasi. assignedTo ile ayni anda
+    // dolu olamaz (bkz. chk_records_assignment_exclusive, V21).
+    // ADR-0006 kabul edildi; bu alani yazan WF-5/WF-6 runtime'i henuz
+    // uygulanmadi. Burada yalniz kolon ve kisit hazirdir.
+    @Column(name = "assigned_department_id")
+    private Integer assignedDepartmentId;
+
     // Kayit Calisana geri gonderildigi anda icerigin dondurulmus kopyasi.
     // Baskan Yardimcisi, evrak duzeltmedeyken canli icerigi degil bunu gorur
     // (bkz. V9 migration ve RecordAccessPolicy.seesRecordAsOfHandoff).

@@ -240,7 +240,9 @@ sayıyor; hedefi her aksiyon için sunucu çözer.
 > Edildi**, 4 Eylül 2026) yeni bir `DEPARTMANA_GONDER` aksiyonu ve istekte
 > `targetDepartmentId` alanı getirir. `WorkflowAction` enum'u istemci
 > sözleşmesinde paylaşıldığı için mobil, aksiyonu tanımadan gönderim ekranını
-> açmamalıdır. Bu bölüm uçlar `DB-13`/`V18` ile geldiğinde güncellenir.
+> açmamalıdır. Bu bölüm WF-5/WF-6 runtime'ı ve DB-13'ün ayrı ileri migration'ı
+> ile uçlar geldiğinde güncellenir. V18–V22 şema teslimi gönderim aksiyonunu
+> veya HTTP alanını eklemez.
 
 Cevap:
 

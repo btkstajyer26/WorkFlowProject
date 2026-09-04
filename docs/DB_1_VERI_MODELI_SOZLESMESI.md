@@ -2,7 +2,7 @@
 
 - **Durum:** Kabul edildi
 - **Karar tarihi:** 1 Eylül 2026
-- **Son güncelleme:** 3 Eylül 2026 — §15 departman veri şekli (ADR-0005 kabulü)
+- **Son güncelleme:** 4 Eylül 2026 — §15 departman şeması V18–V22 ile hizalandı; gönderim runtime'ı açık
 - **Kapsam:** DB-1
 - **Mevcut şema tabanı:** Flyway `V1`–`V11` (`V3` tarihsel olarak yoktur)
 - **Uygulama durumu:** Uygulandı — `V12`–`V16` migration'ları ve `DbTransitionRuleSource`
@@ -452,10 +452,12 @@ constraint, resolver, validator ve testler aynı değişiklikte genişletilmelid
 > **Dondurmanın çözülmesi (ADR-0006, Kabul Edildi — 4 Eylül 2026).**
 > [ADR-0006](decisions/0006-departman-hedefli-target-strategy.md) yalnız
 > **`DEPARTMENT`** değerini açar; `DEPARTMENT_ROLE`, `PARENT_DEPARTMENT`
-> ve `EXPLICIT_USER` dondurulmuş kalır. `V18` ile `chk_transition_target_strategy` ve
-> `chk_transition_target_strategy_role` kısıtları yeniden oluşturulur; uygulanmış
-> `V15` düzenlenmez (§13.1). Karar `DB-13` kapsamındadır ve Workflow V1 teslimine
-> dahildir.
+> ve `EXPLICIT_USER` dondurulmuş kalır. WF-5/WF-6 ile birlikte eklenecek ayrı bir
+> ileri migration, `chk_transition_target_strategy` ve
+> `chk_transition_target_strategy_role` kısıtlarını yeniden oluşturacaktır;
+> uygulanmış `V15` düzenlenmez (§13.1). V18–V21 departman veri katmanına,
+> V22 şema düzeltmelerine aittir; gönderim stratejisi/aksiyonu ve seed'leri içermez.
+> Bu kalan çalışma `DB-13` kapsamındadır ve Workflow V1 teslimine dahildir.
 
 ## 8. Bağlayıcı sekiz geçiş seed'i
 
@@ -650,13 +652,17 @@ Publish doğrulaması en az şunları kontrol etmelidir:
 - target strategy için gerekli alanlar doludur;
 - ulaşılamayan durumlar ve istenmeyen döngüler raporlanır.
 
-## 15. Departman modeli — şekil kabul edildi, uygulama Workflow V1 kapsamında
+## 15. Departman modeli — şema V18–V22 ile hazır, runtime açık
 
 [ADR-0005](decisions/0005-departman-atamasi-ve-akis-kurali.md) (**Kabul Edildi**,
 3 Eylül 2026) departman atamasının açık kararlarını kapattı. Bu bölüm o kararların
 **veri şeklini** taşır; değerlendirilen seçenekler ve gerekçe ADR'dedir. Şekil
-bağlayıcıdır; DDL bu sözleşmenin kendi kapsamında değil, `DB-11` · `DB-12` ·
-`DB-13` işleriyle gelir.
+bağlayıcıdır. `DB-11` · `DB-12` · `DB-13` veri katmanının departman, üyelik,
+routing ve kayıt ataması DDL'i V18–V21 ile eklenmiştir. V22 ad uzunluğunu 150'ye
+çıkarır, kendine-parent CHECK'i ekler ve üyelik/routing silme politikasını
+RESTRICT yapar; paylaşılmış V18–V21 dosyaları değiştirilmez. Entity/repository
+katmanı hazırdır. DB-13'ün gönderim stratejisi/aksiyonu/seed'leri, WF-5/WF-6
+runtime'ı ve departman görünürlük kabulü ayrı iş olarak açıktır.
 
 > **Zamanlama güncellemesi (4 Eylül 2026).** Bu bölüm yazıldığında departman
 > uygulaması "sonraki iterasyon" idi. Plan güncellemesiyle `DB-11`/`DB-12`/`DB-13`
@@ -881,7 +887,7 @@ giderilmiştir:
 | Admin paneli | PR #57 rol listesi getirir. Rol CRUD, permission matrisi ve durum katalog ekranı teslim edilmiş değildir |
 | Statik kaynak | `TZ-1` **tamamlandı**: `TransitionRules` ve `StaticTransitionRuleSource` test ağacına taşındı ve production jar'ından çıktı. Parity oracle'ı ve invariantlar korundu; invariantlar artık veritabanı kaynağı üzerinde de koşuyor |
 | Atama sözleşmesi | `TransitionContext.actorHoldsAssignment` (`WF-5` ile yeniden adlandırıldı); departman anlamı `WF-6` ile gelecek |
-| Departman | ADR-0005 **Kabul Edildi**; veri şekli §15'te. `assigned_department_id`'yi yazan gönderim yolu ADR-0006'ya bırakıldı |
+| Departman | ADR-0005 ve ADR-0006 **Kabul Edildi**; §15 şeması/entity/repository V18–V22 ile hazır. Gönderim yolu, strateji/aksiyon/seed'ler ve departman görünürlüğü henüz uygulanmadı |
 
 Test kanıtı: bu doğrulamada tam süit **646 test / 0 failure / 0 error / 0 skipped**
 (TZ-1 öncesi kayıt 639; `TZ-1`'in eklediği kaynak-agnostik invariantlar ve mutasyon
