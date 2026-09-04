@@ -165,7 +165,8 @@ public class WorkflowStatusChangedListener {
      * Bildirimi kim(ler) almali:
      * <ul>
      *   <li>{@code event.assignedTo() != null} -> yalniz atanan kisi.</li>
-     *   <li>{@code assignedTo == null} (nihai onay/ret) -> kaydi olusturan ve
+     *   <li>Departman atamasinda NT-5 fan-out teslimine kadar bos kume.</li>
+     *   <li>Iki atama da null (nihai onay/ret) -> kaydi olusturan ve
      *       kaydi Baskana ileten yardimci ({@code Record.lastDeputyId}).</li>
      * </ul>
      * LinkedHashSet sira garantisi verir ve ayni kisi iki role denk geldiginde mukerrerligi onler.
@@ -177,6 +178,9 @@ public class WorkflowStatusChangedListener {
             recipients.add(event.assignedTo());
             return recipients;
         }
+
+        // Department fan-out is NT-5; never fall through to terminal recipients.
+        if (event.assignedDepartmentId() != null) return Collections.emptySet();
 
         Optional<Record> recordOpt = recordRepository.findById(event.recordId());
         if (recordOpt.isEmpty()) {

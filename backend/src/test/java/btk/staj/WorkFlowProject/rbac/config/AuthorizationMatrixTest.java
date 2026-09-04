@@ -72,6 +72,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @DisplayName("Yetki matrisi")
 @Import(StaticTransitionRuleReaderConfiguration.class)
 class AuthorizationMatrixTest {
+    @MockitoBean
+    private btk.staj.WorkFlowProject.workflow.adapter.DepartmentRoutingAdapter departmentRoutingAdapter;
 
     @Autowired
     private MockMvc mockMvc;

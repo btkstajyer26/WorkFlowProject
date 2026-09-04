@@ -19,6 +19,7 @@ import static btk.staj.WorkFlowProject.workflow.statemachine.RoleName.CALISAN;
 import static btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction.BASKANA_ILET;
 import static btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction.BASKAN_YARDIMCISINA_GERI_GONDER;
 import static btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction.CALISANA_GERI_GONDER;
+import static btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction.DEPARTMANA_GONDER;
 import static btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction.GONDER;
 import static btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction.ONAYLA;
 import static btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction.REDDET;
@@ -41,7 +42,11 @@ public final class TransitionRules {
             new RuleTemplate(BASKAN_INCELEMESINDE,  ONAYLA,                          BASKAN,             ASSIGNEE,              ONAYLANDI,             TargetStrategy.NONE,           null, "RECORD_APPROVE"),
             new RuleTemplate(BASKAN_INCELEMESINDE,  REDDET,                          BASKAN,             ASSIGNEE,              REDDEDILDI,            TargetStrategy.NONE,           null, "RECORD_REJECT"),
             new RuleTemplate(BASKAN_INCELEMESINDE,  CALISANA_GERI_GONDER,            BASKAN,             ASSIGNEE,              DUZENLEME_BEKLIYOR,    TargetStrategy.CREATOR,        CALISAN, "RECORD_RETURN"),
-            new RuleTemplate(BASKAN_INCELEMESINDE,  BASKAN_YARDIMCISINA_GERI_GONDER, BASKAN,             ASSIGNEE,              BSK_YRD_INCELEMESINDE, TargetStrategy.PREVIOUS_ACTOR, BASKAN_YARDIMCISI, "RECORD_RETURN")
+            new RuleTemplate(BASKAN_INCELEMESINDE,  BASKAN_YARDIMCISINA_GERI_GONDER, BASKAN,             ASSIGNEE,              BSK_YRD_INCELEMESINDE, TargetStrategy.PREVIOUS_ACTOR, BASKAN_YARDIMCISI, "RECORD_RETURN"),
+            // ADR-0006 / V23: departmana gonderim. Hedef rol tasimazlar; departman icinde
+            // kimin yetkili oldugu department_routing_rules'tan calisma zamaninda cozulur.
+            new RuleTemplate(TASLAK,                DEPARTMANA_GONDER,               CALISAN,            CREATOR,               BSK_YRD_INCELEMESINDE, TargetStrategy.DEPARTMENT,     null, "RECORD_FORWARD"),
+            new RuleTemplate(DUZENLEME_BEKLIYOR,    DEPARTMANA_GONDER,               CALISAN,            CREATOR_AND_ASSIGNEE,  BSK_YRD_INCELEMESINDE, TargetStrategy.DEPARTMENT,     null, "RECORD_FORWARD")
     );
 
     private TransitionRules() { }

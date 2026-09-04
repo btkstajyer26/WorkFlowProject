@@ -198,7 +198,8 @@ public class GlobalExceptionHandler {
             case WORKFLOW_FORBIDDEN, WORKFLOW_ROLE_NOT_ALLOWED -> HttpStatus.FORBIDDEN;
             // Ucu de kural ihlali degil, gecici catisma: kayit kilitli, tekil rol
             // hedefi cozulemedi veya kayit istek hazirlanirken degismis.
-            case WORKFLOW_RECORD_LOCKED, WORKFLOW_ROLE_NOT_CONFIGURED, WORKFLOW_VERSION_CONFLICT ->
+            case WORKFLOW_RECORD_LOCKED, WORKFLOW_ROLE_NOT_CONFIGURED, WORKFLOW_VERSION_CONFLICT,
+                    WORKFLOW_DEPARTMENT_ROUTING_NOT_CONFIGURED ->
                     HttpStatus.CONFLICT;
             case WORKFLOW_STATUS_NOT_CONFIGURED -> HttpStatus.INTERNAL_SERVER_ERROR;
             default -> HttpStatus.BAD_REQUEST;
@@ -221,8 +222,10 @@ public class GlobalExceptionHandler {
             case WORKFLOW_FORBIDDEN -> "Bu kayıt üzerinde işlem yapma yetkiniz yok";
             case WORKFLOW_RECORD_LOCKED -> "Kayıt kilitli, üzerinde işlem yapılamaz";
             case WORKFLOW_COMMENT_REQUIRED -> "Bu işlem için açıklama zorunludur";
-            case WORKFLOW_TARGET_REQUIRED -> "Hedef kullanıcı seçilmelidir";
-            case WORKFLOW_TARGET_NOT_ALLOWED -> "Seçilen hedef kullanıcı bu işlem için uygun değil";
+            case WORKFLOW_TARGET_REQUIRED -> "İşlem için hedef seçilmelidir";
+            case WORKFLOW_DEPARTMENT_INVALID -> "Hedef departman bulunamadı veya pasif";
+            case WORKFLOW_DEPARTMENT_ROUTING_NOT_CONFIGURED -> "Departmanın hedef durumda uygun yönlendirmesi yok";
+            case WORKFLOW_TARGET_NOT_ALLOWED -> "Gönderilen hedef alanı bu işlem için uygun değil";
             case WORKFLOW_TARGET_ROLE_INVALID -> "Seçilen hedef kullanıcının rolü uygun değil";
             case WORKFLOW_TARGET_INACTIVE -> "Seçilen hedef kullanıcı pasif durumda";
             case WORKFLOW_ROLE_NOT_ALLOWED -> "Rolünüz bu işlemi yapamaz";

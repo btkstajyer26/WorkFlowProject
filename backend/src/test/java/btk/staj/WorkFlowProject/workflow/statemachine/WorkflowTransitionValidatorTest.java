@@ -30,7 +30,7 @@ class WorkflowTransitionValidatorTest {
                 RoleName.BASKAN_YARDIMCISI, new RoleId(2002), RoleName.BASKAN, new RoleId(3003));
         var source = new StaticTransitionRuleSource(ids);
         var context = new TransitionContext(RecordStatus.TASLAK, WorkflowAction.GONDER,
-                new RoleId(1001), true, false, null, false, new RoleId(2002), true,
+                new RoleId(1001), true, false, null, false, false, new RoleId(2002), true,
                 true, java.util.Set.of("RECORD_FORWARD"));
 
         assertThat(context.actorRoleId()).isNotSameAs(ids.get(RoleName.CALISAN));
@@ -478,7 +478,7 @@ class WorkflowTransitionValidatorTest {
                 false,
                 false,
                 null,
-                false,
+                false, false,
                 null,
                 true,
                 AuthorizationFixtures.workflowActor(RoleName.BASKAN),
@@ -517,7 +517,7 @@ class WorkflowTransitionValidatorTest {
         }
 
         @Test
-        @DisplayName("izinli gecis sayisi surum catismasi eklendikten sonra da sekizdir")
+        @DisplayName("izinli gecis sayisi departman gonderimi eklendikten sonra ondur")
         void izinliGecisSayisiDegismedi() {
             long izinliBirlesimSayisi = 0;
 
@@ -531,7 +531,8 @@ class WorkflowTransitionValidatorTest {
                 }
             }
 
-            assertThat(izinliBirlesimSayisi).isEqualTo(8);
+            // 8 yerlesik gecis + ADR-0006 ile eklenen iki DEPARTMANA_GONDER satiri.
+        assertThat(izinliBirlesimSayisi).isEqualTo(10);
         }
 
         private List<WorkflowErrorCode> tumBirlesimlerinRetKodlari() {
@@ -554,7 +555,7 @@ class WorkflowTransitionValidatorTest {
                                                                 olusturan,
                                                                 atanan,
                                                                 aciklama,
-                                                                hedefGonderildi,
+                                                                hedefGonderildi, false,
                                                                 WorkflowRoleFixtures.id(hedefRol),
                                                                 hedefAktif,
                                                                 AuthorizationFixtures.workflowActor(actorRole),
@@ -658,7 +659,7 @@ class WorkflowTransitionValidatorTest {
                     isCreator,
                     isAssignee,
                     comment,
-                    targetProvidedInRequest,
+                    targetProvidedInRequest, false,
                     targetRole,
                     targetActive,
                     AuthorizationFixtures.workflowActor(actorRole),

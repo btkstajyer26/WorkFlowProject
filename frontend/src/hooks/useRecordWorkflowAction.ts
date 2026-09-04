@@ -7,6 +7,7 @@ import type { WorkflowRecord } from '../types/record'
 
 const actionLabels: Record<NonNullable<WorkflowActionRequest['action']>, string> = {
   GONDER: 'Başkan Yardımcısına gönderildi',
+  DEPARTMANA_GONDER: 'Departmana gönderildi',
   TEKRAR_GONDER: 'Yeniden incelemeye gönderildi',
   BASKANA_ILET: 'Başkana iletildi',
   CALISANA_GERI_GONDER: 'Çalışana geri gönderildi',

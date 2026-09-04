@@ -79,6 +79,7 @@ public final class RecordPortAdapter implements WorkflowRecordPort {
 
         record.setStatus(requiredUpdate.newStatus());
         record.setAssignedTo(requiredUpdate.assignedTo());
+        record.setAssignedDepartmentId(requiredUpdate.assignedDepartmentId());
         record.setLastDeputyId(requiredUpdate.lastDeputyId());
         // updatedAt'e dokunulmaz: entity'de @UpdateTimestamp var, Hibernate yazar.
 
@@ -119,7 +120,8 @@ public final class RecordPortAdapter implements WorkflowRecordPort {
                 record.getAssignedTo(),
                 record.getLastDeputyId(),
                 toInstant(record.getDeletedAt()),
-                record.getVersion() == null ? 0 : record.getVersion());
+                record.getVersion() == null ? 0 : record.getVersion(),
+                record.getAssignedDepartmentId());
     }
 
     private static Instant toInstant(java.time.LocalDateTime value) {

@@ -18,7 +18,15 @@ public record WorkflowStatusChangedEvent(
         UUID previousAssignedTo,
         UUID assignedTo,
         String comment,
-        Instant performedAt) {
+        Instant performedAt,
+        Integer assignedDepartmentId) {
+
+    public WorkflowStatusChangedEvent(UUID recordId, WorkflowAction action, RecordStatus previousStatus,
+            RecordStatus newStatus, UUID actorId, RoleId actorRoleId, UUID previousAssignedTo,
+            UUID assignedTo, String comment, Instant performedAt) {
+        this(recordId, action, previousStatus, newStatus, actorId, actorRoleId, previousAssignedTo,
+                assignedTo, comment, performedAt, null);
+    }
 
     public WorkflowStatusChangedEvent {
         Objects.requireNonNull(recordId, "recordId");

@@ -68,7 +68,7 @@ class RecordServiceImplTest {
      */
     private RecordServiceImpl service() {
         return new RecordServiceImpl(recordRepository, recordMapper, recordAccessPolicy, permissionService,
-                auditLogService, new RecordContentView(new RecordAccessPolicy()), userRepository);
+                auditLogService, new RecordContentView(new RecordAccessPolicy(actor -> java.util.Set.of())), userRepository);
     }
 
     /** Verilen kullanici id/rolunu SecurityContextHolder'a giris yapmis kullanici olarak kaydeder. */

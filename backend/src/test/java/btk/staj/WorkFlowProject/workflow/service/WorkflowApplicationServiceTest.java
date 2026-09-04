@@ -93,6 +93,7 @@ class WorkflowApplicationServiceTest {
                 recordPort,
                 currentActorProvider,
                 targetUserResolver,
+                new DepartmentRoutingResolver(org.mockito.Mockito.mock(btk.staj.WorkFlowProject.workflow.port.DepartmentRoutingPort.class)),
                 new WorkflowTransitionValidator(ruleSource),
                 ruleSource,
                 auditService,

@@ -13,9 +13,9 @@ package btk.staj.WorkFlowProject.workflow.statemachine;
  * eksik birakilan bir deger, gecerli bir veritabani satirinda uygulamanin acilmasini
  * engellerdi.
  *
- * <p>Departman calismasi icin ayrilan {@code DEPARTMENT}, {@code DEPARTMENT_ROLE},
- * {@code PARENT_DEPARTMENT} ve {@code EXPLICIT_USER} kavramlari bu iterasyonda ne DB
- * kisitinda ne burada bulunur (DB-1 SS7.2).
+ * <p>{@code DEPARTMENT} ADR-0006 ile acildi (V23). {@code DEPARTMENT_ROLE},
+ * {@code PARENT_DEPARTMENT} ve {@code EXPLICIT_USER} dondurulmus kalir: ne DB
+ * kisitinda ne burada bulunurlar (DB-1 SS7.2).
  */
 public enum TargetStrategy {
 
@@ -30,6 +30,18 @@ public enum TargetStrategy {
 
     /** Hedef {@code records.created_by} kullanicisidir. */
     CREATOR,
+
+    /**
+     * Hedef bir <strong>kullanici degil departmandir</strong>: basarili gecis
+     * {@code assigned_department_id = istekteki departman} ve
+     * {@code assigned_to = NULL} yazar (ADR-0006).
+     *
+     * <p>Bu strateji {@code expected_target_role_id} tasimaz; departman icinde o
+     * adimda kimin yetkili oldugu {@code department_routing_rules} uzerinden
+     * calisma zamaninda cozulur. Kisit karsiligi V23'teki
+     * {@code chk_transition_target_strategy_role}'dur.
+     */
+    DEPARTMENT,
 
     /** Hedef, gecis oncesindeki {@code records.assigned_to} kullanicisidir. */
     CURRENT_ASSIGNEE,

@@ -3,7 +3,6 @@ package btk.staj.WorkFlowProject.search.specification;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.search.dto.RecordSearchCriteria;
 import btk.staj.WorkFlowProject.user.entity.User;
-import btk.staj.WorkFlowProject.auth.security.VisibilityActor;
 import btk.staj.WorkFlowProject.rbac.visibility.RecordVisibilityScope;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Subquery;
@@ -27,10 +26,10 @@ public final class RecordSpecifications {
      */
     public static Specification<Record> withFilters(
             RecordSearchCriteria criteria,
-            VisibilityActor actor) {
+            RecordVisibilityScope scope) {
 
         Objects.requireNonNull(criteria, "criteria");
-        RecordVisibilityScope scope = RecordVisibilityScope.forActor(actor);
+        Objects.requireNonNull(scope, "scope");
 
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -116,6 +115,10 @@ public final class RecordSpecifications {
             alternatives.add(cb.equal(root.get(attribute), scope.actorId()));
         }
         for (var status : scope.statuses()) alternatives.add(cb.equal(root.get("status"), status));
+        for (var pair : scope.departmentScopes()) {
+            alternatives.add(cb.and(cb.equal(root.get("assignedDepartmentId"), pair.departmentId()),
+                    cb.equal(root.get("status"), pair.status())));
+        }
         Predicate allowed = alternatives.isEmpty() ? cb.disjunction()
                 : cb.or(alternatives.toArray(new Predicate[0]));
         return cb.and(cb.isNull(root.get("deletedAt")), allowed);
