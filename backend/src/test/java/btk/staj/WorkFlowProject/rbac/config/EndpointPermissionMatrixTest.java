@@ -7,6 +7,10 @@ import btk.staj.WorkFlowProject.audit.service.AuditLogService;
 import btk.staj.WorkFlowProject.audit.service.UserAuditLogService;
 import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
 import btk.staj.WorkFlowProject.rbac.Role;
+import btk.staj.WorkFlowProject.rbac.controller.RoleAdminController;
+import btk.staj.WorkFlowProject.rbac.dto.CreateRoleRequest;
+import btk.staj.WorkFlowProject.rbac.dto.UpdateRoleRequest;
+import btk.staj.WorkFlowProject.rbac.service.RoleAdminService;
 import btk.staj.WorkFlowProject.record.controller.RecordController;
 import btk.staj.WorkFlowProject.record.service.RecordService;
 import btk.staj.WorkFlowProject.search.service.RecordSearchService;
@@ -40,9 +44,11 @@ import static org.mockito.Mockito.*;
 class EndpointPermissionMatrixTest {
     @Configuration
     @EnableMethodSecurity
-    @Import({AdminController.class, RecordController.class, FileController.class, UserAuditLogController.class})
+    @Import({AdminController.class, RoleAdminController.class, RecordController.class, FileController.class,
+            UserAuditLogController.class})
     static class Config {
         @Bean UserService users() { return mock(UserService.class); }
+        @Bean RoleAdminService roleAdmin() { return mock(RoleAdminService.class); }
         @Bean RecordService records() { return mock(RecordService.class); }
         @Bean RecordSearchService search() { return mock(RecordSearchService.class); }
         @Bean FileService files() { return mock(FileService.class); }
@@ -51,6 +57,8 @@ class EndpointPermissionMatrixTest {
     }
 
     @Autowired AdminController admin;
+    @Autowired RoleAdminController roleAdmin;
+    @Autowired RoleAdminService roleAdminService;
     @Autowired RecordController records;
     @Autowired FileController files;
     @Autowired UserAuditLogController userAudit;
@@ -62,7 +70,7 @@ class EndpointPermissionMatrixTest {
     private static final UUID ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
 
     @BeforeEach void prepare() {
-        reset(userService, recordService, fileService, auditService, userAuditService);
+        reset(userService, roleAdminService, recordService, fileService, auditService, userAuditService);
         when(userService.createUser(any(), any(), any(), any())).thenReturn(new User());
         when(userService.changeRole(any(), any(Integer.class), any())).thenReturn(new User());
         when(userService.setActive(any(), anyBoolean())).thenReturn(new User());
@@ -78,6 +86,7 @@ class EndpointPermissionMatrixTest {
                 new String[]{"file-delete", "FILE_MANAGE"}, new String[]{"user-list", "USER_VIEW"},
                 new String[]{"user-create", "USER_MANAGE"}, new String[]{"user-role", "USER_MANAGE"},
                 new String[]{"user-active", "USER_MANAGE"}, new String[]{"role-list", "ROLE_VIEW"},
+                new String[]{"role-create", "ROLE_MANAGE"}, new String[]{"role-update", "ROLE_MANAGE"},
                 new String[]{"audit-list", "AUDIT_VIEW"}, new String[]{"user-history", "AUDIT_VIEW"})
                 .flatMap(row -> Stream.of(Arguments.of(row[0], row[1], true),
                         Arguments.of(row[0], "", false), Arguments.of(row[0], "ADMIN_PANEL_ACCESS", false)));
@@ -94,11 +103,13 @@ class EndpointPermissionMatrixTest {
         Runnable call = () -> invoke(endpoint, principal);
         if (allowed) {
             assertThatCode(call::run).doesNotThrowAnyException();
-            assertThat(Stream.of(userService, recordService, fileService, auditService, userAuditService)
+            assertThat(Stream.of(userService, roleAdminService, recordService, fileService, auditService,
+                            userAuditService)
                     .mapToInt(service -> mockingDetails(service).getInvocations().size()).sum()).isPositive();
         } else {
             assertThatThrownBy(call::run).isInstanceOf(AccessDeniedException.class);
-            verifyNoInteractions(userService, recordService, fileService, auditService, userAuditService);
+            verifyNoInteractions(userService, roleAdminService, recordService, fileService, auditService,
+                    userAuditService);
         }
     }
 
@@ -119,7 +130,9 @@ class EndpointPermissionMatrixTest {
                 SetActiveRequest request = new SetActiveRequest(); request.setActive(true);
                 admin.setActive(ID, request);
             }
-            case "role-list" -> admin.listRoles();
+            case "role-list" -> roleAdmin.listRoles(false);
+            case "role-create" -> roleAdmin.createRole(new CreateRoleRequest());
+            case "role-update" -> roleAdmin.updateRole(1, new UpdateRoleRequest());
             case "audit-list" -> admin.listAuditLogs("USER", Pageable.unpaged());
             case "user-history" -> userAudit.getGecmis(ID);
             default -> throw new IllegalArgumentException(endpoint);
