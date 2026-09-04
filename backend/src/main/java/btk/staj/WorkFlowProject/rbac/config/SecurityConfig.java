@@ -50,6 +50,9 @@ public class SecurityConfig {
             "/v3/api-docs",
             "/v3/api-docs/**",
             "/v3/api-docs.yaml",
+            // WebSocket HTTP upgrade'i token tasimaz. Kimlik, yalnizca STOMP
+            // CONNECT native Authorization header'inda dogrulanir.
+            "/ws",
             // Servlet konteyneri hatayi /error'a yonlendirir; burasi kapali
             // kalirsa istemci gercek hata yerine 401 gorur.
             "/error",
