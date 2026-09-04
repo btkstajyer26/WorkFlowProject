@@ -2,7 +2,7 @@
 
 Bu belge PostgreSQL şemasını, tasarım kararlarını ve migration yönetimini tanımlar. Kaynağı `backend/src/main/resources/db/migration/` altındaki Flyway dosyalarıdır.
 
-> Departman şeması 4 Eylül 2026 tarihinde WF-8 ve Alperen'in veri katmanını birleştiren `codex/fix-department-schema` dalında V22 ile güncellendi. Şema değiştiğinde bu belge aynı değişiklik kapsamında güncellenmelidir.
+> Departman şeması V22 ile hizalandı ve PR #66 üzerinden `test` @ `3eb3691` tabanına birleşti (4 Eylül 2026). Bu kaynak kod durumudur; belirli bir veritabanının V22'ye yükseltildiğini göstermez. Şema değiştiğinde belge aynı değişiklik kapsamında güncellenmelidir.
 
 - **Veritabanı:** PostgreSQL 15.18
 - **Migration:** Flyway (`V1`–`V22`; `V3` tarihsel olarak yoktur). Aşağıdaki gövde `V1`–`V11` tabanını anlatır; `V12`–`V17` ile gelen katalog/capability/FK değişiklikleri ve `V18`–`V22` ile gelen departman şeması belgenin sonundaki bölümlerde ele alınır.
@@ -71,7 +71,8 @@ Kullanıcı yetki seviyeleri. Aşağıdaki kolonlar `V1` tabanıdır; `V12` bu t
 
 ### `categories`
 
-Kayıt kategorisi / departman listesi. Dinamiktir, uygulamadan yönetilir.
+Kayıt kategorisi listesidir; uygulamadan yönetilir. Organizasyon departmanları
+ayrı `departments` tablosunda tutulur; kategori seçimi departman ataması değildir.
 
 | Kolon  | Tip            | Null  | Açıklama         |
 | ------ | -------------- | ----- | ---------------- |
@@ -369,7 +370,12 @@ Kullanıcı tohumlanmaz. İlk Admin, `BOOTSTRAP_ADMIN_EMAIL` ve `BOOTSTRAP_ADMIN
 
 ### Yerel veritabanı parolası
 
-PostgreSQL parolası veri volume'ü **ilk oluşturulurken** sabitlenir. `.env` içindeki `DB_PASSWORD` sonradan değiştirilirse `docker-compose.yml`'deki değer etkisiz kalır ve bağlantı `password authentication failed for user "postgres"` ile reddedilir. Çözüm `docker compose down -v` (veri silinir) veya parolayı veritabanında elle güncellemektir.
+PostgreSQL parolası veri volume'ü **ilk oluşturulurken** sabitlenir. `.env` içindeki
+`DB_PASSWORD` sonradan değiştirilirse mevcut DB parolası değişmez. Bağlantı hatasında
+önce Compose, çalışan konteyner ve host portunu doğrulayın; Maven `.env` dosyasını
+okumaz. Doğru veritabanında mevcut parola kullanılmalı veya yetkili parola değişikliği
+yapılmalıdır. `docker compose down -v` volume/veri siler; bağlantı hatası çözümü
+olarak mevcut test verisini kaldırmayın.
 
 ## Departman veri modeli (V18–V22)
 
@@ -482,15 +488,23 @@ senaryo başına `dept_schema_test_<UUID>`, tam Spring test paketi ayrı
 `currentSchema` ile `SPRING_FLYWAY_SCHEMAS`/`SPRING_FLYWAY_DEFAULT_SCHEMA` aynı
 şemaya ayarlandı). Test şemaları işlem sonunda kaldırılır. Maven çıktısı
 `backend/target/department-schema-verify.log` dosyasındadır. V18–V21 Git blob
-kimlikleri Alperen'in `origin/feature/Veri-katmanı` dalıyla aynıdır. Bu yerel
-kanıt, departman runtime/E2E kabulü veya `test` dalına merge anlamına gelmez.
+kimlikleri Alperen'in `origin/feature/Veri-katmanı` dalıyla aynıdır. Yerel `public`
+şema V17'de kalmıştır; test şemalarının V22'ye çıkması uygulama veritabanını yükseltmez.
+
+**Merge doğrulaması — 4 Eylül 2026:** PR #66, `test` @ `3eb3691` ile birleşti.
+Merge edilen dosya ağacı test edilen teslimle aynıdır. Bu ayrı Git kanıtıdır;
+712 test sonucu departman runtime/E2E, güncel CI veya TEST deploy kabulü değildir.
 
 ## Bilinen eksikler
 
 - **Append-only kuralı veritabanında zorlanmıyor.** `audit_logs` ve `user_audit_logs` uygulama üzerinden güncellenemez veya silinemez, ancak bunu garanti eden bir trigger ya da rol kısıtı yoktur. Şartname §4.2 "silinemez tablo" diyor; garanti şu an yalnız uygulama seviyesinde.
 - **Bildirim geçmişi için bileşik indeks yok.** Mevcut `(user_id, is_read)` okunmamış sayacına hizmet ediyor; sayfalı geçmiş sorgusu `(user_id, created_at DESC)` indeksinden faydalanır. Veri büyüdükçe değerlendirilmelidir.
 - ~~Süresi dolmuş e-posta hızlı işlem anahtarları için temizlik işi yok.~~ **Kapandı (`NT-6`).** `TokenCleanupJob` her gece 03:00'te `tokens`, `password_reset_codes` ve `mail_action_tokens` tablolarını birlikte temizler; mail aksiyon anahtarları destek soruları için bir gün bekletilir ve `idx_mail_action_tokens_expires_at` indeksi kullanılır.
-- **`records.version` yalnız workflow tarafında kullanılıyor.** Kayıt CRUD'u aynı korumayı almıyor.
+- **İstemcinin okuduğu sürüm istekle taşınmıyor.** `Record.version` üzerindeki JPA
+  `@Version`, workflow ve CRUD'da eşzamanlı DB yazımlarını korur; CRUD çakışması
+  `409 VERSION_CONFLICT`, workflow çakışması `409 WORKFLOW_VERSION_CONFLICT` döner.
+  İstemcinin eski ekrandan daha sonra gönderdiği sırayla işlenen güncellemeyi
+  yakalamak için ayrıca beklenen sürüm/ETag sözleşmesi gerekir; mevcut API'de yoktur.
 
 ## Dinamik rol, yetki ve workflow veri modeli (V12–V17)
 
@@ -576,5 +590,10 @@ saf validator'a sunulur. Tabloya dışarıdan dokunulduğunda snapshot
 `POST /api/workflow/rules/reload` ile yeniden başlatmadan tazelenebilir;
 tazeleme başarısız olursa çalışan kurallar korunur. Boş/geçersiz kural verisi ve aktif geçişte eksik permission
 metadata'sı açılışı durdurur. Test ağacındaki `TransitionRules`, sekiz geçişin hedef ve permission
-metadata'sını da kapsayan parity ve veritabanısız test referansıdır. Yeni kurallar
-yeni Flyway migration'ı ve eşleşen parity referansıyla birlikte eklenir.
+metadata'sını da kapsayan parity ve veritabanısız test referansıdır. WF-8 mevcut
+geçişin sabit alanlarını koruyarak dinamik aktör rolü bağlarını aynı tabloda yazar;
+bu işlem migration veya başlangıç seed'ini değiştirmez. Bağ/audit transaction'ı
+başarıyla commit edilince hazırlanan snapshot yayınlanır; manuel reload aynı
+koordinatördedir. Yeni primitive/aksiyon veya başlangıç seed'i değişikliği ise
+ileri migration, runtime desteği ve ilgili parity/invariant testlerini birlikte
+gerektirir. [WF-8 / AP-8 sözleşmesi](WF8_AP8_AKTOR_ROL_BAGLAMA_SOZLESMESI.md).

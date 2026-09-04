@@ -4,7 +4,9 @@
 
 Bu belge EBYS frontendinin kullandığı API sözleşmesini ve henüz tamamlanmamış entegrasyon ihtiyaçlarını tanımlar. Mevcut endpoint ve cevap modellerinde backend kodu ile çalışan uygulamanın `/v3/api-docs` çıktısı esas alınır; `docs/openapi.json` bunun sürümlenmiş inceleme anlık görüntüsüdür. Gelecekte eklenmesi beklenen işlemler ayrıca "backend bekleniyor" olarak işaretlenir.
 
-> Son kod doğrulaması 31 Ağustos 2026 tarihinde `test` dalının `4491a80` commit'i üzerinde yapılmıştır.
+> Son dokümantasyon karşılaştırması: 4 Eylül 2026, `test` @ `3eb3691` (PR #66).
+> WF-8 ve V18–V22 yeni HTTP uçları/alanları eklemedi; aşağıdaki departman gönderim
+> notları planlanan sözleşmedir. [Teslim sınırları](README.md).
 
 ## 1. Temel kararlar
 
@@ -20,16 +22,21 @@ Bu belge EBYS frontendinin kullandığı API sözleşmesini ve henüz tamamlanma
 
 ### Roller
 
-| API değeri | Arayüz etiketi | Temel kapsam |
+| Yerleşik `system_key` | Arayüz etiketi | Kayıt okuma kapsamı |
 |---|---|---|
-| `CALISAN` | Çalışan | Yalnız kendi kayıtları |
-| `BASKAN_YARDIMCISI` | Başkan Yardımcısı | Kendisine atanan, düzeltme bekleyen ve bir kez kendi elinden geçmiş kayıtlar |
-| `BASKAN` | Başkan | Onayına gelen ve sonuçlandırdığı (`ONAYLANDI`/`REDDEDILDI`) kayıtlar |
-| `ADMIN` | Sistem Yöneticisi | Kullanıcı/rol yönetimi ve sistem genelindeki audit kayıtlarını görüntüleme |
+| `CALISAN` | Çalışan | Oluşturduğu veya doğrudan kendisine atanmış kayıtlar |
+| `BASKAN_YARDIMCISI` | Başkan Yardımcısı | Oluşturduğu/atandığı kayıtlar, bütün `DUZENLEME_BEKLIYOR` ve `last_deputy_id` ile ilişkili kayıtlar |
+| `BASKAN` | Başkan | Oluşturduğu/atandığı kayıtlar, bütün `BASKAN_INCELEMESINDE`, `ONAYLANDI` ve `REDDEDILDI` durumları |
+| `ADMIN` | Sistem Yöneticisi | Evrak okuyamaz; kullanıcı/rol ve audit yönetimi ilgili permission'lara bağlıdır |
 
 `ADMIN` workflow aktörü veya hedefi olamaz. Yetkili bir Admin başka bir aktif kullanıcıya `ADMIN` rolü atayabilir.
 
-> **Bu tablo kapalı bir liste değildir.** Dört yerleşik rolün seed davranışını anlatır. Rol katalogu `roles` tablosundan gelir ve panelden yeni rol açılabilir; güncel liste `GET /api/admin/roles` ile okunur. Arayüz etiketi `roles.name`'dir ve **değiştirilebilir** — istemci rolü ada göre sabit bir listeye karşı doğrulamamalıdır. Yerleşik rol semantiği değişmez `system_key` ile, workflow aktör/hedef kimliği `RoleId` ile taşınır.
+> **Bu tablo kapalı bir liste değildir.** Dinamik rol de `RECORD_VIEW` ile oluşturduğu
+> veya doğrudan atandığı kaydı okuyabilir. Kapsamlar aktif kullanıcı/rol ve
+> `RECORD_VIEW` gerektirir; ADMIN deny korunur. Rol kataloğu `roles` tablosundan
+> gelir; liste `GET /api/admin/roles` ile okunur, panelden rol oluşturma `AP-2`'de
+> henüz açıktır. `roles.name` gösterim adıdır ve değiştirilebilir; backend sistem
+> istisnalarını `system_key`, workflow kimliğini `RoleId` ile belirler.
 
 ### Kayıt durumları
 
@@ -345,6 +352,8 @@ Endpoint somut controller ve uygulama servisiyle çalışır; durum/atama günce
   "description": "Talebin ayrıntılı açıklaması",
   "categoryId": 4,
   "status": "BASKAN_INCELEMESINDE",
+  "createdBy": "creator-uuid",
+  "createdByFullName": "Ahmet Yılmaz",
   "createdAt": "2026-08-01T09:15:00"
 }
 ```
@@ -357,10 +366,10 @@ Bu cevap kategori, dosya veya geçmiş nesnelerini içine gömmez. Frontend gere
 |---|---|---|
 | `GET` | `/api/audit-logs/record/{recordId}` | Kullanıcının görmeye yetkili olduğu kaydın işlem geçmişi ve kesinleşmiş açıklamaları |
 
-Kaydı görebilmek geçmişin tamamını görebilmek anlamına gelmez. Kural tek
-cümleyle: **kullanıcı evrağı yalnız kendi masasında olduğu dönem boyunca
-görür.** Bunun iki yönü var ve kırpma her ikisinde de sunucuda yapılır;
-gizlenen satırlar cevaba hiç konmaz.
+Geçmiş erişimi ortak kayıt görünürlüğüne bağlıdır; ek `AUDIT_VIEW` gerekmez.
+Dinamik roller ve Çalışan görünür kaydın tam geçmişini okur. Yardımcı ve Başkan
+sistem istisnalarında aşağıdaki kesimler sunucuda uygulanır; gizlenen satırlar
+cevaba hiç konmaz. Sistem istisnası rol adından değil `system_key`'den seçilir.
 
 **Geriye doğru kırpma (Başkan Yardımcısı).** `duzeltmede-olanlar` sekmesi
 sayesinde geri gönderdiği kaydı `DUZENLEME_BEKLIYOR` durumunda izlemeye devam
@@ -429,7 +438,7 @@ Başkan Yardımcısı ve Başkan frontend tarafından seçilmez. Backend beklene
 | `PATCH` | `/api/admin/users/{id}/role` | Rol değiştirme; Başkan Yardımcısı koltuğunun devri de aynı istekte yapılır |
 | `PATCH` | `/api/admin/users/{id}/active` | Hesabı etkinleştirme/pasifleştirme |
 | `GET` | `/api/admin/roles` | Atanabilir roller; `ADMIN` dahil. AP-1 yalnız-okur rol ekranının (`/admin/roller`) da kaynağıdır: cevap sayfalanmamış düz dizidir, pasif roller hiç gelmez ve rol adı sabit rol listesine çevrilmeden gösterilir. `systemKey` bu cevapta henüz yoktur, AP-2'de eklenecektir |
-| `GET` | `/api/admin/audit-logs?type=USER|RECORD&page=0&size=20&q=` | Evrak ve kullanıcı/rol loglarını listeleme |
+| `GET` | `/api/admin/audit-logs?type=USER\|RECORD&page=0&size=20&q=` | Evrak ve kullanıcı/rol loglarını listeleme |
 | `POST` | `/api/workflow/rules/reload` | Geçiş kuralı snapshot'ını veritabanından yeniden okur; grafiği **yazmaz**. `WORKFLOW_MANAGE` ister, cevap `{"ruleCount": n}`. Geçersiz kural kümesi yüklenmez ve çalışan snapshot korunur |
 
 Admin kuralları:

@@ -4,9 +4,11 @@
 - **Karar tarihi:** 1 Eylül 2026
 - **Son güncelleme:** 4 Eylül 2026 — §15 departman şeması V18–V22 ile hizalandı; gönderim runtime'ı açık
 - **Kapsam:** DB-1
-- **Mevcut şema tabanı:** Flyway `V1`–`V11` (`V3` tarihsel olarak yoktur)
-- **Uygulama durumu:** Uygulandı — `V12`–`V16` migration'ları ve `DbTransitionRuleSource`
-  devrede; §17 kabul kriterlerinin tamamı doğrulandı (2 Eylül 2026)
+- **Sözleşmenin başlangıç tabanı:** Flyway `V1`–`V11` (`V3` tarihsel olarak yoktur)
+- **Güncel repo şeması:** `V1`–`V22`, `test` @ `3eb3691` (PR #66)
+- **Uygulama durumu:** Çekirdek DB-1 §17 kabulü 2 Eylül 2026'da doğrulandı.
+  V12–V17 katalog/capability ve V18–V22 departman veri katmanı hazırdır;
+  departman gönderim primitive/seed'leri ve WF-5/WF-6 runtime kabulü açıktır (§20).
 
 ## 1. Amaç
 

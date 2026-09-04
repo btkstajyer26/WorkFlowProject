@@ -1,5 +1,12 @@
 # WF-2D2 — Workflow RoleId geçişi
 
+> **Tarihsel rollout kaydı.** PR #61/#60 `test`'e birleşmiştir. Aşağıdaki PR 1/2
+> anlatımı ve 614/626/639 test sayıları o aşamaların kanıtıdır. WF-2C2 ile
+> görünürlük daha sonra RoleId/ortak scope'a taşındı; dinamik roller artık
+> RECORD_VIEW ve creator/direct assignee ilişkisiyle okuyabilir.
+> [Güncel görünürlük sözleşmesi](WF2C2_DB8_GORUNURLUK_SOZLESMESI.md) ve
+> [teslim durumu](README.md) esas alınmalıdır.
+
 ## PR 1: okuma yolu
 
 `TransitionRuleRow` ve `TransitionRuleRecord`, `actor_role_id` ve
@@ -40,7 +47,7 @@ Validator saf Java kalır; hata sırası ve hedef stratejileri değişmez.
 Audit yazımı ID'yi doğrudan kaydeder; görünürlük ve geçmiş filtreleri bu
 işin dışındadır. HTTP sözleşmesi ve Flyway migration'ları değişmez.
 
-### Görünürlük sınırı
+### Görünürlük sınırı — WF-2D2 teslim anı
 
 `AuditLogController` ve `RecordSearchServiceImpl` de eski `CurrentActor`
 modelini tüketiyordu. Bu iki okuyucu `CurrentVisibilityActorProvider` ve
@@ -91,13 +98,11 @@ kontrol edildi; PostgreSQL `127.0.0.1:5433` üzerinden erişildi.
   `Inconsistent transition configuration at row 5: targetStrategy CREATOR requires expectedTargetRoleId`.
   Geçici konteyner ve veritabanı kaldırıldı; normal backend sağlıklı kaldı.
 
-## Teslim sırası
+## Tarihsel teslim sırası
 
-PR oluşturma ve merge kullanıcı tarafından yapılacak. İlk dal
-`feature/wf-2d2-role-id`, ikinci dal `feature/wf-2d2-role-id-actors`.
-İkinci dal, ilk aşamaya bağlı olarak hazırlanmıştır. Önce ilk PR `test`'e
-alınmalı; ardından ikinci dal güncel `test` tabanına getirilip ikinci PR
-yine `test` hedefiyle açılmalıdır.
+İlk dal `feature/wf-2d2-role-id` (PR #61), ikinci dal
+`feature/wf-2d2-role-id-actors` (PR #60) idi. İkinci dal ilk aşamaya bağlı
+hazırlandı; her iki PR `test`'e birleşti. Bu sıra yeniden açılacak iş listesi değildir.
 
 Eski sürüme geri dönüşten önce dinamik rol kullanan aktif geçişler eski
 sürümle uyumlu hale getirilmelidir; eski sürüm bu satırlarla açılmaz.

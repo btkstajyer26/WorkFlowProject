@@ -2,6 +2,10 @@
 
 Bu belge, İş Akışı ve Onay Yönetim Sistemi'nin çalışan backend kodundaki workflow davranışını tanımlar. Ürün hedefinden çok **mevcut uygulamayı** esas alır; planlanan ancak henüz uygulanmayan davranışlar “Bilinen boşluklar” bölümünde ayrıca belirtilir. Durum makinesi, API veya hata eşlemesi değiştirildiğinde belge aynı değişiklik kapsamında güncellenir.
 
+4 Eylül 2026, `test` @ `3eb3691` tabanı: WF-8 ve mevcut ortak görünürlük uygulanmış,
+V18–V22 şema hazırdır. WF-5/WF-6 departman runtime'ı ve görünürlük entegrasyonu için
+[hazırlık sınırlarına](README.md#wf-5wf-6-öncesi-entegrasyon-sınırı) bakın.
+
 ## İçindekiler
 
 - [Kapsam ve kaynaklar](#kapsam-ve-kaynaklar)
@@ -22,11 +26,15 @@ Bu belge, İş Akışı ve Onay Yönetim Sistemi'nin çalışan backend kodundak
 
 ## Kapsam ve kaynaklar
 
-Workflow'un tek yazma ucu şudur:
+Kayıt üzerindeki workflow aksiyonunun JWT ile çağrılan HTTP ucu şudur:
 
 ```http
 POST /api/records/{recordId}/workflow/actions
 ```
+
+E-posta `/api/public/mail-actions/consume` ucu da aynı uygulama servisini kendi
+transaction sınırında çağırır. Kural reload'u ve WF-8 bağ yönetimi kayıt aksiyonu
+uygulamaz; WF-8'in yönetim HTTP uçları AP-8 kapsamında henüz eklenmemiştir.
 
 Kanonik uygulama kaynakları:
 
@@ -61,7 +69,8 @@ flowchart LR
     APP --> VALIDATOR["WorkflowTransitionValidator"]
     VALIDATOR --> SOURCE["TransitionRuleSource"]
     PERMISSION["PermissionService"] --> SOURCE
-    SOURCE -. "üretim adapteri" .-> SNAPSHOT["DbTransitionRuleSource"]
+    SOURCE -. "üretim adapteri" .-> RELOAD["ReloadableTransitionRuleSource"]
+    RELOAD --> SNAPSHOT["DbTransitionRuleSource"]
     SNAPSHOT --> READER["JpaTransitionRuleRecordReader"]
     READER --> DB[(PostgreSQL)]
     APP --> AUDIT["AuditService"]
@@ -78,6 +87,10 @@ Durum makinesi ve uygulama servisi doğrudan Spring, JPA veya HTTP'ye bağlı de
 WF-8 ile `WorkflowActorBindingService`, mevcut geçişe dinamik aktör rolü bağlayıp kullanılmayan bağları pasifleştirebilir. Bağ ve audit aynı transaction'da yazılır; doğrulanmış snapshot yalnız commit sonrası yayınlanır. Manuel reload aynı güncelleme kilidini kullanır. Her workflow işlemi başlangıçta tek snapshot yakalar; başlamış işlem eski kurallarıyla tamamlanır. Servis girdileri, kullanım koruması ve AP-8 entegrasyonu: [WF-8 / AP-8 sözleşmesi](WF8_AP8_AKTOR_ROL_BAGLAMA_SOZLESMESI.md).
 
 ## Roller ve organizasyon kuralları
+
+Aşağıdaki tablo başlangıç seed'inin sistem rolü davranışıdır. WF-8 ile mevcut
+geçişe bağlanan aktif dinamik rol de gerekli permission ve kayıt ilişkisini
+sağladığında o geçişi kullanabilir; aktörlerin kapalı listesi değildir.
 
 | Rol | Workflow kapsamı |
 | --- | --- |
@@ -115,7 +128,7 @@ Kayıt listeleme/detay görünürlüğü ile workflow aksiyonu yapma yetkisi ayn
 Kapsamın iki kolu, `assigned_to`'nun geçişte boşalması yüzünden gerekli:
 
 - **Başkan Yardımcısı**, `BASKANA_ILET` ile `assigned_to`'yu Başkana devreder ama `last_deputy_id` kendisinde kalır. Bu kol olmasaydı ilettiği evrağı anında kaybeder; "Sonuçlananlar" ve panodaki "Son Kayıtlar" listeleri kalıcı olarak boş görünürdü.
-- **Başkan**, `ONAYLA`/`REDDET` ile `assigned_to`'yu boşaltır. Sonuçlanan iki durum kapsama açıkça yazılmasaydı kendi verdiği karardan sonra kaydı kaybeder; "Onaylananlar" ve "Reddedilenler" sekmeleri boş kalırdı. Bu iki duruma yalnız Başkanın kararıyla gelinebildiği için kapsam genişlemez.
+- **Başkan**, `ONAYLA`/`REDDET` ile `assigned_to`'yu boşaltır. Sonuçlanan iki durum kapsama açıkça yazılmasaydı verdiği karardan sonra kaydı kaybederdi. Bu sistem istisnası durum bazlıdır: WF-8 ile yetkilendirilmiş dinamik aktörün sonuçlandırdığı kayıtlar da Başkan kapsamındadır. Dinamik aktör, oluşturucu değilse atama boşaldığında kendi erişimini kaybeder.
 
 Bütün okuma yolları aktif kullanıcı/rol ve `RECORD_VIEW` ister; ADMIN her durumda reddedilir. Soft-delete kayıtlar listede yoktur, tekil kayıt/dosya/geçmiş okumalarında `404` döner. Dinamik roller görünür kaydın güncel içeriğini ve tam geçmişini görür; ek `AUDIT_VIEW` şartı yoktur. Sistem rollerinin içerik/geçmiş kesimleri korunur.
 
