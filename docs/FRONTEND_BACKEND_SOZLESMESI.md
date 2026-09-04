@@ -341,15 +341,22 @@ Yetkili departman üyeleri liste/detay/geçmiş/dosya uçlarında ortak kapsamla
 ### Tamamlanmamış istemci sözleşmesi
 
 Aşağıdaki maddeler 4 Eylül 2026 incelemesinde kod üzerinden doğrulanmıştır ve
-Workflow V1 kabulünü bugün engellemektedir. Ayrıntı:
-[inceleme raporu](PROJE_INCELEME_RAPORU_2026-09-04.md).
+Workflow V1 kabulünü bugün engellemektedir. **Sözleşme tarafı karara bağlanmıştır**
+([APP-9 / APP-10 / B11](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md), 4 Eylül 2026);
+aşağıdaki tablo hangi kırılmanın hangi kararla kapandığını gösterir. Kararlar
+**Önerildi** durumundadır: uçlar henüz uygulanmamıştır.
 
-| No | Boşluk | Kabul maddesi |
+| No | Bugünkü kırılma | Karar |
 | --- | --- | --- |
-| **B10** | Web aksiyon paneli (`RecordActionPanel`) bütün düğmeleri `systemKey === CALISAN/BASKAN_YARDIMCISI/BASKAN` koşullarına bağlar. Dinamik rolün `systemKey` değeri `null` olduğu için, permission ve workflow bağı doğru olsa bile panel tamamen kapanır | Backend, kayıt ve aktör için **hesaplanmış kullanılabilir aksiyon ve ilişki** bilgisini istemciye sunmalıdır. Workflow kurallarının istemcide ikinci kez kurulması veya dinamik rolün başka bir sistem rolü gibi gösterilmesi kabul değildir. Aynı model mobilde de kullanılmalıdır |
-| **B11** | İstek `targetDepartmentId` kabul eder ve kayıt DB'de departmana atanır; `RecordResponse`, `RecordSearchResponse` ve `WorkflowActionResponse` `assignedDepartmentId` taşımaz. Detay DTO'su doğrudan kişi atamasını da taşımaz ve web adapteri atama alanlarını sabit `null` doldurur | Ortak atama DTO'su (kişi/departman ayrımı, gösterim adı ve mümkünse kayıt sürümü) belirlenip OpenAPI, web ve mobil birlikte güncellenmelidir. İstemci boş atama ile departman kuyruğunu ayırabilmelidir |
-| — | Normal kullanıcı için **uygun departman keşif ucu** yoktur; departman seçici bu olmadan yapılamaz | `DEPARTMANA_GONDER` hedefi olabilecek aktif departmanları döndüren, yetkiye saygılı bir uç tanımlanmalıdır |
-| — | Departman/üyelik/routing ve permission matrisi için yönetim ucu yoktur (`AP-3`/`AP-4`/`AP-5`); `AP-8` için de yalnız `POST /api/workflow/rules/reload` vardır | Yönetim ekranları bu uçlar tanımlanmadan planlanamaz |
+| **B10** | `RecordActionPanel` bütün düğmeleri `systemKey === CALISAN/BASKAN_YARDIMCISI/BASKAN` koşullarına bağlar; dinamik rolün `systemKey` değeri `null` olduğu için panel tamamen kapanır | `GET /api/records/{id}/workflow/available-actions` — aksiyonlar `performAction` ile aynı validator üzerinden hesaplanır; istemci kural kurmaz. Liste yetki taahhüdü değildir, `performAction` baştan doğrular. [§1](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md#1-app-9--kullanılabilir-aksiyonlar) |
+| **B11** | `RecordResponse`, `RecordSearchResponse` ve `WorkflowActionResponse` `assignedDepartmentId` taşımaz; detay DTO'su kişi atamasını da taşımaz ve web adapteri alanları sabit `null` doldurur | Ortak `assignment` nesnesi: `kind` (`USER`/`DEPARTMENT`/`NONE`) + kimlik + gösterim adı. İstemci türü nullable alanlardan çıkarsamaz. [§3](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md#3-b11--ortak-atama-sözleşmesi) |
+| — | Normal kullanıcı için uygun departman keşif ucu yoktu | `GET /api/records/{id}/workflow/target-departments` — kayıt kapsamlı, yalnız `409` almayacağı doğrulanmış aktif departmanlar; organizasyon dizini açılmaz. [§2](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md#2-app-9--uygun-hedef-departman-keşfi) |
+| — | Bayat ekrandan gelen isteği sunucu ayırt edemiyor (`R05`) | `version` bütün okuma yanıtlarında açılır; `expectedVersion` istekte **opsiyoneldir** ve gönderilirse uyuşmazlık `409` verir. [§4](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md#4-b11--kayıt-sürümü-ve-bayat-istemci) |
+| — | Departman/üyelik/routing ve permission matrisi için yönetim ucu yoktur (`AP-3`/`AP-4`/`AP-5`); `AP-8` için de yalnız `POST /api/workflow/rules/reload` vardır | **Açık** — yönetim uçları bu sözleşmenin kapsamında değildir; `AP-3`/`AP-4`/`AP-5`/`AP-8` ile tanımlanır |
+
+Yeni hata kodu: `WORKFLOW_PREVIOUS_ACTOR_UNAVAILABLE` (`409`) — önceki aktör artık
+iniş durumunda işlem yapamıyorsa geri gönderme reddedilir; sessiz yönlendirme
+yapılmaz ([ADR-0008](decisions/0008-hedef-rol-semantigi-ve-onceki-aktore-donus.md)).
 
 Başarılı aksiyon cevabı tam kayıt modeli değil, backend tarafından hesaplanan geçiş özetidir:
 

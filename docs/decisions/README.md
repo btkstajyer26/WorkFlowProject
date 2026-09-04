@@ -12,6 +12,7 @@ Bu dizin, projeyi uzun vadede etkileyen kararları Architecture Decision Record 
 | [0005](0005-departman-atamasi-ve-akis-kurali.md) | Departman ataması ve akış kuralı | Kabul Edildi |
 | [0006](0006-departman-hedefli-target-strategy.md) | Departman hedefli `target_strategy` ve gönderim sözleşmesi | Kabul Edildi |
 | [0007](0007-rol-kapasitesi-ve-birim-tekilligi.md) | Rol kapasitesi ve birim tekilliği | Kabul Edildi |
+| [0008](0008-hedef-rol-semantigi-ve-onceki-aktore-donus.md) | Hedef rol semantiği ve önceki aktöre dönüş (`B02`) | Önerildi |
 
 > **ADR-0003 tarihsel öneridir; yerini yeni kararlar aldı.** ADR, rolün **daire başına**
 > tekil olmasını öneriyor: `roles.scope` (`GLOBAL`/`UNIT`/`MULTI`),
@@ -38,6 +39,14 @@ Bu dizin, projeyi uzun vadede etkileyen kararları Architecture Decision Record 
 > (kuralların veriye taşınması, `hasAuthority` dönüşümü, `RoleId`) fiilen
 > uygulandı — ayrıntı ADR'nin kendi "uygulanma durumu" notundadır. Departman
 > yönü ise ADR-0005 ile ayrıca karara bağlandı.
+
+[ADR-0008](0008-hedef-rol-semantigi-ve-onceki-aktore-donus.md) `B02` bulgusunu
+kapatır: `expected_target_role_id` kolonunun taşıdığı üç anlam ayrıştırılır, statik
+hedef rol dayatması kimliği çalışma zamanında belirlenen stratejilerde yerini
+role bağlı olmayan bir yetenek kontrolüne bırakır ve uygunsuz önceki aktör sessizce
+yönlendirilmez. İstemci ve bildirim tarafındaki karşılığı
+[APP-9/APP-10/B11 sözleşmesindedir](../APP9_APP10_B11_ISTEMCI_SOZLESMESI.md).
+Karar **Önerildi** durumundadır; `V24` ve kod değişikliği henüz uygulanmamıştır.
 
 ADR-0004 WebSocket kararı henüz bu dizinde yoktur. Kabul edilmiş ADR-0005/0006/0007,
 WF-5/WF-6 uygulaması ve ürün kabulü yerine geçmez. Güncel hazır/açık kapsam
