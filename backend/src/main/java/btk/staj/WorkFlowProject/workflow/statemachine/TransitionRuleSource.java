@@ -19,6 +19,11 @@ import java.util.Optional;
  */
 public interface TransitionRuleSource {
 
+    /** Capture once per operation; immutable sources already are snapshots. */
+    default TransitionRuleSource snapshot() {
+        return this;
+    }
+
     /**
      * Verilen birlesime karsilik gelen kurali arar.
      *

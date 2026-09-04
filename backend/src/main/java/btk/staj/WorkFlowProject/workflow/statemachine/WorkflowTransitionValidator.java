@@ -33,6 +33,12 @@ public class WorkflowTransitionValidator {
      *         degilse sebebi tasiyan {@link TransitionDecision.Rejected}
      */
     public TransitionDecision validate(TransitionContext context) {
+        return validate(context, ruleSource.snapshot());
+    }
+
+    /** Both validation passes of an action must use its captured rule snapshot. */
+    public TransitionDecision validate(TransitionContext context, TransitionRuleSource snapshot) {
+        Objects.requireNonNull(snapshot, "snapshot");
 
         // 1. Workflow aktoru olmayan roller (ADMIN) hicbir gecis yapamaz.
         if (!context.actorWorkflowActor()) {
@@ -45,7 +51,7 @@ public class WorkflowTransitionValidator {
         }
 
         // 3. Durum + aksiyon + rol birlesimi tabloda tanimli mi?
-        Optional<TransitionRule> rule = ruleSource.find(
+        Optional<TransitionRule> rule = snapshot.find(
                 context.currentStatus(), context.action(), context.actorRoleId());
         if (rule.isEmpty()) {
             return TransitionDecision.rejected(WorkflowErrorCode.WORKFLOW_INVALID_TRANSITION);

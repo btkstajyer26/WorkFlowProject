@@ -7,6 +7,7 @@ import btk.staj.WorkFlowProject.notification.exception.InvalidMailActionTokenExc
 import btk.staj.WorkFlowProject.user.service.AdminLimitExceededException;
 import btk.staj.WorkFlowProject.user.service.RoleNotFoundException;
 import btk.staj.WorkFlowProject.workflow.exception.WorkflowApplicationException;
+import btk.staj.WorkFlowProject.workflow.exception.WorkflowBindingException;
 import btk.staj.WorkFlowProject.workflow.exception.WorkflowRecordNotFoundException;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowErrorCode;
 import org.slf4j.Logger;
@@ -38,6 +39,16 @@ public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     // ---------- Uygulama hatalari ----------
+
+    @ExceptionHandler(WorkflowBindingException.class)
+    public ResponseEntity<ApiError> handleWorkflowBinding(WorkflowBindingException ex) {
+        HttpStatus status = switch (ex.reason()) {
+            case TEMPLATE_NOT_FOUND, BINDING_NOT_FOUND, ROLE_NOT_FOUND -> HttpStatus.NOT_FOUND;
+            case DUPLICATE_BINDING, METADATA_MISMATCH, PROTECTED_BINDING, BINDING_IN_USE -> HttpStatus.CONFLICT;
+            default -> HttpStatus.BAD_REQUEST;
+        };
+        return build(ex.code(), ex.getMessage(), status);
+    }
 
     @ExceptionHandler(ForbiddenException.class)
     public ResponseEntity<ApiError> handleForbidden(ForbiddenException ex) {

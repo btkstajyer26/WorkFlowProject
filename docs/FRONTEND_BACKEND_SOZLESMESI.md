@@ -434,6 +434,11 @@ Başkan Yardımcısı ve Başkan frontend tarafından seçilmez. Backend beklene
 
 Admin kuralları:
 
+WF-8 Java servisi hazırdır; AP-8'in bağ listeleme/ekleme/kaldırma HTTP uçları henüz
+eklenmedi. Tamer'in adapter'ı `WorkflowActorBindingService` kullanmalı; mutasyon
+çevresinde transaction açmamalı ve ek reload çağırmamalıdır. Yetkiler, DTO ve hata
+kodları: [WF-8 / AP-8 sözleşmesi](WF8_AP8_AKTOR_ROL_BAGLAMA_SOZLESMESI.md).
+
 - Kullanıcı silinmez veya rolsüz bırakılmaz; erişim `active=false` ile kapatılır.
 - Admin başka bir aktif kullanıcıya `ADMIN` rolü atayabilir; mevcut Admin hesabının rolü ve aktifliği bu arayüzden değiştirilemez.
 - `ADMIN`, `BASKAN` ve `BASKAN_YARDIMCISI` **tekil** rollerdir: aynı anda yalnız bir aktif kullanıcı tutabilir. Rol zaten başka bir aktif kullanıcıdaysa istek `409 ADMIN_LIMIT_EXCEEDED` ile reddedilir — backend mevcut sahibi kendiliğinden `CALISAN`'a düşürmez.

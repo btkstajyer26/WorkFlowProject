@@ -89,6 +89,8 @@ class AuthorizationMatrixTest {
     @MockitoBean private DeviceTokenRepository deviceTokenRepository;
     @MockitoBean private MailActionTokenRepository mailActionTokenRepository;
     @MockitoBean private WorkflowTransitionRepository workflowTransitionRepository;
+    // WF-8 management has no HTTP endpoint in this matrix; its real DB boundary is tested separately.
+    @MockitoBean private btk.staj.WorkFlowProject.workflow.service.WorkflowActorBindingService workflowActorBindingService;
     @MockitoBean private btk.staj.WorkFlowProject.rbac.repository.RolePermissionRepository rolePermissionRepository;
 
     private static final String RECORD_JSON = """

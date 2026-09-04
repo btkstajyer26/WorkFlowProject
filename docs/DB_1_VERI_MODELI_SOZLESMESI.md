@@ -633,6 +633,13 @@ bir admin özelliği yapılmaz. Gelecekte versioning eklenmesi mevcut status,
 action ve transition tablolarını atmayı gerektirmemeli; version ilişkileri bu
 çekirdeğe eklenmelidir.
 
+WF-8 bu sınır içinde, **sabit bir geçişe dinamik aktör rolü bağlamaya** izin verir.
+Yeni satır kaynak geçişin bütün sabit alanlarını kopyalar; yalnız aktör rolü ve
+aktiflik yönetilir. Kullanımda olan ve sistem rollerine ait bağlar kaldırılamaz.
+Durum/aksiyon/topoloji, hedef stratejisi, hedef rol, permission ve aktör ilişkisi
+düzenlemek bu istisnaya girmez. Yeni migration gerekmez; transaction, snapshot ve
+AP-8 entegrasyonu [WF-8 sözleşmesinde](WF8_AP8_AKTOR_ROL_BAGLAMA_SOZLESMESI.md) tanımlıdır.
+
 Publish doğrulaması en az şunları kontrol etmelidir:
 
 - başlangıç durumu vardır;
@@ -868,6 +875,7 @@ giderilmiştir:
 | Permission + kapasite | `AuthenticatedUserFactory`, `RoleCapacityService`; WF-2B / WF-2C1 kapanışı WF2A envanteri §18.8'de |
 | Aktör ve hedef kimliği | `TransitionRule`, `CurrentActor`, `TransitionContext`, kullanıcı portu, audit ve event modellerinde `RoleId`; PR #61 / #60 |
 | Canlı kural yenileme | `ReloadableTransitionRuleSource`, `WorkflowRuleAdminController`; PR #56. Bean sarmalayıcıdır, sardığı snapshot `DbTransitionRuleSource`'tur |
+| Aktör rolü bağlama | WF-8 `WorkflowActorBindingService`: mevcut geçişe dinamik rol, kullanımda kaldırma koruması, transaction/audit ve commit sonrası snapshot. AP-8 HTTP/UI ayrı teslimdir |
 | Dinamik rol kanıtı | `DynamicWorkflowRoleIntegrationTest`: 11 PostgreSQL/HTTP senaryosu |
 | Görünürlük | [WF-2C2 / DB-8 sözleşmesi](WF2C2_DB8_GORUNURLUK_SOZLESMESI.md) mevcut şemada uygulanmıştır: RoleId aktörü, ortak scope ve dinamik rol okuma erişimi. Departman query/runtime ve V1 kabulü açık; yeni migration eklenmedi |
 | Admin paneli | PR #57 rol listesi getirir. Rol CRUD, permission matrisi ve durum katalog ekranı teslim edilmiş değildir |

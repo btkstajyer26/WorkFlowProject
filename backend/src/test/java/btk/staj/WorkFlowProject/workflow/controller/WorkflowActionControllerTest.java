@@ -91,6 +91,8 @@ class WorkflowActionControllerTest {
     @MockitoBean private DeviceTokenRepository deviceTokenRepository;
     @MockitoBean private MailActionTokenRepository mailActionTokenRepository;
     @MockitoBean private WorkflowTransitionRepository workflowTransitionRepository;
+    // This context excludes JPA and exercises action HTTP behavior, not WF-8 management writes.
+    @MockitoBean private btk.staj.WorkFlowProject.workflow.service.WorkflowActorBindingService workflowActorBindingService;
     @MockitoBean private btk.staj.WorkFlowProject.rbac.repository.RolePermissionRepository rolePermissionRepository;
 
     @TestConfiguration

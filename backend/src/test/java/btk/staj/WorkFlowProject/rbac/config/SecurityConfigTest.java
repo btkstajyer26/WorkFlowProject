@@ -82,6 +82,8 @@ class SecurityConfigTest {
     private DeviceTokenRepository deviceTokenRepository;
     @MockitoBean private MailActionTokenRepository mailActionTokenRepository;
     @MockitoBean private WorkflowTransitionRepository workflowTransitionRepository;
+    // Swagger/security checks run without JPA; WF-8 has a separate PostgreSQL acceptance suite.
+    @MockitoBean private btk.staj.WorkFlowProject.workflow.service.WorkflowActorBindingService workflowActorBindingService;
     @MockitoBean private btk.staj.WorkFlowProject.rbac.repository.RolePermissionRepository rolePermissionRepository;
 
     @Test

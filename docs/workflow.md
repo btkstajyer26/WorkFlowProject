@@ -75,6 +75,8 @@ flowchart LR
 
 Durum makinesi ve uygulama servisi doğrudan Spring, JPA veya HTTP'ye bağlı değildir. `WorkflowTransitionValidator` ve `PermissionService` kuralları `TransitionRuleSource` üzerinden okur. `WorkflowConfiguration` bu sınıra `ReloadableTransitionRuleSource` bean'ini bağlar; sarmaladığı `DbTransitionRuleSource` açılışta `JpaTransitionRuleRecordReader` ile aktif geçişleri yükler ve değiştirilemez bir snapshot tutar. Boş veya geçersiz kural verisi uygulamanın açılmasını engeller. Snapshot `WORKFLOW_MANAGE` gerektiren `POST /api/workflow/rules/reload` ile yenilenebilir; geçersiz yeni kural kümesi yüklenmez ve çalışan snapshot korunur. Statik kaynak yalnız parity ve veritabanısız testlerde referanstır ve test ağacında durur. Controller, saf uygulama servisini doğrudan değil, transaction açan `WorkflowActionService` üzerinden çağırır.
 
+WF-8 ile `WorkflowActorBindingService`, mevcut geçişe dinamik aktör rolü bağlayıp kullanılmayan bağları pasifleştirebilir. Bağ ve audit aynı transaction'da yazılır; doğrulanmış snapshot yalnız commit sonrası yayınlanır. Manuel reload aynı güncelleme kilidini kullanır. Her workflow işlemi başlangıçta tek snapshot yakalar; başlamış işlem eski kurallarıyla tamamlanır. Servis girdileri, kullanım koruması ve AP-8 entegrasyonu: [WF-8 / AP-8 sözleşmesi](WF8_AP8_AKTOR_ROL_BAGLAMA_SOZLESMESI.md).
+
 ## Roller ve organizasyon kuralları
 
 | Rol | Workflow kapsamı |
@@ -483,7 +485,7 @@ Mevcut otomatik testler şu katmanları kapsar:
    istemcinin hedef gönderip gönderemeyeceği `WorkflowAction` enum'unda tutulur. `workflow_actions`
    tablosunda karşılıkları seed'li ve parity testi ayrışmalarını engelliyor, ama kod henüz
    tabloyu okumuyor.
-5. **Kural kaynağının yönetilebilirliği:** Geçiş kuralları `workflow_transitions` tablosundan okunur, fakat tablo yalnız Flyway seed'i ile değişir; kuralları arayüzden düzenleyen bir yol yoktur. Bellekteki snapshot `POST /api/workflow/rules/reload` ile yenilenir; bu uç grafiği yazmaz, yalnız tabloyu yeniden okur.
+5. **Kural kaynağının yönetilebilirliği:** WF-8 servisi sabit geçişlere dinamik aktör rolü bağlar ve kullanımda olmayan bağları pasifleştirir. AP-8 HTTP/UI entegrasyonu açıktır. Grafik topolojisi ve sabit geçiş alanları düzenlenemez. Bellekteki snapshot başarılı bağ değişikliğinde otomatik, `POST /api/workflow/rules/reload` ile de manuel yenilenir.
 
 Başlangıç şartnamesiyle bilinçli veya fiilî uygulama farkları da korunmalıdır:
 
@@ -497,7 +499,8 @@ Yukarıdaki boşlukların bir kısmı **Workflow V1 açık işidir**, bir kısm�
 | --- | --- |
 | Ortak görünürlük ve dinamik rol okuma erişimi | Mevcut şemada uygulandı; `WF-2C2` / `DB-8` departman entegrasyonu açık |
 | Departmana atama, üyelik, routing ve `actorHoldsAssignment`'ın departman anlamı | Workflow V1 — `DB-11`/`DB-12`/`DB-13`, `WF-5`/`WF-6`; ADR-0005, ADR-0006 ve ADR-0007 kabul edildi |
-| Mevcut geçişe dinamik aktör rolü bağlama ve Admin'den rol/permission yönetimi | Workflow V1 — `WF-8`/`AP-2`/`AP-3`/`AP-8` |
+| Mevcut geçişe dinamik aktör rolü bağlama | WF-8 servis ve sözleşmesi uygulandı; AP-8 HTTP/UI açık |
+| Admin'den rol/permission yönetimi | Workflow V1 — `AP-2`/`AP-3` |
 | WebSocket bildirim kanalı | Workflow V1 — `NT-2`…`NT-4` |
 | Aksiyon metadata'sının enum'dan tabloya taşınması | V1 acceptance'ı için zorunlu değil |
 | Grafik topolojisinin arayüzden düzenlenmesi, workflow definition/versioning, draft/publish | **Workflow V2** — V1'de yasak (DB-1 §14) |

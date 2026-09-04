@@ -83,6 +83,7 @@ public final class WorkflowApplicationService {
         Objects.requireNonNull(recordId, "recordId");
         Objects.requireNonNull(request, "request");
         WorkflowAction action = Objects.requireNonNull(request.action(), "request.action");
+        TransitionRuleSource snapshot = ruleSource.snapshot();
 
         CurrentActor actor = Objects.requireNonNull(
                 currentActorProvider.currentActor(),
@@ -101,11 +102,11 @@ public final class WorkflowApplicationService {
                 null,
                 false,
                 actor.workflowActor(),
-                actor.permissionCodes()));
+                actor.permissionCodes()), snapshot);
 
         // Kural, on dogrulamadan SONRA aranir: gecis tanimli degilse on dogrulama zaten
         // WORKFLOW_INVALID_TRANSITION ile reddetmistir ve asagidaki kontrol onu firlatir.
-        TransitionRule rule = requireRule(record.status(), action, actor.roleId(), preliminaryDecision);
+        TransitionRule rule = requireRule(snapshot, record.status(), action, actor.roleId(), preliminaryDecision);
 
         validatePreliminaryDecision(rule, preliminaryDecision);
 
@@ -131,7 +132,7 @@ public final class WorkflowApplicationService {
                         target.roleId(),
                         target.active(),
                         actor.workflowActor(),
-                        actor.permissionCodes()));
+                        actor.permissionCodes()), snapshot);
         TransitionDecision.Allowed allowed = requireAllowed(finalDecision);
 
         UUID assignedTo = target == null ? null : target.id();
@@ -202,12 +203,13 @@ public final class WorkflowApplicationService {
      * gecilmemesi gereken bir tutarsizliktir.
      */
     private TransitionRule requireRule(
+            TransitionRuleSource snapshot,
             RecordStatus currentStatus,
             WorkflowAction action,
             RoleId actorRoleId,
             TransitionDecision preliminaryDecision) {
 
-        Optional<TransitionRule> rule = ruleSource.find(currentStatus, action, actorRoleId);
+        Optional<TransitionRule> rule = snapshot.find(currentStatus, action, actorRoleId);
         if (rule.isPresent()) {
             return rule.get();
         }
