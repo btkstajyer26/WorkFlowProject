@@ -1223,7 +1223,11 @@
         "properties" : {
           "action" : {
             "type" : "string",
-            "enum" : [ "GONDER", "TEKRAR_GONDER", "BASKANA_ILET", "CALISANA_GERI_GONDER", "BASKAN_YARDIMCISINA_GERI_GONDER", "ONAYLA", "REDDET" ]
+            "enum" : [ "GONDER", "TEKRAR_GONDER", "BASKANA_ILET", "CALISANA_GERI_GONDER", "BASKAN_YARDIMCISINA_GERI_GONDER", "ONAYLA", "REDDET", "DEPARTMANA_GONDER" ]
+          },
+          "targetDepartmentId" : {
+            "type" : "integer",
+            "format" : "int32"
           },
           "targetUserId" : {
             "type" : "string",
@@ -1246,7 +1250,7 @@
           },
           "action" : {
             "type" : "string",
-            "enum" : [ "GONDER", "TEKRAR_GONDER", "BASKANA_ILET", "CALISANA_GERI_GONDER", "BASKAN_YARDIMCISINA_GERI_GONDER", "ONAYLA", "REDDET" ]
+            "enum" : [ "GONDER", "TEKRAR_GONDER", "BASKANA_ILET", "CALISANA_GERI_GONDER", "BASKAN_YARDIMCISINA_GERI_GONDER", "ONAYLA", "REDDET", "DEPARTMANA_GONDER" ]
           },
           "previousStatus" : {
             "type" : "string",

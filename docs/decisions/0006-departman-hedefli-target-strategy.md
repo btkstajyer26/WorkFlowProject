@@ -180,7 +180,7 @@ Olumlu:
 - `uq_transition_from_action_role` ve `DB-1` §6.6 tekillik sözleşmesi değişmez.
 - Validator'ın dokuz kontrolü, sırası ve hata kodları sabit kalır. 8. ve 9. kontroller
   `expectedTargetRoleId != null` koşuluyla korunduğu için departman geçişinde
-  çalışmazlar; `WorkflowTransitionValidator` dosyası **değişmez**.
+  çalışmazlar. `WorkflowTransitionValidator`'ın 6–7. kontrolleri kullanıcı ve departman hedef alanlarını ayrı değerlendirir; dosya değişir, dokuz kontrolün sırası ve mevcut hata kodları korunur.
 - ADR-0005'in `DepartmentRoutingResolver` tasarımı olduğu gibi kullanılır; bu ADR
   yalnız onu tetikleyen yolu açar.
 

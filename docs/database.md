@@ -353,6 +353,7 @@ Kullanıcı tohumlanmaz. İlk Admin, `BOOTSTRAP_ADMIN_EMAIL` ve `BOOTSTRAP_ADMIN
 | `V20__department_routing_rules.sql`         | `department_routing_rules` — `(dept, durum, aksiyon) → rol`                                  |
 | `V21__records_assigned_department.sql`      | `records.assigned_department_id` + mutual exclusion CHECK                                    |
 | `V22__align_department_schema_contract.sql` | Departman adı 150 karakter, kendine-parent CHECK'i ve üyelik/routing FK'lerinde RESTRICT       |
+| `V23__department_send_action.sql` | `DEPARTMENT` CHECK genişletmesi, `DEPARTMANA_GONDER` aksiyonu ve iki geçiş; toplam 10 geçiş |
 
 ### Numaralandırmadaki boşluk
 
@@ -377,12 +378,11 @@ okumaz. Doğru veritabanında mevcut parola kullanılmalı veya yetkili parola d
 yapılmalıdır. `docker compose down -v` volume/veri siler; bağlantı hatası çözümü
 olarak mevcut test verisini kaldırmayın.
 
-## Departman veri modeli (V18–V22)
+## Departman veri modeli (V18–V23)
 
 Kaynak: `DB-1` §15 ve kabul edilmiş `ADR-0005`/`ADR-0006`. Departman,
 üyelik, routing ve kayıt ataması için şema, entity ve repository katmanı hazırdır.
-Departmana gönderim, yetki/görünürlük sorguları ve workflow runtime bağlantısı
-`WF-5`/`WF-6` kapsamında açıktır; şemanın hazır olması V1 kabulünü tamamlamaz.
+V23 + WF-5/WF-6 departmana gönderim, routing/eligibility ve ortak policy/SQL görünürlüğünü uygular. AP-4/AP-5 ekranları ve NT-5 fan-out ayrı teslimdir.
 
 | Migration | Teslim durumu |
 | --- | --- |
@@ -391,6 +391,7 @@ Departmana gönderim, yetki/görünürlük sorguları ve workflow runtime bağla
 | `V20` department_routing_rules | Routing şeması hazır; departman FK'si V22 ile RESTRICT oldu |
 | `V21` records.assigned_department_id | Kolon, FK ve karşılıklı dışlama CHECK'i hazır |
 | `V22` sözleşme düzeltmeleri | Mevcut satırları koruyan ileri migration; V18–V21 dosyaları değiştirilmedi |
+| `V23` departmana gönderim | Alperen'in migration'ı WF-5/WF-6 runtime'ı ile birlikte teslim edilir; tek başına eski backend'e uygulanmaz |
 
 ### `departments` (`V18`, `V22`)
 
@@ -461,9 +462,7 @@ Kayıt aynı anda hem kişiye hem departmana atanamaz. `TASLAK` ve terminal
 durumlarda ikisinin de `NULL` olması geçerlidir.
 
 `ADR-0006` 4 Eylül 2026'da kabul edildi. Kolonu yazan `DEPARTMENT` stratejisi,
-`DEPARTMANA_GONDER` aksiyonu ve geçiş seed'leri WF-5/WF-6 ile birlikte ayrı
-bir ileri migration ve runtime değişikliği gerektirir. Bunlar V18–V22'de yoktur;
-kullanılmış V18 numarası bu gelecek çalışma için tekrar kullanılmaz.
+`DEPARTMANA_GONDER` aksiyonu ve iki geçiş seed'i V23'tedir. WF-5/WF-6 aynı teslimde enum, resolver ve DTO desteğini getirir; mevcut V18–V22 dosyaları değiştirilmez. Testler 5434 portundaki izole `wf-scratch` üzerinde çalıştırılır; çalışan 5433 `workflowdb` veritabanına V23 uygulanmaz.
 
 ### V22 yükseltme ve geri alma davranışı
 
@@ -589,7 +588,7 @@ foreign key eklendi. Aynı garanti, çok daha az invaziv değişiklik.
 saf validator'a sunulur. Tabloya dışarıdan dokunulduğunda snapshot
 `POST /api/workflow/rules/reload` ile yeniden başlatmadan tazelenebilir;
 tazeleme başarısız olursa çalışan kurallar korunur. Boş/geçersiz kural verisi ve aktif geçişte eksik permission
-metadata'sı açılışı durdurur. Test ağacındaki `TransitionRules`, sekiz geçişin hedef ve permission
+metadata'sı açılışı durdurur. Test ağacındaki `TransitionRules`, on geçişin hedef ve permission
 metadata'sını da kapsayan parity ve veritabanısız test referansıdır. WF-8 mevcut
 geçişin sabit alanlarını koruyarak dinamik aktör rolü bağlarını aynı tabloda yazar;
 bu işlem migration veya başlangıç seed'ini değiştirmez. Bağ/audit transaction'ı

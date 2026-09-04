@@ -1,13 +1,13 @@
 # Frontend - Backend Entegrasyon Sözleşmesi
 
-> **WF-2C2 (4 Eylül 2026):** Kayıt, liste, dosya ve geçmiş okumaları ortak visibility scope kullanır. Dinamik roller `RECORD_VIEW` ile oluşturdukları veya kendilerine atanmış kayıtları okuyabilir. ADMIN deny ve sistem rollerinin içerik/geçmiş kesimleri korunur. HTTP alanları değişmedi; departman entegrasyonu açıktır. [Sözleşme ve hata davranışları](WF2C2_DB8_GORUNURLUK_SOZLESMESI.md).
+> **WF-2C2 (4 Eylül 2026):** Kayıt, liste, dosya ve geçmiş okumaları ortak visibility scope kullanır. Dinamik roller `RECORD_VIEW` ile oluşturdukları veya kendilerine atanmış kayıtları okuyabilir. ADMIN deny ve sistem rollerinin içerik/geçmiş kesimleri korunur. WF-5/WF-6 ile uygun departman/durum kapsamı da uygulanmıştır; `targetDepartmentId` ve `DEPARTMANA_GONDER` HTTP sözleşmesine eklenmiştir. [Sözleşme ve hata davranışları](WF2C2_DB8_GORUNURLUK_SOZLESMESI.md).
 
 Bu belge EBYS frontendinin kullandığı API sözleşmesini ve henüz tamamlanmamış entegrasyon ihtiyaçlarını tanımlar. Mevcut endpoint ve cevap modellerinde backend kodu ile çalışan uygulamanın `/v3/api-docs` çıktısı esas alınır; `docs/openapi.json` bunun sürümlenmiş inceleme anlık görüntüsüdür. Gelecekte eklenmesi beklenen işlemler ayrıca "backend bekleniyor" olarak işaretlenir.
 
-> Son dokümantasyon karşılaştırması: 4 Eylül 2026, `test` @ `c39d8c1` (PR #68).
+> Son dokümantasyon karşılaştırması: 4 Eylül 2026, `feature/wf-5-6-departman-runtime` (AP-2 hizalaması + V23 + WF-5/WF-6).
 > WF-8 ve V18–V22 yeni HTTP uçları/alanları eklemedi. AP-2 ile rol yönetimi uçları
-> ve `UserResponse`'un rol alanları değişti (aşağıda). Departman gönderim notları
-> hâlâ planlanan sözleşmedir. [Teslim sınırları](README.md).
+> ve `UserResponse`'un rol alanları değişti (aşağıda). Departman gönderimi
+> bu dalda uygulanmıştır. [Teslim sınırları](README.md).
 
 ## 1. Temel kararlar
 
@@ -307,6 +307,7 @@ Content-Type: application/json
 |---|---|---|
 | `action` | Her zaman zorunlu | `WorkflowAction` enum değerlerinden biri |
 | `targetUserId` | **Hiçbir aksiyonda gönderilmez** | Hedefi her zaman backend çözer. Alan yine de gönderilirse istek `400 WORKFLOW_TARGET_NOT_ALLOWED` ile reddedilir — sessizce yok sayılmaz |
+| `targetDepartmentId` | Yalnız `DEPARTMANA_GONDER` için zorunlu | Integer departman ID; `targetUserId` ile birlikte gönderilmez |
 | `comment` | Geri gönderme ve `REDDET` için zorunlu | En fazla 2000 karakter; diğer aksiyonlarda isteğe bağlı |
 
 `GONDER` ve `TEKRAR_GONDER` isteği şu biçimdedir:
@@ -320,9 +321,17 @@ Content-Type: application/json
 
 > **Karar — Başkan Yardımcısı hedefleme (kapandı):** `GONDER`/`TEKRAR_GONDER` hedefini backend, `BASKANA_ILET` ile aynı yoldan sistemdeki tek aktif Başkan Yardımcısından çözer. Gerekçe: Çalışana açık tek kullanıcı ucu `GET /api/users/me`'dir ve tekil rol kararı gereği kullanıcı listeleme ucu ona açılmayacaktır — yani hedefin UUID'sini güvenle keşfetmesinin bir yolu yok. Frontend'de **kişi** hedefi seçim arayüzü **yapılmayacak**.
 >
-> Bu karar kişi hedefi içindir. Departmana gönderim ayrı bir yoldur: [ADR-0006](decisions/0006-departman-hedefli-target-strategy.md) (**Kabul Edildi**, 4 Eylül 2026) yeni bir `DEPARTMANA_GONDER` aksiyonu ve istekte `targetDepartmentId` alanı getirir. `targetUserId` ile `targetDepartmentId` aynı anda dolu olamaz — aksi hâlde `400 VALIDATION_ERROR`. Departman seçici kişi seçici değildir ve `GONDER` yolunu değiştirmez; ikisi bir arada durduğu için gönderim ekranı kişi ve departman yollarını açıkça ayırmalıdır. Bu bölüm WF-5/WF-6 runtime'ı ve DB-13'ün ayrı ileri migration'ı ile uçlar geldiğinde alan düzeyinde tamamlanır. V18–V22 şema teslimi bu aksiyonu veya HTTP alanını eklemez.
+> Bu karar kişi hedefi içindir. Departmana gönderim ayrı bir yoldur: [ADR-0006](decisions/0006-departman-hedefli-target-strategy.md) (**Kabul Edildi**, 4 Eylül 2026) yeni bir `DEPARTMANA_GONDER` aksiyonu ve istekte `targetDepartmentId` alanı getirir. `targetUserId` ile `targetDepartmentId` aynı anda dolu olamaz — aksi hâlde `400 VALIDATION_ERROR`. Departman seçici kişi seçici değildir ve `GONDER` yolunu değiştirmez; ikisi bir arada durduğu için gönderim ekranı kişi ve departman yollarını açıkça ayırmalıdır. V23 + WF-5/WF-6 bu aksiyonu ve HTTP alanını uygular. `TASLAK` için oluşturucu, `DUZENLEME_BEKLIYOR` için oluşturucu ve atama sahibi gönderebilir; gerekli permission `RECORD_FORWARD`, hedef durum `BSK_YRD_INCELEMESINDE` olur.
 >
 > Sistemde tam olarak bir aktif Başkan Yardımcısı yoksa (devir sırasında sıfır, hatalı yapılandırmada birden fazla) istek `409 WORKFLOW_ROLE_NOT_CONFIGURED` döner. Bu geçici bir durumdur; kullanıcıya "İşlemi devralacak yetkili şu anda belirlenemedi, yöneticinize başvurun" mesajı gösterilmeli, istek daha sonra tekrarlanabilir.
+
+```json
+{ "action": "DEPARTMANA_GONDER", "targetDepartmentId": 12, "comment": "Satın alma incelemesi" }
+```
+
+Departmana gönderim `assigned_department_id` alanını doldurur ve `assigned_to` alanını temizler. Hedef aktif olmalı; iniş durumu için aktif routing/transition, aktif workflow rolü, uygun aktif üye, `RECORD_VIEW` ve geçiş permission'ı bulunmalıdır. Eksik/pasif departman `400 WORKFLOW_DEPARTMENT_INVALID`, kullanılabilir iniş routing'i yoksa `409 WORKFLOW_DEPARTMENT_ROUTING_NOT_CONFIGURED` döner. Kayıt zaten departmandayken eksik routing veya yetkisiz üyelik `403 WORKFLOW_FORBIDDEN` üretir. Üyelik tek başına yetki vermez.
+
+Yetkili departman üyeleri liste/detay/geçmiş/dosya uçlarında ortak kapsamla görünürlük kazanır. Dinamik workflow aksiyon arayüzü ve departman yönetim ekranları ayrı frontend teslimidir.
 
 Başarılı aksiyon cevabı tam kayıt modeli değil, backend tarafından hesaplanan geçiş özetidir:
 

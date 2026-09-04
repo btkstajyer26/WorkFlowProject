@@ -5,6 +5,9 @@ import btk.staj.WorkFlowProject.auth.security.VisibilityActor;
 import btk.staj.WorkFlowProject.notification.service.MailService;
 import btk.staj.WorkFlowProject.rbac.config.JwtUtil;
 import btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy;
+import btk.staj.WorkFlowProject.rbac.service.RoleAdminService;
+import btk.staj.WorkFlowProject.rbac.dto.UpdateRoleRequest;
+import btk.staj.WorkFlowProject.common.exception.RoleInUseException;
 import btk.staj.WorkFlowProject.rbac.repository.RolePermissionRepository;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
@@ -41,6 +44,7 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -59,6 +63,7 @@ class DepartmentWorkflowIntegrationTest {
     @Autowired UserRepository users;
     @Autowired RolePermissionRepository permissions;
     @Autowired RecordAccessPolicy policy;
+    @Autowired RoleAdminService roleAdmin;
     @Autowired ReloadableTransitionRuleSource rules;
     @Autowired WorkflowTransitionRepository transitions;
     @Autowired JwtUtil jwt;
@@ -261,6 +266,10 @@ class DepartmentWorkflowIntegrationTest {
         disable("members");
         disable("routing");
         assertThat(transitions.hasOpenRecords(statusId, role, "ASSIGNEE")).isTrue();
+        var request = new UpdateRoleRequest();
+        request.setWorkflowActor(false);
+        assertThatThrownBy(() -> roleAdmin.update(role, request)).isInstanceOf(RoleInUseException.class);
+        assertThat(jdbc.queryForObject("SELECT is_workflow_actor FROM roles WHERE id = ?", Boolean.class, role)).isTrue();
     }
 
     @Test

@@ -1,7 +1,7 @@
 # Dokümantasyon ve teslim durumu
 
 Bu dizin çalışan kodu, kabul edilmiş tasarım kararlarını ve tarihli test kanıtlarını
-ayrı takip eder. **Kod tabanı: 4 Eylül 2026, `test` @ `3eb3691` (PR #66).**
+ayrı takip eder. **Kod tabanı: 4 Eylül 2026, `feature/wf-5-6-departman-runtime`; `test @ c39d8c1`, Alperen V23 ve AP-2 hizalaması üzerine.**
 Bir ADR'nin kabul edilmesi ilgili runtime'ın uygulandığı anlamına gelmez.
 
 ## Hangi belge okunmalı?
@@ -24,14 +24,14 @@ Bir ADR'nin kabul edilmesi ilgili runtime'ın uygulandığı anlamına gelmez.
 | Alan | Hazır teslim | Kalan iş |
 | --- | --- | --- |
 | Rol/yetki ve workflow kimliği | RoleId, permission authority, kapasite kontrolü, DB kural kaynağı ve canlı reload; `AP-2` rol CRUD backend uçları ve kullanımdaki rolün korunması | `AP-2` yönetim ekranı ve permission matrisi (`AP-3`) |
-| Ortak görünürlük (`WF-2C2/DB-8`) | Creator/direct assignee ve sistem istisnaları; SQL scope, dinamik rol liste/detay/geçmiş/dosya erişimi | Yetkili departman üyesi kolu ve policy–SQL/E2E kabulü |
+| Ortak görünürlük (`WF-2C2/DB-8`) | Creator/direct/system ve departman/durum scope; dinamik rol liste/detay/geçmiş/dosya, JWT ve policy–SQL parity | TEST/ürün kabulü |
 | Aktör rolü bağlama (`WF-8`) | `WorkflowActorBindingService.listTransitions/bind/unbind`, permission/koruma, audit ve commit sonrası snapshot | `AP-8` HTTP adapter ve yönetim ekranı |
-| Departman veri katmanı (`DB-11/12`) | V18–V22 tablo/entity/repository; ad 150, self-parent CHECK, RESTRICT FK, çoklu üyelik ve routing tekilliği | Yönetim servis/API/UI (`AP-4/5`) ve runtime port/query bağlantısı |
-| Atama (`DB-13/WF-5`) | V21 `records.assigned_department_id`, karşılıklı dışlama ve Record eşlemesi; `actorHoldsAssignment` rename'i | Snapshot/update/event departman alanları, hedef çözümleme ve gönderim migration'ı |
-| Departman runtime (`WF-6`) | ADR-0005/0006/0007 ve temel veri katmanı | Routing/eligibility resolver, ortak görünürlük ve event entegrasyonu |
+| Departman veri katmanı (`DB-11/12`) | V18–V22 tablo/entity/repository; ad 150, self-parent CHECK, RESTRICT FK, çoklu üyelik ve routing tekilliği | Yönetim servis/API/UI (`AP-4/5`) |
+| Atama (`DB-13/WF-5`) | V23, snapshot/update/event departman alanları, karşılıklı dışlama ve gönderim | Yönetim ve gönderim ekranı kabulü |
+| Departman runtime (`WF-6`) | Routing/eligibility resolver, gönderim, ortak görünürlük, event ve yarış testleri | AP-4/AP-5 ekranları, NT-5 fan-out |
 | Bildirim ve istemci kabulü | Mevcut REST/polling, uygulama içi bildirim, mail-action altyapısı, FCM desteği ve token temizliği | WebSocket, departman fan-out (`NT-5`), mail E2E ve gerçek cihaz push kabulü |
 
-## WF-5/WF-6 öncesi entegrasyon sınırı
+## WF-5/WF-6 entegrasyon sınırı
 
 Burak runtime ve ortak policy'yi, Alperen persistence/query ve ileri migration'ı
 birlikte tamamlar. Tamer yönetim HTTP/UI'sini, Bahadır workflow olayının bildirim
@@ -39,12 +39,10 @@ kanallarını geliştirir. Temel departman şeması ve ADR kararı beklenmez.
 
 1. **Gönderim aynı teslimde açılır.** [ADR-0006](decisions/0006-departman-hedefli-target-strategy.md)
    uyarınca `DEPARTMENT`, `DEPARTMANA_GONDER`, `targetDepartmentId`, geçiş
-   constraint/seed'leri ve resolver desteği birlikte gerekir. Bunlar mevcut
-   runtime/HTTP sözleşmesinde yoktur. V18–V22 kullanılmıştır; yeni migration
-   numarası uygulanacağı gün güncel dal üzerinden seçilir.
+   constraint/seed'leri ve resolver desteği V23 ile birlikte uygulanmıştır. V23 tek başına eski backend üzerine dağıtılmaz.
 2. **Atama kişi veya departmandır.** Her ikisi birden dolamaz; ikisi de boş
    olabilir. Geçişin gerektirdiği atama, uygulama transaction'ında doğrulanır.
-   Snapshot, update ve event departman bilgisini taşımalıdır. Mevcut iki aşamalı
+   Snapshot, update ve event departman bilgisini taşır. Mevcut iki aşamalı
    doğrulama, işlem başına tek snapshot, audit ve mail transaction bütünlüğü korunur.
 3. **Eligibility ortak kurala dayanır.** Güncel üyelik, aktif kullanıcı/departman/rol,
    uygun aktif transition/routing, permission ve aktör-kayıt ilişkisi birlikte
@@ -57,15 +55,27 @@ kanallarını geliştirir. Temel departman şeması ve ADR kararı beklenmez.
    departmandan yetki devralma, otomatik eskalasyon ve claim mekanizması yoktur.
 5. **Kabul departman davranışını kanıtlar.** Gönderim/geri dönüş, yetkili-yetkisiz
    üye, üyelik/permission/rol/routing kaybı, policy–SQL ID eşitliği ve sayfalama,
-   eşzamanlı first-action-wins ile rollback testleri gerekir. Mevcut snapshot,
-   geçmiş kesimi, dosya ve mail testleri korunur. WF-8 kullanım korumasının mevcut
-   kişi ilişkileriyle sınırlı olması da departman entegrasyonunda değerlendirilir.
+   eşzamanlı first-action-wins ile rollback testleri eklendi. Mevcut snapshot,
+   geçmiş kesimi, dosya ve mail testleri korunur. WF-8 ve AP-2 kullanım koruması departman kuyruklarını da kapsar; uygunluk/routing pasifleştirilerek aşılamaz.
 
 Grafik tasarımcısı, workflow versioning ve draft/publish Workflow V2 kapsamındadır.
 WF-8 servisinin hazır olması AP-8 ekranlarını, şemanın hazır olması da WF-2C2
 departman kabulünü kapatmaz.
 
 ## Doğrulama kanıtı
+
+**WF-5/WF-6 birleşik teslim — 4 Eylül 2026, 15:21 TRT:** Alperen V23 + AP-2
+hizalaması + departman runtime/görünürlük üzerinde `mvn -o test`: **772 test,
+0 failure, 0 error, 0 skipped**. Frontend `npm run lint`, `npm test`
+(**117 test / 0 failure**) ve `npm run build` başarılıdır. Dinamik/yeniden
+adlandırılmış rolle login ve departman isteğinin istemciden taşınması ayrıca testlidir.
+Docker Compose ve konteynerler önceden incelendi; testler yalnız
+`wf-scratch` / `127.0.0.1:5434` / `workflowdb` üzerinde çalıştı. Geliştirme
+veritabanı `5433` ve çalışan backend `8080` korundu. İstemci, aynı üretim
+seçenekleriyle geçici `8099/v3/api-docs` şemasından yenilendi; geçici backend
+kapatıldı, ortama bağlı baseURL farkı alınmadı. `docs/openapi.json` yalnız ilgili
+alanlarda güncellendi ve dört değişen DTO'nun alan kümeleri canlı şemayla karşılaştırıldı.
+Bu yerel doğrulamadır; CI/TEST deploy ve AP-4/AP-5/NT-5 ürün kabulü değildir.
 
 Son kayıtlı tam backend `verify`: **4 Eylül 2026, 12:37 TRT — 712 test,
 0 failure, 0 error, 0 skipped; JAR üretildi.** 703 mevcut teste 9 departman
@@ -74,7 +84,7 @@ ağacını taşır. PostgreSQL 15.18 ve `127.0.0.1:5433 → 5432` önceden doğr
 izole test şemaları temizlendi, mevcut `public` şema V17'de korundu. Ayrıntı
 [V22 kabul kaydındadır](database.md#v22-yükseltme-ve-geri-alma-davranışı).
 
-Bu dokümantasyon turunda backend testleri yeniden çalıştırılmadı. 712 sonucu
+Bu kayıt önceki V22 teslimine aittir; güncel WF-5/WF-6 doğrulaması aşağıya ayrıca kaydedilir. 712 sonucu
 güncel CI, TEST deploy, frontend/mobile veya departman ürün kabulünün kanıtı değildir.
 WF-2C2'nin 667 ve WF-8'in 703 testlik kayıtları kendi teslim tarihlerine aittir.
 
