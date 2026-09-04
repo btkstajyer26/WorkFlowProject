@@ -6,8 +6,8 @@ Bu belge, İş Akışı ve Onay Yönetim Sistemi'nin çalışan backend kodundak
 WF-5/WF-6 ve departman görünürlüğü birlikte uygulanmıştır (PR #69 ve #70 yerel
 geçmişte birleşmiştir). Uzak `test`/CI/ortam kabulü ayrıca doğrulanmalıdır.
 Bu belgenin anlattığı davranışın **doğrulanmış istisnaları** aşağıdaki “Bilinen
-boşluklar” bölümündedir; tekrar üretim adımları
-[inceleme raporundadır](PROJE_INCELEME_RAPORU_2026-09-04.md).
+boşluklar” bölümündedir; sekiz backend probunun tekrar üretim adımları
+[kanıt klasöründedir](reviews/2026-09-04/TEKRAR_URETIM.md).
 
 ## İçindekiler
 

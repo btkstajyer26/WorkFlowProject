@@ -14,9 +14,8 @@ Aynı biçimde “kod mevcut”, “dala birleşti”, “CI geçti”, “TEST'
 > uygulanmamıştır. Tamer (`B10`/`WEB-1`), Bahadır (`B09`/`MOB-1`/`NT-5`) ve
 > Alperen (`B12`) bu sözleşmelere göre çalışmaya başlayabilir.
 
-> **Açık davranış problemleri:** 4 Eylül 2026 tarihli
-> [inceleme raporu](PROJE_INCELEME_RAPORU_2026-09-04.md) çalıştırılmış regresyon
-> problarıyla sekiz backend davranış ihlali (B01–B08) ve dört istemci/sözleşme
+> **Açık davranış problemleri:** 4 Eylül 2026 tarihli inceleme, çalıştırılmış
+> regresyon problarıyla sekiz backend davranış ihlali (B01–B08) ve dört istemci/sözleşme
 > boşluğu (B09–B12) doğrulamıştır; beşi P1'dir. Aşağıdaki “hazır teslim”
 > sütunu bu problemleri kapsamaz.
 
@@ -98,9 +97,8 @@ kanıtından alınmıştır, bu turda tekrar edilmemiştir.
 
 Bu sayılar **proje testlerinin** sonucudur. İnceleme turunda ayrıca çalıştırılan
 sekiz regresyon probu bu suite'in dışındadır ve hepsi başarısız olmuştur; yeşil
-suite B01–B12'yi kapatmaz. Koşum ayrıntısı ve tekrar üretim adımları
-[inceleme raporundadır](PROJE_INCELEME_RAPORU_2026-09-04.md) ve
-[kanıt klasöründedir](reviews/2026-09-04/TEKRAR_URETIM.md). Bu yerel
+suite B01–B12'yi kapatmaz. Koşum ayrıntısı, prob başına gözlenen sonuç ve tekrar
+üretim adımları [kanıt klasöründedir](reviews/2026-09-04/TEKRAR_URETIM.md). Bu yerel
 doğrulamadır; CI, TEST deploy ve AP-3/AP-4/AP-5/AP-8/NT-5 ürün kabulü değildir.
 
 **Önceki tur — WF-5/WF-6 birleşik teslim — 4 Eylül 2026, 15:21 TRT:** Alperen V23 + AP-2

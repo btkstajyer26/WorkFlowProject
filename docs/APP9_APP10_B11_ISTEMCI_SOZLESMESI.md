@@ -329,4 +329,4 @@ ve `DepartmentVisibilityAdapter` ile aynı port ve aynı koşulları kullanır.
 - [ADR-0005](decisions/0005-departman-atamasi-ve-akis-kurali.md) · [ADR-0006](decisions/0006-departman-hedefli-target-strategy.md)
 - [WF-2C2 / DB-8 görünürlük sözleşmesi](WF2C2_DB8_GORUNURLUK_SOZLESMESI.md) — alıcı kümesinin üst sınırı
 - [Web API sözleşmesi](FRONTEND_BACKEND_SOZLESMESI.md) · [Mobil API envanteri](MOBIL_API_ENVANTERI.md)
-- [İnceleme raporu B09–B12](PROJE_INCELEME_RAPORU_2026-09-04.md)
+- [Tekrar üretim kanıtı](reviews/2026-09-04/TEKRAR_URETIM.md) — B01–B08 problarının adları ve koşum sonuçları. B09–B12 kod incelemesiyle doğrulandı; kırılmaların kod konumları §6'daki kabul maddelerinde adlandırılmıştır

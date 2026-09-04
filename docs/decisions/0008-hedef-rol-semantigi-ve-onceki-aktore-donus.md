@@ -243,4 +243,4 @@ sabitler.
 - [DB-1 §7.2 / §8](../DB_1_VERI_MODELI_SOZLESMESI.md) — hedef çözüm primitive'leri ve geçiş tablosu
 - [APP-9 / APP-10 / B11 sözleşmesi](../APP9_APP10_B11_ISTEMCI_SOZLESMESI.md) — kullanılabilir aksiyon, atama DTO'su ve alıcı çözümü
 - [workflow.md](../workflow.md) — doğrulama sırası ve hata sözleşmesi
-- [İnceleme raporu B02](../PROJE_INCELEME_RAPORU_2026-09-04.md)
+- [Tekrar üretim kanıtı](../reviews/2026-09-04/TEKRAR_URETIM.md) — B02'yi gösteren `dynamicDepartmentForwardMustSupportReturnToPreviousActor` probu ve gözlenen `WORKFLOW_TARGET_ROLE_INVALID` sonucu

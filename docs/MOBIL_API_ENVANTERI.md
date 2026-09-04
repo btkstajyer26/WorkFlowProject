@@ -22,7 +22,6 @@ tanımlıdır. [Güncel teslim sınırları](README.md) ayrı izlenir.
 > dashboard, oluşturma yetkisi ve workflow aksiyon seçimi **birlikte**
 > dönüştürülmelidir. Kabul: yeni dinamik rol ve yeniden adlandırılmış yerleşik
 > rolle giriş sonrası liste, detay ve yetkili işlem çalışmalıdır.
-> Ayrıntı: [inceleme raporu](PROJE_INCELEME_RAPORU_2026-09-04.md).
 >
 > **Hedef model karara bağlanmıştır** (4 Eylül 2026,
 > [APP-9 / APP-10 / B11 sözleşmesi](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md)):

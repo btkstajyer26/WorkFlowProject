@@ -2,7 +2,9 @@
 
 İncelenen commit: `c9b029700e644dad2075896195b10b4c4059230c`, dal: `codex/ap-2-frontend-uyum`.
 
-[Ana rapor](C:/Users/burak/Desktop/projects/WorkFlowProject/docs/PROJE_INCELEME_RAPORU_2026-09-04.md), [test kaynağı](C:/Users/burak/Desktop/projects/WorkFlowProject/docs/reviews/2026-09-04/ReviewRegressionProbeTest.java).
+[Test kaynağı](ReviewRegressionProbeTest.java). Bulgular `B01`–`B12` kimlikleriyle
+izlenir; kod konumları ve etkileri ilgili sözleşme/mimari belgelerinde aynı
+kimliklerle işaretlidir.
 
 Bu kaynak, doğru olması beklenen davranışı kontrol eden inceleme problarıdır. İncelenen commit'te aşağıdaki sekiz kontrol başarısız oldu; bunlar düzeltilmiş uygulama veya hazır bir kalıcı regresyon paketi değildir. Kalıcı teste dönüştürülürken fixture temizliği, hata sözleşmesi ve düzeltmeden sonra beklenen transaction sonuçları ayrıca düzenlenmelidir. Kaynak normal Maven test ağacının dışında tutulur.
 

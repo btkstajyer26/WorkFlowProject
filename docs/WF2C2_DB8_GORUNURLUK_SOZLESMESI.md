@@ -91,7 +91,8 @@ sapmalar taşır:
 | **İçerik sürümü parity'si (B06)** | Dondurulmuş (handoff snapshot) içerik gösterilen aktör için `q` ve kategori filtreleri **güncel** kayıt kolonlarında çalışır. Yalnız canlı açıklamada bulunan benzersiz bir sözcük, snapshot ile sınırlı aktörün sorgusunda kaydı döndürür | Snapshot ile sınırlı aktörün araması, filtresi ve sıralaması yalnız kendisine gösterilen içerik sürümünü esas almalı; snapshot başlığı/açıklaması/kategorisi SQL tarafına tutarlı aktarılmalıdır |
 | **Dosya erişimi parity'si (B07)** | Handoff anında mevcut olup sonradan silinen dosya dondurulmuş görünümde doğru listelenir; download/preview görünürlük kontrolüne gelmeden `findByIdAndDeletedAtIsNull` kullandığı için `ResourceNotFoundException` verir | Liste ile indirme aynı zaman kesitine bağlanmalı; dosyanın bulunması ile güncel/tarihsel erişim yetkisi ayrı değerlendirilmelidir. Güncel görünümde silinmiş dosyanın açılması engellenmeye devam etmelidir |
 
-Ayrıntı ve tekrar üretim: [inceleme raporu](PROJE_INCELEME_RAPORU_2026-09-04.md).
+B06 ve B07'nin prob adları, gözlenen sonuçları ve tekrar üretim adımları
+[kanıt klasöründedir](reviews/2026-09-04/TEKRAR_URETIM.md).
 
 ## 6. Kabul kanıtı
 

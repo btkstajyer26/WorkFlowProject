@@ -37,8 +37,10 @@ yerel geçmişte birleşmiştir; uzak `test`/`main` durumu ayrıca doğrulanmal�
 **Açık davranış problemleri:** 4 Eylül 2026 tarihli inceleme, çalıştırılmış
 regresyon problarıyla sekiz backend davranış ihlali (B01–B08) ve dört istemci /
 sözleşme boşluğu (B09–B12) doğrulamıştır. Bunların beşi P1'dir ve 10 Eylül
-Workflow V1 teslim tanımı bugün karşılanmamaktadır. Ayrıntı, tekrar üretim adımları
-ve sahipler: [inceleme raporu](docs/PROJE_INCELEME_RAPORU_2026-09-04.md).
+Workflow V1 teslim tanımı bugün karşılanmamaktadır. Bulgular `B01`–`B12`
+kimlikleriyle izlenir; ilgili belgelerde bu kimliklerle işaretlidir. Sekiz backend
+probunun koşum sonuçları ve tekrar üretim adımları
+[kanıt klasöründedir](docs/reviews/2026-09-04/TEKRAR_URETIM.md).
 
 Son kayıtlı backend `verify`: **776 test, 0 failure/error/skipped; JAR üretildi**
 (4 Eylül 2026, `c9b0297`, yerel). Aynı turda frontend `npm test` 126/126, mobil

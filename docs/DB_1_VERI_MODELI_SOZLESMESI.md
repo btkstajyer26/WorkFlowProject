@@ -14,8 +14,7 @@
   dinamik önceki aktöre dönüş (B02). B02, B11 ve alıcı çözümü **karara
   bağlanmıştır** ([ADR-0008](decisions/0008-hedef-rol-semantigi-ve-onceki-aktore-donus.md),
   [APP-9/APP-10/B11 sözleşmesi](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md)); `V24` ve
-  kod uygulaması açıktır. Ayrıntı:
-  [inceleme raporu](PROJE_INCELEME_RAPORU_2026-09-04.md).
+  kod uygulaması açıktır.
 
 > **§7.2 / §8 semantik düzeltmesi (ADR-0008, 4 Eylül 2026).**
 > `expected_target_role_id` bu sözleşmede "beklenen hedef rol" olarak tanımlanmış
@@ -913,8 +912,9 @@ giderilmiştir:
 | Departman | ADR-0005 ve ADR-0006 **Kabul Edildi**; §15 şeması/entity/repository V18–V22, gönderim primitive/seed'leri V23 ile hazır. Gönderim yolu, routing/eligibility resolver ve departman görünürlüğü uygulanmıştır. Açık: yönetim uçları (`AP-4`/`AP-5`), atama alanlarının yanıt DTO'ları (B11), audit'e departman hedefi (B12) ve dinamik önceki aktöre dönüş (B02) |
 
 > **Bu §20 tablosu kendi teslim tarihine aittir.** Güncel kod tabanındaki durum
-> ve doğrulanmış açık davranış problemleri
-> [inceleme raporundadır](PROJE_INCELEME_RAPORU_2026-09-04.md); son yerel backend
+> yukarıdaki başlık bloğunda, doğrulanmış açık davranış problemleri ise
+> [database.md'deki açık davranış kayıtlarında](database.md#bu-şemanın-açık-davranış-kayıtları)
+> `B`-kimlikleriyle izlenir; son yerel backend
 > koşumu `c9b0297` üzerinde **776 test / 0 failure / 0 error / 0 skipped**'tir.
 
 Test kanıtı: bu doğrulamada tam süit **646 test / 0 failure / 0 error / 0 skipped**

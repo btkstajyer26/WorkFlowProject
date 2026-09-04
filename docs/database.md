@@ -358,8 +358,9 @@ Kullanıcı tohumlanmaz. İlk Admin, `BOOTSTRAP_ADMIN_EMAIL` ve `BOOTSTRAP_ADMIN
 ### Bu şemanın açık davranış kayıtları
 
 Şema hazır olsa da aşağıdaki yazma davranışları 4 Eylül 2026 tarihli incelemede
-doğrulanmış biçimde eksiktir; ilgili migration/kod işleri
-[inceleme raporunda](PROJE_INCELEME_RAPORU_2026-09-04.md) takip edilir.
+doğrulanmış biçimde eksiktir; ilgili migration/kod işleri aşağıdaki tabloda
+`B`-kimlikleriyle takip edilir. Sekiz backend probunun koşum sonuçları
+[kanıt klasöründedir](reviews/2026-09-04/TEKRAR_URETIM.md).
 
 | Konu | Durum |
 | --- | --- |

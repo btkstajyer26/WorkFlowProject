@@ -3,9 +3,10 @@
 Bu belge İş Akışı ve Onay Yönetim Sistemi'nin **çalışan mimarisini** tanımlar. Hedef durumu değil, koda bakılarak doğrulanmış mevcut yapıyı anlatır. Modül sınırları, katmanlama veya bağımlılık yönü değiştiğinde belge aynı değişiklik kapsamında güncellenir.
 
 4 Eylül 2026, `codex/ap-2-frontend-uyum` @ `c9b0297` tabanı incelenmiştir. Hazır
-teslimler ve açık bağlantılar [dokümantasyon dizininde](README.md) özetlenir;
-doğrulanmış davranış problemleri
-[inceleme raporundadır](PROJE_INCELEME_RAPORU_2026-09-04.md).
+teslimler ve açık bağlantılar [dokümantasyon dizininde](README.md) özetlenir.
+Doğrulanmış davranış problemleri aşağıdaki
+[Bilinen mimari boşluklar](#bilinen-mimari-boşluklar) bölümünde `B`-kimlikleriyle
+işaretlidir.
 
 ## İçindekiler
 
