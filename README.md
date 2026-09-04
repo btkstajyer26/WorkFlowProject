@@ -23,17 +23,30 @@ Workflow geçişleri `workflow_transitions` tablosundan okunur. `ReloadableTrans
 
 ## Mevcut teslim durumu
 
-4 Eylül 2026, `test` @ `3eb3691` (PR #66) tabanında:
+4 Eylül 2026, `codex/ap-2-frontend-uyum` @ `c9b0297` tabanında (PR #69 ve #70
+yerel geçmişte birleşmiştir; uzak `test`/`main` durumu ayrıca doğrulanmalıdır):
 
 - Dinamik roller tanımlı geçiş, permission ve kayıt ilişkisiyle workflow aksiyonu alabilir. `RECORD_VIEW` ile oluşturdukları veya doğrudan atandıkları kayıtları okuyabilir.
-- **WF-8 backend servisi hazırdır:** mevcut geçişe dinamik aktör rolü bağlar/pasifleştirir. Admin API/UI entegrasyonu (`AP-8`) açıktır.
-- **Departman veri katmanı V18–V22 ile hazırdır:** departman, üyelik, routing, kayıt ataması ve ilgili şema korumaları bulunur. Departmana gönderim, yetki çözümleme, görünürlük ve bildirim bağlantısı henüz uygulanmadı.
-- Sıradaki teslim WF-5/WF-6 runtime'ı, DB-13'ün kalan gönderim migration'ı ve WF-2C2/DB-8 departman görünürlüğüdür. Grafik düzenleme/versioning Workflow V2 kapsamındadır.
+- **Departman runtime'ı V23 ile uygulanmıştır:** `DEPARTMANA_GONDER` aksiyonu, `DEPARTMENT` hedef stratejisi, `DepartmentRoutingResolver`/`DepartmentRoutingAdapter` ve `DepartmentVisibilityAdapter` çalışır durumdadır. Şema `V1`–`V23`'tür.
+- **AP-2 rol yönetim ekranı bu dalda mevcuttur** (`frontend/src/pages/admin/RolesPage.tsx`). Rol CRUD backend uçları ve kullanımdaki rolün korunması hazırdır.
+- **WF-8 backend servisi hazırdır** fakat HTTP adapter'ı yoktur: `workflow` altındaki tek yönetim ucu `POST /api/workflow/rules/reload`'dur. `AP-8` açıktır.
+- **Yönetim HTTP katmanı eksiktir:** `AP-3` (permission matrisi), `AP-4` (departman/üyelik) ve `AP-5` (routing) için controller bulunmaz; Admin bu nesneleri panelden yönetemez.
+- **NT-5 departman fan-out'u açıktır:** bildirim dinleyicisi departmana atanan kayıtta bilinçli olarak boş alıcı kümesi döner.
+- Grafik düzenleme, workflow definition/versioning ve draft/publish Workflow V2 kapsamındadır; V1 eksiği sayılmaz.
 
-Son kayıtlı backend `verify`: **712 test, 0 failure/error/skipped; JAR üretildi**
-(4 Eylül 12:37 TRT). Test edilen dosya ağacı PR #66 sonrası tabanla aynıdır;
-CI/TEST ortamı veya departman ürün kabulü bu sonuçtan çıkarılmaz. Kaynaklar ve
-devam bağımlılıkları [dokümantasyon dizinindedir](docs/README.md).
+**Açık davranış problemleri:** 4 Eylül 2026 tarihli inceleme, çalıştırılmış
+regresyon problarıyla sekiz backend davranış ihlali (B01–B08) ve dört istemci /
+sözleşme boşluğu (B09–B12) doğrulamıştır. Bunların beşi P1'dir ve 10 Eylül
+Workflow V1 teslim tanımı bugün karşılanmamaktadır. Ayrıntı, tekrar üretim adımları
+ve sahipler: [inceleme raporu](docs/PROJE_INCELEME_RAPORU_2026-09-04.md).
+
+Son kayıtlı backend `verify`: **776 test, 0 failure/error/skipped; JAR üretildi**
+(4 Eylül 2026, `c9b0297`, yerel). Aynı turda frontend `npm test` 126/126, mobil
+`npm test` 64/64 ve gerçek backend ile Playwright 15/15 geçmiştir. Bu sayılar
+proje testlerinin sonucudur; inceleme raporunun ek regresyon probları bu suite'e
+dahil değildir ve yeşil sonuç B01–B12'yi kapatmaz. CI, TEST deploy veya ürün
+kabulü bu sonuçtan çıkarılmaz. Kaynaklar ve devam bağımlılıkları
+[dokümantasyon dizinindedir](docs/README.md).
 
 ## Hızlı başlangıç
 

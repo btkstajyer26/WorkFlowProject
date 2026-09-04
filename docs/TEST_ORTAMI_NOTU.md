@@ -3,8 +3,15 @@
 Bu belge TEST ortamının güncel topolojisini, dağıtım kontrollerini ve işletim yönergelerini tanımlar. Tarihli dağıtım, hesap, seed ve cihaz kabul kanıtları [M9 arşiv belgesinde](archive/M9_TEST_KABUL_KANITI.md) korunur.
 
 Bu topoloji repo yapılandırmasını anlatır; çalışan TEST sunucusunun son commit'i
-bu dokümantasyon turunda doğrulanmadı. PR #66 ve 712 testlik yerel backend kabulü
-TEST'e deploy veya departman ürün kabulü sayılmaz. [Teslim durumu](README.md).
+ve `flyway_schema_history` sürümü bu dokümantasyon turunda doğrulanmadı. Repo
+tarafındaki 776 testlik yerel backend kabulü (`c9b0297`) TEST'e deploy veya
+departman ürün kabulü sayılmaz. [Teslim durumu](README.md).
+
+> **Açık karar — web barındırma.** Aşağıdaki API-only topoloji ile Workflow V1'in
+> web ve mail kabulü çelişir: `deploy/Caddyfile` bütün ürün yollarını backend'e
+> gönderdiği için `/hizli-islem` sayfası bu ortamda çalışmaz ve NT-7 mail üzerinden
+> işlem kabulü TEST'te gösterilemez. V1 teslimi için erişilebilir bir frontend
+> adresi ve deploy sorumluluğu karara bağlanmalıdır.
 
 TEST ortamı tek sunucuda Docker Compose ile backend, PostgreSQL, Mailpit ve Caddy çalıştırır. Sunucuya özgü Elastic IP, SSH anahtarı ve bölge bilgileri repository dışında ortam sahibinde tutulur.
 
@@ -40,14 +47,19 @@ Betik dosya iznini (`600`), zorunlu değerleri, JWT anahtarı uzunluğunu, alan 
 
 ## Test verisi yükleme
 
-Repo V22 migration'ını içerir. Dağıtım öncesinde hedef ortamın
-`flyway_schema_history` sürümü ve departman verisi incelenmelidir. V22 kendine-parent
-verisi bulursa tamamen geri alınır; otomatik veri düzeltmez. Paylaşılmış V18–V21
-dosyaları değiştirilmez. [V22 yükseltme davranışı](database.md#v22-yükseltme-ve-geri-alma-davranışı).
+Repo **V23** migration'ına kadar olan zinciri içerir. Dağıtım öncesinde hedef
+ortamın `flyway_schema_history` sürümü ve departman verisi incelenmelidir. V22
+kendine-parent verisi bulursa tamamen geri alınır; otomatik veri düzeltmez.
+Paylaşılmış V18–V21 dosyaları değiştirilmez.
+[V22 yükseltme davranışı](database.md#v22-yükseltme-ve-geri-alma-davranışı).
 
-V18–V22 temel şemadır; `DEPARTMENT`/`DEPARTMANA_GONDER` ve runtime yoktur.
-Mevcut seed betiği departman gönderim kabulünü kanıtlamaz; bu senaryolar DB-13 ve
-WF-5/WF-6 ile ayrıca tamamlanacaktır.
+V18–V22 temel departman şemasıdır; V23 `DEPARTMENT` hedef stratejisini,
+`DEPARTMANA_GONDER` aksiyonunu ve iki geçişi ekler (toplam 10 geçiş). V23 tek
+başına eski bir backend üzerine dağıtılmaz; WF-5/WF-6 runtime'ı ile birlikte
+gider. Mevcut seed betiği departman gönderim kabulünü hâlâ kanıtlamaz: departman,
+üyelik ve routing için yönetim ucu bulunmadığından bu veriler TEST'te yalnız SQL
+ile oluşturulabilir. Departman kabul senaryosu ancak `AP-4`/`AP-5` uçlarıyla
+uçtan uca gösterilebilir.
 
 `deploy/seed-test-data.sh`, rol bazlı hesapları ve workflow örneklerini SQL yerine API üzerinden üretir; böylece parola hash'leri, audit ve geçişler uygulama kurallarıyla uyumlu kalır.
 

@@ -1,8 +1,17 @@
 # Dokümantasyon ve teslim durumu
 
 Bu dizin çalışan kodu, kabul edilmiş tasarım kararlarını ve tarihli test kanıtlarını
-ayrı takip eder. **Kod tabanı: 4 Eylül 2026, `feature/wf-5-6-departman-runtime`; `test @ c39d8c1`, Alperen V23 ve AP-2 hizalaması üzerine.**
+ayrı takip eder. **Kod tabanı: 4 Eylül 2026, `codex/ap-2-frontend-uyum` @ `c9b0297`;
+PR #69 ve #70 yerel geçmişte birleşmiştir.**
 Bir ADR'nin kabul edilmesi ilgili runtime'ın uygulandığı anlamına gelmez.
+Aynı biçimde “kod mevcut”, “dala birleşti”, “CI geçti”, “TEST'e dağıtıldı” ve
+“ürün kabulü geçti” ayrı durumlardır; bu belgede karıştırılmaz.
+
+> **Açık davranış problemleri:** 4 Eylül 2026 tarihli
+> [inceleme raporu](PROJE_INCELEME_RAPORU_2026-09-04.md) çalıştırılmış regresyon
+> problarıyla sekiz backend davranış ihlali (B01–B08) ve dört istemci/sözleşme
+> boşluğu (B09–B12) doğrulamıştır; beşi P1'dir. Aşağıdaki “hazır teslim”
+> sütunu bu problemleri kapsamaz.
 
 ## Hangi belge okunmalı?
 
@@ -23,13 +32,14 @@ Bir ADR'nin kabul edilmesi ilgili runtime'ın uygulandığı anlamına gelmez.
 
 | Alan | Hazır teslim | Kalan iş |
 | --- | --- | --- |
-| Rol/yetki ve workflow kimliği | RoleId, permission authority, kapasite kontrolü, DB kural kaynağı ve canlı reload; `AP-2` rol CRUD backend uçları ve kullanımdaki rolün korunması | `AP-2` yönetim ekranı ve permission matrisi (`AP-3`) |
+| Rol/yetki ve workflow kimliği | RoleId, permission authority, kapasite kontrolü, DB kural kaynağı ve canlı reload; `AP-2` rol CRUD backend uçları, kullanımdaki rolün korunması ve `RolesPage` yönetim ekranı | Permission matrisi (`AP-3`): yönetim servisi, HTTP ucu ve ekran yoktur; permission kaldırmanın açık işlere etkisi kararlaştırılmalıdır |
 | Ortak görünürlük (`WF-2C2/DB-8`) | Creator/direct/system ve departman/durum scope; dinamik rol liste/detay/geçmiş/dosya, JWT ve policy–SQL parity | TEST/ürün kabulü |
-| Aktör rolü bağlama (`WF-8`) | `WorkflowActorBindingService.listTransitions/bind/unbind`, permission/koruma, audit ve commit sonrası snapshot | `AP-8` HTTP adapter ve yönetim ekranı |
-| Departman veri katmanı (`DB-11/12`) | V18–V22 tablo/entity/repository; ad 150, self-parent CHECK, RESTRICT FK, çoklu üyelik ve routing tekilliği | Yönetim servis/API/UI (`AP-4/5`) |
+| Aktör rolü bağlama (`WF-8`) | `WorkflowActorBindingService.listTransitions/bind/unbind`, permission/koruma, audit ve commit sonrası snapshot | `AP-8` HTTP adapter ve yönetim ekranı. `workflow` altındaki tek yönetim ucu `POST /api/workflow/rules/reload`'dur; bu tek başına AP-8 değildir |
+| Departman veri katmanı (`DB-11/12`) | V18–V22 tablo/entity/repository; ad 150, self-parent CHECK, RESTRICT FK, çoklu üyelik ve routing tekilliği | Yönetim servis/API/UI (`AP-4/5`): departman ve routing için controller yoktur; parent döngüsü ve açık kuyruk koruması karara bağlanmalıdır |
 | Atama (`DB-13/WF-5`) | V23, snapshot/update/event departman alanları, karşılıklı dışlama ve gönderim | Yönetim ve gönderim ekranı kabulü |
-| Departman runtime (`WF-6`) | Routing/eligibility resolver, gönderim, ortak görünürlük, event ve yarış testleri | AP-4/AP-5 ekranları, NT-5 fan-out |
-| Bildirim ve istemci kabulü | Mevcut REST/polling, uygulama içi bildirim, mail-action altyapısı, FCM desteği ve token temizliği | WebSocket, departman fan-out (`NT-5`), mail E2E ve gerçek cihaz push kabulü |
+| Departman runtime (`WF-6`) | Routing/eligibility resolver, gönderim, ortak görünürlük, event ve yarış testleri | AP-4/AP-5 ekranları; NT-5 fan-out (listener departman için bilinçli olarak boş alıcı döner); dinamik aktörden Başkana iletilen kaydın önceki aktöre dönüşü (B02) |
+| İstemci workflow kabulü | Web dinamik rolü okuyabilir ve departman isteği taşıyabilir | Web aksiyon paneli `systemKey` sabitlerine bağlıdır; dinamik rol düğme göremez (B10). Mobil `roleName` Zod enum'u dinamik rolü reddeder (B09). Atama alanları yanıt DTO'larında yoktur (B11) |
+| Bildirim ve istemci kabulü | Mevcut REST/polling, uygulama içi bildirim, mail-action altyapısı, FCM desteği ve token temizliği | WebSocket, departman fan-out (`NT-5`), mail E2E (B01 düzeltmesine bağlı) ve gerçek cihaz push kabulü |
 
 ## WF-5/WF-6 entegrasyon sınırı
 
@@ -64,7 +74,28 @@ departman kabulünü kapatmaz.
 
 ## Doğrulama kanıtı
 
-**WF-5/WF-6 birleşik teslim — 4 Eylül 2026, 15:21 TRT:** Alperen V23 + AP-2
+**Güncel tur — 4 Eylül 2026, `codex/ap-2-frontend-uyum` @ `c9b0297`:** Backend
+`mvn -o ... verify` **776 test / 0 failure / 0 error / 0 skipped**, JAR üretildi.
+Frontend `npm test` **126 test / 22 dosya**, lint, build ve E2E typecheck başarılı.
+Mobil lint/typecheck başarılı, `npm test -- --runInBand` **64 / 64**. Gerçek
+backend ile Playwright **15 / 15** (ayrı `workflow-review-e2e` Compose projesi,
+Chromium). Backend testleri yalnız `wf-scratch` içinde oluşturulan
+`workflow_review_20260904` veritabanında çalıştı; geliştirme DB'si (`5433`) ve
+`8080`'deki backend hedef yapılmadı.
+
+Bu koşumların kaynağı 4 Eylül 2026 inceleme turudur; bu dokümantasyon turunda
+yalnız frontend `npm test` yeniden çalıştırılarak **126/126** doğrulanmıştır.
+Backend, mobil ve Playwright sayıları raporun aynı commit üzerindeki tarihli
+kanıtından alınmıştır, bu turda tekrar edilmemiştir.
+
+Bu sayılar **proje testlerinin** sonucudur. İnceleme turunda ayrıca çalıştırılan
+sekiz regresyon probu bu suite'in dışındadır ve hepsi başarısız olmuştur; yeşil
+suite B01–B12'yi kapatmaz. Koşum ayrıntısı ve tekrar üretim adımları
+[inceleme raporundadır](PROJE_INCELEME_RAPORU_2026-09-04.md) ve
+[kanıt klasöründedir](reviews/2026-09-04/TEKRAR_URETIM.md). Bu yerel
+doğrulamadır; CI, TEST deploy ve AP-3/AP-4/AP-5/AP-8/NT-5 ürün kabulü değildir.
+
+**Önceki tur — WF-5/WF-6 birleşik teslim — 4 Eylül 2026, 15:21 TRT:** Alperen V23 + AP-2
 hizalaması + departman runtime/görünürlük üzerinde `mvn -o test`: **772 test,
 0 failure, 0 error, 0 skipped**. Frontend `npm run lint`, `npm test`
 (**117 test / 0 failure**) ve `npm run build` başarılıdır. Dinamik/yeniden

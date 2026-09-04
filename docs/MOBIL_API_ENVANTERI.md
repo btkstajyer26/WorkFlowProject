@@ -4,9 +4,23 @@ Mobil istemcinin kullandığı REST uçlarını, istek/yanıt biçimlerini ve ha
 davranışlarını tanımlar. Uç değiştiğinde bu belge aynı değişiklik kapsamında
 güncellenir.
 
-4 Eylül 2026, `test` @ `3eb3691` tabanı ile görünürlük/permission notları
-hizalanmıştır. Departman HTTP alanları/aksiyonları ve AP-8 uçları henüz yoktur;
-[güncel teslim sınırları](README.md) ayrı izlenir.
+4 Eylül 2026, `codex/ap-2-frontend-uyum` @ `c9b0297` tabanı ile hizalanmıştır.
+`DEPARTMANA_GONDER` aksiyonu ve `targetDepartmentId` alanı backend'de mevcuttur;
+mobil istemci bunları **kullanmaz**. AP-3/AP-4/AP-5/AP-8 yönetim uçları hâlâ
+yoktur. [Güncel teslim sınırları](README.md) ayrı izlenir.
+
+> **Açık kırılma — B09 (P1).** `mobile/src/api/users.ts` içindeki `roleName`
+> yalnız `CALISAN`, `BASKAN_YARDIMCISI`, `BASKAN`, `ADMIN` değerlerini kabul eden
+> bir Zod enum'uyla ayrıştırılır; `roleId` ve `systemKey` hiç kullanılmaz. Admin'in
+> oluşturduğu **dinamik rol** veya **yeniden adlandırılmış yerleşik rol** için
+> geçerli bir `GET /api/users/me` cevabı istemcide reddedilir. Login token
+> verebilir; kırılma profil okunurken ve ona bağlı ekranlarda oluşur.
+> `RecordWorkflowActions` ve dashboard da aynı sabit rol adlarına bağlıdır.
+> Web AP-2 düzeltmesinin mobil karşılığı eksiktir: profil şeması, etiketler,
+> dashboard, oluşturma yetkisi ve workflow aksiyon seçimi **birlikte**
+> dönüştürülmelidir. Kabul: yeni dinamik rol ve yeniden adlandırılmış yerleşik
+> rolle giriş sonrası liste, detay ve yetkili işlem çalışmalıdır.
+> Ayrıntı: [inceleme raporu](PROJE_INCELEME_RAPORU_2026-09-04.md).
 
 Kanonik kaynaklar: [FRONTEND_BACKEND_SOZLESMESI.md](FRONTEND_BACKEND_SOZLESMESI.md)
 (alan sözleşmesi) · [workflow.md](workflow.md) (durum geçişleri ve görünürlük) ·
@@ -112,8 +126,10 @@ Yenilemede yeni bir refresh token da döner; eskisi geçersizleşir (rotasyon).
 **`POST /logout`** → `{ "refreshToken": "..." }` → `200`, gövde düz metin
 `"Çıkış yapıldı"`. **JSON değil** — parse etmeyin.
 
-> M4 kapsamında bu gövdeye opsiyonel `deviceToken` eklenecek. Bugün DTO yalnız
-> `refreshToken` taşıyor ve alan zorunlu.
+> Opsiyonel `deviceToken` alanı **eklenmiştir** (`LogoutRequest.deviceToken`).
+> Web bu alanı göndermez ve göndermemesi hata değildir. Gönderildiğinde cihaz
+> token'ı aynı işlemde pasifleştirilir; çıkış yapan cihaza bildirim gitmez.
+> `refreshToken` zorunlu olmaya devam eder.
 
 **`POST /change-password`** → `{ "currentPassword", "newPassword" }` → düz metin.
 `newPassword`: en az 8 karakter, en az bir harf ve bir rakam.

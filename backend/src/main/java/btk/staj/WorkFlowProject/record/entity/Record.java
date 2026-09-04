@@ -54,8 +54,13 @@ public class Record {
 
     // Kaydin kisiye DEGIL departmana atanmasi. assignedTo ile ayni anda
     // dolu olamaz (bkz. chk_records_assignment_exclusive, V21).
-    // ADR-0006 kabul edildi; bu alani yazan WF-5/WF-6 runtime'i henuz
-    // uygulanmadi. Burada yalniz kolon ve kisit hazirdir.
+    // ADR-0006 uyarinca WF-5/WF-6 runtime'i bu alani yazar: DEPARTMANA_GONDER
+    // aksiyonu ve DEPARTMENT hedef stratejisi V23 ile seed'lidir; hedef
+    // cozumu DepartmentRoutingResolver, gorunurluk DepartmentVisibilityAdapter
+    // uzerinden isler.
+    // NOT: bu alan yanit DTO'larinda (RecordResponse, RecordSearchResponse,
+    // WorkflowActionResponse) ve WorkflowTransitionAudit'te tasinmaz; istemci
+    // ve kalici gecmis kaydin hangi departmanda oldugunu goremez.
     @Column(name = "assigned_department_id")
     private Integer assignedDepartmentId;
 

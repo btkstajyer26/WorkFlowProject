@@ -4,10 +4,15 @@
 
 Bu belge EBYS frontendinin kullandığı API sözleşmesini ve henüz tamamlanmamış entegrasyon ihtiyaçlarını tanımlar. Mevcut endpoint ve cevap modellerinde backend kodu ile çalışan uygulamanın `/v3/api-docs` çıktısı esas alınır; `docs/openapi.json` bunun sürümlenmiş inceleme anlık görüntüsüdür. Gelecekte eklenmesi beklenen işlemler ayrıca "backend bekleniyor" olarak işaretlenir.
 
-> Son dokümantasyon karşılaştırması: 4 Eylül 2026, `feature/wf-5-6-departman-runtime` (AP-2 hizalaması + V23 + WF-5/WF-6).
+> Son dokümantasyon karşılaştırması: 4 Eylül 2026, `codex/ap-2-frontend-uyum` @ `c9b0297` (AP-2 hizalaması + V23 + WF-5/WF-6).
 > WF-8 ve V18–V22 yeni HTTP uçları/alanları eklemedi. AP-2 ile rol yönetimi uçları
 > ve `UserResponse`'un rol alanları değişti (aşağıda). Departman gönderimi
-> bu dalda uygulanmıştır. [Teslim sınırları](README.md).
+> bu dalda uygulanmıştır. Bu turda sürümlenmiş `openapi.json` ile çalışan
+> backend arasında **32 yol ve 37 DTO şemasının alan kümelerinde fark bulunmadı**;
+> bu, açıklama/required/enum ve yanıt semantiğinin birebir eşit olduğu iddiası
+> değildir ve otomatik bir drift gate'i hâlâ yoktur. Açık istemci maddeleri
+> aşağıdaki §"Tamamlanmamış istemci sözleşmesi" bölümündedir.
+> [Teslim sınırları](README.md).
 
 ## 1. Temel kararlar
 
@@ -332,6 +337,19 @@ Content-Type: application/json
 Departmana gönderim `assigned_department_id` alanını doldurur ve `assigned_to` alanını temizler. Hedef aktif olmalı; iniş durumu için aktif routing/transition, aktif workflow rolü, uygun aktif üye, `RECORD_VIEW` ve geçiş permission'ı bulunmalıdır. Eksik/pasif departman `400 WORKFLOW_DEPARTMENT_INVALID`, kullanılabilir iniş routing'i yoksa `409 WORKFLOW_DEPARTMENT_ROUTING_NOT_CONFIGURED` döner. Kayıt zaten departmandayken eksik routing veya yetkisiz üyelik `403 WORKFLOW_FORBIDDEN` üretir. Üyelik tek başına yetki vermez.
 
 Yetkili departman üyeleri liste/detay/geçmiş/dosya uçlarında ortak kapsamla görünürlük kazanır. Dinamik workflow aksiyon arayüzü ve departman yönetim ekranları ayrı frontend teslimidir.
+
+### Tamamlanmamış istemci sözleşmesi
+
+Aşağıdaki maddeler 4 Eylül 2026 incelemesinde kod üzerinden doğrulanmıştır ve
+Workflow V1 kabulünü bugün engellemektedir. Ayrıntı:
+[inceleme raporu](PROJE_INCELEME_RAPORU_2026-09-04.md).
+
+| No | Boşluk | Kabul maddesi |
+| --- | --- | --- |
+| **B10** | Web aksiyon paneli (`RecordActionPanel`) bütün düğmeleri `systemKey === CALISAN/BASKAN_YARDIMCISI/BASKAN` koşullarına bağlar. Dinamik rolün `systemKey` değeri `null` olduğu için, permission ve workflow bağı doğru olsa bile panel tamamen kapanır | Backend, kayıt ve aktör için **hesaplanmış kullanılabilir aksiyon ve ilişki** bilgisini istemciye sunmalıdır. Workflow kurallarının istemcide ikinci kez kurulması veya dinamik rolün başka bir sistem rolü gibi gösterilmesi kabul değildir. Aynı model mobilde de kullanılmalıdır |
+| **B11** | İstek `targetDepartmentId` kabul eder ve kayıt DB'de departmana atanır; `RecordResponse`, `RecordSearchResponse` ve `WorkflowActionResponse` `assignedDepartmentId` taşımaz. Detay DTO'su doğrudan kişi atamasını da taşımaz ve web adapteri atama alanlarını sabit `null` doldurur | Ortak atama DTO'su (kişi/departman ayrımı, gösterim adı ve mümkünse kayıt sürümü) belirlenip OpenAPI, web ve mobil birlikte güncellenmelidir. İstemci boş atama ile departman kuyruğunu ayırabilmelidir |
+| — | Normal kullanıcı için **uygun departman keşif ucu** yoktur; departman seçici bu olmadan yapılamaz | `DEPARTMANA_GONDER` hedefi olabilecek aktif departmanları döndüren, yetkiye saygılı bir uç tanımlanmalıdır |
+| — | Departman/üyelik/routing ve permission matrisi için yönetim ucu yoktur (`AP-3`/`AP-4`/`AP-5`); `AP-8` için de yalnız `POST /api/workflow/rules/reload` vardır | Yönetim ekranları bu uçlar tanımlanmadan planlanamaz |
 
 Başarılı aksiyon cevabı tam kayıt modeli değil, backend tarafından hesaplanan geçiş özetidir:
 
