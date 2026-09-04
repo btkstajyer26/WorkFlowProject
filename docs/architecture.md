@@ -2,8 +2,10 @@
 
 Bu belge İş Akışı ve Onay Yönetim Sistemi'nin **çalışan mimarisini** tanımlar. Hedef durumu değil, koda bakılarak doğrulanmış mevcut yapıyı anlatır. Modül sınırları, katmanlama veya bağımlılık yönü değiştiğinde belge aynı değişiklik kapsamında güncellenir.
 
-4 Eylül 2026, `test` @ `3eb3691` tabanı incelenmiştir. Hazır teslimler ve WF-5/WF-6
-öncesi açık bağlantılar [dokümantasyon dizininde](README.md) özetlenir.
+4 Eylül 2026, `codex/ap-2-frontend-uyum` @ `c9b0297` tabanı incelenmiştir. Hazır
+teslimler ve açık bağlantılar [dokümantasyon dizininde](README.md) özetlenir;
+doğrulanmış davranış problemleri
+[inceleme raporundadır](PROJE_INCELEME_RAPORU_2026-09-04.md).
 
 ## İçindekiler
 
@@ -39,8 +41,10 @@ izlenir ve iptal edilebilir.
 
 ## Backend modül sınırları
 
-Ana paket `btk.staj.WorkFlowProject`. `department` şu anda entity/repository
-katmanını sağlar; yönetim HTTP uçları ve workflow runtime bağlantısı henüz yoktur.
+Ana paket `btk.staj.WorkFlowProject`. `department` entity/repository katmanını
+sağlar; workflow runtime bağlantısı `workflow` içindeki adapter'lar üzerinden
+kurulmuştur. Departmanın **yönetim HTTP uçları hâlâ yoktur** (`AP-4`/`AP-5`):
+departman, üyelik ve routing yalnız veritabanından değiştirilebilir.
 
 | Modül | Sınır | Dışa açtığı |
 | --- | --- | --- |
@@ -48,7 +52,7 @@ katmanını sağlar; yönetim HTTP uçları ve workflow runtime bağlantısı he
 | `user` | Kullanıcı oluşturma, rol atama, aktiflik, koltuk devri | `/api/admin/**`, `/api/users/me` |
 | `rbac` | Rol tanımı, işlem yetkisi, kayıt görünürlük politikası, güvenlik yapılandırması | `RecordAccessPolicy`, `PermissionService`, `SecurityConfig` |
 | `record` | Kayıt ve kategori yaşam döngüsü, taslak, soft delete | `/api/records`, `/api/categories` |
-| `department` | Departman, çoklu üyelik ve routing kalıcılığı | Entity/repository; henüz HTTP ucu yok |
+| `department` | Departman, çoklu üyelik ve routing kalıcılığı | Entity/repository; yönetim HTTP ucu yok (`AP-4`/`AP-5` açık) |
 | `workflow` | İzinli durum geçişleri, hedef çözümleme, atama ve aktör rolü bağlama | `/api/records/{id}/workflow/actions`, `/api/workflow/rules/reload`, Java `WorkflowActorBindingService` |
 | `attachment` | Dosya içerik doğrulama, saklama, erişim | `/api/records/{id}/files`, `/api/files/**` |
 | `audit` | Değiştirilemez işlem geçmişi (kayıt ve kullanıcı) | `/api/audit-logs/**`, `/api/user-audit-logs/**` |
@@ -204,6 +208,9 @@ Aşağıdakiler uygulanmış davranışlardır:
 - **E-posta teslim garantisi yok.** Gönderim asenkron ve best-effort; retry, outbox veya DLQ bulunmuyor.
 - **ADR kapsamı seçicidir.** Dizinde altı ADR bulunur; rol kapasitesi ve tekillik ADR-0007'de karara bağlanmıştır. Port/adapter sınırı bu belgede gerekçelendirilir. ADR-0003'ün rol kapsamı/tekillik önerisinin yerine ADR-0005/0007 geçmiştir; dizindeki her kabul edilmiş kararın runtime'ı tamamlanmış değildir.
 
-- **Departman görünürlüğü açık.** Mevcut görünürlük ortak `RecordVisibilityScope` üzerinden tekil policy ve SQL predicate üretir. Dinamik rol, `RECORD_VIEW` ile oluşturduğu/atandığı kaydı okuyabilir; içerik/geçmiş kesimleri ayrı tutulur. Departman, üyelik, routing ve kayıt atamasının şema/entity/repository katmanı V18–V22 ile hazırdır. V22 ad uzunluğunu 150 yapar, kendine-parent CHECK'i ekler ve üyelik/routing FK'lerini RESTRICT olarak hizalar. Departman policy–SQL sorguları, WF-5/WF-6 runtime'ı ve gönderim stratejisi/aksiyonu/seed'leri henüz uygulanmadı. Sınırlar ve DB-8 entegrasyonu: [WF-2C2 sözleşmesi](WF2C2_DB8_GORUNURLUK_SOZLESMESI.md).
+- **Departman runtime'ı bağlıdır; yönetim ve istemci katmanı değildir.** Görünürlük ortak `RecordVisibilityScope` üzerinden tekil policy ve SQL predicate üretir. Şema/entity/repository V18–V22, gönderim stratejisi/aksiyonu/seed'leri V23 ile hazırdır. `DepartmentRoutingResolver`, `DepartmentRoutingAdapter` (`DepartmentRoutingPort`) ve `DepartmentVisibilityAdapter` (`DepartmentVisibilityPort`) runtime'ı bağlar; validator DB bağımlılığı almaz. Açık kalanlar: departman/üyelik/routing yönetim uçları (`AP-4`/`AP-5`), NT-5 alıcı fan-out'u ve istemci departman seçicisi. Sınırlar ve DB-8 entegrasyonu: [WF-2C2 sözleşmesi](WF2C2_DB8_GORUNURLUK_SOZLESMESI.md).
 - **Geçiş grafiği arayüzden düzenlenemiyor.** WF-8'in Spring yönetim servisi mevcut geçişlere dinamik aktör rolü bağlar; topoloji, routing, permission ve aktör ilişkisini değiştirmez. AP-8 HTTP/UI entegrasyonu açıktır. Bağ yazımı ve audit tek transaction'dadır; reload ile ortak koordinatör doğrulanmış snapshot'ı commit sonrası yayınlar. Saf workflow çekirdeği işlem başına bir snapshot kullanır. Grafik topolojisini düzenlemek Workflow V2/versioning kapsamındadır (DB-1 §14). [WF-8 sözleşmesi](WF8_AP8_AKTOR_ROL_BAGLAMA_SOZLESMESI.md).
+- **Atama bilgisi yanıt DTO'larında taşınmıyor.** `records.assigned_department_id` yazılır ve sorgulanır; `RecordResponse`, `RecordSearchResponse` ve `WorkflowActionResponse` bu alanı döndürmez. `WorkflowTransitionAudit` de departman hedefini taşımaz, bu yüzden bir kaydın hangi departmana gönderildiği kalıcı geçmişten okunamaz (B11/B12).
+- **İstemci workflow yetkisi ikinci kez istemcide kuruluyor.** Web aksiyon paneli düğmeleri `systemKey` sabitlerine bağlıdır; `systemKey=null` olan dinamik rol için panel kapanır. Backend'in hesapladığı kullanılabilir aksiyon bilgisi istemciye sunulmamaktadır (B10).
+- **Eşzamanlılık koruması bazı yazma yollarında eksiktir.** Görev devri ve `last_deputy_id` toplu JPQL güncellemeleri `records.version` değerini artırmaz; dosya yükleme kayıt sürümüne dokunmaz ve `RecordLockValidator` isminin aksine kilit almaz; refresh token tüketimi satır kilidi veya koşullu UPDATE kullanmaz (B03/B04/B05).
 - **WebSocket bildirim kanalı yoktur.** Bildirimler REST/polling ile taşınır.

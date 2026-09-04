@@ -1,8 +1,13 @@
 # İş Akışı ve Durum Geçişleri
 
-Bu belge, İş Akışı ve Onay Yönetim Sistemi'nin çalışan backend kodundaki workflow davranışını tanımlar. Ürün hedefinden çok **mevcut uygulamayı** esas alır; planlanan ancak henüz uygulanmayan davranışlar “Bilinen boşluklar” bölümünde ayrıca belirtilir. Durum makinesi, API veya hata eşlemesi değiştirildiğinde belge aynı değişiklik kapsamında güncellenir.
+Bu belge, İş Akışı ve Onay Yönetim Sistemi'nin çalışan backend kodundaki workflow davranışını tanımlar. Ürün hedefinden çok **mevcut uygulamayı** esas alır; planlanan ancak henüz uygulanmayan davranışlar ile uygulanmış olup beklenen sonucu vermeyen davranışlar “Bilinen boşluklar” bölümünde ayrıca belirtilir. Durum makinesi, API veya hata eşlemesi değiştirildiğinde belge aynı değişiklik kapsamında güncellenir.
 
-4 Eylül 2026 — `feature/wf-5-6-departman-runtime`: AP-2 hizalaması, V23, WF-5/WF-6 ve departman görünürlüğü birlikte uygulanmıştır. `test`/CI/ortam kabulü PR sonucuna bağlıdır.
+4 Eylül 2026 — `codex/ap-2-frontend-uyum` @ `c9b0297`: AP-2 hizalaması, V23,
+WF-5/WF-6 ve departman görünürlüğü birlikte uygulanmıştır (PR #69 ve #70 yerel
+geçmişte birleşmiştir). Uzak `test`/CI/ortam kabulü ayrıca doğrulanmalıdır.
+Bu belgenin anlattığı davranışın **doğrulanmış istisnaları** aşağıdaki “Bilinen
+boşluklar” bölümündedir; tekrar üretim adımları
+[inceleme raporundadır](PROJE_INCELEME_RAPORU_2026-09-04.md).
 
 ## İçindekiler
 
@@ -517,6 +522,20 @@ Mevcut otomatik testler şu katmanları kapsar:
    tabloyu okumuyor.
 5. **Kural kaynağının yönetilebilirliği:** WF-8 servisi sabit geçişlere dinamik aktör rolü bağlar ve kullanımda olmayan bağları pasifleştirir. AP-8 HTTP/UI entegrasyonu açıktır. Grafik topolojisi ve sabit geçiş alanları düzenlenemez. Bellekteki snapshot başarılı bağ değişikliğinde otomatik, `POST /api/workflow/rules/reload` ile de manuel yenilenir.
 
+### Doğrulanmış davranış sapmaları
+
+Aşağıdakiler eksik özellik değil, **çalıştırılarak doğrulanmış hatalı
+davranışlardır**. Bu belgenin geri kalanı düzeltilmiş hedefi anlatır; bugünkü
+kodda şu sapmalar vardır:
+
+| No | Sapma | Öncelik |
+| --- | --- | --- |
+| B02 | Dinamik departman rolü `BASKANA_ILET` yaptığında `last_deputy_id` bu üyeye yazılır; Başkan'ın `BASKAN_YARDIMCISINA_GERI_GONDER` geçişi V15 seed'i gereği hedefin yerleşik `BASKAN_YARDIMCISI` olmasını istediği için `WORKFLOW_TARGET_ROLE_INVALID` ile reddedilir. Dinamik aktörün geri dönüş kolu tamamlanmaz | P1 |
+| B03 | Görev devri ve `last_deputy_id` toplu güncellemeleri `records.version` artırmadığı için, kaydı önceden yüklemiş bir workflow transaction'ı devir sonrası eski `lastDeputyId` ile çatışmasız yazabilir | P1 |
+| B01 | Workflow e-postasının hızlı işlem tokenı `AFTER_COMMIT` aşamasında üretilemez; dinleyici hatayı yakalar ve mail düğmesiz gider (NT-7 mail üzerinden işlem kabulü sağlanmaz) | P1 |
+| B04 | `RecordLockValidator` kayıt kilidi almaz ve dosya yükleme kaydın sürümüne dokunmaz; kontrol ile dosya satırının yazılması arasında kayıt incelemeye geçse bile yükleme commit edilir | P1 |
+| B06 | Dondurulmuş içerik gösterilirken `q`/kategori filtreleri güncel kayıt kolonlarında çalışır; gösterilmeyen düzenleme arama sonucunu etkiler | P2 |
+
 Başlangıç şartnamesiyle bilinçli veya fiilî uygulama farkları da korunmalıdır:
 
 - Başkan geri gönderme hedefini serbestçe seçmez; Çalışana dönüş `createdBy`, Başkan Yardımcısına dönüş `lastDeputyId` ile sabittir.
@@ -529,7 +548,10 @@ Yukarıdaki boşlukların bir kısmı **Workflow V1 açık işidir**, bir kısm�
 | --- | --- |
 | Ortak görünürlük ve dinamik rol okuma erişimi | Departman/durum çiftleri dahil ortak policy/SQL, JWT okuma uçları ve sayfalama testleri uygulandı |
 | Departman, üyelik, routing ve atama veri katmanı | V18–V22 ile şema/entity/repository hazır; V22 ad uzunluğu, self-parent ve silme korumalarını DB-1 ile hizalar |
-| Departman runtime ve görünürlük | V23 + WF-5/WF-6 ve policy/SQL departman kolu uygulandı; yönetim ekranları ve NT-5 ayrı teslim |
+| Departman runtime ve görünürlük | V23 + WF-5/WF-6 ve policy/SQL departman kolu uygulandı; yönetim ekranları (`AP-4`/`AP-5`) ve NT-5 ayrı teslim. Bildirim dinleyicisi departmana atanan kayıtta bilinçli olarak boş alıcı kümesi döner |
+| Dinamik aktörden Başkana iletilen kaydın geri dönüşü | Workflow V1 açık işi — B02; hedef rol kontrolünü koşulsuz kaldırmak güvenli çözüm değildir |
+| Departman hedefinin kalıcı workflow audit'ine yazılması | Workflow V1 açık işi — B12; `WorkflowTransitionAudit` departman/kişi atama alanı taşımaz |
+| İstemcinin kullanılabilir aksiyonu backend'den öğrenmesi | Workflow V1 açık işi — B10; web paneli `systemKey` sabitlerine bağlı olduğu için dinamik rol düğme göremez |
 | Mevcut geçişe dinamik aktör rolü bağlama | WF-8 servis ve sözleşmesi uygulandı; AP-8 HTTP/UI açık |
 | Admin'den rol/permission yönetimi | Workflow V1 — `AP-2`/`AP-3` |
 | WebSocket bildirim kanalı | Workflow V1 — `NT-2`…`NT-4` |

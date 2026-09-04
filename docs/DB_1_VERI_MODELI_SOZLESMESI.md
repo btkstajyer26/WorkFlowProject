@@ -2,13 +2,17 @@
 
 - **Durum:** Kabul edildi
 - **Karar tarihi:** 1 Eylül 2026
-- **Son güncelleme:** 4 Eylül 2026 — §15 departman şeması V18–V22 ile hizalandı; gönderim runtime'ı açık
+- **Son güncelleme:** 4 Eylül 2026 — repo şeması V23'e alındı; departman gönderim runtime'ı uygulandı, açık davranış kayıtları eklendi
 - **Kapsam:** DB-1
 - **Sözleşmenin başlangıç tabanı:** Flyway `V1`–`V11` (`V3` tarihsel olarak yoktur)
-- **Güncel repo şeması:** `V1`–`V22`, `test` @ `3eb3691` (PR #66)
+- **Güncel repo şeması:** `V1`–`V23`, `codex/ap-2-frontend-uyum` @ `c9b0297`
 - **Uygulama durumu:** Çekirdek DB-1 §17 kabulü 2 Eylül 2026'da doğrulandı.
-  V12–V17 katalog/capability ve V18–V22 departman veri katmanı hazırdır;
-  departman gönderim primitive/seed'leri ve WF-5/WF-6 runtime kabulü açıktır (§20).
+  V12–V17 katalog/capability, V18–V22 departman veri katmanı ve V23 gönderim
+  primitive/seed'leri hazırdır; WF-5/WF-6 runtime'ı uygulanmıştır. Açık kalanlar
+  yönetim uçları (`AP-3`/`AP-4`/`AP-5`/`AP-8`), atama alanlarının yanıt DTO'larına
+  taşınması (B11), workflow audit'inin departman hedefini yazması (B12) ve
+  dinamik önceki aktöre dönüşün hedef rol kararı (B02). Ayrıntı:
+  [inceleme raporu](PROJE_INCELEME_RAPORU_2026-09-04.md).
 
 ## 1. Amaç
 
@@ -654,7 +658,7 @@ Publish doğrulaması en az şunları kontrol etmelidir:
 - target strategy için gerekli alanlar doludur;
 - ulaşılamayan durumlar ve istenmeyen döngüler raporlanır.
 
-## 15. Departman modeli — şema V18–V22 ile hazır, runtime açık
+## 15. Departman modeli — şema V18–V23 ile hazır, runtime uygulandı
 
 [ADR-0005](decisions/0005-departman-atamasi-ve-akis-kurali.md) (**Kabul Edildi**,
 3 Eylül 2026) departman atamasının açık kararlarını kapattı. Bu bölüm o kararların
@@ -663,8 +667,11 @@ bağlayıcıdır. `DB-11` · `DB-12` · `DB-13` veri katmanının departman, üy
 routing ve kayıt ataması DDL'i V18–V21 ile eklenmiştir. V22 ad uzunluğunu 150'ye
 çıkarır, kendine-parent CHECK'i ekler ve üyelik/routing silme politikasını
 RESTRICT yapar; paylaşılmış V18–V21 dosyaları değiştirilmez. Entity/repository
-katmanı hazırdır. DB-13'ün gönderim stratejisi/aksiyonu/seed'leri, WF-5/WF-6
-runtime'ı ve departman görünürlük kabulü ayrı iş olarak açıktır.
+katmanı hazırdır. DB-13'ün gönderim stratejisi/aksiyonu/seed'leri **V23 ile
+eklenmiştir** (`DEPARTMENT` CHECK genişletmesi, `DEPARTMANA_GONDER` ve iki geçiş;
+toplam 10 geçiş) ve WF-5/WF-6 runtime'ı uygulanmıştır. Açık kalan iş yönetim
+uçları (`AP-4`/`AP-5`), atama alanlarının yanıt DTO'larına taşınması ve
+departman hedefinin workflow audit'ine yazılmasıdır.
 
 > **Zamanlama güncellemesi (4 Eylül 2026).** Bu bölüm yazıldığında departman
 > uygulaması "sonraki iterasyon" idi. Plan güncellemesiyle `DB-11`/`DB-12`/`DB-13`
@@ -889,7 +896,12 @@ giderilmiştir:
 | Admin paneli | PR #57 rol listesi getirir. Rol CRUD, permission matrisi ve durum katalog ekranı teslim edilmiş değildir |
 | Statik kaynak | `TZ-1` **tamamlandı**: `TransitionRules` ve `StaticTransitionRuleSource` test ağacına taşındı ve production jar'ından çıktı. Parity oracle'ı ve invariantlar korundu; invariantlar artık veritabanı kaynağı üzerinde de koşuyor |
 | Atama sözleşmesi | `TransitionContext.actorHoldsAssignment` (`WF-5` ile yeniden adlandırıldı); departman anlamı `WF-6` ile gelecek |
-| Departman | ADR-0005 ve ADR-0006 **Kabul Edildi**; §15 şeması/entity/repository V18–V22 ile hazır. Gönderim yolu, strateji/aksiyon/seed'ler ve departman görünürlüğü henüz uygulanmadı |
+| Departman | ADR-0005 ve ADR-0006 **Kabul Edildi**; §15 şeması/entity/repository V18–V22, gönderim primitive/seed'leri V23 ile hazır. Gönderim yolu, routing/eligibility resolver ve departman görünürlüğü uygulanmıştır. Açık: yönetim uçları (`AP-4`/`AP-5`), atama alanlarının yanıt DTO'ları (B11), audit'e departman hedefi (B12) ve dinamik önceki aktöre dönüş (B02) |
+
+> **Bu §20 tablosu kendi teslim tarihine aittir.** Güncel kod tabanındaki durum
+> ve doğrulanmış açık davranış problemleri
+> [inceleme raporundadır](PROJE_INCELEME_RAPORU_2026-09-04.md); son yerel backend
+> koşumu `c9b0297` üzerinde **776 test / 0 failure / 0 error / 0 skipped**'tir.
 
 Test kanıtı: bu doğrulamada tam süit **646 test / 0 failure / 0 error / 0 skipped**
 (TZ-1 öncesi kayıt 639; `TZ-1`'in eklediği kaynak-agnostik invariantlar ve mutasyon

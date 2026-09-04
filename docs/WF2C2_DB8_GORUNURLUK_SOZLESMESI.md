@@ -79,6 +79,20 @@ Tekil policy, SQL predicate ve notification eligibility aynı koşulları izleme
 
 **4 Eylül 2026 durumu:** V18–V23 şema/seed ve WF-5/WF-6 assignment/resolver/scope bağlantısı hazırdır. Departman HTTP entegrasyon testleri, gerçek JWT okumaları, permission/üyelik/rol/routing kaybı, policy–SQL ID eşitliği ve sayfalama doğrulanır. AP-4/AP-5, NT-5 ve ortam/ürün kabulü ayrı kalır.
 
+### Parity ifadesinin kapsamı
+
+Bu sözleşmenin doğruladığı parity **kayıt ID kümesi** parity'sidir: tekil policy
+ile SQL predicate aynı kayıt kimliklerini üretir. Aşağıdakiler **bu parity'nin
+kapsamında değildir** ve 4 Eylül 2026 incelemesinde çalıştırılarak doğrulanmış
+sapmalar taşır:
+
+| Konu | Doğrulanan sapma | Kabul senaryosu |
+| --- | --- | --- |
+| **İçerik sürümü parity'si (B06)** | Dondurulmuş (handoff snapshot) içerik gösterilen aktör için `q` ve kategori filtreleri **güncel** kayıt kolonlarında çalışır. Yalnız canlı açıklamada bulunan benzersiz bir sözcük, snapshot ile sınırlı aktörün sorgusunda kaydı döndürür | Snapshot ile sınırlı aktörün araması, filtresi ve sıralaması yalnız kendisine gösterilen içerik sürümünü esas almalı; snapshot başlığı/açıklaması/kategorisi SQL tarafına tutarlı aktarılmalıdır |
+| **Dosya erişimi parity'si (B07)** | Handoff anında mevcut olup sonradan silinen dosya dondurulmuş görünümde doğru listelenir; download/preview görünürlük kontrolüne gelmeden `findByIdAndDeletedAtIsNull` kullandığı için `ResourceNotFoundException` verir | Liste ile indirme aynı zaman kesitine bağlanmalı; dosyanın bulunması ile güncel/tarihsel erişim yetkisi ayrı değerlendirilmelidir. Güncel görünümde silinmiş dosyanın açılması engellenmeye devam etmelidir |
+
+Ayrıntı ve tekrar üretim: [inceleme raporu](PROJE_INCELEME_RAPORU_2026-09-04.md).
+
 ## 6. Kabul kanıtı
 
 **Yerel doğrulama — 4 Eylül 2026, 11:27 TRT:** İlgili 111 test ve ardından tam backend `verify` başarılıdır: **667 test / 0 failure / 0 error / 0 skipped**. JAR paketleme de tamamlandı. Komut backend dizininde `DB_PORT=5433` ortam değişkeniyle `mvn -o verify` olarak çalıştırıldı (mevcut Maven repository yolu açıkça verildi). Bu kayıt yerel çalışma ağacının kanıtıdır; PR/CI/merge veya departman V1 kabulü değildir.

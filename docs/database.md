@@ -2,10 +2,10 @@
 
 Bu belge PostgreSQL şemasını, tasarım kararlarını ve migration yönetimini tanımlar. Kaynağı `backend/src/main/resources/db/migration/` altındaki Flyway dosyalarıdır.
 
-> Departman şeması V22 ile hizalandı ve PR #66 üzerinden `test` @ `3eb3691` tabanına birleşti (4 Eylül 2026). Bu kaynak kod durumudur; belirli bir veritabanının V22'ye yükseltildiğini göstermez. Şema değiştiğinde belge aynı değişiklik kapsamında güncellenmelidir.
+> Repo şeması **`V1`–`V23`**'tür (4 Eylül 2026, `codex/ap-2-frontend-uyum` @ `c9b0297`). V22 departman şemasını hizalar, V23 `DEPARTMENT` hedef stratejisini, `DEPARTMANA_GONDER` aksiyonunu ve iki geçişi ekler. Bu kaynak kod durumudur; belirli bir veritabanının V23'e yükseltildiğini göstermez — hedef ortamın `flyway_schema_history` sürümü ayrıca doğrulanmalıdır. Şema değiştiğinde belge aynı değişiklik kapsamında güncellenmelidir.
 
 - **Veritabanı:** PostgreSQL 15.18
-- **Migration:** Flyway (`V1`–`V22`; `V3` tarihsel olarak yoktur). Aşağıdaki gövde `V1`–`V11` tabanını anlatır; `V12`–`V17` ile gelen katalog/capability/FK değişiklikleri ve `V18`–`V22` ile gelen departman şeması belgenin sonundaki bölümlerde ele alınır.
+- **Migration:** Flyway (`V1`–`V23`; `V3` tarihsel olarak yoktur). Aşağıdaki gövde `V1`–`V11` tabanını anlatır; `V12`–`V17` ile gelen katalog/capability/FK değişiklikleri ve `V18`–`V23` ile gelen departman şeması/gönderim primitive'leri belgenin sonundaki bölümlerde ele alınır.
 - **ORM:** Spring Data JPA / Hibernate, `ddl-auto=validate`
 
 ## İçindekiler
@@ -353,7 +353,21 @@ Kullanıcı tohumlanmaz. İlk Admin, `BOOTSTRAP_ADMIN_EMAIL` ve `BOOTSTRAP_ADMIN
 | `V20__department_routing_rules.sql`         | `department_routing_rules` — `(dept, durum, aksiyon) → rol`                                  |
 | `V21__records_assigned_department.sql`      | `records.assigned_department_id` + mutual exclusion CHECK                                    |
 | `V22__align_department_schema_contract.sql` | Departman adı 150 karakter, kendine-parent CHECK'i ve üyelik/routing FK'lerinde RESTRICT       |
-| `V23__department_send_action.sql` | `DEPARTMENT` CHECK genişletmesi, `DEPARTMANA_GONDER` aksiyonu ve iki geçiş; toplam 10 geçiş |
+| `V23__department_send_action.sql`            | `DEPARTMENT` CHECK genişletmesi, `DEPARTMANA_GONDER` aksiyonu ve iki geçiş; toplam 10 geçiş                    |
+
+### Bu şemanın açık davranış kayıtları
+
+Şema hazır olsa da aşağıdaki yazma davranışları 4 Eylül 2026 tarihli incelemede
+doğrulanmış biçimde eksiktir; ilgili migration/kod işleri
+[inceleme raporunda](PROJE_INCELEME_RAPORU_2026-09-04.md) takip edilir.
+
+| Konu | Durum |
+| --- | --- |
+| `records.version` ve görev devri | `devretBekleyenIsleri` ve `updateLastDeputyId` toplu JPQL güncellemeleri sürümü artırmaz; eşzamanlı workflow yazımı çatışma almaz (B03) |
+| `records.version` ve dosya yükleme | Ek yükleme kaydın sürümüne dokunmaz; kilit kontrolü ile dosya satırının yazılması arasında durum değişebilir (B04) |
+| Soft-delete edilmiş kayıt | Detay okuması `deleted_at` dolu kaydı dışlar; update/delete ortak yükleyicisi dışlamaz (B08) |
+| Workflow audit | `WorkflowTransitionAudit` departman ve kişi atama alanı taşımaz; departman hedefi kalıcı geçmişe yazılmaz. Yapılandırılmış audit sözleşmesi ve ileri migration gerekir (B12) |
+| Dinamik önceki aktöre dönüş | V15 seed'i `BASKAN_YARDIMCISINA_GERI_GONDER` için yerleşik `BASKAN_YARDIMCISI` hedef rolünü ister; dinamik departman aktörüne dönüş `WORKFLOW_TARGET_ROLE_INVALID` alır. İleri migration + resolver kararı açıktır (B02) |
 
 ### Numaralandırmadaki boşluk
 
