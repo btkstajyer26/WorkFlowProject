@@ -1,5 +1,7 @@
 package btk.staj.WorkFlowProject.search.service;
 
+import static btk.staj.WorkFlowProject.support.AuthorizationFixtures.visibility;
+
 
 
 import btk.staj.WorkFlowProject.auth.security.CurrentVisibilityActorProvider;
@@ -141,7 +143,7 @@ class RecordSearchServiceImplTest {
     }
 
     private void givenActor(RoleName role) {
-        when(currentVisibilityActorProvider.currentVisibilityActor()).thenReturn(new VisibilityActor(USER_ID, role));
+        when(currentVisibilityActorProvider.currentVisibilityActor()).thenReturn(visibility(role, USER_ID));
     }
 
     private static Record record() {

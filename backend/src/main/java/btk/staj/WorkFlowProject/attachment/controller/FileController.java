@@ -3,7 +3,7 @@ package btk.staj.WorkFlowProject.attachment.controller;
 import btk.staj.WorkFlowProject.attachment.dto.FileResponseDto;
 import btk.staj.WorkFlowProject.attachment.service.FileService;
 import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
-import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
+import btk.staj.WorkFlowProject.auth.security.VisibilityActor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
@@ -38,8 +38,8 @@ public class FileController {
             @PathVariable("id") UUID recordId,
             @AuthenticationPrincipal AuthenticatedUser currentUser) {
 
-        RoleName role = currentUser.getLegacyRole();
-        List<FileResponseDto> files = fileService.listByRecord(recordId, role, currentUser.getId());
+        VisibilityActor actor = VisibilityActor.from(currentUser);
+        List<FileResponseDto> files = fileService.listByRecord(recordId, actor);
         return ResponseEntity.ok(files);
     }
 
@@ -48,8 +48,8 @@ public class FileController {
             @PathVariable UUID id,
             @AuthenticationPrincipal AuthenticatedUser currentUser) {
 
-        RoleName role = currentUser.getLegacyRole();
-        return fileService.downloadFile(id, role, currentUser.getId());
+        VisibilityActor actor = VisibilityActor.from(currentUser);
+        return fileService.downloadFile(id, actor);
     }
 
     @GetMapping("/api/files/{id}/preview")
@@ -57,8 +57,8 @@ public class FileController {
             @PathVariable UUID id,
             @AuthenticationPrincipal AuthenticatedUser currentUser) {
 
-        RoleName role = currentUser.getLegacyRole();
-        return fileService.previewFile(id, role, currentUser.getId());
+        VisibilityActor actor = VisibilityActor.from(currentUser);
+        return fileService.previewFile(id, actor);
     }
 
     @PreAuthorize("hasAuthority('FILE_MANAGE')")

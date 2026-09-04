@@ -166,14 +166,14 @@ class DynamicWorkflowRoleIntegrationTest {
     }
 
     @Test
-    void dynamicWorkflowPermissionDoesNotExpandLegacyHistoryOrSearchVisibility() throws Exception {
+    void workflowPermissionAloneDoesNotGrantRecordVisibility() throws Exception {
         mvc.perform(get("/api/audit-logs/record/{recordId}", recordId)
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("WORKFLOW_ROLE_NOT_ALLOWED"));
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
         mvc.perform(get("/api/records").header("Authorization", "Bearer " + token))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("WORKFLOW_ROLE_NOT_ALLOWED"));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0));
     }
 
     @Test

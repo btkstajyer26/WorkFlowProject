@@ -53,7 +53,8 @@ class SecurityCurrentActorProviderTest {
         assertThat(actor.id()).isEqualTo(USER_ID);
         assertThat(actor.roleId()).isEqualTo(new RoleId(1001));
         assertThat(actor.workflowActor()).isEqualTo(AuthorizationFixtures.workflowActor(role));
-        assertThat(provider.currentVisibilityActor().role()).isEqualTo(role);
+        assertThat(provider.currentVisibilityActor().systemRole()).contains(btk.staj.WorkFlowProject.rbac.SystemRoleKey.valueOf(role.name()));
+        assertThat(provider.currentVisibilityActor().roleId()).isEqualTo(new RoleId(1001));
         assertThat(provider.currentVisibilityActor().id()).isEqualTo(USER_ID);
     }
 
@@ -151,6 +152,8 @@ class SecurityCurrentActorProviderTest {
         user.getRole().setWorkflowActor(true);
         authenticate(new AuthenticatedUser(user, Set.of("RECORD_FORWARD")));
 
+        assertThat(provider.currentVisibilityActor().systemRole()).isEmpty();
+        assertThat(provider.currentVisibilityActor().permissionCodes()).containsExactly("RECORD_FORWARD");
         assertThat(provider.currentUserId()).isEqualTo(USER_ID);
         assertThat(provider.currentActor()).isEqualTo(
                 new CurrentActor(USER_ID, new RoleId(1001), true, Set.of("RECORD_FORWARD")));

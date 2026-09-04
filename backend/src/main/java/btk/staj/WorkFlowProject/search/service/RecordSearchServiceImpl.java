@@ -57,7 +57,7 @@ public class RecordSearchServiceImpl implements RecordSearchService {
         VisibilityActor actor = currentVisibilityActorProvider.currentVisibilityActor();
 
         Page<Record> recordPage = recordRepository.findAll(
-                RecordSpecifications.withFilters(criteria, actor.id(), actor.role()),
+                RecordSpecifications.withFilters(criteria, actor),
                 pageable);
 
         Map<UUID, String> creatorNames = creatorNamesOf(recordPage.getContent());
@@ -103,7 +103,7 @@ public class RecordSearchServiceImpl implements RecordSearchService {
                                             VisibilityActor actor,
                                             Map<UUID, String> creatorNames) {
         RecordContentView.Content content =
-                recordContentView.visibleContent(record, actor.role(), actor.id());
+                recordContentView.visibleContent(record, actor);
 
         RecordSearchResponse response = new RecordSearchResponse();
 

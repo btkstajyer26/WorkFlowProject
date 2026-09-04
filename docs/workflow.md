@@ -84,7 +84,7 @@ Durum makinesi ve uygulama servisi doğrudan Spring, JPA veya HTTP'ye bağlı de
 | `BASKAN` | Yalnız kendisine atanmış kaydı onaylar, reddeder veya geri gönderir. |
 | `ADMIN` | Workflow aktörü ve hedefi değildir. Her aksiyon denemesi `WORKFLOW_ROLE_NOT_ALLOWED` ile reddedilir. |
 
-Yerleşik roller görüntülenen `name` yerine değişmez `system_key` ile tanınır. Dar kapsamlı `SystemRoleKey`; varsayılan çalışanı, bootstrap admin'i, hesap korumalarını ve yardımcı devrini belirler. Workflow aktör ve hedef kimliği `RoleId` taşır; `RoleName` yalnız görünürlük ve istemci uyumluluğu sınırında korunur ve enum dönüşümleri `system_key` okur.
+Yerleşik roller görüntülenen `name` yerine değişmez `system_key` ile tanınır. Dar kapsamlı `SystemRoleKey`; varsayılan çalışanı, bootstrap admin'i, hesap korumalarını ve yardımcı devrini belirler. Workflow aktör ve hedef kimliği `RoleId` taşır; Görünürlük aktörü de `RoleId`, isteğe bağlı `SystemRoleKey` ve güncel permission kümesi taşır; `RoleName` yalnız kalan uyumluluk/test sınırlarında korunur.
 
 Kullanıcı kapasitesi `roles.max_users` ile belirlenir: `NULL` sınırsızdır; dolu değer yalnız aktif kullanıcıları rol ID'sine göre sınırlar. Seed'de `ADMIN`, `BASKAN` ve `BASKAN_YARDIMCISI` için değer `1`'dir. Oluşturma, bootstrap, rol değiştirme, yeniden etkinleştirme ve yardımcı devri ortak `RoleCapacityService` kontrolünü kullanır. Güncellenen kullanıcılar UUID, ardından etkilenen roller ID sırasıyla `PESSIMISTIC_WRITE` kilitlenir; sayım ve yazım aynı transaction'dadır. Devirde ayrılan ve gelen kullanıcı birlikte hesaplanır. Limit aşımı `409 ADMIN_LIMIT_EXCEEDED` döndürür; pasif role atama yapılamaz.
 
@@ -105,9 +105,9 @@ Kayıt listeleme/detay görünürlüğü ile workflow aksiyonu yapma yetkisi ayn
 
 | Rol | Kayıt okuma kapsamı |
 | --- | --- |
-| `CALISAN` | Yaşam döngüsü boyunca kendisinin oluşturduğu kayıtlar |
-| `BASKAN_YARDIMCISI` | Kendisine atanmış kayıtlar, `DUZENLEME_BEKLIYOR` durumundakiler ve bir kez kendi elinden geçmiş kayıtlar (`last_deputy_id`) |
-| `BASKAN` | `BASKAN_INCELEMESINDE` durumundaki, sonuçlanmış (`ONAYLANDI`/`REDDEDILDI`) veya kendisine atanmış kayıtlar |
+| Dinamik rol / `CALISAN` | Kendisinin oluşturduğu veya doğrudan kendisine atanmış kayıtlar |
+| `BASKAN_YARDIMCISI` | Kendisinin oluşturduğu veya kendisine atanmış kayıtlar, `DUZENLEME_BEKLIYOR` durumundakiler ve bir kez kendi elinden geçmiş kayıtlar (`last_deputy_id`) |
+| `BASKAN` | Kendisinin oluşturduğu, `BASKAN_INCELEMESINDE` durumundaki, sonuçlanmış (`ONAYLANDI`/`REDDEDILDI`) veya kendisine atanmış kayıtlar |
 | `ADMIN` | Hiçbir workflow kaydı |
 
 Kapsamın iki kolu, `assigned_to`'nun geçişte boşalması yüzünden gerekli:
@@ -115,9 +115,9 @@ Kapsamın iki kolu, `assigned_to`'nun geçişte boşalması yüzünden gerekli:
 - **Başkan Yardımcısı**, `BASKANA_ILET` ile `assigned_to`'yu Başkana devreder ama `last_deputy_id` kendisinde kalır. Bu kol olmasaydı ilettiği evrağı anında kaybeder; "Sonuçlananlar" ve panodaki "Son Kayıtlar" listeleri kalıcı olarak boş görünürdü.
 - **Başkan**, `ONAYLA`/`REDDET` ile `assigned_to`'yu boşaltır. Sonuçlanan iki durum kapsama açıkça yazılmasaydı kendi verdiği karardan sonra kaydı kaybeder; "Onaylananlar" ve "Reddedilenler" sekmeleri boş kalırdı. Bu iki duruma yalnız Başkanın kararıyla gelinebildiği için kapsam genişlemez.
 
-Liste sorguları soft-delete edilmiş kayıtları dışlar. Kayıt audit geçmişi ucu da okumadan önce aynı `RecordAccessPolicy` kuralını uygular.
+Bütün okuma yolları aktif kullanıcı/rol ve `RECORD_VIEW` ister; ADMIN her durumda reddedilir. Soft-delete kayıtlar listede yoktur, tekil kayıt/dosya/geçmiş okumalarında `404` döner. Dinamik roller görünür kaydın güncel içeriğini ve tam geçmişini görür; ek `AUDIT_VIEW` şartı yoktur. Sistem rollerinin içerik/geçmiş kesimleri korunur.
 
-Aynı kural iki biçimde durur: tek kayıt için `RecordAccessPolicy`, sorgu koşulu olarak `RecordSpecifications.visibilityScope`. **Biri değişirse diğeri de değişmelidir** — ikisi ayrıştığında detay ucu kaydı açarken liste ucu onu hiç döndürmez.
+Kural tek bir saf Java `RecordVisibilityScope` tanımından gelir. `RecordAccessPolicy` tekil değerlendirmeyi, `RecordSpecifications` scope’un SQL çevirisini yapar; sorgu adapter’ı rol seçimi içermez. Liste toplamları SQL’de scope uygulandıktan sonra hesaplanır. Ayrıntı ve açık departman bağımlılıkları: [WF-2C2 / DB-8 sözleşmesi](WF2C2_DB8_GORUNURLUK_SOZLESMESI.md).
 
 Workflow controller'ı ayrıca `RecordAccessPolicy` çağırmaz. Aksiyon yetkisi; rol, durum ve `createdBy`/`assignedTo` ilişkisi üzerinden durum makinesinde belirlenir. Okuma kapsamı bir kaydı görünür kılması, o kayıt üzerinde aksiyon yapılabileceği anlamına gelmez: ilettiği evrağı izleyen Başkan Yardımcısı onu salt okunur görür.
 
@@ -495,14 +495,14 @@ Yukarıdaki boşlukların bir kısmı **Workflow V1 açık işidir**, bir kısm�
 
 | Boşluk | Nereye ait |
 | --- | --- |
-| Görünürlüğün `RecordAccessPolicy` + `RecordSpecifications` ikizliği ve dinamik role açılması | Workflow V1 — `WF-2C2` / `DB-8` |
+| Ortak görünürlük ve dinamik rol okuma erişimi | Mevcut şemada uygulandı; `WF-2C2` / `DB-8` departman entegrasyonu açık |
 | Departmana atama, üyelik, routing ve `actorHoldsAssignment`'ın departman anlamı | Workflow V1 — `DB-11`/`DB-12`/`DB-13`, `WF-5`/`WF-6`; ADR-0005, ADR-0006 ve ADR-0007 kabul edildi |
 | Mevcut geçişe dinamik aktör rolü bağlama ve Admin'den rol/permission yönetimi | Workflow V1 — `WF-8`/`AP-2`/`AP-3`/`AP-8` |
 | WebSocket bildirim kanalı | Workflow V1 — `NT-2`…`NT-4` |
 | Aksiyon metadata'sının enum'dan tabloya taşınması | V1 acceptance'ı için zorunlu değil |
 | Grafik topolojisinin arayüzden düzenlenmesi, workflow definition/versioning, draft/publish | **Workflow V2** — V1'de yasak (DB-1 §14) |
 
-Geçiş kuralları veritabanından okunur; `TransitionRules` statik tablosu test ağacındaki parity ve veritabanısız test referansıdır. Workflow rol kimliği `WF-2D2` ile tamamen `RoleId`'ye taşındı. Görünürlük modelinin dinamikleşmesi ve WebSocket bildirim kanalı ise hâlâ mevcut davranış değildir. HTTP istek audit'i `ADMIN` sistem anahtarında `audit_logs`, diğerlerinde `user_audit_logs` tablosuna gider; rolün yeniden adlandırılması bu dağılımı değiştirmez.
+Geçiş kuralları veritabanından okunur; `TransitionRules` statik tablosu test ağacındaki parity ve veritabanısız test referansıdır. Workflow rol kimliği `WF-2D2` ile tamamen `RoleId`'ye taşındı. Dinamik rol görünürlüğü mevcut şemada ortaktır; departman görünürlüğü ve WebSocket bildirim kanalı henüz uygulanmadı. HTTP istek audit'i `ADMIN` sistem anahtarında `audit_logs`, diğerlerinde `user_audit_logs` tablosuna gider; rolün yeniden adlandırılması bu dağılımı değiştirmez.
 
 ## Değişiklik kontrol listesi
 

@@ -1,6 +1,6 @@
 package btk.staj.WorkFlowProject.auth.security;
 
-/** Supplies the existing system-role identity for record visibility readers. */
+/** Supplies current role identity and permissions for record visibility readers. */
 @FunctionalInterface
 public interface CurrentVisibilityActorProvider {
     VisibilityActor currentVisibilityActor();

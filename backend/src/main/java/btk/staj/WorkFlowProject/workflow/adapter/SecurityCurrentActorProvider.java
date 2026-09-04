@@ -4,12 +4,9 @@ import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
 import btk.staj.WorkFlowProject.auth.security.CurrentUserProvider;
 import btk.staj.WorkFlowProject.auth.security.CurrentVisibilityActorProvider;
 import btk.staj.WorkFlowProject.auth.security.VisibilityActor;
-import btk.staj.WorkFlowProject.workflow.exception.WorkflowApplicationException;
 import btk.staj.WorkFlowProject.workflow.model.CurrentActor;
 import btk.staj.WorkFlowProject.workflow.port.CurrentActorProvider;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleId;
-import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
-import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowErrorCode;
 import java.util.UUID;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
@@ -38,24 +35,10 @@ public final class SecurityCurrentActorProvider implements CurrentActorProvider,
     @Override
     public VisibilityActor currentVisibilityActor() {
         AuthenticatedUser user = currentUser();
-        return new VisibilityActor(readId(user), readVisibilityRole(user));
-    }
-
-    // Preserve the existing visibility boundary independently of workflow eligibility.
-    private static RoleName readVisibilityRole(AuthenticatedUser user) {
-        String systemKey;
         try {
-            systemKey = user.getSystemKey();
+            return VisibilityActor.from(user);
         } catch (RuntimeException exception) {
-            throw malformedPrincipal("Unable to read authenticated user role", exception);
-        }
-        if (systemKey == null) {
-            throw new WorkflowApplicationException(WorkflowErrorCode.WORKFLOW_ROLE_NOT_ALLOWED);
-        }
-        try {
-            return RoleName.valueOf(systemKey);
-        } catch (IllegalArgumentException exception) {
-            throw malformedPrincipal("Authenticated user role is invalid", exception);
+            throw malformedPrincipal("Unable to read authenticated visibility identity", exception);
         }
     }
 

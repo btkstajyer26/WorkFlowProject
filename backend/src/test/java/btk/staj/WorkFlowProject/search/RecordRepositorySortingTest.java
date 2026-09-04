@@ -1,5 +1,7 @@
 package btk.staj.WorkFlowProject.search;
 
+import static btk.staj.WorkFlowProject.support.AuthorizationFixtures.visibility;
+
 import btk.staj.WorkFlowProject.rbac.Role;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
@@ -92,8 +94,7 @@ class RecordRepositorySortingTest {
         Page<Record> result = recordRepository.findAll(
                 RecordSpecifications.withFilters(
                         criteria,
-                        userId,
-                        RoleName.CALISAN),
+                        visibility(RoleName.CALISAN, userId)),
                 pageable);
 
         // Assert

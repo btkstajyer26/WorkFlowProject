@@ -1,5 +1,7 @@
 package btk.staj.WorkFlowProject.search.specification;
 
+import static btk.staj.WorkFlowProject.support.AuthorizationFixtures.visibility;
+
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.search.dto.RecordSearchCriteria;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
@@ -87,9 +89,6 @@ class RecordSpecificationsTest {
 
         verify(cb).equal(status, RecordStatus.BASKAN_INCELEMESINDE);
         verify(cb).equal(assignedTo, USER_ID);
-        verify(cb).or(
-                any(Predicate.class), any(Predicate.class),
-                any(Predicate.class), any(Predicate.class));
     }
 
     /**
@@ -143,7 +142,7 @@ class RecordSpecificationsTest {
         RecordSearchCriteria criteria = new RecordSearchCriteria();
         criteria.setCreator("ahmet");
 
-        RecordSpecifications.withFilters(criteria, USER_ID, RoleName.CALISAN)
+        RecordSpecifications.withFilters(criteria, visibility(RoleName.CALISAN, USER_ID))
                 .toPredicate(root, query, cb);
 
         // Kapsam kosulu hala kuruluyor: filtre onun yerine gecmiyor, yanina ekleniyor.
@@ -158,7 +157,7 @@ class RecordSpecificationsTest {
         RecordSearchCriteria criteria = new RecordSearchCriteria();
         criteria.setCreator("   ");
 
-        RecordSpecifications.withFilters(criteria, USER_ID, RoleName.CALISAN)
+        RecordSpecifications.withFilters(criteria, visibility(RoleName.CALISAN, USER_ID))
                 .toPredicate(root, query, cb);
 
         verify(query, never()).subquery(UUID.class);
@@ -170,9 +169,9 @@ class RecordSpecificationsTest {
         RecordSearchCriteria criteria = new RecordSearchCriteria();
 
         assertThatNullPointerException().isThrownBy(
-                () -> RecordSpecifications.withFilters(criteria, null, RoleName.CALISAN));
+                () -> RecordSpecifications.withFilters(criteria, null));
         assertThatNullPointerException().isThrownBy(
-                () -> RecordSpecifications.withFilters(criteria, USER_ID, null));
+                () -> RecordSpecifications.withFilters(null, visibility(RoleName.CALISAN, USER_ID)));
     }
 
     /** Olusturan filtresi korele bir EXISTS alt sorgusu kurar. */
@@ -191,7 +190,7 @@ class RecordSpecificationsTest {
 
     private void build(RoleName role) {
         Specification<Record> specification =
-                RecordSpecifications.withFilters(new RecordSearchCriteria(), USER_ID, role);
+                RecordSpecifications.withFilters(new RecordSearchCriteria(), visibility(role, USER_ID));
         specification.toPredicate(root, query, cb);
     }
 }

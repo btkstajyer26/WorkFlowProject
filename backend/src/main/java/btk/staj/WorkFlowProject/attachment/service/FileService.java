@@ -4,7 +4,7 @@ import btk.staj.WorkFlowProject.attachment.dto.FileResponseDto;
 import btk.staj.WorkFlowProject.attachment.entity.FileEntity;
 import btk.staj.WorkFlowProject.attachment.repository.FileRepository;
 import btk.staj.WorkFlowProject.attachment.storage.FileStorageService;
-import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
+import btk.staj.WorkFlowProject.auth.security.VisibilityActor;
 import btk.staj.WorkFlowProject.common.exception.BusinessRuleException;
 import btk.staj.WorkFlowProject.common.exception.ResourceNotFoundException;
 import btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy;
@@ -39,12 +39,11 @@ public class FileService {
     private final RecordAccessPolicy recordAccessPolicy;
     private final RecordContentView recordContentView;
 
-    private Record assertCanViewRecord(UUID recordId, RoleName role, UUID currentUserId) {
+    private Record assertCanViewRecord(UUID recordId, VisibilityActor actor) {
         Record record = recordRepository.findById(recordId)
+                .filter(found -> found.getDeletedAt() == null)
                 .orElseThrow(() -> new ResourceNotFoundException("Kayıt bulunamadı: " + recordId));
-        recordAccessPolicy.assertCanView(
-                role, currentUserId, record.getCreatedBy(), record.getAssignedTo(),
-                record.getLastDeputyId(), record.getStatus());
+        recordAccessPolicy.assertCanView(actor, record);
         return record;
     }
 
@@ -125,20 +124,20 @@ public class FileService {
     }
 
     @Transactional(readOnly = true)
-    public ResponseEntity<Resource> downloadFile(UUID id, RoleName role, UUID currentUserId) {
-        return buildFileResponse(id, "attachment", role, currentUserId);
+    public ResponseEntity<Resource> downloadFile(UUID id, VisibilityActor actor) {
+        return buildFileResponse(id, "attachment", actor);
     }
 
     @Transactional(readOnly = true)
-    public ResponseEntity<Resource> previewFile(UUID id, RoleName role, UUID currentUserId) {
-        return buildFileResponse(id, "inline", role, currentUserId);
+    public ResponseEntity<Resource> previewFile(UUID id, VisibilityActor actor) {
+        return buildFileResponse(id, "inline", actor);
     }
 
     @Transactional(readOnly = true)
-    public List<FileResponseDto> listByRecord(UUID recordId, RoleName role, UUID currentUserId) {
-        Record record = assertCanViewRecord(recordId, role, currentUserId);
+    public List<FileResponseDto> listByRecord(UUID recordId, VisibilityActor actor) {
+        Record record = assertCanViewRecord(recordId, actor);
         RecordContentView.Content content =
-                recordContentView.visibleContent(record, role, currentUserId);
+                recordContentView.visibleContent(record, actor);
 
         if (content.frozen()) {
             return fileRepository.findAllByRecordId(recordId)
@@ -154,14 +153,14 @@ public class FileService {
                 .toList();
     }
 
-    private ResponseEntity<Resource> buildFileResponse(UUID id, String dispositionType, RoleName role, UUID currentUserId) {
+    private ResponseEntity<Resource> buildFileResponse(UUID id, String dispositionType, VisibilityActor actor) {
         FileEntity fileEntity = fileRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Dosya bulunamadı: " + id));
 
-        Record record = assertCanViewRecord(fileEntity.getRecordId(), role, currentUserId);
+        Record record = assertCanViewRecord(fileEntity.getRecordId(), actor);
 
         RecordContentView.Content content =
-                recordContentView.visibleContent(record, role, currentUserId);
+                recordContentView.visibleContent(record, actor);
         if (content.frozen() && !existedAt(fileEntity, content.asOf())) {
             throw new ResourceNotFoundException("Dosya bulunamadı: " + id);
         }

@@ -1,5 +1,7 @@
 # WF-2A — RoleName Kaldırma Hazırlık Envanteri
 
+> **4 Eylül 2026 güncellemesi:** Aşağıdaki envanter tarihsel durumu da içerir. WF-2C2 mevcut şemada ortak scope ve dinamik rol erişimiyle uygulanmıştır; eski “DB-8 tasarımı yok / görünürlük bloke” kayıtlarının güncel karşılığı [WF-2C2 / DB-8 sözleşmesidir](WF2C2_DB8_GORUNURLUK_SOZLESMESI.md). Departman entegrasyonu açık kalır.
+
 > Güncel uygulama durumu ve kabul kararları [§18.8](#188-wf-2b-ve-wf-2c1-uygulama-kapanışı--23-eylül-2026) içindedir. Önceki envanter/gate tabloları tarihsel snapshot'tır.
 
 ## 1. Amaç

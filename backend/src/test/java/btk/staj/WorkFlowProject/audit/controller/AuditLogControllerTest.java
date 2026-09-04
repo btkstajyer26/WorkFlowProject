@@ -1,5 +1,7 @@
 package btk.staj.WorkFlowProject.audit.controller;
 
+import static btk.staj.WorkFlowProject.support.AuthorizationFixtures.visibility;
+
 
 
 import btk.staj.WorkFlowProject.audit.dto.AuditLogResponse;
@@ -182,7 +184,7 @@ class AuditLogControllerTest {
     }
 
     private void givenActor(UUID userId, RoleName role) {
-        when(currentVisibilityActorProvider.currentVisibilityActor()).thenReturn(new VisibilityActor(userId, role));
+        when(currentVisibilityActorProvider.currentVisibilityActor()).thenReturn(visibility(role, userId));
     }
 
     private void givenRecord(UUID createdBy, UUID assignedTo, RecordStatus status) {

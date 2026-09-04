@@ -42,15 +42,10 @@ public class AuditLogController {
         VisibilityActor actor = currentVisibilityActorProvider.currentVisibilityActor();
 
         Record record = recordRepository.findById(recordId)
+                .filter(found -> found.getDeletedAt() == null)
                 .orElseThrow(() -> new ResourceNotFoundException("Kayıt bulunamadı: " + recordId));
 
-        recordAccessPolicy.assertCanView(
-                actor.role(),
-                actor.id(),
-                record.getCreatedBy(),
-                record.getAssignedTo(),
-                record.getLastDeputyId(),
-                record.getStatus());
+        recordAccessPolicy.assertCanView(actor, record);
 
         // Kaydi gorebilmek butun gecmisi gormek demek degil. Iki yonlu kirpma
         // var, ikisi de ayni fikrin farkli ucu: kullanici evraki yalnizca
@@ -60,8 +55,7 @@ public class AuditLogController {
         // Evraki elinden cikarmis olan kullanici, kaydin baskasindayken aldigi
         // islemleri gormez.
         if (recordAccessPolicy.seesRecordAsOfHandoff(
-                actor.role(),
-                actor.id(),
+                actor,
                 record.getAssignedTo(),
                 record.getStatus())) {
             return auditLogService.getGecmisDevreKadar(recordId);
@@ -69,7 +63,7 @@ public class AuditLogController {
 
         // Baskan da evrak kendisine ulasmadan onceki Calisan-Bsk. Yrd.
         // trafigini gormez; gecmis ilk iletimden itibaren baslar.
-        if (recordAccessPolicy.seesHistoryFromPresidentHandover(actor.role())) {
+        if (recordAccessPolicy.seesHistoryFromPresidentHandover(actor)) {
             return auditLogService.getGecmisIletimdenItibaren(recordId);
         }
 

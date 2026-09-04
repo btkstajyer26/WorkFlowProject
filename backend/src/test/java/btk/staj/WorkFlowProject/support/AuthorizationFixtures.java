@@ -39,6 +39,13 @@ public final class AuthorizationFixtures {
         };
     }
 
+    public static btk.staj.WorkFlowProject.auth.security.VisibilityActor visibility(RoleName role, java.util.UUID id) {
+        return new btk.staj.WorkFlowProject.auth.security.VisibilityActor(id,
+                new btk.staj.WorkFlowProject.workflow.statemachine.RoleId(1),
+                java.util.Optional.of(btk.staj.WorkFlowProject.rbac.SystemRoleKey.valueOf(role.name())),
+                permissions(role));
+    }
+
     public static AuthenticatedUser authenticated(User user) {
         return new AuthenticatedUser(user, user == null || user.getRole() == null
                 ? Set.of() : permissions(user.getRole().getName()));

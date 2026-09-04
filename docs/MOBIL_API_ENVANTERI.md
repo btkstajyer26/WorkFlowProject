@@ -205,9 +205,10 @@ Liste ve detay aynı kuralı uygular — mobil ayrıca filtreleme yapmaz:
 
 | Rol | Görür |
 |---|---|
-| `CALISAN` | Yalnız kendi oluşturduğu kayıtlar |
-| `BASKAN_YARDIMCISI` | Kendisine atanan + `DUZENLEME_BEKLIYOR` + bir kez kendi elinden geçmiş (`last_deputy_id`) |
-| `BASKAN` | Onayına gelen + sonuçlanan (`ONAYLANDI`/`REDDEDILDI`) |
+| Dinamik rol / `CALISAN` | Kendi oluşturduğu veya doğrudan kendisine atanmış kayıtlar |
+| `BASKAN_YARDIMCISI` | Kendi oluşturduğu + kendisine atanan + `DUZENLEME_BEKLIYOR` + bir kez kendi elinden geçmiş (`last_deputy_id`) |
+| `BASKAN` | Kendi oluşturduğu + kendisine atanan + onayına gelen + sonuçlanan (`ONAYLANDI`/`REDDEDILDI`) |
+| `ADMIN` | Hiçbir kayıt |
 
 Kapsam dışı kayıt listede **hiç dönmez**, sayfa sayısına da girmez. Kimliğiyle
 doğrudan istenirse `403 FORBIDDEN`.
@@ -215,8 +216,7 @@ doğrudan istenirse `403 FORBIDDEN`.
 > **Tablo kapalı bir liste değildir.** Dört yerleşik rolün bugünkü kapsamını
 > anlatır; rol katalogu `roles` tablosundan gelir ve panelden yeni rol açılabilir.
 > Rol adı (`roles.name`) değiştirilebilir — istemci rolü ada göre sabit bir listeye
-> karşı doğrulamamalıdır. Dinamik rollerin görünürlük kapsamı `DB-8`/`WF-2C2`
-> görünürlük çalışmasıyla netleşir.
+> karşı doğrulamamalıdır. Bütün kapsamlar aktif hesap/rol ve `RECORD_VIEW` gerektirir; ADMIN deny korunur. Dinamik rol erişimi uygulanmıştır; departman bağlantısı açıktır. [WF-2C2 sözleşmesi](WF2C2_DB8_GORUNURLUK_SOZLESMESI.md). Silinmiş kaydın detay/dosya/geçmiş okumaları `404` döner.
 
 **İçerik dondurma:** Kayıt `DUZENLEME_BEKLIYOR` iken onu geri gönderen Bşk. Yrd.
 **devir anındaki kopyayı** görür — başlık, açıklama, kategori ve ek dosyalar

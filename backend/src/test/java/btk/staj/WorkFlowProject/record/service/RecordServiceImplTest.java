@@ -1,5 +1,7 @@
 package btk.staj.WorkFlowProject.record.service;
 
+import static btk.staj.WorkFlowProject.support.AuthorizationFixtures.visibility;
+
 import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
 
 import btk.staj.WorkFlowProject.audit.service.AuditLogService;
@@ -76,7 +78,8 @@ class RecordServiceImplTest {
         // once firlar (or. yetki reddi) - Mockito bu durumda mock'u "kullanilmadi"
         // diye hataya cevirir, lenient bunu engeller.
         lenient().when(authenticatedUser.getId()).thenReturn(userId);
-        lenient().when(authenticatedUser.getLegacyRole()).thenReturn(role);
+        lenient().when(authenticatedUser.getSystemKey()).thenReturn(role.name());
+        lenient().when(authenticatedUser.isEnabled()).thenReturn(true);
         lenient().when(authenticatedUser.getPermissionCodes()).thenReturn(AuthorizationFixtures.permissions(role));
         lenient().when(authenticatedUser.getRoleId()).thenReturn(1);
 
@@ -164,7 +167,7 @@ class RecordServiceImplTest {
         when(recordRepository.findById(recordId)).thenReturn(Optional.of(kayit));
 
         doThrow(new ForbiddenException("Bu kaydı görüntüleme yetkiniz yok"))
-                .when(recordAccessPolicy).assertCanView(RoleName.CALISAN, otherUserId, ownerId, null, null, RecordStatus.TASLAK);
+                .when(recordAccessPolicy).assertCanView(visibility(RoleName.CALISAN, otherUserId), kayit);
 
         assertThrows(ForbiddenException.class, () -> service().getRecordById(recordId));
     }
@@ -181,7 +184,7 @@ class RecordServiceImplTest {
                 .thenReturn(new RecordResponse());
 
         assertNotNull(service().getRecordById(recordId));
-        verify(recordAccessPolicy).assertCanView(RoleName.CALISAN, ownerId, ownerId, null, null, RecordStatus.TASLAK);
+        verify(recordAccessPolicy).assertCanView(visibility(RoleName.CALISAN, ownerId), kayit);
     }
 
     // ---------------------------------------------------------------
