@@ -125,4 +125,11 @@ class SecurityConfigTest {
         mockMvc.perform(get("/actuator/health"))
                 .andExpect(status().isOk());
     }
+
+    @Test
+    @DisplayName("WebSocket handshake STOMP CONNECT kimlik dogrulamasina ulasabilir")
+    void websocketHandshakeServletKatmanindaKimlikDogrulamaIstemez() throws Exception {
+        mockMvc.perform(get("/ws"))
+                .andExpect(status().isBadRequest());
+    }
 }
