@@ -16,7 +16,7 @@ export function AdminProvider({ actor: _actor, children }: { actor: AuthUser; ch
   const createUser = async (input: CreateManagedUserInput) => {
     const response = await api.admin.createUser(input)
     const createdUser = normalizeManagedUser(response)
-    if (createdUser.role !== 'CALISAN' || !createdUser.isActive) {
+    if (createdUser.systemKey !== 'CALISAN' || !createdUser.isActive) {
       throw new Error('Sunucu oluşturulan kullanıcıyı aktif Çalışan olarak döndürmedi.')
     }
 

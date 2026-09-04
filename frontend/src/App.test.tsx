@@ -213,7 +213,9 @@ describe('App authorization boundaries', () => {
       firstName: 'Elif',
       lastName: 'Akın',
       email: 'elif.akin@kurum.gov.tr',
-      role: 'CALISAN',
+      roleId: 1,
+      systemKey: 'CALISAN',
+      roleName: 'CALISAN',
       mustChangePassword: false,
     })
     renderApp('/kayitlar/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1/duzenle')

@@ -7,6 +7,7 @@ import { FileController } from './generated/FileController'
 import { HttpClient } from './generated/http-client'
 import { NotificationController } from './generated/NotificationController'
 import { RecordController } from './generated/RecordController'
+import { RoleAdminController } from './generated/RoleAdminController'
 import { UserController } from './generated/UserController'
 import { WorkflowActionController } from './generated/WorkflowActionController'
 import { apiBaseUrl } from './config'
@@ -71,6 +72,7 @@ export const api = {
   files: new FileController(apiHttpClient),
   notifications: new NotificationController(apiHttpClient),
   records: new RecordController(apiHttpClient),
+  roles: new RoleAdminController(apiHttpClient),
   users: new UserController(apiHttpClient),
   workflow: new WorkflowActionController(apiHttpClient),
 }

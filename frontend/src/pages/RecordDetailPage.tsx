@@ -31,7 +31,7 @@ export function RecordDetailPage({ user }: { user: AuthUser }) {
 }
 
 function BackendRecordDetailPage({ user }: { user: AuthUser }) {
-  const role = user.role
+  const systemKey = user.systemKey
   const { recordId } = useParams()
   const { categories, status: categoryStatus, reloadCategories } = useCategories()
   const categoryRevision = categories.map((category) => `${category.id}:${category.name}`).join('|')
@@ -41,7 +41,7 @@ function BackendRecordDetailPage({ user }: { user: AuthUser }) {
     enabled: Boolean(recordId) && categoryStatus === 'ready',
     refetchInterval: (query) => {
       const record = query.state.data as WorkflowRecord | undefined
-      return role !== 'CALISAN' && record?.status === 'DUZENLEME_BEKLIYOR' ? false : 30_000
+      return systemKey !== 'CALISAN' && record?.status === 'DUZENLEME_BEKLIYOR' ? false : 30_000
     },
   })
 

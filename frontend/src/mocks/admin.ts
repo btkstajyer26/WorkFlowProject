@@ -15,7 +15,9 @@ export const mockManagedUsers: ManagedUser[] = [
     firstName: account.firstName,
     lastName: account.lastName,
     email: account.email,
-    role: account.role,
+    roleId: account.roleId,
+    systemKey: account.systemKey,
+    roleName: account.roleName,
     isActive: true,
     createdAt: demoDates[index] ?? demoDates[0],
   })),
@@ -24,7 +26,9 @@ export const mockManagedUsers: ManagedUser[] = [
     firstName: 'Elif',
     lastName: 'Akın',
     email: 'elif.akin@kurum.gov.tr',
-    role: 'CALISAN',
+    roleId: 1,
+    systemKey: 'CALISAN' as const,
+    roleName: 'CALISAN',
     isActive: true,
     createdAt: '2026-08-02T11:25:00',
   },
@@ -33,7 +37,9 @@ export const mockManagedUsers: ManagedUser[] = [
     firstName: 'Mert',
     lastName: 'Yılmaz',
     email: 'mert.yilmaz@kurum.gov.tr',
-    role: 'CALISAN',
+    roleId: 1,
+    systemKey: 'CALISAN' as const,
+    roleName: 'CALISAN',
     isActive: false,
     createdAt: '2026-06-12T09:10:00',
   },
@@ -41,17 +47,16 @@ export const mockManagedUsers: ManagedUser[] = [
 
 /**
  * V12 backfill'iyle tutarlı dört yerleşik rol ve panelden açılmış bir dinamik
- * rol. Dinamik rol bilerek `UserRole` union'ında yer almayan bir ad taşır;
- * rol ekranının sabit rol listesine bağlanmadığını doğrulamak için gerekli.
- * `systemKey` burada veritabanı gerçeğini yansıtır; uç bu alanı henüz
- * döndürmediği için handler onu dışarı vermez (bkz. api/roles.ts TODO).
+ * rol. Dinamik rol bilerek yerleşik anahtarlar arasında yer almayan bir ad
+ * taşır; rol ekranının sabit rol listesine bağlanmadığını doğrulamak için
+ * gerekli. AP-2 ile uç `systemKey` ve kapasite alanlarını da döndürüyor.
  */
 export const mockAdminRoles: AdminRole[] = [
-  { id: 1, name: 'CALISAN', systemKey: 'CALISAN', description: 'Evrak oluşturur ve düzenler' },
-  { id: 2, name: 'BASKAN_YARDIMCISI', systemKey: 'BASKAN_YARDIMCISI', description: 'Evrakları inceler ve yönlendirir' },
-  { id: 3, name: 'BASKAN', systemKey: 'BASKAN', description: 'Evrakları onaylar veya reddeder' },
-  { id: 4, name: 'ADMIN', systemKey: 'ADMIN', description: 'Sistem yönetimi yapar' },
-  { id: 5, name: 'Mali İşler Uzmanı', systemKey: null, description: 'Panelden açılmış dinamik rol' },
+  { id: 1, name: 'CALISAN', systemKey: 'CALISAN', description: 'Evrak oluşturur ve düzenler', isSystem: true, isWorkflowActor: true, maxUsers: null, isActive: true },
+  { id: 2, name: 'BASKAN_YARDIMCISI', systemKey: 'BASKAN_YARDIMCISI', description: 'Evrakları inceler ve yönlendirir', isSystem: true, isWorkflowActor: true, maxUsers: 1, isActive: true },
+  { id: 3, name: 'BASKAN', systemKey: 'BASKAN', description: 'Evrakları onaylar veya reddeder', isSystem: true, isWorkflowActor: true, maxUsers: 1, isActive: true },
+  { id: 4, name: 'ADMIN', systemKey: 'ADMIN', description: 'Sistem yönetimi yapar', isSystem: true, isWorkflowActor: false, maxUsers: 1, isActive: true },
+  { id: 5, name: 'Mali İşler Uzmanı', systemKey: null, description: 'Panelden açılmış dinamik rol', isSystem: false, isWorkflowActor: true, maxUsers: null, isActive: true },
 ]
 
 const initialManagedUsers = mockManagedUsers.map((user) => ({ ...user }))

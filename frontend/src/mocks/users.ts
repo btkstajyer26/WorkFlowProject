@@ -12,7 +12,9 @@ export const demoAccounts: DemoAccount[] = [
     lastName: 'Doe',
     email: 'john.doe@kurum.gov.tr',
     password: 'demo123',
-    role: 'CALISAN',
+    roleId: 1,
+    systemKey: 'CALISAN',
+    roleName: 'CALISAN',
     mustChangePassword: false,
     summary: 'Kayıt oluşturur ve süreçlerini takip eder.',
   },
@@ -22,7 +24,9 @@ export const demoAccounts: DemoAccount[] = [
     lastName: 'Kaya',
     email: 'ayse.kaya@kurum.gov.tr',
     password: 'demo123',
-    role: 'BASKAN_YARDIMCISI',
+    roleId: 2,
+    systemKey: 'BASKAN_YARDIMCISI',
+    roleName: 'BASKAN_YARDIMCISI',
     mustChangePassword: false,
     summary: 'Gelen kayıtları inceler ve Başkana iletir.',
   },
@@ -32,7 +36,9 @@ export const demoAccounts: DemoAccount[] = [
     lastName: 'Demir',
     email: 'mehmet.demir@kurum.gov.tr',
     password: 'demo123',
-    role: 'BASKAN',
+    roleId: 3,
+    systemKey: 'BASKAN',
+    roleName: 'BASKAN',
     mustChangePassword: false,
     summary: 'Nihai onay, red ve geri gönderme işlemlerini yapar.',
   },
@@ -42,7 +48,9 @@ export const demoAccounts: DemoAccount[] = [
     lastName: 'Yönetici',
     email: 'admin@kurum.gov.tr',
     password: 'demo123',
-    role: 'ADMIN',
+    roleId: 4,
+    systemKey: 'ADMIN',
+    roleName: 'ADMIN',
     mustChangePassword: false,
     summary: 'Kullanıcıları, rollerini ve denetim kayıtlarını yönetir.',
   },
@@ -52,7 +60,9 @@ export const demoAccounts: DemoAccount[] = [
     lastName: 'Giriş',
     email: 'ilk.giris@kurum.gov.tr',
     password: 'Gecici123',
-    role: 'CALISAN',
+    roleId: 1,
+    systemKey: 'CALISAN',
+    roleName: 'CALISAN',
     mustChangePassword: true,
     summary: 'Zorunlu şifre değiştirme akışını önizler.',
   },
@@ -60,14 +70,16 @@ export const demoAccounts: DemoAccount[] = [
 
 export const defaultDemoAccount = demoAccounts[0]
 
-export function getDemoUserByRole(role: AuthUser['role']): AuthUser {
-  const account = demoAccounts.find((item) => item.role === role) ?? defaultDemoAccount
+export function getDemoUserByRole(systemKey: AuthUser['systemKey']): AuthUser {
+  const account = demoAccounts.find((item) => item.systemKey === systemKey) ?? defaultDemoAccount
   return {
     id: account.id,
     firstName: account.firstName,
     lastName: account.lastName,
     email: account.email,
-    role: account.role,
+    roleId: account.roleId,
+    systemKey: account.systemKey,
+    roleName: account.roleName,
     mustChangePassword: account.mustChangePassword,
   }
 }

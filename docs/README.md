@@ -23,7 +23,7 @@ Bir ADR'nin kabul edilmesi ilgili runtime'ın uygulandığı anlamına gelmez.
 
 | Alan | Hazır teslim | Kalan iş |
 | --- | --- | --- |
-| Rol/yetki ve workflow kimliği | RoleId, permission authority, kapasite kontrolü, DB kural kaynağı ve canlı reload | Admin rol CRUD/permission matrisi (`AP-2/3`) |
+| Rol/yetki ve workflow kimliği | RoleId, permission authority, kapasite kontrolü, DB kural kaynağı ve canlı reload; `AP-2` rol CRUD backend uçları ve kullanımdaki rolün korunması | `AP-2` yönetim ekranı ve permission matrisi (`AP-3`) |
 | Ortak görünürlük (`WF-2C2/DB-8`) | Creator/direct assignee ve sistem istisnaları; SQL scope, dinamik rol liste/detay/geçmiş/dosya erişimi | Yetkili departman üyesi kolu ve policy–SQL/E2E kabulü |
 | Aktör rolü bağlama (`WF-8`) | `WorkflowActorBindingService.listTransitions/bind/unbind`, permission/koruma, audit ve commit sonrası snapshot | `AP-8` HTTP adapter ve yönetim ekranı |
 | Departman veri katmanı (`DB-11/12`) | V18–V22 tablo/entity/repository; ad 150, self-parent CHECK, RESTRICT FK, çoklu üyelik ve routing tekilliği | Yönetim servis/API/UI (`AP-4/5`) ve runtime port/query bağlantısı |
