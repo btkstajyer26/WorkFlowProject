@@ -2,10 +2,8 @@ package btk.staj.WorkFlowProject.auth.security;
 
 import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
 
-import btk.staj.WorkFlowProject.auth.service.CustomUserDetailsService;
 import btk.staj.WorkFlowProject.common.exception.ApiErrorWriter;
 import btk.staj.WorkFlowProject.rbac.Role;
-import btk.staj.WorkFlowProject.rbac.config.JwtUtil;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,13 +15,14 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 /**
@@ -35,10 +34,7 @@ import static org.mockito.Mockito.*;
 class JwtAuthenticationFilterTest {
 
     @Mock
-    private JwtUtil jwtUtil;
-
-    @Mock
-    private CustomUserDetailsService userDetailsService;
+    private JwtAuthenticationService authenticationService;
 
     @Mock
     private FilterChain filterChain;
@@ -52,7 +48,7 @@ class JwtAuthenticationFilterTest {
 
     @BeforeEach
     void setUp() {
-        filter = new JwtAuthenticationFilter(jwtUtil, userDetailsService, apiErrorWriter);
+        filter = new JwtAuthenticationFilter(authenticationService, apiErrorWriter);
         request = new MockHttpServletRequest();
         response = new MockHttpServletResponse();
         SecurityContextHolder.clearContext();
@@ -67,9 +63,8 @@ class JwtAuthenticationFilterTest {
                 "irrelevant-password",
                 List.of(new SimpleGrantedAuthority("ROLE_USER")));
 
-        when(jwtUtil.isTokenValid("valid-token")).thenReturn(true);
-        when(jwtUtil.extractEmail("valid-token")).thenReturn("test@example.com");
-        when(userDetailsService.loadUserByUsername("test@example.com")).thenReturn(userDetails);
+        when(authenticationService.authenticate("valid-token")).thenReturn(Optional.of(
+                new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities())));
 
         filter.doFilterInternal(request, response, filterChain);
 
@@ -87,12 +82,11 @@ class JwtAuthenticationFilterTest {
     void gecersizToken_securityContextBosKalmaliVeFilterChainDevamEtmeli() throws Exception {
         request.addHeader("Authorization", "Bearer invalid-token");
 
-        when(jwtUtil.isTokenValid("invalid-token")).thenReturn(false);
+        when(authenticationService.authenticate("invalid-token")).thenReturn(Optional.empty());
 
         filter.doFilterInternal(request, response, filterChain);
 
         assertNull(SecurityContextHolder.getContext().getAuthentication());
-        verify(userDetailsService, never()).loadUserByUsername(anyString());
         verify(filterChain, times(1)).doFilter(request, response);
     }
 
@@ -101,7 +95,7 @@ class JwtAuthenticationFilterTest {
         filter.doFilterInternal(request, response, filterChain);
 
         assertNull(SecurityContextHolder.getContext().getAuthentication());
-        verifyNoInteractions(jwtUtil, userDetailsService);
+        verifyNoInteractions(authenticationService);
         verify(filterChain, times(1)).doFilter(request, response);
     }
 
@@ -112,7 +106,7 @@ class JwtAuthenticationFilterTest {
         filter.doFilterInternal(request, response, filterChain);
 
         assertNull(SecurityContextHolder.getContext().getAuthentication());
-        verifyNoInteractions(jwtUtil, userDetailsService);
+        verifyNoInteractions(authenticationService);
         verify(filterChain, times(1)).doFilter(request, response);
     }
 
@@ -120,9 +114,7 @@ class JwtAuthenticationFilterTest {
     void tokenGecerliAmaKullaniciBulunamiyor_exceptionFilterChainiEngellememeli() {
         request.addHeader("Authorization", "Bearer valid-token");
 
-        when(jwtUtil.isTokenValid("valid-token")).thenReturn(true);
-        when(jwtUtil.extractEmail("valid-token")).thenReturn("olmayan@example.com");
-        when(userDetailsService.loadUserByUsername("olmayan@example.com"))
+        when(authenticationService.authenticate("valid-token"))
                 .thenThrow(new RuntimeException("Kullanıcı bulunamadı"));
 
         // Not: doFilterInternal içinde try/catch yoksa exception yukarı fırlar.
@@ -138,18 +130,7 @@ class JwtAuthenticationFilterTest {
     void gecerliTokenAmaKullaniciPasif_securityContextBosKalmaliVeFilterChainDevamEtmeli() throws Exception {
         request.addHeader("Authorization", "Bearer valid-token");
 
-        UserDetails pasifKullanici = new User(
-                "pasif@example.com",
-                "irrelevant-password",
-                false,   // enabled = false -> pasif hesap
-                true,    // accountNonExpired
-                true,    // credentialsNonExpired
-                true,    // accountNonLocked
-                List.of(new SimpleGrantedAuthority("ROLE_USER")));
-
-        when(jwtUtil.isTokenValid("valid-token")).thenReturn(true);
-        when(jwtUtil.extractEmail("valid-token")).thenReturn("pasif@example.com");
-        when(userDetailsService.loadUserByUsername("pasif@example.com")).thenReturn(pasifKullanici);
+        when(authenticationService.authenticate("valid-token")).thenReturn(Optional.empty());
 
         filter.doFilterInternal(request, response, filterChain);
 
@@ -263,9 +244,8 @@ class JwtAuthenticationFilterTest {
         user.setActive(true);
         user.setMustChangePassword(mustChangePassword);
 
-        when(jwtUtil.isTokenValid("valid-token")).thenReturn(true);
-        when(jwtUtil.extractEmail("valid-token")).thenReturn("test@example.com");
-        when(userDetailsService.loadUserByUsername("test@example.com"))
-                .thenReturn(AuthorizationFixtures.authenticated(user));
+        AuthenticatedUser principal = AuthorizationFixtures.authenticated(user);
+        when(authenticationService.authenticate("valid-token")).thenReturn(Optional.of(
+                new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities())));
     }
 }
