@@ -38,6 +38,14 @@ public interface WorkflowTransitionRepository extends JpaRepository<WorkflowTran
     Optional<WorkflowTransitionEntity> findByFromStatusIdAndActionIdAndActorRoleId(
             Integer fromStatusId, Integer actionId, Integer actorRoleId);
 
+    /**
+     * Rolun aktor oldugu aktif gecisler. AP-2'nin rol yazicilari, rolu pasiflestirmeden
+     * veya aktorlugunu kapatmadan once bu baglarin her biri icin
+     * {@link #hasOpenRecords} etki analizini yapar (DB-1 SS "uygulama servisi etki
+     * analizi yapmadan ... izin vermemelidir").
+     */
+    List<WorkflowTransitionEntity> findAllByActorRoleIdAndActiveTrue(Integer actorRoleId);
+
     List<WorkflowTransitionEntity> findAllByFromStatusId(Integer fromStatusId);
 
     List<WorkflowTransitionEntity> findAllByActiveTrueOrderByIdAsc();

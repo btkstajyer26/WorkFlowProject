@@ -16,13 +16,13 @@ import { useToast } from '../context/toastState'
 import { useModalDialog } from '../hooks/useModalDialog'
 import { queryKeys } from '../query/queryKeys'
 import { recordFormSchema, type RecordFormValues } from '../schemas/record'
-import type { UserRole } from '../types/auth'
+import type { SystemRoleKey } from '../types/auth'
 import type { WorkflowRecord } from '../types/record'
 
 const fieldClass =
   'w-full rounded-xl border border-app-border bg-app-surface px-3.5 py-3 text-sm text-app-text-strong outline-none transition placeholder:text-app-text-faint focus:border-brand-400 focus:ring-4 focus:ring-brand-100 dark:focus:ring-brand-800/60'
 
-export function BackendRecordEditPage({ role }: { role: UserRole }) {
+export function BackendRecordEditPage({ systemKey }: { systemKey: SystemRoleKey | null }) {
   const { recordId } = useParams()
   const { categories, status: categoryStatus, reloadCategories } = useCategories()
   const categoryRevision = categories.map((category) => `${category.id}:${category.name}`).join('|')
@@ -68,7 +68,7 @@ export function BackendRecordEditPage({ role }: { role: UserRole }) {
     )
   }
 
-  const editable = role === 'CALISAN' && (recordQuery.data.status === 'TASLAK' || recordQuery.data.status === 'DUZENLEME_BEKLIYOR')
+  const editable = systemKey === 'CALISAN' && (recordQuery.data.status === 'TASLAK' || recordQuery.data.status === 'DUZENLEME_BEKLIYOR')
   if (!editable) return <Navigate to="/403" replace />
 
   return <BackendEditableRecordForm key={recordQuery.data.id} record={recordQuery.data} />

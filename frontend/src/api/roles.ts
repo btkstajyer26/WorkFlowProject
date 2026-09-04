@@ -1,5 +1,5 @@
-import type { ListRolesData, RoleResponse } from './generated/data-contracts'
-import { apiHttpClient } from './client'
+import type { RoleResponse } from './generated/data-contracts'
+import { api } from './client'
 import { ApiClientError } from './errors'
 import type { AdminRole } from '../types/admin'
 
@@ -13,7 +13,8 @@ function invalidRoleResponse(message: string): never {
 
 /**
  * Rol adı sabit bir listeye karşı doğrulanmaz: panelden dinamik rol
- * açılabildiği için sunucudan gelen ad olduğu gibi taşınır.
+ * açılabildiği için sunucudan gelen ad olduğu gibi taşınır. Yerleşik rolün
+ * değişmez anlamı `systemKey` ile gelir; `null` ise rol dinamiktir.
  */
 export function normalizeAdminRole(response: RoleResponse): AdminRole {
   if (!Number.isSafeInteger(response.id) || !response.name?.trim()) {
@@ -23,24 +24,22 @@ export function normalizeAdminRole(response: RoleResponse): AdminRole {
   return {
     id: response.id!,
     name: response.name.trim(),
-    // TODO(AP-2): RoleResponse bugün systemKey taşımıyor; alan tipte duruyor
-    // ama uçtan gelmediği için null'a sabitleniyor. AP-2'de sistem rollerinin
-    // silinmesini engellemek için gerekli olacak; bu backend DTO değişikliği
-    // Alperen'in modülünde.
-    systemKey: null,
+    systemKey: response.systemKey?.trim() || null,
     description: response.description?.trim() || null,
+    isSystem: response.system === true,
+    isWorkflowActor: response.workflowActor === true,
+    maxUsers: typeof response.maxUsers === 'number' ? response.maxUsers : null,
+    isActive: response.active === true,
   }
 }
 
 /**
  * `/api/admin/roles` sayfalanmamış düz bir dizi döndürür (`/api/admin/users`'tan
- * farklı olarak `PagedResponse` değildir) ve pasif rolleri hiç göndermez.
+ * farklı olarak `PagedResponse` değildir). Varsayılan çağrı yalnız atanabilir
+ * (aktif) rolleri döner; yönetim ekranı pasifleri de görmek için
+ * `includeInactive` gönderir.
  */
-export async function listRoles(): Promise<AdminRole[]> {
-  const response = await apiHttpClient.request<ListRolesData>({
-    path: '/api/admin/roles',
-    method: 'GET',
-    secure: true,
-  })
+export async function listRoles(includeInactive = false): Promise<AdminRole[]> {
+  const response = await api.roles.listRoles({ includeInactive })
   return (response ?? []).map(normalizeAdminRole)
 }

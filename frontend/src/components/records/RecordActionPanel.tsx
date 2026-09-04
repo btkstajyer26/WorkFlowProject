@@ -72,7 +72,7 @@ export function RecordActionPanel({
   record: WorkflowRecord
   user: AuthUser
 }) {
-  const role = user.role
+  const systemKey = user.systemKey
   const { showToast } = useToast()
   const navigate = useNavigate()
   const workflowMutation = useRecordWorkflowAction(record.id, user)
@@ -81,9 +81,9 @@ export function RecordActionPanel({
   const [activeAction, setActiveAction] = useState<ReviewAction | null>(null)
   const { busy: mutationBusy, run: runMutation } = useSingleFlight()
 
-  const employeeCanEdit = role === 'CALISAN' && (record.status === 'TASLAK' || record.status === 'DUZENLEME_BEKLIYOR')
-  const viceChairCanReview = role === 'BASKAN_YARDIMCISI' && record.status === 'BSK_YRD_INCELEMESINDE'
-  const chairCanReview = role === 'BASKAN' && record.status === 'BASKAN_INCELEMESINDE'
+  const employeeCanEdit = systemKey === 'CALISAN' && (record.status === 'TASLAK' || record.status === 'DUZENLEME_BEKLIYOR')
+  const viceChairCanReview = systemKey === 'BASKAN_YARDIMCISI' && record.status === 'BSK_YRD_INCELEMESINDE'
+  const chairCanReview = systemKey === 'BASKAN' && record.status === 'BASKAN_INCELEMESINDE'
 
   const openAction = (action: ReviewAction) => {
     setComment('')
@@ -174,7 +174,7 @@ export function RecordActionPanel({
           action={activeAction}
           comment={comment}
           returnTarget={returnTarget}
-          role={role}
+          role={systemKey}
           onCommentChange={setComment}
           onTargetChange={setReturnTarget}
           onClose={closeActionDialog}
@@ -239,7 +239,7 @@ export function RecordActionPanel({
         action={activeAction}
         comment={comment}
         returnTarget={returnTarget}
-        role={role}
+        role={systemKey}
         onCommentChange={setComment}
         onTargetChange={setReturnTarget}
         onClose={closeActionDialog}

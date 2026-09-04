@@ -65,6 +65,15 @@ public class GlobalExceptionHandler {
         return build("BUSINESS_RULE_VIOLATION", ex.getMessage(), HttpStatus.BAD_REQUEST);
     }
 
+    /**
+     * Rol akista kullaniliyor. WF-8'in {@code WORKFLOW_BINDING_BINDING_IN_USE}
+     * hatasiyla ayni anlamda ve ayni durum kodunda ({@code 409}) donmelidir.
+     */
+    @ExceptionHandler(RoleInUseException.class)
+    public ResponseEntity<ApiError> handleRoleInUse(RoleInUseException ex) {
+        return build("ROLE_IN_USE", ex.getMessage(), HttpStatus.CONFLICT);
+    }
+
     // ---------- Kullanici yonetimi ----------
 
     @ExceptionHandler(RoleNotFoundException.class)

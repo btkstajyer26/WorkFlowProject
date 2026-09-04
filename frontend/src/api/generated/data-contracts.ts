@@ -82,10 +82,28 @@ export interface ChangeRoleRequest {
   roleName?: string;
 }
 
+export type ConsumeData = Record<string, string>;
+
 /** @format int64 */
 export type CountUnreadData = number;
 
 export type CreateRecordData = RecordResponse;
+
+export type CreateRoleData = RoleResponse;
+
+export interface CreateRoleRequest {
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  description?: string;
+  /**
+   * @minLength 0
+   * @maxLength 100
+   */
+  name: string;
+  workflowActor?: boolean;
+}
 
 export type CreateUserData = UserResponse;
 
@@ -118,6 +136,22 @@ export type DeleteRecordData = any;
 export interface DeleteRecordParams {
   /** @format uuid */
   id: string;
+}
+
+export interface DeviceTokenDeleteRequest {
+  /** @minLength 1 */
+  token: string;
+}
+
+export interface DeviceTokenRequest {
+  deviceName?: string;
+  /**
+   * @minLength 1
+   * @pattern ^(ANDROID|IOS)$
+   */
+  platform: string;
+  /** @minLength 1 */
+  token: string;
 }
 
 /** @format binary */
@@ -222,6 +256,11 @@ export interface ListFilesParams {
 
 export type ListRolesData = RoleResponse[];
 
+export interface ListRolesParams {
+  /** @default false */
+  includeInactive?: boolean;
+}
+
 export type ListUsersData = PagedResponseUserResponse;
 
 export interface ListUsersParams {
@@ -253,6 +292,22 @@ export interface LogoutRequest {
   deviceToken?: string;
   /** @minLength 1 */
   refreshToken: string;
+}
+
+export interface MailActionPreview {
+  action?: string;
+  /** @format date-time */
+  expiresAt?: string;
+  recipientName?: string;
+  /** @format uuid */
+  recordId?: string;
+  recordStatus?: string;
+  recordTitle?: string;
+}
+
+export interface MailActionTokenRequest {
+  /** @minLength 1 */
+  token: string;
 }
 
 export type MarkAsReadData = any;
@@ -350,6 +405,8 @@ export interface PerformActionParams {
   recordId: string;
 }
 
+export type PreviewData = MailActionPreview;
+
 /** @format binary */
 export type PreviewFileData = File;
 
@@ -429,6 +486,12 @@ export interface RefreshTokenRequest {
   refreshToken: string;
 }
 
+export type RegisterTokenData = any;
+
+export type ReloadData = Record<string, number>;
+
+export type RemoveTokenData = any;
+
 export type ResetPasswordData = any;
 
 export interface ResetPasswordRequest {
@@ -442,10 +505,16 @@ export interface ResetPasswordRequest {
 }
 
 export interface RoleResponse {
+  active?: boolean;
   description?: string;
   /** @format int32 */
   id?: number;
+  /** @format int32 */
+  maxUsers?: number;
   name?: string;
+  system?: boolean;
+  systemKey?: string;
+  workflowActor?: boolean;
 }
 
 export type SetActiveData = UserResponse;
@@ -464,6 +533,28 @@ export type UpdateRecordData = RecordResponse;
 export interface UpdateRecordParams {
   /** @format uuid */
   id: string;
+}
+
+export type UpdateRoleData = RoleResponse;
+
+export interface UpdateRoleParams {
+  /** @format int32 */
+  id: number;
+}
+
+export interface UpdateRoleRequest {
+  active?: boolean;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  description?: string;
+  /**
+   * @minLength 0
+   * @maxLength 100
+   */
+  name?: string;
+  workflowActor?: boolean;
 }
 
 export type UploadFilesData = FileResponseDto[];
@@ -514,7 +605,10 @@ export interface UserResponse {
   /** @format uuid */
   id?: string;
   lastName?: string;
+  /** @format int32 */
+  roleId?: number;
   roleName?: string;
+  systemKey?: string;
 }
 
 export type VerifyResetCodeData = VerifyResetCodeResponse;

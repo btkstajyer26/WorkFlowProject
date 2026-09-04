@@ -4,9 +4,10 @@
 
 Bu belge EBYS frontendinin kullandığı API sözleşmesini ve henüz tamamlanmamış entegrasyon ihtiyaçlarını tanımlar. Mevcut endpoint ve cevap modellerinde backend kodu ile çalışan uygulamanın `/v3/api-docs` çıktısı esas alınır; `docs/openapi.json` bunun sürümlenmiş inceleme anlık görüntüsüdür. Gelecekte eklenmesi beklenen işlemler ayrıca "backend bekleniyor" olarak işaretlenir.
 
-> Son dokümantasyon karşılaştırması: 4 Eylül 2026, `test` @ `3eb3691` (PR #66).
-> WF-8 ve V18–V22 yeni HTTP uçları/alanları eklemedi; aşağıdaki departman gönderim
-> notları planlanan sözleşmedir. [Teslim sınırları](README.md).
+> Son dokümantasyon karşılaştırması: 4 Eylül 2026, `test` @ `c39d8c1` (PR #68).
+> WF-8 ve V18–V22 yeni HTTP uçları/alanları eklemedi. AP-2 ile rol yönetimi uçları
+> ve `UserResponse`'un rol alanları değişti (aşağıda). Departman gönderim notları
+> hâlâ planlanan sözleşmedir. [Teslim sınırları](README.md).
 
 ## 1. Temel kararlar
 
@@ -34,9 +35,11 @@ Bu belge EBYS frontendinin kullandığı API sözleşmesini ve henüz tamamlanma
 > **Bu tablo kapalı bir liste değildir.** Dinamik rol de `RECORD_VIEW` ile oluşturduğu
 > veya doğrudan atandığı kaydı okuyabilir. Kapsamlar aktif kullanıcı/rol ve
 > `RECORD_VIEW` gerektirir; ADMIN deny korunur. Rol kataloğu `roles` tablosundan
-> gelir; liste `GET /api/admin/roles` ile okunur, panelden rol oluşturma `AP-2`'de
-> henüz açıktır. `roles.name` gösterim adıdır ve değiştirilebilir; backend sistem
-> istisnalarını `system_key`, workflow kimliğini `RoleId` ile belirler.
+> gelir; liste `GET /api/admin/roles` ile okunur ve panelden rol oluşturma/düzenleme
+> `AP-2` backend uçlarıyla açıktır (yönetim ekranı hâlâ yapılacak). `roles.name`
+> gösterim adıdır ve **değiştirilebilir** — istemci rolü ada göre sabit bir listeye
+> karşı doğrulamamalıdır. Backend sistem istisnalarını `system_key`, workflow
+> kimliğini `RoleId` ile belirler.
 
 ### Kayıt durumları
 
@@ -437,7 +440,9 @@ Başkan Yardımcısı ve Başkan frontend tarafından seçilmez. Backend beklene
 | `POST` | `/api/admin/users` | Varsayılan Çalışan rolüyle hesap açma; istek rol alanı içermez |
 | `PATCH` | `/api/admin/users/{id}/role` | Rol değiştirme; Başkan Yardımcısı koltuğunun devri de aynı istekte yapılır |
 | `PATCH` | `/api/admin/users/{id}/active` | Hesabı etkinleştirme/pasifleştirme |
-| `GET` | `/api/admin/roles` | Atanabilir roller; `ADMIN` dahil. AP-1 yalnız-okur rol ekranının (`/admin/roller`) da kaynağıdır: cevap sayfalanmamış düz dizidir, pasif roller hiç gelmez ve rol adı sabit rol listesine çevrilmeden gösterilir. `systemKey` bu cevapta henüz yoktur, AP-2'de eklenecektir |
+| `GET` | `/api/admin/roles?includeInactive=false` | Rol kataloğu; `ROLE_VIEW` ister. Cevap sayfalanmamış düz dizidir ve rol adı sabit rol listesine çevrilmeden gösterilir. Varsayılan çağrı yalnız **atanabilir (aktif)** rolleri döner; yönetim ekranı pasifleri de görmek için `includeInactive=true` gönderir. AP-1 yalnız-okur rol ekranının (`/admin/roller`) kaynağıdır. Cevap `id`, `name`, `description`, `systemKey`, `system`, `workflowActor`, `maxUsers` ve `active` taşır |
+| `POST` | `/api/admin/roles` | Panelden dinamik rol açma; `ROLE_MANAGE` ister. Gövde `name` (zorunlu, ≤100), `description` (≤255) ve `workflowActor` taşır. Yeni rol daima dinamik (`systemKey = null`) ve sınırsız kapasiteli açılır |
+| `PATCH` | `/api/admin/roles/{id}` | Rol güncelleme; `ROLE_MANAGE` ister. Kısmi gövde: yalnız gönderilen `name` / `description` / `workflowActor` / `active` alanları uygulanır. Sistem rolü yeniden adlandırılabilir ama pasifleştirilemez ve workflow aktörlüğü değiştirilemez; `systemKey` ve `system` istemciden hiçbir koşulda değiştirilemez. Rol **silinmez** |
 | `GET` | `/api/admin/audit-logs?type=USER\|RECORD&page=0&size=20&q=` | Evrak ve kullanıcı/rol loglarını listeleme |
 | `POST` | `/api/workflow/rules/reload` | Geçiş kuralı snapshot'ını veritabanından yeniden okur; grafiği **yazmaz**. `WORKFLOW_MANAGE` ister, cevap `{"ruleCount": n}`. Geçersiz kural kümesi yüklenmez ve çalışan snapshot korunur |
 
@@ -455,7 +460,42 @@ kodları: [WF-8 / AP-8 sözleşmesi](WF8_AP8_AKTOR_ROL_BAGLAMA_SOZLESMESI.md).
 - Hesap açma, rol değişikliği/devri ve aktiflik değişikliği append-only `user_audit_logs` kaydı üretmelidir.
 - `audit_logs` ve `user_audit_logs` tek sayfalı API modeliyle sunulur; update/delete audit endpointi olmaz.
 
-### 8.1 Başkan Yardımcısı koltuğunun devri
+### 8.1 `UserResponse`'ta rol kimliği ve gösterim adı
+
+`GET /api/users/me` ve bütün `/api/admin/users` cevapları rolü **üç ayrı alanla**
+taşır. Karıştırılmamalıdır:
+
+| Alan | Anlam | İstemci nasıl kullanır |
+| --- | --- | --- |
+| `roleId` | İlişkisel kimlik (`roles.id`) | Rol değiştirme isteğinde `roleId` olarak geri gönderilir |
+| `systemKey` | Yerleşik rolün **değişmez** teknik anahtarı; dinamik rolde `null` | **Davranış ve arayüz kararları yalnız buna bakar** |
+| `roleName` | Gösterim adı (`roles.name`) | Yalnız ekranda gösterilir |
+
+```json
+{
+  "id": "user-uuid",
+  "firstName": "Ayşe",
+  "lastName": "Kaya",
+  "email": "ayse.kaya@kurum.gov.tr",
+  "roleId": 2,
+  "systemKey": "BASKAN_YARDIMCISI",
+  "roleName": "Başkan Yardımcısı",
+  "active": true,
+  "createdAt": "2026-08-01T09:00:00"
+}
+```
+
+> **İstemci rol adını sabit bir listeye karşı doğrulamamalıdır.** AP-2 ile panelden
+> dinamik rol açılabiliyor ve yerleşik rol yeniden adlandırılabiliyor; adı kapalı bir
+> listeye karşı denetleyen bir istemci, dinamik role atanmış kullanıcının oturum
+> açmasını tamamen engeller. `systemKey` bilinen bir anahtar değilse rol dinamiktir
+> ve o kullanıcı hiçbir sistem rolüne özel arayüz almaz — bu bir hata durumu değildir.
+
+`roleName` yerleşik roller için başlangıçta teknik adla aynıdır (`"CALISAN"`);
+arayüz bu durumda kendi yerelleştirilmiş etiketini gösterir, Admin rolü yeniden
+adlandırdığında ise sunucudan gelen ad kazanır.
+
+### 8.2 Başkan Yardımcısı koltuğunun devri
 
 Bu kural iki kez değişti; aşağıdaki metin **çalışan kodun** karşılığıdır
 (`UserService.changeRole` / `UserService.setActive`).

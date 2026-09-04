@@ -18,7 +18,6 @@ import type {
   CreateUserRequest,
   ListAuditLogsData,
   ListAuditLogsParams,
-  ListRolesData,
   ListUsersData,
   ListUsersParams,
   SetActiveData,
@@ -86,21 +85,6 @@ export class AdminController<SecurityDataType = unknown> {
       path: `/api/admin/audit-logs`,
       method: "GET",
       query: query,
-      secure: true,
-      ...params,
-    });
-  /**
-   * No description
-   *
-   * @tags admin-controller
-   * @name ListRoles
-   * @request GET:/api/admin/roles
-   * @secure
-   */
-  listRoles = (params: RequestParams = {}) =>
-    this.http.request<ListRolesData, any>({
-      path: `/api/admin/roles`,
-      method: "GET",
       secure: true,
       ...params,
     });
