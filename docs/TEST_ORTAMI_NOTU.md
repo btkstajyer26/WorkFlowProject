@@ -2,6 +2,10 @@
 
 Bu belge TEST ortamının güncel topolojisini, dağıtım kontrollerini ve işletim yönergelerini tanımlar. Tarihli dağıtım, hesap, seed ve cihaz kabul kanıtları [M9 arşiv belgesinde](archive/M9_TEST_KABUL_KANITI.md) korunur.
 
+Bu topoloji repo yapılandırmasını anlatır; çalışan TEST sunucusunun son commit'i
+bu dokümantasyon turunda doğrulanmadı. PR #66 ve 712 testlik yerel backend kabulü
+TEST'e deploy veya departman ürün kabulü sayılmaz. [Teslim durumu](README.md).
+
 TEST ortamı tek sunucuda Docker Compose ile backend, PostgreSQL, Mailpit ve Caddy çalıştırır. Sunucuya özgü Elastic IP, SSH anahtarı ve bölge bilgileri repository dışında ortam sahibinde tutulur.
 
 ## Topoloji: API-only
@@ -35,6 +39,15 @@ Sunucudaki `.env` dosyasını hiçbir servisi başlatmadan denetleyin:
 Betik dosya iznini (`600`), zorunlu değerleri, JWT anahtarı uzunluğunu, alan adı/CORS ayarlarını, `FRONTEND_URL` sınırını ve örnek sırların değiştirilmiş olmasını denetler. Çıktı sırları maskeler; engelleyici bulguda kod `1` ile çıkar.
 
 ## Test verisi yükleme
+
+Repo V22 migration'ını içerir. Dağıtım öncesinde hedef ortamın
+`flyway_schema_history` sürümü ve departman verisi incelenmelidir. V22 kendine-parent
+verisi bulursa tamamen geri alınır; otomatik veri düzeltmez. Paylaşılmış V18–V21
+dosyaları değiştirilmez. [V22 yükseltme davranışı](database.md#v22-yükseltme-ve-geri-alma-davranışı).
+
+V18–V22 temel şemadır; `DEPARTMENT`/`DEPARTMANA_GONDER` ve runtime yoktur.
+Mevcut seed betiği departman gönderim kabulünü kanıtlamaz; bu senaryolar DB-13 ve
+WF-5/WF-6 ile ayrıca tamamlanacaktır.
 
 `deploy/seed-test-data.sh`, rol bazlı hesapları ve workflow örneklerini SQL yerine API üzerinden üretir; böylece parola hash'leri, audit ve geçişler uygulama kurallarıyla uyumlu kalır.
 

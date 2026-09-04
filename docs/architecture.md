@@ -2,6 +2,9 @@
 
 Bu belge İş Akışı ve Onay Yönetim Sistemi'nin **çalışan mimarisini** tanımlar. Hedef durumu değil, koda bakılarak doğrulanmış mevcut yapıyı anlatır. Modül sınırları, katmanlama veya bağımlılık yönü değiştiğinde belge aynı değişiklik kapsamında güncellenir.
 
+4 Eylül 2026, `test` @ `3eb3691` tabanı incelenmiştir. Hazır teslimler ve WF-5/WF-6
+öncesi açık bağlantılar [dokümantasyon dizininde](README.md) özetlenir.
+
 ## İçindekiler
 
 - [Sistem bağlamı](#sistem-bağlamı)
@@ -36,7 +39,8 @@ izlenir ve iptal edilebilir.
 
 ## Backend modül sınırları
 
-Ana paket `btk.staj.WorkFlowProject`. On modülün tamamı işlevseldir.
+Ana paket `btk.staj.WorkFlowProject`. `department` şu anda entity/repository
+katmanını sağlar; yönetim HTTP uçları ve workflow runtime bağlantısı henüz yoktur.
 
 | Modül | Sınır | Dışa açtığı |
 | --- | --- | --- |
@@ -44,7 +48,8 @@ Ana paket `btk.staj.WorkFlowProject`. On modülün tamamı işlevseldir.
 | `user` | Kullanıcı oluşturma, rol atama, aktiflik, koltuk devri | `/api/admin/**`, `/api/users/me` |
 | `rbac` | Rol tanımı, işlem yetkisi, kayıt görünürlük politikası, güvenlik yapılandırması | `RecordAccessPolicy`, `PermissionService`, `SecurityConfig` |
 | `record` | Kayıt ve kategori yaşam döngüsü, taslak, soft delete | `/api/records`, `/api/categories` |
-| `workflow` | İzinli durum geçişleri, hedef çözümleme, atama | `/api/records/{id}/workflow/actions`, `RecordStatus` |
+| `department` | Departman, çoklu üyelik ve routing kalıcılığı | Entity/repository; henüz HTTP ucu yok |
+| `workflow` | İzinli durum geçişleri, hedef çözümleme, atama ve aktör rolü bağlama | `/api/records/{id}/workflow/actions`, `/api/workflow/rules/reload`, Java `WorkflowActorBindingService` |
 | `attachment` | Dosya içerik doğrulama, saklama, erişim | `/api/records/{id}/files`, `/api/files/**` |
 | `audit` | Değiştirilemez işlem geçmişi (kayıt ve kullanıcı) | `/api/audit-logs/**`, `/api/user-audit-logs/**` |
 | `search` | Kriter tabanlı filtreleme, sayfalama, görünürlük kapsamı | `RecordSearchService`, `RecordSpecifications` |
@@ -53,7 +58,7 @@ Ana paket `btk.staj.WorkFlowProject`. On modülün tamamı işlevseldir.
 
 İki sınır kararı ayrıca not edilmelidir:
 
-- **Kayıt durumunu yalnız `workflow` değiştirir.** `record` modülü `status` alanına yazmaz; CRUD yalnız içerik alanlarını günceller.
+- **Durum geçişlerini `workflow` uygular.** `record` yeni kaydı `TASLAK` ile oluşturur; sonraki CRUD güncellemeleri içerik alanlarıyla sınırlıdır.
 - **Listeleme ve görünürlük kapsamı tek yerdedir.** `RecordController.getAllRecords` kendi filtre mantığını tutmaz; `RecordSearchService`'e devreder. Aynı erişim kuralının iki yerde yazılıp birinin unutulmasını önlemek için bu bilinçli bir tercihtir.
 
 ## Katmanlama kuralları
@@ -103,14 +108,17 @@ flowchart TB
         A3[AuditLogService - audit modülü]
         A4[SpringWorkflowEventPublisher]
         A5[SecurityCurrentActorProvider]
-        A6[DbTransitionRuleSource - JPA]
+        A6[ReloadableTransitionRuleSource]
+        A7[DbTransitionRuleSource]
+        A8[JpaTransitionRuleRecordReader]
     end
 
     C --> TX --> APP
     APP --> RES
     APP --> VAL --> P6
     PERM --> P6
-    P6 -.-> A6 --> DBRULES[(workflow_transitions)]
+    APP --> P6
+    P6 -.-> A6 --> A7 --> A8 --> DBRULES[(workflow_transitions)]
     APP --> P1 & P2 & P3 & P4 & P5
     P1 -.-> A1
     P2 -.-> A2
@@ -129,7 +137,12 @@ Yapının üç somut sonucu:
 | Kural tüketicileri `TransitionRuleSource` kullanır | Validator ve yetki servisi kural kaynağına doğrudan bağlanmaz; güncel adapter kuralları `workflow_transitions` tablosundan okur. Kurallar açılışta bir kez okunup belleğe alınır; `ReloadableTransitionRuleSource` bunu yeniden başlatmadan tazeleyebilir ve tazeleme başarısız olursa **eski snapshot yerinde kalır** |
 | Transaction sınırı ayrı bir sınıfta (`WorkflowActionService`) | Çekirdek Spring bilmediği için transaction'ı kendisi açamaz; kayıt güncellemesi ve audit yazımı ya birlikte olur ya hiç olmaz |
 
-Bir geçişin sırası: aktörü oku → kaydı bul → **ön doğrulama** → geçiş kuralını bul → hedefi çöz → **nihai doğrulama** → kaydı güncelle → audit yaz → olay yayınla. Doğrulama bilerek iki aşamalıdır: yetkisiz bir istek, hedef için veritabanına hiç gidilmeden elenir. Bütün kural kararları validator'da verilir; servis kuraldan yalnız hedef çözüm stratejisini okur, geçiş kuralı tekrarlamaz.
+Bir geçişin sırası: tek kural snapshot'ını al → aktörü oku → kaydı bul → **ön doğrulama** → geçiş kuralını bul → hedefi çöz → **nihai doğrulama** → kaydı güncelle → audit yaz → olay yayınla. İki doğrulama ve kural/hedef seçimi aynı snapshot'ı kullanır. Yetkisiz istek hedef sorgusundan önce elenir; başlamış işlem araya reload girse de eski snapshot ile tamamlanır.
+
+WF-8'in Spring yönetim servisi bu saf çekirdekten ayrıdır. Bağ değişikliği kendi
+transaction'ında audit ile yazılır; flush sonrası hazırlanan doğrulanmış snapshot
+yalnız başarılı commit'te yayınlanır. Manuel reload aynı koordinatörü kullanır.
+Bu koordinasyon tek backend instance'ı içindir; dağıtık invalidation uygulanmadı.
 
 Ayrıntı için [workflow.md](workflow.md).
 
@@ -164,7 +177,7 @@ Docker Compose varsayılan olarak üç servis başlatır:
 
 | Servis | Bağımlılık / veri | Port |
 | --- | --- | --- |
-| `db` | `db-data-pg15` volume | `5432` |
+| `db` | `db-data-pg15` volume | Host `127.0.0.1:${DB_PORT:-5432}` → container `5432`; testten önce gerçek port doğrulanır |
 | `mailpit` | Yerel SMTP yakalayıcı | `1025`, Web UI `8025` |
 | `backend` | Sağlıklı `db`, `uploads` volume | Temel dosyada `0.0.0.0:8080` (LAN + localhost); TEST overlay'inde host portu kaldırılır |
 
@@ -174,12 +187,12 @@ Frontend servisi `frontend` profili arkasındadır ve `docker compose --profile 
 
 Aşağıdakiler uygulanmış davranışlardır:
 
-- Yeni kullanıcıları yalnız Admin oluşturur ve **her hesap daima Çalışan rolüyle başlar**; başlangıç rolü dışarıdan seçilemez (`UserService.createUser`).
-- Başkan Yardımcısı, Başkan ve Admin rolleri yalnız ayrı ve audit'lenen bir Admin işlemiyle (`changeRole`) atanır.
+- Kullanıcı oluşturma ve rol atama uçları `USER_MANAGE` ister; gerekli permission'a sahip dinamik rol de çağırabilir. Yeni kullanıcı varsayılan `CALISAN` sistem rolüyle başlar; başlangıç rolü dışarıdan seçilemez (`UserService.createUser`).
+- Sonraki rol ataması ayrı ve audit'lenen `changeRole` işlemiyle yapılır; rol aktifliği ve kapasite kontrolleri uygulanır.
 - Bu üç rol **tekildir**: aynı anda yalnız bir aktif kullanıcı tutabilir. Tekillik artık kodda sabit bir rol listesiyle değil, `roles.max_users` kolonuyla taşınır (`V12`; üçü için değer `1`).
 - Kapasite kontrolü ortak `RoleCapacityService` içindedir; oluşturma, bootstrap, rol değiştirme, yeniden etkinleştirme ve yardımcı devri aynı yolu kullanır. Pasif tekil rol sahibi yeniden etkinleştirilirken de çalışır; aynı rolde başka aktif kullanıcı varsa yazma işlemi reddedilir.
 - Admin rolü tek başına iş akışı kayıtlarına erişim vermez; `RecordAccessPolicy` Admin için boş kapsam üretir.
-- Nihai onay ve ret yalnız Başkan tarafından, yalnız kendisine atanmış kayıtta yapılabilir.
+- Başlangıç seed'inde onay/ret aktörü Başkan'dır. WF-8 ile aynı geçişe bağlanmış dinamik rol de gerekli permission ve doğrudan atama ilişkisiyle işlem yapabilir; rol adı tek başına yetki sağlamaz.
 - Admin hesabı aktiflik ucundan pasifleştirilemez (`UserService.setActive`).
 - Parolalar yalnız tek yönlü hash ile saklanır; sırlar ortam değişkenlerinden okunur, repository'ye yazılmaz.
 - İlk Admin yalnız `BOOTSTRAP_ADMIN_EMAIL` ve `BOOTSTRAP_ADMIN_PASSWORD` birlikte verildiğinde **ve sistemde aktif Admin yokken** oluşturulur; hesap parola değiştirme zorunluluğuyla açılır.
@@ -189,7 +202,7 @@ Aşağıdakiler uygulanmış davranışlardır:
 - **Son Admin'in rolü korunmuyor.** `setActive` Admin hesabının pasifleştirilmesini engelliyor, ancak `changeRole` sistemdeki tek Admin'in rolünü başka bir role çevirmeyi engellemiyor. Tekil rol kontrolü yalnız bir role *girerken* çalışıyor, *çıkarken* değil. Sistem yönetimsiz kalabilir.
 - **Audit append-only kuralı veritabanında zorlanmıyor.** Uygulama güncelleme veya silme ucu sunmuyor, fakat DB trigger'ı ya da rol kısıtı yok.
 - **E-posta teslim garantisi yok.** Gönderim asenkron ve best-effort; retry, outbox veya DLQ bulunmuyor.
-- **Bu belgedeki kararların çoğu ADR olarak kaydedilmedi.** `decisions/` altında bugün beş ADR var (modül bazlı paketleme, mobil istemci teknolojisi, veri tanımlı akış motoru, departman ataması, departman hedefli `target_strategy`); ancak port/adapter sınırı ve tekil rol modeli kararları yalnız bu belgede anlatılıyor, ayrı birer ADR'leri yok. (`records.status` `V16` ile sabit CHECK'ten `workflow_statuses(name)` FK'sine geçti; kolon `VARCHAR` kalmaya devam ediyor.)
+- **ADR kapsamı seçicidir.** Dizinde altı ADR bulunur; rol kapasitesi ve tekillik ADR-0007'de karara bağlanmıştır. Port/adapter sınırı bu belgede gerekçelendirilir. ADR-0003'ün rol kapsamı/tekillik önerisinin yerine ADR-0005/0007 geçmiştir; dizindeki her kabul edilmiş kararın runtime'ı tamamlanmış değildir.
 
 - **Departman görünürlüğü açık.** Mevcut görünürlük ortak `RecordVisibilityScope` üzerinden tekil policy ve SQL predicate üretir. Dinamik rol, `RECORD_VIEW` ile oluşturduğu/atandığı kaydı okuyabilir; içerik/geçmiş kesimleri ayrı tutulur. Departman, üyelik, routing ve kayıt atamasının şema/entity/repository katmanı V18–V22 ile hazırdır. V22 ad uzunluğunu 150 yapar, kendine-parent CHECK'i ekler ve üyelik/routing FK'lerini RESTRICT olarak hizalar. Departman policy–SQL sorguları, WF-5/WF-6 runtime'ı ve gönderim stratejisi/aksiyonu/seed'leri henüz uygulanmadı. Sınırlar ve DB-8 entegrasyonu: [WF-2C2 sözleşmesi](WF2C2_DB8_GORUNURLUK_SOZLESMESI.md).
 - **Geçiş grafiği arayüzden düzenlenemiyor.** WF-8'in Spring yönetim servisi mevcut geçişlere dinamik aktör rolü bağlar; topoloji, routing, permission ve aktör ilişkisini değiştirmez. AP-8 HTTP/UI entegrasyonu açıktır. Bağ yazımı ve audit tek transaction'dadır; reload ile ortak koordinatör doğrulanmış snapshot'ı commit sonrası yayınlar. Saf workflow çekirdeği işlem başına bir snapshot kullanır. Grafik topolojisini düzenlemek Workflow V2/versioning kapsamındadır (DB-1 §14). [WF-8 sözleşmesi](WF8_AP8_AKTOR_ROL_BAGLAMA_SOZLESMESI.md).

@@ -4,6 +4,10 @@ Mobil istemcinin kullandığı REST uçlarını, istek/yanıt biçimlerini ve ha
 davranışlarını tanımlar. Uç değiştiğinde bu belge aynı değişiklik kapsamında
 güncellenir.
 
+4 Eylül 2026, `test` @ `3eb3691` tabanı ile görünürlük/permission notları
+hizalanmıştır. Departman HTTP alanları/aksiyonları ve AP-8 uçları henüz yoktur;
+[güncel teslim sınırları](README.md) ayrı izlenir.
+
 Kanonik kaynaklar: [FRONTEND_BACKEND_SOZLESMESI.md](FRONTEND_BACKEND_SOZLESMESI.md)
 (alan sözleşmesi) · [workflow.md](workflow.md) (durum geçişleri ve görünürlük) ·
 Swagger `/swagger-ui.html`, ham şema `/v3/api-docs` ve inceleme amaçlı
@@ -20,7 +24,10 @@ ister. Açık uçlar: `POST /api/auth/login`, `/refresh`, `/logout`,
 **Kullanıcı kimliği gövdeden alınmaz.** Hiçbir uç `userId` kabul etmez; oturum
 JWT'den okunur. Gövdeye kullanıcı kimliği koymak sessizce yok sayılır.
 
-**Roller (mobil v1).** `CALISAN`, `BASKAN_YARDIMCISI`, `BASKAN`.
+**Mobilin başlangıç rol senaryoları:** `CALISAN`, `BASKAN_YARDIMCISI`, `BASKAN`.
+Backend kataloğu bunlarla sınırlı değildir; dinamik rol gerekli permission/ilişkiyle
+okuyabilir ve tanımlı geçişi uygulayabilir. Bu backend desteği mobilin dinamik rol
+ekran kabulünün tamamlandığı anlamına gelmez.
 `ADMIN` mobil kapsamında değil — evrak göremez, `/api/admin/**` uçları mobile
 dahil edilmedi.
 
@@ -152,9 +159,9 @@ backend'de** — rol bilgisi sadece görünüm içindir.
 |---|---|---|---|
 | `GET` | `` | Oturum | Sayfalı liste, görünürlük kapsamı uygulanır |
 | `GET` | `/{id}` | Oturum | |
-| `POST` | `` | `CALISAN` | `TASLAK` oluşturur |
-| `PUT` | `/{id}` | `CALISAN` | Yalnız kendi `TASLAK`/`DUZENLEME_BEKLIYOR` kaydı |
-| `DELETE` | `/{id}` | `CALISAN` | Yalnız `TASLAK` |
+| `POST` | `` | `RECORD_CREATE` | `TASLAK` oluşturur |
+| `PUT` | `/{id}` | `RECORD_EDIT` | Yalnız kendi `TASLAK`/`DUZENLEME_BEKLIYOR` kaydı |
+| `DELETE` | `/{id}` | `RECORD_DELETE` | Yalnız kendi `TASLAK` kaydı |
 
 **`GET /api/records`** parametreleri:
 
@@ -214,7 +221,7 @@ Kapsam dışı kayıt listede **hiç dönmez**, sayfa sayısına da girmez. Kiml
 doğrudan istenirse `403 FORBIDDEN`.
 
 > **Tablo kapalı bir liste değildir.** Dört yerleşik rolün bugünkü kapsamını
-> anlatır; rol katalogu `roles` tablosundan gelir ve panelden yeni rol açılabilir.
+> anlatır; rol kataloğu `roles` tablosundan gelir. Panelden rol oluşturma AP-2'de açıktır.
 > Rol adı (`roles.name`) değiştirilebilir — istemci rolü ada göre sabit bir listeye
 > karşı doğrulamamalıdır. Bütün kapsamlar aktif hesap/rol ve `RECORD_VIEW` gerektirir; ADMIN deny korunur. Dinamik rol erişimi uygulanmıştır; departman bağlantısı açıktır. [WF-2C2 sözleşmesi](WF2C2_DB8_GORUNURLUK_SOZLESMESI.md). Silinmiş kaydın detay/dosya/geçmiş okumaları `404` döner.
 
@@ -272,8 +279,9 @@ Cevap:
 | `BASKAN_INCELEMESINDE` | `BASKAN` (atanan) | `BASKAN_YARDIMCISINA_GERI_GONDER` | `BSK_YRD_INCELEMESINDE` | **zorunlu** |
 
 `comment` en fazla 2000 karakter. Zorunlu olduğu yerde boş gönderilirse
-`400`. Tablodaki dışında her kombinasyon reddedilir — mobil buton gizlese bile
-backend ayrıca doğrular.
+`400`. Tablo başlangıç seed'ini gösterir; WF-8 aynı geçişe dinamik aktör rolü
+bağlayabilir. Geçerli durum–aksiyon–rol birleşimini aktif DB transition'ları,
+permission ve kayıt ilişkisi belirler; mobil buton gizlese bile backend doğrular.
 
 ### ⚠️ Bu ucun kendi hata kodları var
 
@@ -295,13 +303,13 @@ Workflow ucu genel kod ailesini **kullanmaz**; `ApiError.code` alanında
 | `WORKFLOW_VERSION_CONFLICT` | 409 | Kayıt siz işlem yaparken değişti |
 | `WORKFLOW_STATUS_NOT_CONFIGURED` | 500 | Sunucu yapılandırma hatası |
 
-`WORKFLOW_TARGET_*` kodları bugün pratikte oluşmaz (hedefi backend çözüyor),
-ama sözleşmede duruyorlar.
+Hedefi backend çözse de eksik/pasif/uygunsuz hedef veya geçiş metadata'sı
+`WORKFLOW_TARGET_*` hatalarını üretebilir. İstemci bunları yok saymamalıdır.
 
-**409'lar kural ihlali değil, geçici çatışmadır.** `WORKFLOW_VERSION_CONFLICT`
-ve `WORKFLOW_RECORD_LOCKED` alındığında mobil kaydı yeniden yükleyip kullanıcıya
-güncel durumu göstermeli; isteği sessizce tekrarlamamalı. `message` alanı
-kullanıcıya gösterilebilecek Türkçe metin taşır.
+`WORKFLOW_VERSION_CONFLICT` eşzamanlı değişikliği, `WORKFLOW_RECORD_LOCKED`
+terminal/kilitli kaydı, `WORKFLOW_ROLE_NOT_CONFIGURED` hedef rol yapılandırmasını
+gösterir; her 409 geçici yarış değildir. Mobil kaydı yeniden yükleyip güncel
+durumu ve hata mesajını göstermeli, isteği sessizce tekrarlamamalıdır.
 
 ---
 
@@ -334,12 +342,12 @@ Yaşam döngüsü satırlarında `previousStatus` `null`'dur — geçiş değild
 
 ### ⚠️ Geçmiş role göre kırpılır
 
-Aynı kaydın geçmişi herkese aynı gelmez. Kural: **kullanıcı evrağı yalnız kendi
-masasında olduğu dönem boyunca görür.**
+Aynı kaydın geçmişi herkese aynı gelmez. Önce ortak kayıt görünürlüğü doğrulanır;
+ardından sistem rolüne özgü geçmiş kesimi uygulanır. Ek `AUDIT_VIEW` gerekmez.
 
 | Rol | Ne görür |
 |---|---|
-| Çalışan (sahibi) | Tamamı |
+| Dinamik rol / Çalışan | Görünür kaydın tam geçmişi |
 | Bşk. Yrd. | Kayıt `DUZENLEME_BEKLIYOR` iken **devir anına kadar** kırpılmış |
 | Başkan | Evrak kendisine **ilk iletildiği andan itibaren** |
 
@@ -419,11 +427,11 @@ yerde tutmayı gerektirir.
 
 | Metot | Adres | Yetki | Not |
 |---|---|---|---|
-| `POST` | `/api/records/{id}/files` | `CALISAN` | multipart, aynı `file` alanında bir veya daha çok dosya |
+| `POST` | `/api/records/{id}/files` | `FILE_MANAGE` + sahiplik/kilit kontrolü | multipart, aynı `file` alanında bir veya daha çok dosya |
 | `GET` | `/api/records/{id}/files` | Kaydı görebilen | |
 | `GET` | `/api/files/{id}/download` | Kaydı görebilen | |
 | `GET` | `/api/files/{id}/preview` | Kaydı görebilen | Inline |
-| `DELETE` | `/api/files/{id}` | `CALISAN` | Soft delete |
+| `DELETE` | `/api/files/{id}` | `FILE_MANAGE` + sahiplik/kilit kontrolü | Soft delete |
 
 **Yükleme `multipart/form-data`, alan adı `file`.** Backend `MultipartFile[]`
 kabul eder. Mobil, dosya bazında ilerleme, hata ve yeniden deneme gösterebilmek

@@ -4,7 +4,7 @@
 - Tarih: 2026-08-25
 - Karar sahipleri: Proje ekibi (mühendislik tarafının talebi üzerine)
 
-> **Uygulanma durumu (3 Eylül 2026).** Aşağıdaki §Bağlam bölümü 25 Ağustos'un
+> **Uygulanma durumu (4 Eylül 2026).** Aşağıdaki §Bağlam bölümü 25 Ağustos'un
 > fotoğrafıdır ve bugünkü kodu tarif etmez; ADR biçimi gereği düzenlenmemiştir.
 > O tarihten bu yana kararın **motor tarafı uygulandı**: geçiş kuralları
 > `workflow_transitions` tablosundan okunuyor (`ReloadableTransitionRuleSource` →
@@ -20,6 +20,8 @@
 > ile taşınır; üyelik kendi rolünü taşımaz, yetki global `users.role_id` ile çözülür
 > (ADR-0005 `S4 → 1`). `ROLE_IN_UNIT` yerine `(departman, durum, aksiyon) → rol`
 > akış kuralı gelir (ADR-0005 `S2`/`S3`).
+> V18–V22 bu departman/üyelik/routing şemasını ve entity/repository katmanını
+> eklemiştir; WF-5/WF-6 runtime ve departman görünürlüğü hâlâ açık iştir.
 >
 > §Karar'ın **"Tekilliğin veritabanında zorlanması"** alt başlığı
 > [ADR-0007](0007-rol-kapasitesi-ve-birim-tekilligi.md) `S2 → 1` ile **reddedildi**:

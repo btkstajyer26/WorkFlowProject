@@ -1,6 +1,6 @@
 # Mobil Entegrasyon — Görev Dağılımı
 
-> **Arşiv belgesi.** Aşağıdaki görev dağılımı 31 Ağustos 2026 durumunu kaydeder; aktif iş listesi değildir. Kod, dal, commit ve sayı referansları (ör. `openapi.json` için "30 yol") o tarihe aittir — bugün 31 yol vardır. Güncel API sözleşmesi [Mobil API envanterinde](../MOBIL_API_ENVANTERI.md), güncel görev durumu ekip belgesindedir. Maddelerin bir kısmı hâlâ açık olabilir; doğrulamadan iş listesi olarak kullanmayın.
+> **Arşiv belgesi.** Aşağıdaki görev dağılımı 31 Ağustos 2026 durumunu kaydeder; aktif iş listesi değildir. Kod, dal, commit ve sayı referansları (ör. `openapi.json` için "30 yol") o tarihe aittir. Güncel API sözleşmesi [Mobil API envanterinde](../MOBIL_API_ENVANTERI.md), teslim sınırları [dokümantasyon dizinindedir](../README.md). Maddelerin bir kısmı hâlâ açık olabilir; doğrulamadan iş listesi olarak kullanmayın.
 
 **Tarih:** 31 Ağustos 2026 (kod doğrulaması aynı gün)
 **Dal:** `test`'ten `feature/<konu>` açılır, PR `test`'e gider.
