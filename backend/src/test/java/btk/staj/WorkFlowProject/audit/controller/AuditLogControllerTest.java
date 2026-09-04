@@ -42,7 +42,7 @@ class AuditLogControllerTest {
     private final RecordRepository recordRepository = mock(RecordRepository.class);
     private final CurrentVisibilityActorProvider currentVisibilityActorProvider = mock(CurrentVisibilityActorProvider.class);
     private final AuditLogController controller = new AuditLogController(
-            auditLogService, recordRepository, new RecordAccessPolicy(), currentVisibilityActorProvider);
+            auditLogService, recordRepository, new RecordAccessPolicy(actor -> java.util.Set.of()), currentVisibilityActorProvider);
 
     @Test
     @DisplayName("kaydin sahibi kendi evraginin gecmisini gorur")

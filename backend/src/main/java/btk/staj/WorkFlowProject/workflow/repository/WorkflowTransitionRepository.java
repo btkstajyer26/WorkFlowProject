@@ -18,18 +18,25 @@ public interface WorkflowTransitionRepository extends JpaRepository<WorkflowTran
     @Query("SELECT t FROM WorkflowTransitionEntity t WHERE t.id IN :ids ORDER BY t.id")
     List<WorkflowTransitionEntity> findAllForUpdate(@Param("ids") List<Integer> ids);
 
-    /** Conservative use check: temporary user/role/permission revocation cannot bypass it. */
+    /** Conservative use check, including department queues even after eligibility/routing revocation. */
     @Query(value = """
             SELECT EXISTS (
                 SELECT 1 FROM records r
                 JOIN workflow_statuses s ON s.name = r.status
-                JOIN users u ON u.role_id = :roleId AND (
+                WHERE r.deleted_at IS NULL AND s.id = :statusId AND s.is_terminal = false
+                  AND r.status NOT IN ('ONAYLANDI', 'REDDEDILDI')
+                  AND (EXISTS (SELECT 1 FROM users u WHERE u.role_id = :roleId AND (
                     (:requirement = 'CREATOR' AND u.id = r.created_by) OR
                     (:requirement = 'ASSIGNEE' AND u.id = r.assigned_to) OR
                     (:requirement = 'CREATOR_AND_ASSIGNEE'
-                        AND u.id = r.created_by AND u.id = r.assigned_to))
-                WHERE r.deleted_at IS NULL AND s.id = :statusId AND s.is_terminal = false
-                  AND r.status NOT IN ('ONAYLANDI', 'REDDEDILDI'))
+                        AND u.id = r.created_by AND u.id = r.assigned_to)))
+                  OR (r.assigned_department_id IS NOT NULL
+                      AND :requirement IN ('ASSIGNEE', 'CREATOR_AND_ASSIGNEE')
+                      AND EXISTS (SELECT 1 FROM department_routing_rules routing
+                          WHERE routing.department_id = r.assigned_department_id
+                            AND routing.from_status_id = s.id AND routing.target_role_id = :roleId)
+                      AND (:requirement = 'ASSIGNEE' OR EXISTS (
+                          SELECT 1 FROM users creator WHERE creator.id = r.created_by AND creator.role_id = :roleId)))))
             """, nativeQuery = true)
     boolean hasOpenRecords(@Param("statusId") Integer statusId, @Param("roleId") Integer roleId,
                            @Param("requirement") String requirement);

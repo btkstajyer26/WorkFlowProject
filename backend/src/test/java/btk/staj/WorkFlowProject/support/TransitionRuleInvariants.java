@@ -57,16 +57,24 @@ public final class TransitionRuleInvariants {
                 .isEmpty();
     }
 
-    /** {@code NONE} hedef rol tasimaz; diger butun stratejiler tasir. */
+    /**
+     * {@code NONE} ve {@code DEPARTMENT} hedef rol tasimaz; diger butun stratejiler tasir.
+     *
+     * <p>{@code DEPARTMENT}'in hedefi bir kullanici degil departmandir; hedef rol
+     * geciste degil {@code department_routing_rules}'ta durur (ADR-0006). V23'teki
+     * {@code chk_transition_target_strategy_role} de ayni sarti kosar.
+     */
     public static void assertTargetStrategyAndExpectedRoleAgree(TransitionRuleSource source) {
         for (TransitionRule rule : source.all()) {
             assertThat(rule.targetStrategy())
                     .as("%s + %s + %s icin hedef stratejisi", rule.from(), rule.action(), rule.actorRoleId())
                     .isNotNull();
 
-            if (rule.targetStrategy() == TargetStrategy.NONE) {
+            if (rule.targetStrategy() == TargetStrategy.NONE
+                    || rule.targetStrategy() == TargetStrategy.DEPARTMENT) {
                 assertThat(rule.expectedTargetRoleId())
-                        .as("%s + %s NONE stratejisinde hedef rol tasimamali", rule.from(), rule.action())
+                        .as("%s + %s %s stratejisinde hedef rol tasimamali",
+                                rule.from(), rule.action(), rule.targetStrategy())
                         .isNull();
             } else {
                 assertThat(rule.expectedTargetRoleId())

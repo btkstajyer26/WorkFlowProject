@@ -8,6 +8,8 @@ import btk.staj.WorkFlowProject.workflow.port.WorkflowEventPublisher;
 import btk.staj.WorkFlowProject.workflow.port.WorkflowRecordPort;
 import btk.staj.WorkFlowProject.workflow.port.WorkflowUserPort;
 import btk.staj.WorkFlowProject.workflow.service.TargetUserResolver;
+import btk.staj.WorkFlowProject.workflow.service.DepartmentRoutingResolver;
+import btk.staj.WorkFlowProject.workflow.port.DepartmentRoutingPort;
 import btk.staj.WorkFlowProject.workflow.service.WorkflowApplicationService;
 import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRuleSource;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowTransitionValidator;
@@ -67,10 +69,16 @@ public class WorkflowConfiguration {
     }
 
     @Bean
+    public DepartmentRoutingResolver departmentRoutingResolver(DepartmentRoutingPort port) {
+        return new DepartmentRoutingResolver(port);
+    }
+
+    @Bean
     public WorkflowApplicationService workflowApplicationService(
             WorkflowRecordPort recordPort,
             CurrentActorProvider currentActorProvider,
             TargetUserResolver targetUserResolver,
+            DepartmentRoutingResolver departmentRoutingResolver,
             WorkflowTransitionValidator validator,
             TransitionRuleSource ruleSource,
             AuditService auditService,
@@ -81,6 +89,7 @@ public class WorkflowConfiguration {
                 recordPort,
                 currentActorProvider,
                 targetUserResolver,
+                departmentRoutingResolver,
                 validator,
                 ruleSource,
                 auditService,

@@ -14,7 +14,13 @@ public record WorkflowRecordSnapshot(
         UUID assignedTo,
         UUID lastDeputyId,
         Instant deletedAt,
-        int version) {
+        int version,
+        Integer assignedDepartmentId) {
+
+    public WorkflowRecordSnapshot(UUID id, RecordStatus status, UUID createdBy, UUID assignedTo,
+            UUID lastDeputyId, Instant deletedAt, int version) {
+        this(id, status, createdBy, assignedTo, lastDeputyId, deletedAt, version, null);
+    }
 
     public WorkflowRecordSnapshot {
         Objects.requireNonNull(id, "id");

@@ -59,7 +59,7 @@ class WorkflowSnapshotConsistencyTest {
         });
         WorkflowApplicationService service = new WorkflowApplicationService(records,
                 () -> new CurrentActor(actor, actorRole, true, Set.of("RECORD_VIEW", "RECORD_FORWARD")),
-                resolver, new WorkflowTransitionValidator(source), source,
+                resolver, new DepartmentRoutingResolver(org.mockito.Mockito.mock(btk.staj.WorkFlowProject.workflow.port.DepartmentRoutingPort.class)), new WorkflowTransitionValidator(source), source,
                 mock(AuditService.class), mock(WorkflowEventPublisher.class), Clock.systemUTC());
         WorkflowActionRequest request = new WorkflowActionRequest(WorkflowAction.GONDER, null, null);
         try (var executor = Executors.newSingleThreadExecutor()) {

@@ -34,7 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class WorkflowRuleReloadIntegrationTest {
 
     private static final String RELOAD_URL = "/api/workflow/rules/reload";
-    private static final int SEEDED_RULE_COUNT = 8;
+    private static final int SEEDED_RULE_COUNT = 10;
 
     @Autowired
     private MockMvc mockMvc;

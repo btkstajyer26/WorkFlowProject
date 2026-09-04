@@ -46,7 +46,7 @@ class RecordSearchServiceImplTest {
     private final UserRepository userRepository = mock(UserRepository.class);
     private final RecordSearchServiceImpl service =
             new RecordSearchServiceImpl(recordRepository, currentVisibilityActorProvider,
-                    new RecordContentView(new RecordAccessPolicy()), userRepository);
+                    new RecordContentView(new RecordAccessPolicy(actor -> java.util.Set.of())), userRepository, new RecordAccessPolicy(actor -> java.util.Set.of()));
 
     @Test
     @DisplayName("sayfalama bilgisini oldugu gibi aktarir")
