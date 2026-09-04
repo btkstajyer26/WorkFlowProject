@@ -13,7 +13,7 @@ import { ListLoadingSkeleton } from '../../components/feedback/LoadingSkeleton'
 export function RolesPage() {
   const rolesQuery = useQuery({
     queryKey: queryKeys.admin.roles.list(),
-    queryFn: listRoles,
+    queryFn: () => listRoles(),
   })
   const roles = rolesQuery.data ?? []
 

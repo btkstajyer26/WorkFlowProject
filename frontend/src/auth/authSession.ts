@@ -6,7 +6,8 @@ import {
 } from '../api/client'
 import { ApiClientError } from '../api/errors'
 import type { LoginResponse, UserResponse } from '../api/generated/data-contracts'
-import type { AuthUser, UserRole } from '../types/auth'
+import type { AuthUser } from '../types/auth'
+import { toSystemRoleKey } from '../types/auth'
 
 type AuthTokens = Required<Pick<LoginResponse, 'accessToken' | 'refreshToken'>>
 type AuthSession = AuthTokens & { mustChangePassword: boolean; user: AuthUser }
@@ -16,7 +17,6 @@ type SessionExpiredListener = () => void
 
 const refreshTokenStorageKey = 'ebys:refresh-token:v1'
 const legacyMockSessionKey = 'ebys:mock-session:v1'
-const userRoles: UserRole[] = ['CALISAN', 'BASKAN_YARDIMCISI', 'BASKAN', 'ADMIN']
 
 let refreshToken: string | null = null
 let restorePromise: Promise<AuthUser | null> | null = null
@@ -78,15 +78,20 @@ function applyAuthTokens(response: LoginResponse): TokenSession {
   }
 }
 
+/**
+ * Rol adı **doğrulanmaz**. AP-2 ile panelden dinamik rol açılabiliyor ve yerleşik
+ * roller yeniden adlandırılabiliyor; adı kapalı bir listeye karşı denetlemek, o
+ * kullanıcıların oturum açmasını tamamen engellerdi. Kimlik `roleId` ve
+ * `systemKey` ile taşınır, ad yalnız gösterim içindir.
+ */
 function normalizeCurrentUser(response: UserResponse, mustChangePassword: boolean): AuthUser {
-  const role = response.roleName as UserRole | undefined
   if (
     !response.id ||
     !response.firstName?.trim() ||
     !response.lastName?.trim() ||
     !response.email?.trim() ||
-    !role ||
-    !userRoles.includes(role) ||
+    typeof response.roleId !== 'number' ||
+    !response.roleName?.trim() ||
     response.active !== true
   ) {
     throw new ApiClientError({
@@ -101,7 +106,9 @@ function normalizeCurrentUser(response: UserResponse, mustChangePassword: boolea
     firstName: response.firstName.trim(),
     lastName: response.lastName.trim(),
     email: response.email.trim().toLowerCase(),
-    role,
+    roleId: response.roleId,
+    systemKey: toSystemRoleKey(response.systemKey),
+    roleName: response.roleName.trim(),
     mustChangePassword,
   }
 }

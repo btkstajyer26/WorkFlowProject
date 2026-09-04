@@ -307,7 +307,8 @@ describe('OpenAPI istemcisi ve MSW sözleşmesi', () => {
     expect(result.content).toEqual([
       expect.objectContaining({
         email: 'elif.akin@kurum.gov.tr',
-        role: 'CALISAN',
+        systemKey: 'CALISAN',
+        roleName: 'CALISAN',
         isActive: true,
       }),
     ])

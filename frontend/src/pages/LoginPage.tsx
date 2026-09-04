@@ -40,7 +40,7 @@ export function LoginPage({ user, onLogin }: LoginPageProps) {
   })
 
   if (user) {
-    return <Navigate to={user.mustChangePassword ? '/sifre-degistir' : user.role === 'ADMIN' ? '/admin' : '/dashboard'} replace />
+    return <Navigate to={user.mustChangePassword ? '/sifre-degistir' : user.systemKey === 'ADMIN' ? '/admin' : '/dashboard'} replace />
   }
 
   const reason = searchParams.get('reason')
@@ -71,7 +71,7 @@ export function LoginPage({ user, onLogin }: LoginPageProps) {
     const requestedPath = searchParams.get('returnTo')
     const safeReturnTo = requestedPath?.startsWith('/') && !requestedPath.startsWith('//')
       ? requestedPath
-      : authenticatedUser.role === 'ADMIN' ? '/admin' : '/dashboard'
+      : authenticatedUser.systemKey === 'ADMIN' ? '/admin' : '/dashboard'
     navigate(safeReturnTo, { replace: true })
   })
 

@@ -86,7 +86,7 @@ function App() {
   }
 
   return (
-    <AppQueryProvider key={`${user?.id ?? 'anonymous'}:${user?.role ?? 'none'}`}>
+    <AppQueryProvider key={`${user?.id ?? 'anonymous'}:${user?.roleId ?? 'none'}`}>
       <ThemeProvider>
         <ToastProvider>
           <AppErrorBoundary>
@@ -161,7 +161,7 @@ function ProtectedApplication({
     return <Navigate to={`/giris?returnTo=${encodeURIComponent(returnTo)}`} replace />
   }
 
-  if (user.role === 'ADMIN') {
+  if (user.systemKey === 'ADMIN') {
     return (
       <AdminProvider actor={user}>
         <AdminApplication
@@ -206,8 +206,8 @@ function WorkflowApplication({
     <AppShell user={user} unreadNotificationCount={unreadNotificationCount} onLogout={onLogout}>
       <Suspense fallback={<RoutePageSkeleton />}><Routes>
         <Route path="/dashboard" element={<DashboardPage user={user} />} />
-        <Route path="/kayitlar" element={<RecordsPage role={user.role} />} />
-        <Route path="/kayitlar/:recordId/duzenle" element={<RecordEditPage role={user.role} />} />
+        <Route path="/kayitlar" element={<RecordsPage systemKey={user.systemKey} />} />
+        <Route path="/kayitlar/:recordId/duzenle" element={<RecordEditPage systemKey={user.systemKey} />} />
         <Route path="/kayitlar/:recordId" element={<RecordDetailPage user={user} />} />
         <Route path="/records/:recordId" element={<RecordDeepLinkRedirect />} />
         <Route

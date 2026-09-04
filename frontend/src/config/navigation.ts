@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react'
 import { Bell, FileClock, FolderKanban, LayoutDashboard, ShieldCheck, UsersRound } from 'lucide-react'
-import type { UserRole } from '../types/auth'
+import type { SystemRoleKey } from '../types/auth'
 
 export type RecordView = {
   label: string
@@ -44,7 +44,12 @@ export const adminNavigation: PrimaryNavigationItem[] = [
   },
 ]
 
-export const recordNavigation: Record<UserRole, RecordView[]> = {
+/**
+ * Kayıt görünümleri yerleşik rollerin `system_key`'ine bağlıdır. Dinamik rollerin
+ * (systemKey === null) özel bir görünüm listesi yoktur; {@link recordViewsFor}
+ * onlar için boş liste döner ve kullanıcı yalnız "Tüm Kayıtlar" görür.
+ */
+export const recordNavigation: Record<SystemRoleKey, RecordView[]> = {
   CALISAN: [
     { label: 'Tüm Kayıtlarım' },
     { label: 'Taslaklarım', view: 'taslaklar' },
@@ -77,4 +82,9 @@ export const notificationNavigation = {
   label: 'Bildirimler',
   to: '/bildirimler',
   icon: Bell,
+}
+
+/** Dinamik rol dahil her aktör için güvenli görünüm listesi. */
+export function recordViewsFor(systemKey: SystemRoleKey | null): RecordView[] {
+  return systemKey ? recordNavigation[systemKey] : []
 }

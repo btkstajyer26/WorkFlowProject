@@ -27,7 +27,7 @@ describe('LoginPage', () => {
 
     expect(onLogin).toHaveBeenCalledWith(expect.objectContaining({
       email: 'john.doe@kurum.gov.tr',
-      role: 'CALISAN',
+      systemKey: 'CALISAN',
     }))
     await waitFor(() => {
       expect(screen.getByLabelText('Geçerli adres')).toHaveTextContent('/dashboard')

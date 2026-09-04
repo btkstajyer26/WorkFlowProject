@@ -1000,8 +1000,17 @@
     },
     "/api/admin/roles" : {
       "get" : {
-        "tags" : [ "admin-controller" ],
+        "tags" : [ "role-admin-controller" ],
         "operationId" : "listRoles",
+        "parameters" : [ {
+          "name" : "includeInactive",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        } ],
         "responses" : {
           "200" : {
             "description" : "OK",
@@ -1012,6 +1021,69 @@
                   "items" : {
                     "$ref" : "#/components/schemas/RoleResponse"
                   }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "role-admin-controller" ],
+        "operationId" : "createRole",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateRoleRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/roles/{id}" : {
+      "patch" : {
+        "tags" : [ "role-admin-controller" ],
+        "operationId" : "updateRole",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateRoleRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
                 }
               }
             }
@@ -1443,6 +1515,13 @@
           "email" : {
             "type" : "string"
           },
+          "roleId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "systemKey" : {
+            "type" : "string"
+          },
           "roleName" : {
             "type" : "string"
           },
@@ -1804,6 +1883,43 @@
           }
         }
       },
+      "CreateRoleRequest" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "maxLength" : 100,
+            "minLength" : 1
+          },
+          "description" : {
+            "type" : "string",
+            "maxLength" : 255
+          },
+          "workflowActor" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "name" ]
+      },
+      "UpdateRoleRequest" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "maxLength" : 100
+          },
+          "description" : {
+            "type" : "string",
+            "maxLength" : 255
+          },
+          "workflowActor" : {
+            "type" : "boolean"
+          },
+          "active" : {
+            "type" : "boolean"
+          }
+        }
+      },
       "RoleResponse" : {
         "type" : "object",
         "properties" : {
@@ -1816,6 +1932,22 @@
           },
           "description" : {
             "type" : "string"
+          },
+          "systemKey" : {
+            "type" : "string"
+          },
+          "system" : {
+            "type" : "boolean"
+          },
+          "workflowActor" : {
+            "type" : "boolean"
+          },
+          "maxUsers" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "active" : {
+            "type" : "boolean"
           }
         }
       },

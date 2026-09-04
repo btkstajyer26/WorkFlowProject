@@ -22,6 +22,7 @@ class UserResponseTest {
         Role role = new Role();
         role.setId(1);
         role.setName("CALISAN");
+        role.setSystemKey("CALISAN");
 
         User user = new User();
         user.setId(UUID.randomUUID());
@@ -53,8 +54,43 @@ class UserResponseTest {
         assertThat(response.firstName()).isEqualTo("Ahmet");
         assertThat(response.lastName()).isEqualTo("Yılmaz");
         assertThat(response.email()).isEqualTo("ahmet@example.com");
+        assertThat(response.roleId()).isEqualTo(1);
+        assertThat(response.systemKey()).isEqualTo("CALISAN");
         assertThat(response.roleName()).isEqualTo("CALISAN");
         assertThat(response.createdAt()).isEqualTo(user.getCreatedAt());
+    }
+
+    /**
+     * AP-2 gosterim adini degistirilebilir kildi. Istemci davranisi {@code systemKey}
+     * uzerinden secmeli; ad degisince kimlik degismemeli.
+     */
+    @Test
+    @DisplayName("gosterim adi degisse de sistem anahtari sabit kalir")
+    void gosterimAdiDegisseDeSistemAnahtariSabitKalir() {
+        User user = ornekKullanici();
+        user.getRole().setName("Uzman Personel");
+
+        UserResponse response = UserResponse.from(user);
+
+        assertThat(response.roleName()).isEqualTo("Uzman Personel");
+        assertThat(response.systemKey()).isEqualTo("CALISAN");
+        assertThat(response.roleId()).isEqualTo(1);
+    }
+
+    /** Panelden acilan dinamik rolde sistem anahtari yoktur; bu bir hata degildir. */
+    @Test
+    @DisplayName("dinamik rolde sistem anahtari bostur")
+    void dinamikRoldeSistemAnahtariBostur() {
+        User user = ornekKullanici();
+        user.getRole().setId(9);
+        user.getRole().setName("Hukuk Uzmanı");
+        user.getRole().setSystemKey(null);
+
+        UserResponse response = UserResponse.from(user);
+
+        assertThat(response.roleId()).isEqualTo(9);
+        assertThat(response.systemKey()).isNull();
+        assertThat(response.roleName()).isEqualTo("Hukuk Uzmanı");
     }
 
     @Test
@@ -63,7 +99,11 @@ class UserResponseTest {
         User user = ornekKullanici();
         user.setRole(null);
 
-        assertThat(UserResponse.from(user).roleName()).isNull();
+        UserResponse response = UserResponse.from(user);
+
+        assertThat(response.roleName()).isNull();
+        assertThat(response.roleId()).isNull();
+        assertThat(response.systemKey()).isNull();
     }
 
     @Test
