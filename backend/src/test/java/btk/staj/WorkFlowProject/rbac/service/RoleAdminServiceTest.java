@@ -48,6 +48,8 @@ class RoleAdminServiceTest {
         when(currentUser.currentUserId()).thenReturn(ADMIN_ID);
         service = new RoleAdminService(roles, users, audit, currentUser);
         when(roles.save(any(Role.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        // Ad benzersizliği tüm katalogu Türkçe kurallarıyla tarar.
+        when(roles.findAllByOrderByIdAsc()).thenReturn(List.of());
     }
 
     private static Role role(Integer id, String name, boolean system, String systemKey, boolean active) {
@@ -116,7 +118,6 @@ class RoleAdminServiceTest {
 
         @Test
         void yeni_rol_daima_dinamik_ve_sinirsiz_kapasiteli_acilir() {
-            when(roles.findByName("Mali İşler Uzmanı")).thenReturn(Optional.empty());
             CreateRoleRequest request = request("  Mali İşler Uzmanı  ");
             request.setDescription("  Bütçe evraklarını yürütür  ");
             request.setWorkflowActor(true);
@@ -135,12 +136,53 @@ class RoleAdminServiceTest {
 
         @Test
         void ayni_adla_ikinci_rol_reddedilir() {
-            when(roles.findByName("Mali İşler Uzmanı")).thenReturn(Optional.of(dynamicRole()));
+            when(roles.findAllByOrderByIdAsc()).thenReturn(List.of(dynamicRole()));
 
             assertThatThrownBy(() -> service.create(request("Mali İşler Uzmanı")))
                     .isInstanceOf(BusinessRuleException.class)
                     .hasMessageContaining("zaten kullanılıyor");
             verify(roles, never()).save(any());
+        }
+
+        @Test
+        void yalniz_harf_buyuklugu_farkli_ad_da_reddedilir() {
+            when(roles.findAllByOrderByIdAsc()).thenReturn(List.of(role(9, "Muhasebe", false, null, true)));
+
+            assertThatThrownBy(() -> service.create(request("muhasebe")))
+                    .isInstanceOf(BusinessRuleException.class)
+                    // Mesaj mevcut kaydın yazımını gösterir ki kullanıcı hangisiyle
+                    // çakıştığını görebilsin.
+                    .hasMessageContaining("Muhasebe");
+            verify(roles, never()).save(any());
+        }
+
+        @Test
+        void turkce_i_harfi_dogru_esitlenir() {
+            // Varsayılan locale ile "idari".toUpperCase() = "IDARI" olur ve
+            // "İdari" ile eşleşmezdi; Türkçe kuralında ikisi de "İDARİ".
+            when(roles.findAllByOrderByIdAsc()).thenReturn(List.of(role(9, "İdari İşler", false, null, true)));
+
+            assertThatThrownBy(() -> service.create(request("idari işler")))
+                    .isInstanceOf(BusinessRuleException.class)
+                    .hasMessageContaining("İdari İşler");
+            verify(roles, never()).save(any());
+        }
+
+        @Test
+        void noktasiz_i_farkli_bir_ad_sayilir() {
+            // Türkçede "ı" ile "i" ayrı harflerdir; "Isıtma" ile "İsıtma" çakışmaz.
+            when(roles.findAllByOrderByIdAsc()).thenReturn(List.of(role(9, "İsıtma", false, null, true)));
+
+            assertThatCode(() -> service.create(request("Isıtma"))).doesNotThrowAnyException();
+        }
+
+        @Test
+        void pasif_rolun_adi_da_yeniden_kullanilamaz() {
+            when(roles.findAllByOrderByIdAsc()).thenReturn(List.of(role(9, "Arşiv", false, null, false)));
+
+            assertThatThrownBy(() -> service.create(request("arşiv")))
+                    .isInstanceOf(BusinessRuleException.class)
+                    .hasMessageContaining("Arşiv");
         }
 
         @Test
@@ -152,8 +194,6 @@ class RoleAdminServiceTest {
 
         @Test
         void olusturma_audit_kaydi_yazar() {
-            when(roles.findByName(any())).thenReturn(Optional.empty());
-
             service.create(request("Mali İşler Uzmanı"));
 
             verify(audit).logIslem(isNull(), eq(ADMIN_ID), eq("ROLE_CREATED"), isNull(), any(),
@@ -174,7 +214,7 @@ class RoleAdminServiceTest {
         void sistem_rolu_yeniden_adlandirilabilir_ama_system_key_degismez() {
             Role role = systemRole();
             when(roles.findByIdForUpdate(1)).thenReturn(Optional.of(role));
-            when(roles.findByName("Uzman Personel")).thenReturn(Optional.empty());
+            when(roles.findAllByOrderByIdAsc()).thenReturn(List.of(role));
             UpdateRoleRequest request = new UpdateRoleRequest();
             request.setName("Uzman Personel");
 

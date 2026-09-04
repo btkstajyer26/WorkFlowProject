@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * AP-2 rol yonetimi. Yerlesik rolun anlamini tasiyan {@code system_key} ve
@@ -27,6 +28,8 @@ import java.util.List;
  */
 @Service
 public class RoleAdminService {
+
+    private static final Locale TURKISH = Locale.forLanguageTag("tr");
 
     private final RoleRepository roleRepository;
     private final UserRepository userRepository;
@@ -157,14 +160,27 @@ public class RoleAdminService {
     }
 
     /**
-     * Anlamli mesaj icin on kontrol; yaris durumunda {@code roles.name} benzersizlik
-     * kisiti son sozu soyler ve 409 uretir.
+     * Benzersizlik buyuk/kucuk harf ayrimi yapmaz: "Muhasebe" varken "muhasebe"
+     * acilamaz. Karsilastirma Turkce kurallariyla yapilir, cunku SQL
+     * {@code UPPER()} ve Java'nin varsayilan locale'i "i" harfini "I"ya cevirir;
+     * bu da "İdari" ile "idari"yi farkli gosterirdi. Rol tablosu kucuk oldugu
+     * icin tam liste okunur.
+     *
+     * <p>Veritabanindaki {@code roles.name} kisiti harf duyarli oldugundan bu
+     * kural uygulama katmanindadir: es zamanli iki istek ayni adi farkli
+     * harflerle yazarsa teorik olarak ikisi de gecebilir. Kalici cozum
+     * {@code upper(name)} uzerinde bir unique index'tir ve ayri bir migration
+     * ister (DB kulvari).
      */
     private void assertNameAvailable(String name, Integer selfId) {
-        roleRepository.findByName(name)
+        String normalized = name.toUpperCase(TURKISH);
+        roleRepository.findAllByOrderByIdAsc().stream()
                 .filter(existing -> !existing.getId().equals(selfId))
+                .filter(existing -> existing.getName() != null
+                        && existing.getName().toUpperCase(TURKISH).equals(normalized))
+                .findFirst()
                 .ifPresent(existing -> {
-                    throw new BusinessRuleException("Bu rol adı zaten kullanılıyor: " + name);
+                    throw new BusinessRuleException("Bu rol adı zaten kullanılıyor: " + existing.getName());
                 });
     }
 
