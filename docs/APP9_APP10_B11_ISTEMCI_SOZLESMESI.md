@@ -1,6 +1,6 @@
 # APP-9 / APP-10 / B11 — Kullanılabilir Aksiyon, Atama ve Alıcı Sözleşmesi
 
-- **Durum:** Önerildi — 4 Eylül 2026
+- **Durum:** Kabul Edildi — 4 Eylül 2026 · uygulandı 6 Eylül 2026 (`APP-9` uçları, `B11` atama sözleşmesi)
 - **Sahip:** Burak (`WF` / `APP`)
 - **Tüketiciler:** Tamer (`B10` / `WEB-1`), Bahadır (`B09` / `MOB-1`, `NT-5`), Alperen (`B12`)
 - **Kapsadığı bulgular:** `B09`, `B10`, `B11` · Kapsadığı işler: `APP-9`, `APP-10`
@@ -41,9 +41,24 @@ Aksiyon listesi, `performAction` ile **aynı** kural snapshot'ı ve **aynı**
 yazılmaz; bu uç, mevcut doğrulamanın yazma yapmayan (`dry-run`) koşumudur.
 
 Hesap şu şekildedir: snapshot içinde `from = record.status` **ve**
-`actorRoleId = aktörün rolü` olan her kural için doğrulama çalıştırılır; sonucu
-`Allowed` olan (veya yalnız "hedef henüz çözülmedi" nöbetçisiyle duran) aksiyonlar
-listeye girer.
+`actorRoleId = aktörün rolü` olan her kural için doğrulama çalıştırılır. Hedef
+gerektiren geçişlerde ön koşum "hedef henüz çözülmedi" nöbetçisinde durur; bu
+noktada **hedef de çözülür ve ikinci doğrulama koşulur.** Yalnız sonucu `Allowed`
+olan aksiyonlar listeye girer.
+
+> **Uygulama notu (6 Eylül 2026).** İlk taslak nöbetçide durmayı yeterli sayıyordu.
+> Uygulamada hedef de çözülüyor: nöbetçide durulsaydı hedefi çözülemeyen geçişler
+> (örneğin hedef rolde sıfır veya birden fazla aktif kullanıcı olması, ya da `B02`
+> kapanana kadar dinamik aktöre geri dönüş) listeye girer ve her tıklamada kesin
+> `409` veren ölü düğmeler üretirdi. Çözüm veya ikinci doğrulama başarısız olursa
+> aksiyon **sessizce elenir** — hata fırlatılmaz, gerekçe dışarı çıkmaz (§1.1).
+> Bedeli aday aksiyon başına bir kullanıcı sorgusudur.
+
+Dry-run'da istek gövdesi bulunmadığı için bağlam **iyi biçimli bir isteği taklit
+eder**: `commentRequired` aksiyonlarda yer tutucu bir açıklama, hedef departman
+isteyen aksiyonda ise alanın doldurulmuş olduğu varsayılır. Aksi hâlde bu aksiyonlar
+doğrulamanın 5. ve 6-7. adımlarında elenir ve listede **hiç görünmezdi**; istemci
+zorunluluğu yanıttaki bayraklardan öğrenir.
 
 ### Yanıt
 
