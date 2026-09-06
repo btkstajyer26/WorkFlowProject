@@ -12,5 +12,16 @@ public interface DepartmentRoutingPort {
     DepartmentRoutingResolution resolve(int departmentId, RecordStatus from, WorkflowAction action);
     boolean isActiveDepartment(int departmentId);
     Set<Integer> activeDepartmentIdsFor(UUID userId);
+
+    /**
+     * Butun aktif departmanlarin kimlikleri. Hedef departman kesfi (APP-9) uyelikten
+     * bagimsizdir: gonderen kullanici hedef departmanin uyesi olmak zorunda degildir,
+     * bu yuzden {@link #activeDepartmentIdsFor(UUID)} bu soruya cevap veremez.
+     *
+     * <p>Yalniz kimlik doner; departman adi cozumu Spring katmaninda kalir ki cekirdek
+     * entity tanimasin.
+     */
+    Set<Integer> activeDepartmentIds();
+
     boolean roleHasPermission(RoleId roleId, String permissionCode);
 }

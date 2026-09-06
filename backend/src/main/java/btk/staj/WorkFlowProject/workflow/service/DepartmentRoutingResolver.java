@@ -9,7 +9,11 @@ import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRuleSource;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowErrorCode;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 /** Pure application service; all final actor checks remain in the validator. */
@@ -40,11 +44,35 @@ public final class DepartmentRoutingResolver {
         }
     }
 
+    /**
+     * Kaydin {@code landingStatus} durumuna gonderilebilecegi aktif departmanlar (APP-9 SS2).
+     *
+     * <p>Kume {@link #hasUsableRoutingInto} ile suzulur: donen her departman icin gonderim
+     * {@code WORKFLOW_DEPARTMENT_ROUTING_NOT_CONFIGURED} almayacagi <em>onceden</em>
+     * dogrulanmistir. Hem hedef departman kesfi ucu hem {@code DEPARTMANA_GONDER}
+     * aksiyonunun kullanilabilirligi ayni hesabi tuketir; iki yerde ayri kural kurulmaz.
+     */
+    public Set<Integer> usableTargetDepartments(RecordStatus landingStatus, UUID creatorId,
+            TransitionRuleSource snapshot) {
+        if (landingStatus.isTerminal()) return Set.of();
+        Set<Integer> usable = new LinkedHashSet<>();
+        for (int departmentId : routing.activeDepartmentIds()) {
+            if (hasUsableRoutingInto(departmentId, landingStatus, creatorId, snapshot)) {
+                usable.add(departmentId);
+            }
+        }
+        return Set.copyOf(usable);
+    }
+
     public boolean hasUsableRoutingInto(int departmentId, RecordStatus status, UUID creatorId,
             TransitionRuleSource snapshot) {
         if (status.isTerminal()) return false;
+        // Ayni (departman, durum, aksiyon) uclusu birden fazla aktor rolunun kuralinda
+        // tekrar edebilir. Cozum bu cagri boyunca deterministiktir, bir kez hesaplanir.
+        Map<WorkflowAction, DepartmentRoutingResolution> resolutions = new HashMap<>();
         return snapshot.all().stream().filter(rule -> rule.from() == status).anyMatch(rule ->
-                routing.resolve(departmentId, status, rule.action()) instanceof DepartmentRoutingResolution.Resolved resolved
+                resolutions.computeIfAbsent(rule.action(), action -> routing.resolve(departmentId, status, action))
+                        instanceof DepartmentRoutingResolution.Resolved resolved
                         && resolved.targetRoleId().equals(rule.actorRoleId())
                         && routing.roleHasPermission(resolved.targetRoleId(), "RECORD_VIEW")
                         && routing.roleHasPermission(resolved.targetRoleId(), rule.requiredPermissionCode())
