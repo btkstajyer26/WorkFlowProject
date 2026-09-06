@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -210,20 +211,33 @@ class WorkflowActorBindingIntegrationTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"inactive", "permission", "strategy", "terminal"})
+    @ValueSource(strings = {"inactive", "permission", "terminal"})
     void rejectsInvalidTemplateWithoutChangingTheOriginalGraph(String invalid) {
         int id = bindings.bind(template("TASLAK", "GONDER"), roleId).bindingId();
         switch (invalid) {
             case "inactive" -> jdbc.update("UPDATE workflow_transitions SET is_active = false WHERE id = ?", id);
             case "permission" -> jdbc.update("UPDATE workflow_transitions SET required_permission_id = NULL WHERE id = ?", id);
-            // DB allows this combination; domain requires a target role for non-NONE strategies.
-            case "strategy" -> jdbc.update("UPDATE workflow_transitions SET target_strategy = 'CREATOR', "
-                    + "expected_target_role_id = NULL WHERE id = ?", id);
             case "terminal" -> jdbc.update("UPDATE workflow_transitions SET from_status_id = "
                     + "(SELECT id FROM workflow_statuses WHERE name = 'ONAYLANDI') WHERE id = ?", id);
         }
         int otherRole = role("RECORD_VIEW", "RECORD_FORWARD");
         assertReason(() -> bindings.bind(id, otherRole), INVALID_TEMPLATE);
+    }
+
+    @Test
+    @DisplayName("hedef rol / strateji uyumsuzlugu artik veritabani kisitinda yakalanir")
+    void targetRoleAndStrategyMismatchIsRejectedByTheDatabase() {
+        // Eskiden bu senaryo yukaridaki listede "strategy" olarak vardi: DB kombinasyonu
+        // kabul ediyor, yalnizca Java invariant'i reddediyordu. V24 kisiti daraltti; iki
+        // taraf artik ayni seyi soyluyor ve ihlal SQL'e hic giremiyor (ADR-0008 K6).
+        int id = bindings.bind(template("TASLAK", "GONDER"), roleId).bindingId();
+
+        assertThatThrownBy(() -> jdbc.update(
+                "UPDATE workflow_transitions SET target_strategy = 'CREATOR' WHERE id = ?", id))
+                .hasMessageContaining("chk_transition_target_strategy_role");
+        assertThatThrownBy(() -> jdbc.update(
+                "UPDATE workflow_transitions SET expected_target_role_id = NULL WHERE id = ?", id))
+                .hasMessageContaining("chk_transition_target_strategy_role");
     }
 
     @ParameterizedTest

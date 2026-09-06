@@ -36,9 +36,20 @@ public class RecordAccessPolicy {
         if (!canView(actor, record)) throw new ForbiddenException("Bu kaydı görüntüleme yetkiniz yok");
     }
 
-    /** Returned records retain the deputy's handoff snapshot until reassigned. */
-    public boolean seesRecordAsOfHandoff(VisibilityActor actor, UUID assignedTo, RecordStatus status) {
-        return actor.hasSystemRole(SystemRoleKey.BASKAN_YARDIMCISI)
+    /**
+     * Returned records retain the forwarding actor's handoff snapshot until reassigned.
+     *
+     * <p>Iki kol da korunur (B13): yerlesik Baskan Yardimcisi duzeltmedeki her kaydi
+     * dondurulmus gorur (rol geneli kuyruk gorunumu), ve kaydi ileten <em>kim olursa
+     * olsun</em> kendi biraktigi hali gorur. Ikinci kol olmadan dinamik rol, geri
+     * dondurulen kaydin guncel icerigini gorurdu - yerlesik rolle ayni konumda
+     * farkli davranis.
+     */
+    public boolean seesRecordAsOfHandoff(VisibilityActor actor, UUID assignedTo,
+                                         UUID lastDeputyId, RecordStatus status) {
+        boolean forwardedByActor = actor.hasSystemRole(SystemRoleKey.BASKAN_YARDIMCISI)
+                || Objects.equals(actor.id(), lastDeputyId);
+        return forwardedByActor
                 && status == RecordStatus.DUZENLEME_BEKLIYOR
                 && !Objects.equals(actor.id(), assignedTo);
     }

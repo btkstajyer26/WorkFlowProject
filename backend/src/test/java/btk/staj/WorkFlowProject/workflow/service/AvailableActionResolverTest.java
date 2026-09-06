@@ -105,9 +105,8 @@ class AvailableActionResolverTest {
     void hidesActionsWhoseTargetRoleIsAmbiguous() {
         Users users = activeUsers();
         users.byRole.put(WorkflowRoleFixtures.id(RoleName.BASKAN_YARDIMCISI), List.of(
-                new WorkflowUserSnapshot(DEPUTY, WorkflowRoleFixtures.id(RoleName.BASKAN_YARDIMCISI), true),
-                new WorkflowUserSnapshot(UUID.randomUUID(),
-                        WorkflowRoleFixtures.id(RoleName.BASKAN_YARDIMCISI), true)));
+                WorkflowRoleFixtures.target(DEPUTY, RoleName.BASKAN_YARDIMCISI, true),
+                WorkflowRoleFixtures.target(UUID.randomUUID(), RoleName.BASKAN_YARDIMCISI, true)));
 
         assertThat(resolver(noDepartments(), users)
                 .resolve(actor(CREATOR, RoleName.CALISAN), record(RecordStatus.TASLAK, null), rules))
@@ -119,7 +118,7 @@ class AvailableActionResolverTest {
     void hidesActionsWhoseResolvedTargetIsInactive() {
         Users users = activeUsers();
         WorkflowUserSnapshot inactive =
-                new WorkflowUserSnapshot(CREATOR, WorkflowRoleFixtures.id(RoleName.CALISAN), false);
+                WorkflowRoleFixtures.target(CREATOR, RoleName.CALISAN, false);
         users.byId.put(CREATOR, inactive);
 
         // CALISANA_GERI_GONDER hedefi CREATOR stratejisiyle kaydi olusturana coker.
@@ -218,8 +217,7 @@ class AvailableActionResolverTest {
     }
 
     private static void put(Users users, UUID id, RoleName role) {
-        WorkflowUserSnapshot snapshot =
-                new WorkflowUserSnapshot(id, WorkflowRoleFixtures.id(role), true);
+        WorkflowUserSnapshot snapshot = WorkflowRoleFixtures.target(id, role, true);
         users.byId.put(id, snapshot);
         users.byRole.put(WorkflowRoleFixtures.id(role), List.of(snapshot));
     }

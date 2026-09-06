@@ -48,7 +48,7 @@ public class RecordContentView {
         Objects.requireNonNull(record, "record");
 
         boolean asOfHandoff = recordAccessPolicy.seesRecordAsOfHandoff(
-                actor, record.getAssignedTo(), record.getStatus());
+                actor, record.getAssignedTo(), record.getLastDeputyId(), record.getStatus());
 
         // snapshotAt bos ise dondurulacak bir sey yok. V9 migration'i mevcut
         // duzeltmedeki kayitlari geri doldurdugu ve gecis her seferinde anlik

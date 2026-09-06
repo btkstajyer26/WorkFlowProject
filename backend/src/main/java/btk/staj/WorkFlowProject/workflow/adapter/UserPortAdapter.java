@@ -1,6 +1,7 @@
 package btk.staj.WorkFlowProject.workflow.adapter;
 
 import btk.staj.WorkFlowProject.rbac.Role;
+import btk.staj.WorkFlowProject.rbac.repository.RolePermissionRepository;
 import btk.staj.WorkFlowProject.user.entity.User;
 import btk.staj.WorkFlowProject.user.repository.UserRepository;
 import btk.staj.WorkFlowProject.workflow.model.WorkflowUserSnapshot;
@@ -10,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
 
@@ -17,9 +19,13 @@ import org.springframework.stereotype.Component;
 public final class UserPortAdapter implements WorkflowUserPort {
 
     private final UserRepository userRepository;
+    private final RolePermissionRepository rolePermissionRepository;
 
-    public UserPortAdapter(UserRepository userRepository) {
+    public UserPortAdapter(UserRepository userRepository,
+                           RolePermissionRepository rolePermissionRepository) {
         this.userRepository = Objects.requireNonNull(userRepository, "userRepository");
+        this.rolePermissionRepository =
+                Objects.requireNonNull(rolePermissionRepository, "rolePermissionRepository");
     }
 
     @Override
@@ -50,7 +56,7 @@ public final class UserPortAdapter implements WorkflowUserPort {
         return List.copyOf(snapshots);
     }
 
-    private static WorkflowUserSnapshot toSnapshot(User user) {
+    private WorkflowUserSnapshot toSnapshot(User user) {
         if (user == null) {
             throw new IllegalStateException("UserRepository returned a null User");
         }
@@ -72,6 +78,17 @@ public final class UserPortAdapter implements WorkflowUserPort {
             throw new IllegalStateException("Repository User has a missing or invalid role id", exception);
         }
 
-        return new WorkflowUserSnapshot(userId, roleId, user.isActive() && entityRole.isActive());
+        // Pasif rolun permission'lari okunmaz: aktif olmayan rol icin kod listesi
+        // anlamsizdir ve zaten yetenek kontrolu once aktiflige bakar.
+        Set<String> permissionCodes = entityRole.isActive()
+                ? Set.copyOf(rolePermissionRepository.findActiveCodesByRoleId(entityRole.getId()))
+                : Set.of();
+
+        return new WorkflowUserSnapshot(
+                userId,
+                roleId,
+                user.isActive() && entityRole.isActive(),
+                entityRole.isWorkflowActor(),
+                permissionCodes);
     }
 }

@@ -10,12 +10,12 @@ import btk.staj.WorkFlowProject.workflow.statemachine.TransitionDecision;
 import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRule;
 import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRuleSource;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
-import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowErrorCode;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowTransitionValidator;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Bir aktorun bir kayit uzerinde su an yapabilecegi aksiyonlari hesaplar (APP-9 SS1).
@@ -96,10 +96,9 @@ public final class AvailableActionResolver {
         TransitionDecision first = validator.validate(context, snapshot);
 
         if (requiresTargetUser(rule)) {
-            // Hedef henuz cozulmedigi icin bu asamada tek kabul edilebilir ret,
-            // WorkflowApplicationService'in de yuttugu nobetcidir.
-            if (first instanceof TransitionDecision.Rejected rejected
-                    && rejected.errorCode() != WorkflowErrorCode.WORKFLOW_TARGET_ROLE_INVALID) {
+            // Hedef henuz cozulmedigi icin beklenen sonuc askida karardir; gercek bir
+            // ret ise aksiyon zaten kullanilamaz.
+            if (!(first instanceof TransitionDecision.Pending)) {
                 return false;
             }
 
@@ -113,7 +112,7 @@ public final class AvailableActionResolver {
 
             WorkflowUserSnapshot target = resolved.user();
             return validator.validate(
-                    withResolvedTarget(context, target), snapshot).isAllowed();
+                    withResolvedTarget(context, target, record), snapshot).isAllowed();
         }
 
         if (rule.targetStrategy() == TargetStrategy.DEPARTMENT) {
@@ -147,11 +146,16 @@ public final class AvailableActionResolver {
                 null,
                 false,
                 actor.workflowActor(),
-                actor.permissionCodes());
+                actor.permissionCodes(),
+                true,
+                false,
+                false,
+                Set.of());
     }
 
     private static TransitionContext withResolvedTarget(TransitionContext context,
-                                                        WorkflowUserSnapshot target) {
+                                                        WorkflowUserSnapshot target,
+                                                        WorkflowRecordSnapshot record) {
         return new TransitionContext(
                 context.currentStatus(),
                 context.action(),
@@ -164,6 +168,10 @@ public final class AvailableActionResolver {
                 target.roleId(),
                 target.active(),
                 context.actorWorkflowActor(),
-                context.actorPermissionCodes());
+                context.actorPermissionCodes(),
+                false,
+                target.id().equals(record.createdBy()),
+                target.workflowActor(),
+                target.permissionCodes());
     }
 }

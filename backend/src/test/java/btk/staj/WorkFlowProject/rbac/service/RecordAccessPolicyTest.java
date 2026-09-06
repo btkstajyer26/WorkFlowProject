@@ -30,14 +30,24 @@ class RecordAccessPolicyTest {
 
     @ParameterizedTest
     @EnumSource(RecordStatus.class)
-    void dynamicReadersNeedOwnershipOrCurrentAssignmentInEveryStatus(RecordStatus status) {
+    void dynamicReadersNeedOwnershipAssignmentOrHavingForwardedTheRecord(RecordStatus status) {
         var dynamic = actor(null, true);
         assertThat(policy.canView(dynamic, record(viewer, null, null, status))).isTrue();
         assertThat(policy.canView(dynamic, record(other, viewer, null, status))).isTrue();
-        assertThat(policy.canView(dynamic, record(other, other, viewer, status))).isFalse();
+
+        // B13: kaydi Baskana ileten kisi, rolu ne olursa olsun onu gormeye devam eder.
+        // Iliski kendini sinirlar - last_deputy_id'ye yazilmanin tek yolu BASKANA_ILET'tir.
+        assertThat(policy.canView(dynamic, record(other, other, viewer, status))).isTrue();
+
+        // Iliskisi olmayan dinamik okuyucu hala goremez.
         assertThat(policy.canView(dynamic, record(other, null, null, status))).isFalse();
+        assertThat(policy.canView(dynamic, record(other, other, other, status))).isFalse();
+
         assertThat(policy.seesHistoryFromPresidentHandover(dynamic)).isFalse();
-        assertThat(policy.seesRecordAsOfHandoff(dynamic, other, status)).isFalse();
+        // Ilettigi kayit duzeltmeye dustugunde icerik dondurulur; iletmedigi kayitta dondurulmaz.
+        assertThat(policy.seesRecordAsOfHandoff(dynamic, other, viewer, status))
+                .isEqualTo(status == RecordStatus.DUZENLEME_BEKLIYOR);
+        assertThat(policy.seesRecordAsOfHandoff(dynamic, other, null, status)).isFalse();
     }
 
     @ParameterizedTest
@@ -59,8 +69,8 @@ class RecordAccessPolicyTest {
             assertThat(policy.canView(president, record(other, null, null, status))).isTrue();
         }
         assertThat(policy.canView(president, record(other, other, null, RecordStatus.DUZENLEME_BEKLIYOR))).isFalse();
-        assertThat(policy.seesRecordAsOfHandoff(deputy, other, RecordStatus.DUZENLEME_BEKLIYOR)).isTrue();
-        assertThat(policy.seesRecordAsOfHandoff(deputy, viewer, RecordStatus.DUZENLEME_BEKLIYOR)).isFalse();
+        assertThat(policy.seesRecordAsOfHandoff(deputy, other, null, RecordStatus.DUZENLEME_BEKLIYOR)).isTrue();
+        assertThat(policy.seesRecordAsOfHandoff(deputy, viewer, null, RecordStatus.DUZENLEME_BEKLIYOR)).isFalse();
         assertThat(policy.seesHistoryFromPresidentHandover(president)).isTrue();
     }
 

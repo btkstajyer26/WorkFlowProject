@@ -107,7 +107,12 @@ class WorkflowRuleReloadIntegrationTest {
     void failedReloadKeepsTheRunningRuleSet() throws Exception {
         assertThat(ruleSource.all()).hasSize(SEEDED_RULE_COUNT);
 
-        jdbc.update("UPDATE workflow_transitions SET expected_target_role_id = NULL"
+        // Veritabaninin kabul ettigi ama alan modelinin reddettigi bir satir gerekiyor.
+        // V24 oncesinde bu, CREATOR satirindaki bos hedef roldu; artik kisit ile Java
+        // invariant'i hizali oldugu icin o kombinasyon SQL'e hic giremiyor. V15
+        // required_permission_id'yi bilerek nullable biraktigindan (kontrollu gelecek
+        // genisleme icin) bosluk simdi orada.
+        jdbc.update("UPDATE workflow_transitions SET required_permission_id = NULL"
                 + " WHERE target_strategy = 'CREATOR'");
         try {
             mockMvc.perform(post(RELOAD_URL).header("Authorization", "Bearer " + adminToken()))
@@ -117,9 +122,9 @@ class WorkflowRuleReloadIntegrationTest {
                     .as("basarisiz tazelemeden sonra kurallar korunmali")
                     .hasSize(SEEDED_RULE_COUNT);
         } finally {
-            jdbc.update("UPDATE workflow_transitions t SET expected_target_role_id = r.id"
-                    + " FROM roles r WHERE r.system_key = 'CALISAN'"
-                    + " AND t.target_strategy = 'CREATOR' AND t.expected_target_role_id IS NULL");
+            jdbc.update("UPDATE workflow_transitions t SET required_permission_id = p.id"
+                    + " FROM permissions p WHERE p.code = 'RECORD_RETURN'"
+                    + " AND t.target_strategy = 'CREATOR' AND t.required_permission_id IS NULL");
             reloadDirectly();
         }
     }

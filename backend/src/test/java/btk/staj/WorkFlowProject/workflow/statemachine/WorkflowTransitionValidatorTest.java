@@ -1,5 +1,6 @@
 package btk.staj.WorkFlowProject.workflow.statemachine;
 
+import java.util.Set;
 import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
 import btk.staj.WorkFlowProject.support.WorkflowRoleFixtures;
 import java.util.ArrayList;
@@ -31,7 +32,8 @@ class WorkflowTransitionValidatorTest {
         var source = new StaticTransitionRuleSource(ids);
         var context = new TransitionContext(RecordStatus.TASLAK, WorkflowAction.GONDER,
                 new RoleId(1001), true, false, null, false, false, new RoleId(2002), true,
-                true, java.util.Set.of("RECORD_FORWARD"));
+                true, java.util.Set.of("RECORD_FORWARD"),
+                false, true, true, java.util.Set.of("RECORD_VIEW", "RECORD_FORWARD", "RECORD_RETURN"));
 
         assertThat(context.actorRoleId()).isNotSameAs(ids.get(RoleName.CALISAN));
         assertThat(context.targetRoleId()).isNotSameAs(ids.get(RoleName.BASKAN_YARDIMCISI));
@@ -482,7 +484,8 @@ class WorkflowTransitionValidatorTest {
                 null,
                 true,
                 AuthorizationFixtures.workflowActor(RoleName.BASKAN),
-                AuthorizationFixtures.permissions(RoleName.BASKAN)))
+                AuthorizationFixtures.permissions(RoleName.BASKAN),
+                false, false, false, Set.of()))
                 .isInstanceOf(NullPointerException.class);
     }
 
@@ -559,7 +562,13 @@ class WorkflowTransitionValidatorTest {
                                                                 WorkflowRoleFixtures.id(hedefRol),
                                                                 hedefAktif,
                                                                 AuthorizationFixtures.workflowActor(actorRole),
-                                                                AuthorizationFixtures.permissions(actorRole)));
+                                                                AuthorizationFixtures.permissions(actorRole),
+                                                                // Hedef cozulmus kabul edilir; bu tarama
+                                                                // ret KODLARINI olcuyor, yetenegi degil.
+                                                                false,
+                                                                true,
+                                                                AuthorizationFixtures.workflowActor(hedefRol),
+                                                                AuthorizationFixtures.permissions(hedefRol)));
 
                                                 if (karar instanceof TransitionDecision.Rejected ret) {
                                                     kodlar.add(ret.errorCode());
@@ -602,6 +611,12 @@ class WorkflowTransitionValidatorTest {
         private boolean targetProvidedInRequest;
         private RoleId targetRole;
         private boolean targetActive = true;
+        // Hedef varsayilan olarak YETENEKLIDIR (ADR-0008 K4): aksi halde her senaryo
+        // WORKFLOW_TARGET_CANNOT_ACT'a takilir ve testler kendi konularini olcemezdi.
+        // Yeteneksiz hedefi olcen testler asagidaki yardimcilarla acikca opt-in yapar.
+        private boolean targetIsCreator = true;
+        private boolean targetWorkflowActor = true;
+        private Set<String> targetPermissions = AuthorizationFixtures.permissions(RoleName.CALISAN);
 
         private Ctx(RecordStatus status, WorkflowAction action, RoleName actorRole) {
             this.status = status;
@@ -638,6 +653,26 @@ class WorkflowTransitionValidatorTest {
         /** Servisin kendi cozdugu hedef (istekte gonderilmez). */
         Ctx resolvedTarget(RoleName role) {
             this.targetRole = WorkflowRoleFixtures.id(role);
+            this.targetWorkflowActor = AuthorizationFixtures.workflowActor(role);
+            this.targetPermissions = AuthorizationFixtures.permissions(role);
+            return this;
+        }
+
+        /** Hedef kaydi olusturan degil; CREATOR gerektiren inis gecislerini dusurur. */
+        Ctx targetNotCreator() {
+            this.targetIsCreator = false;
+            return this;
+        }
+
+        /** Hedefin rolu workflow aktoru olamaz. */
+        Ctx targetNotWorkflowActor() {
+            this.targetWorkflowActor = false;
+            return this;
+        }
+
+        /** Hedefin inis durumunda hicbir gecise yetecek yetkisi yok. */
+        Ctx targetWithoutPermissions() {
+            this.targetPermissions = Set.of();
             return this;
         }
 
@@ -663,7 +698,12 @@ class WorkflowTransitionValidatorTest {
                     targetRole,
                     targetActive,
                     AuthorizationFixtures.workflowActor(actorRole),
-                    AuthorizationFixtures.permissions(actorRole));
+                    AuthorizationFixtures.permissions(actorRole),
+                    // Hedef cozulmemisse karar askidadir.
+                    targetRole == null,
+                    targetIsCreator,
+                    targetWorkflowActor,
+                    targetPermissions);
         }
     }
 }

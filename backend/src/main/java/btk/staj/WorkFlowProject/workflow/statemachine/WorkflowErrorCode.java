@@ -71,5 +71,15 @@ public enum WorkflowErrorCode {
 
     WORKFLOW_DEPARTMENT_ROUTING_NOT_CONFIGURED,
 
+    /**
+     * Cozulen hedef kayitla ilgili hicbir islem yapamiyor: pasif rol, workflow aktoru
+     * olmayan rol, ya da inis durumunda hedefin rolune tanimli kullanilabilir gecis yok
+     * (ADR-0008 K4/K5).
+     *
+     * <p>Sessizce departman kuyruguna veya yerlesik role dusulmez; kayit mahsur kalmaz,
+     * cunku Baskanin CALISANA_GERI_GONDER kolu CREATOR stratejisiyle acik kalir.
+     */
+    WORKFLOW_TARGET_CANNOT_ACT,
+
     WORKFLOW_VERSION_CONFLICT
 }

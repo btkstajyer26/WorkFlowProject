@@ -15,7 +15,8 @@ import java.util.Objects;
  * @param actorRequirement   aktorun kayitla kurmasi gereken iliski
  * @param to                 gecis basarili oldugunda kaydin alacagi durum
  * @param targetStrategy     hedef kullanicinin nasil cozulecegi
- * @param expectedTargetRoleId cozulen hedefin tasimasi gereken rol; hedef yoksa {@code null}
+ * @param expectedTargetRoleId ROLE stratejisinde hedefin aranacagi rol; diger butun
+ *                             stratejilerde {@code null}
  */
 public record TransitionRule(
         RecordStatus from,
@@ -38,31 +39,21 @@ public record TransitionRule(
             throw new IllegalArgumentException("requiredPermissionCode must not be blank");
         }
 
-        // Hedef gerektiren her gecis beklenen rolu de tasimak zorundadir.
+        // expected_target_role_id YALNIZ ROLE stratejisinin arama anahtaridir (ADR-0008 K2).
         //
-        // Bu kural veritabanindaki CHECK'ten daha katidir: chk_transition_target_strategy
-        // yalnizca ROLE icin rolu zorunlu kilar, CREATOR / CURRENT_ASSIGNEE /
-        // PREVIOUS_ACTOR satirlarinda serbest birakir. Burada cift yonlu zorunlu tutmamizin
-        // sebebi WorkflowApplicationService'in iki gecisli dogrulamasidir: hedef gerektiren
-        // bir gecis, hedef henuz cozulmemisken WORKFLOW_TARGET_ROLE_INVALID ile
-        // reddedilmelidir ve bu ancak beklenen rol doluysa gerceklesir. Rol bos olsaydi on
-        // dogrulama gecisi kabul eder, servis de beklemedigi bir "Allowed" ile karsilasirdi.
+        // V24'teki chk_transition_target_strategy_role'un Java karsiligidir; kisit ile
+        // invariant artik birebir ayni seyi soyler.
         //
-        // DEPARTMENT bu kuraldan muaftir (ADR-0006): hedefi bir kullanici degil bir
-        // departmandir, hedef rol geciste degil department_routing_rules'ta durur ve
-        // iki gecisli dogrulama onu NONE gibi ele alir (requiresTargetUser false).
-        // V23'teki chk_transition_target_strategy_role de DEPARTMENT icin
-        // expected_target_role_id'nin NULL olmasini sart kosar; asagidaki ikinci
-        // kontrol bu kisitin Java karsiligidir.
-        //
-        // Seed edilmis sekiz gecisin tamami bu kosulu zaten saglar (DB-1 SS8).
-        boolean targetRoleExpected = targetStrategy != TargetStrategy.NONE
-                && targetStrategy != TargetStrategy.DEPARTMENT;
-        if (targetRoleExpected && expectedTargetRoleId == null) {
+        // Eskiden kolon CREATOR / CURRENT_ASSIGNEE / PREVIOUS_ACTOR icin de zorunluydu,
+        // ama gerekcesi hedefin rolu degildi: iki asamali dogrulamanin nobetcisi bu kolona
+        // dayaniyordu. Nobetci artik target_strategy'den turetilen
+        // TransitionDecision.Pending oldugu icin o zorunluluk ortadan kalkti - ve onunla
+        // birlikte, calisma zamaninda belirlenen bir hedefe yerlesik rol dayatan B02 de.
+        if (targetStrategy == TargetStrategy.ROLE && expectedTargetRoleId == null) {
             throw new IllegalArgumentException(
-                    "targetStrategy " + targetStrategy + " requires expectedTargetRoleId");
+                    "targetStrategy ROLE requires expectedTargetRoleId");
         }
-        if (!targetRoleExpected && expectedTargetRoleId != null) {
+        if (targetStrategy != TargetStrategy.ROLE && expectedTargetRoleId != null) {
             throw new IllegalArgumentException(
                     "targetStrategy " + targetStrategy
                             + " must not carry expectedTargetRoleId but was "

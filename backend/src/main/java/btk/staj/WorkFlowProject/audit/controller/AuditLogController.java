@@ -57,6 +57,7 @@ public class AuditLogController {
         if (recordAccessPolicy.seesRecordAsOfHandoff(
                 actor,
                 record.getAssignedTo(),
+                record.getLastDeputyId(),
                 record.getStatus())) {
             return auditLogService.getGecmisDevreKadar(recordId);
         }

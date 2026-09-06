@@ -59,11 +59,15 @@ class DynamicWorkflowRoleIntegrationTest {
     void configureDynamicRoles() {
         originalRules = rules.all();
         actorRoleId = insertRole(true);
-        targetRoleId = insertRole(false);
+        // Hedef rol de workflow aktorudur: ADR-0008 K4 geregi kayit, uzerinde hicbir sey
+        // yapamayacak birine atanamaz. Hedefin inis durumundaki yetenegi asagida kurulur.
+        targetRoleId = insertRole(true);
         actorId = insertUser(actorRoleId);
         targetId = insertUser(targetRoleId);
         jdbc.update("INSERT INTO role_permissions(role_id, permission_id) "
                 + "SELECT ?, id FROM permissions WHERE code = 'RECORD_FORWARD'", actorRoleId);
+        jdbc.update("INSERT INTO role_permissions(role_id, permission_id) "
+                + "SELECT ?, id FROM permissions WHERE code IN ('RECORD_VIEW', 'RECORD_FORWARD')", targetRoleId);
         jdbc.update("""
                 INSERT INTO workflow_transitions
                     (from_status_id, action_id, actor_role_id, actor_requirement, to_status_id,
@@ -73,6 +77,16 @@ class DynamicWorkflowRoleIntegrationTest {
                 WHERE fs.name = 'TASLAK' AND a.name = 'GONDER'
                   AND ts.name = 'BSK_YRD_INCELEMESINDE' AND p.code = 'RECORD_FORWARD'
                 """, actorRoleId, targetRoleId);
+        // Hedefin inis durumundaki yetenegi: BSK_YRD_INCELEMESINDE'den Baskana iletebilir.
+        jdbc.update("""
+                INSERT INTO workflow_transitions
+                    (from_status_id, action_id, actor_role_id, actor_requirement, to_status_id,
+                     expected_target_role_id, target_strategy, required_permission_id)
+                SELECT fs.id, a.id, ?, 'ASSIGNEE', ts.id, NULL, 'CURRENT_ASSIGNEE', p.id
+                FROM workflow_statuses fs, workflow_actions a, workflow_statuses ts, permissions p
+                WHERE fs.name = 'BSK_YRD_INCELEMESINDE' AND a.name = 'BASKANA_ILET'
+                  AND ts.name = 'BASKAN_INCELEMESINDE' AND p.code = 'RECORD_FORWARD'
+                """, targetRoleId);
         recordId = UUID.randomUUID();
         jdbc.update("""
                 INSERT INTO records (id, title, description, category_id, status, created_by, version)
@@ -156,12 +170,16 @@ class DynamicWorkflowRoleIntegrationTest {
     }
 
     @Test
-    void creatorStrategyRejectsDifferentRoleId() throws Exception {
-        jdbc.update("UPDATE workflow_transitions SET target_strategy = 'CREATOR' WHERE actor_role_id = ?",
-                actorRoleId);
+    void creatorStrategyRejectsATargetThatCannotActInTheLandingStatus() throws Exception {
+        // V24 sonrasi CREATOR satiri hedef rol tasiyamaz; hedefin uygunlugu statik rol
+        // esitligiyle degil yetenekle olculur (ADR-0008 K2/K4). Burada hedef kaydi
+        // olusturan aktordur ve inis durumunda kendisine tanimli hicbir gecis yoktur,
+        // yani kayit olu uca duserdi.
+        jdbc.update("UPDATE workflow_transitions SET target_strategy = 'CREATOR', "
+                + "expected_target_role_id = NULL WHERE actor_role_id = ?", actorRoleId);
         reload();
-        perform().andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("WORKFLOW_TARGET_ROLE_INVALID"));
+        perform().andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("WORKFLOW_TARGET_CANNOT_ACT"));
         assertUnchanged();
     }
 

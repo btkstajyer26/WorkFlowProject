@@ -270,7 +270,7 @@ class TargetUserResolverTest {
     }
 
     private static WorkflowUserSnapshot user(UUID id, RoleName role, boolean active) {
-        return new WorkflowUserSnapshot(id, WorkflowRoleFixtures.id(role), active);
+        return WorkflowRoleFixtures.target(id, role, active);
     }
 
     private static WorkflowRecordSnapshot recordWithoutAssignee() {

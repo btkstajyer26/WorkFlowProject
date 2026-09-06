@@ -33,10 +33,17 @@ public record RecordVisibilityScope(UUID actorId, Set<Relation> relations, Set<R
         if (!actor.permissionCodes().contains("RECORD_VIEW") || actor.hasSystemRole(SystemRoleKey.ADMIN)) {
             return new RecordVisibilityScope(actor.id(), Set.of(), Set.of(), Set.of());
         }
-        var relations = EnumSet.of(Relation.CREATOR, Relation.ASSIGNEE);
+        // PREVIOUS_DEPUTY herkese verilir cunku ILISKI kendini sinirlar: yalnizca
+        // actorId == lastDeputyId oldugunda eslesir ve o alana yazilmanin tek yolu
+        // kaydi Baskana iletmis olmaktir. "Ilettigim kaydi gormeye devam ederim"
+        // bir rol ayricaligi degil, kayitla kurulan bir iliskidir - dinamik rol de
+        // ayni iliskiyi kurar (B13).
+        var relations = EnumSet.of(Relation.CREATOR, Relation.ASSIGNEE, Relation.PREVIOUS_DEPUTY);
         var statuses = EnumSet.noneOf(RecordStatus.class);
         if (actor.hasSystemRole(SystemRoleKey.BASKAN_YARDIMCISI)) {
-            relations.add(Relation.PREVIOUS_DEPUTY);
+            // Bu DURUM izni ise rol geneli bir kuyruk ayricaligidir: yerlesik yardimci
+            // duzeltmedeki HER kaydi gorur, ilettigi kayitlari degil. Tek bir yerlesik
+            // koltuga ozgudur ve her dinamik role dagitilmaz.
             statuses.add(RecordStatus.DUZENLEME_BEKLIYOR);
         }
         if (actor.hasSystemRole(SystemRoleKey.BASKAN)) {

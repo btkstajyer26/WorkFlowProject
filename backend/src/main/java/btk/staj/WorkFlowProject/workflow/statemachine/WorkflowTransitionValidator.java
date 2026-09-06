@@ -85,19 +85,69 @@ public class WorkflowTransitionValidator {
         // Beklenen rol aksiyonun degil GECISIN ozelligidir: ayni aksiyon farkli gecislerde
         // farkli hedefe gidebilir (DB-1 SS6.5). Ornegin CALISANA_GERI_GONDER hem Baskan
         // Yardimcisinin hem Baskanin kullandigi iki ayri satirda bulunur.
-        RoleId expectedTargetRoleId = rule.get().expectedTargetRoleId();
-        if (expectedTargetRoleId != null) {
-            // ADMIN veya yanlis roldeki hedef burada elenir. Hedef cozulememisse
-            // (null) yine gecersiz sayilir; servis bu durumu zaten daha once
-            // WORKFLOW_ROLE_NOT_CONFIGURED ile durdurmus olmalidir.
-            if (!expectedTargetRoleId.equals(context.targetRoleId())) {
+        // 8. Hedef gerektiren gecislerde hedefin cozulmesi beklenir.
+        //
+        // "Bu gecis hedef ister" bilgisi artik target_strategy'den turetilir, beklenen
+        // hedef rol kolonundan degil (ADR-0008 K3). Kolon yalnizca ROLE stratejisinin
+        // arama anahtaridir; CREATOR / CURRENT_ASSIGNEE / PREVIOUS_ACTOR satirlarinda
+        // bostur ve hicbir dogrulamada okunmaz.
+        if (requiresTargetUser(rule.get())) {
+            if (context.targetResolutionPending()) {
+                return TransitionDecision.pending();
+            }
+
+            // 9. Cozulen hedefin kimligi: yanlis rol yalnizca ROLE stratejisinde anlamlidir.
+            RoleId expectedTargetRoleId = rule.get().expectedTargetRoleId();
+            if (expectedTargetRoleId != null && !expectedTargetRoleId.equals(context.targetRoleId())) {
                 return TransitionDecision.rejected(WorkflowErrorCode.WORKFLOW_TARGET_ROLE_INVALID);
             }
+
+            // 10. Hedefin yetenegi: kayit, onunla hicbir sey yapamayacak birine atanmasin.
+            // Statik rol dayatmasinin yerine gecen kontrol budur (ADR-0008 K4).
             if (!context.targetActive()) {
                 return TransitionDecision.rejected(WorkflowErrorCode.WORKFLOW_TARGET_INACTIVE);
+            }
+            if (!context.targetWorkflowActor()
+                    || !canActInLandingStatus(rule.get(), context, snapshot)) {
+                return TransitionDecision.rejected(WorkflowErrorCode.WORKFLOW_TARGET_CANNOT_ACT);
             }
         }
 
         return TransitionDecision.allowed(rule.get().to());
+    }
+
+    /**
+     * Gecis bir hedef kullaniciya ihtiyac duyuyor mu.
+     *
+     * <p>{@code DEPARTMENT} muaftir: hedefi bir kullanici degil departmandir ve
+     * uygunluk {@code department_routing_rules} uzerinden servis katmaninda cozulur.
+     */
+    private static boolean requiresTargetUser(TransitionRule rule) {
+        return rule.targetStrategy() != TargetStrategy.NONE
+                && rule.targetStrategy() != TargetStrategy.DEPARTMENT;
+    }
+
+    /**
+     * Hedef, kaydin inecegi durumda en az bir islem yapabiliyor mu (ADR-0008 K4.3)?
+     *
+     * <p>Departman kolundaki {@code hasUsableRoutingInto} ile ayni sekildedir: kisi ve
+     * departman kollari tek bir "hedef gercekten isleyebilir mi?" kuralinda bulusur.
+     * Kayit, uzerinde hicbir sey yapamayacak birine atanirsa olu uca dusardi.
+     *
+     * <p>Hesap yalnizca kural snapshot'i ve hedefin permission kumesi uzerinden yapilir;
+     * validator veritabani bagimliligi almaz (V1 kirmizi cizgi 1).
+     */
+    private static boolean canActInLandingStatus(TransitionRule rule, TransitionContext context,
+                                                 TransitionRuleSource snapshot) {
+        return snapshot.all().stream()
+                .filter(candidate -> candidate.from() == rule.to())
+                .filter(candidate -> candidate.actorRoleId().equals(context.targetRoleId()))
+                .anyMatch(candidate ->
+                        context.targetPermissionCodes().contains("RECORD_VIEW")
+                                && context.targetPermissionCodes().contains(candidate.requiredPermissionCode())
+                                // Gecisin yaratacagi atama hedefin uzerindedir, bu yuzden
+                                // assignment kosulu tanim geregi saglanir.
+                                && candidate.actorRequirement()
+                                        .isSatisfiedBy(context.targetIsCreator(), true));
     }
 }

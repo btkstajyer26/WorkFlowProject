@@ -58,10 +58,12 @@ public final class TransitionRuleInvariants {
     }
 
     /**
-     * {@code NONE} ve {@code DEPARTMENT} hedef rol tasimaz; diger butun stratejiler tasir.
+     * Hedef rol YALNIZ {@code ROLE} stratejisinde tasinir (ADR-0008 K2).
      *
-     * <p>{@code DEPARTMENT}'in hedefi bir kullanici degil departmandir; hedef rol
-     * geciste degil {@code department_routing_rules}'ta durur (ADR-0006). V23'teki
+     * <p>Kolon o stratejinin arama anahtaridir. Kimligi calisma zamaninda belirlenen
+     * hedeflerde ({@code CREATOR}, {@code CURRENT_ASSIGNEE}, {@code PREVIOUS_ACTOR})
+     * ve departman hedefinde bostur; hedefin uygunlugu statik rol esitligiyle degil
+     * yetenek kontrolu ile dogrulanir. V24'teki
      * {@code chk_transition_target_strategy_role} de ayni sarti kosar.
      */
     public static void assertTargetStrategyAndExpectedRoleAgree(TransitionRuleSource source) {
@@ -70,17 +72,16 @@ public final class TransitionRuleInvariants {
                     .as("%s + %s + %s icin hedef stratejisi", rule.from(), rule.action(), rule.actorRoleId())
                     .isNotNull();
 
-            if (rule.targetStrategy() == TargetStrategy.NONE
-                    || rule.targetStrategy() == TargetStrategy.DEPARTMENT) {
+            if (rule.targetStrategy() == TargetStrategy.ROLE) {
+                assertThat(rule.expectedTargetRoleId())
+                        .as("%s + %s ROLE stratejisinde hedef rol tasimali",
+                                rule.from(), rule.action())
+                        .isNotNull();
+            } else {
                 assertThat(rule.expectedTargetRoleId())
                         .as("%s + %s %s stratejisinde hedef rol tasimamali",
                                 rule.from(), rule.action(), rule.targetStrategy())
                         .isNull();
-            } else {
-                assertThat(rule.expectedTargetRoleId())
-                        .as("%s + %s %s stratejisinde hedef rol tasimali",
-                                rule.from(), rule.action(), rule.targetStrategy())
-                        .isNotNull();
             }
         }
     }
