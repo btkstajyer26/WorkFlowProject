@@ -7,6 +7,7 @@ import btk.staj.WorkFlowProject.workflow.port.TransitionRuleRecordReader;
 import btk.staj.WorkFlowProject.workflow.port.WorkflowEventPublisher;
 import btk.staj.WorkFlowProject.workflow.port.WorkflowRecordPort;
 import btk.staj.WorkFlowProject.workflow.port.WorkflowUserPort;
+import btk.staj.WorkFlowProject.workflow.service.AvailableActionResolver;
 import btk.staj.WorkFlowProject.workflow.service.TargetUserResolver;
 import btk.staj.WorkFlowProject.workflow.service.DepartmentRoutingResolver;
 import btk.staj.WorkFlowProject.workflow.port.DepartmentRoutingPort;
@@ -71,6 +72,18 @@ public class WorkflowConfiguration {
     @Bean
     public DepartmentRoutingResolver departmentRoutingResolver(DepartmentRoutingPort port) {
         return new DepartmentRoutingResolver(port);
+    }
+
+    /**
+     * Kullanilabilir aksiyon hesabi (APP-9). Gecisi uygulayan servisle ayni validator ve
+     * ayni cozucu ornekleri verilir; iki yol tek kural kaynagini paylasir.
+     */
+    @Bean
+    public AvailableActionResolver availableActionResolver(
+            WorkflowTransitionValidator validator,
+            TargetUserResolver targetUserResolver,
+            DepartmentRoutingResolver departmentRoutingResolver) {
+        return new AvailableActionResolver(validator, targetUserResolver, departmentRoutingResolver);
     }
 
     @Bean

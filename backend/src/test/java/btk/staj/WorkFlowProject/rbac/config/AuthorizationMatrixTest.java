@@ -94,6 +94,9 @@ class AuthorizationMatrixTest {
     // WF-8 management has no HTTP endpoint in this matrix; its real DB boundary is tested separately.
     @MockitoBean private btk.staj.WorkFlowProject.workflow.service.WorkflowActorBindingService workflowActorBindingService;
     @MockitoBean private btk.staj.WorkFlowProject.rbac.repository.RolePermissionRepository rolePermissionRepository;
+    // AssignmentViewResolver / WorkflowQueryService bu depoyu ister (B11, APP-9).
+    @MockitoBean private btk.staj.WorkFlowProject.department.repository.DepartmentRepository departmentRepository;
+    @MockitoBean private btk.staj.WorkFlowProject.workflow.repository.WorkflowActionRepository workflowActionRepository;
 
     private static final String RECORD_JSON = """
             {"title":"Test","description":"Test","categoryId":1}
