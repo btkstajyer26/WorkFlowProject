@@ -8,7 +8,7 @@ import { api } from './client'
 import { apiHttpClient } from './client'
 import type { RecordCategoryOption } from './categories'
 import { ApiClientError } from './errors'
-import type { RecordHistoryItem, RecordStatus, WorkflowRecord } from '../types/record'
+import type { RecordAssignment, RecordHistoryItem, RecordStatus, WorkflowRecord } from '../types/record'
 
 const recordStatuses: RecordStatus[] = [
   'TASLAK',
@@ -88,7 +88,12 @@ export async function getRecordDetail(recordId: string, categories: RecordCatego
   // Baskanin gecmisi evrak kendisine iletildigi anda basladigi icin
   // "Kayıt oluşturuldu" satirini hic gormez ve geri dusulen history[0]
   // ona Baskan Yardimcisini olusturan gibi gosterirdi.
-  const detail = record as RecordResponse & { createdBy?: string; createdByFullName?: string }
+  const detail = record as RecordResponse & {
+    createdBy?: string
+    createdByFullName?: string
+    assignment?: RecordAssignment
+    version?: number
+  }
   const creatorItem = history.find((item) => item.action === 'Kayıt oluşturuldu')
   const createdById = detail.createdBy ?? creatorItem?.actorId
   const createdByName = detail.createdByFullName?.trim() || creatorItem?.actor || ''
@@ -102,14 +107,37 @@ export async function getRecordDetail(recordId: string, categories: RecordCatego
     status: record.status,
     createdBy: createdByName,
     createdById,
-    assignedTo: null,
-    assignedToId: null,
-    lastDeputyId: null,
+    ...assignmentFields(detail.assignment),
     lastAction: history.at(-1)?.action ?? '',
     createdAt: record.createdAt,
     updatedAt: record.createdAt,
     attachments: [],
     history,
+  }
+}
+
+/**
+ * Atama nesnesini gosterim alanlarina cevirir (B11).
+ *
+ * <p>Sunucu `assignment` gondermeyen bir surumdeyse atama <em>bilinmiyor</em> demektir;
+ * bu durumda `NONE` uydurmak yerine alanlar bos birakilir. Onceki hali sabit `null`
+ * doldurdugu icin istemci "atama yok" ile "departman kuyrugu"nu ayirt edemiyordu.
+ */
+function assignmentFields(assignment: RecordAssignment | undefined): Pick<
+  WorkflowRecord,
+  'assignedTo' | 'assignedToId' | 'lastDeputyId' | 'assignment'
+> {
+  const resolved: RecordAssignment = assignment ?? { kind: 'NONE' }
+  return {
+    assignedTo:
+      resolved.kind === 'USER'
+        ? resolved.userFullName ?? resolved.userId
+        : resolved.kind === 'DEPARTMENT'
+          ? resolved.departmentName ?? String(resolved.departmentId)
+          : null,
+    assignedToId: resolved.kind === 'USER' ? resolved.userId : null,
+    lastDeputyId: null,
+    assignment: resolved,
   }
 }
 

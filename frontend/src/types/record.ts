@@ -16,6 +16,16 @@ export type RecordHistoryItem = {
   date: string
 }
 
+/**
+ * Kaydın atama türü (B11). İstemci türü iki nullable alanı karşılaştırarak çıkarsamaz;
+ * `kind` üzerinden dallanır — `NONE` (atama yok) ile `DEPARTMENT` (departman kuyruğu)
+ * ancak böyle ayrılabilir.
+ */
+export type RecordAssignment =
+  | { kind: 'USER'; userId: string; userFullName: string | null }
+  | { kind: 'DEPARTMENT'; departmentId: number; departmentName: string | null }
+  | { kind: 'NONE' }
+
 export type WorkflowRecord = {
   id: string
   recordNumber: string
@@ -26,9 +36,11 @@ export type WorkflowRecord = {
   status: RecordStatus
   createdBy: string
   createdById?: string
+  /** Gösterime hazır atama etiketi; `assignment` üzerinden türetilir. */
   assignedTo: string | null
   assignedToId?: string | null
   lastDeputyId?: string | null
+  assignment: RecordAssignment
   lastAction: string
   createdAt: string
   updatedAt: string

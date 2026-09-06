@@ -10,6 +10,7 @@ import { RecordController } from './generated/RecordController'
 import { RoleAdminController } from './generated/RoleAdminController'
 import { UserController } from './generated/UserController'
 import { WorkflowActionController } from './generated/WorkflowActionController'
+import { WorkflowQueryController } from './generated/WorkflowQueryController'
 import { apiBaseUrl } from './config'
 import { toApiClientError } from './errors'
 
@@ -75,6 +76,8 @@ export const api = {
   roles: new RoleAdminController(apiHttpClient),
   users: new UserController(apiHttpClient),
   workflow: new WorkflowActionController(apiHttpClient),
+  // APP-9 okuma uclari: yetkili aksiyonlar ve hedef departman kesfi.
+  workflowQuery: new WorkflowQueryController(apiHttpClient),
 }
 
 export function setApiAccessToken(accessToken: string) {

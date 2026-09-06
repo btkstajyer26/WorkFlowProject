@@ -281,6 +281,60 @@
         }
       }
     },
+    "/api/records/{recordId}/workflow/available-actions" : {
+      "get" : {
+        "tags" : [ "workflow-query-controller" ],
+        "operationId" : "availableActions",
+        "parameters" : [ {
+          "name" : "recordId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AvailableActionsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/records/{recordId}/workflow/target-departments" : {
+      "get" : {
+        "tags" : [ "workflow-query-controller" ],
+        "operationId" : "targetDepartments",
+        "parameters" : [ {
+          "name" : "recordId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TargetDepartmentsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/records/{id}/files" : {
       "get" : {
         "tags" : [ "file-controller" ],
@@ -1197,6 +1251,13 @@
           },
           "createdByFullName" : {
             "type" : "string"
+          },
+          "assignment" : {
+            "$ref" : "#/components/schemas/AssignmentView"
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int32"
           }
         }
       },
@@ -1263,6 +1324,13 @@
           "assignedTo" : {
             "type" : "string",
             "format" : "uuid"
+          },
+          "assignment" : {
+            "$ref" : "#/components/schemas/AssignmentView"
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int32"
           },
           "performedBy" : {
             "type" : "string",
@@ -1721,6 +1789,13 @@
           "updatedAt" : {
             "type" : "string",
             "format" : "date-time"
+          },
+          "assignment" : {
+            "$ref" : "#/components/schemas/AssignmentView"
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int32"
           }
         }
       },
@@ -1989,6 +2064,96 @@
           }
         },
         "required" : [ "token" ]
+      },
+      "AvailableActionsResponse" : {
+        "type" : "object",
+        "properties" : {
+          "recordId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "TASLAK", "BSK_YRD_INCELEMESINDE", "BASKAN_INCELEMESINDE", "DUZENLEME_BEKLIYOR", "ONAYLANDI", "REDDEDILDI" ]
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "actions" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AvailableActionView"
+            }
+          }
+        }
+      },
+      "AvailableActionView" : {
+        "type" : "object",
+        "properties" : {
+          "action" : {
+            "type" : "string",
+            "enum" : [ "GONDER", "TEKRAR_GONDER", "BASKANA_ILET", "CALISANA_GERI_GONDER", "BASKAN_YARDIMCISINA_GERI_GONDER", "ONAYLA", "REDDET", "DEPARTMANA_GONDER" ]
+          },
+          "displayName" : {
+            "type" : "string"
+          },
+          "commentRequired" : {
+            "type" : "boolean"
+          },
+          "targetUserRequired" : {
+            "type" : "boolean"
+          },
+          "targetDepartmentRequired" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "TargetDepartmentsResponse" : {
+        "type" : "object",
+        "properties" : {
+          "departments" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/TargetDepartmentView"
+            }
+          }
+        }
+      },
+      "TargetDepartmentView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        }
+      },
+      "AssignmentView" : {
+        "type" : "object",
+        "properties" : {
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "USER", "DEPARTMENT", "NONE" ]
+          },
+          "userId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "userFullName" : {
+            "type" : "string"
+          },
+          "departmentId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "departmentName" : {
+            "type" : "string"
+          }
+        }
       }
     },
     "securitySchemes" : {
