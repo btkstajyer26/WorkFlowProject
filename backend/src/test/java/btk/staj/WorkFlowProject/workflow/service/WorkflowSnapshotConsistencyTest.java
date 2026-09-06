@@ -43,7 +43,12 @@ class WorkflowSnapshotConsistencyTest {
                 "CREATOR", "BSK_YRD_INCELEMESINDE", "ROLE", targetRole.value(), "RECORD_FORWARD");
         TransitionRuleRecord other = new TransitionRuleRecord("BASKAN_INCELEMESINDE", "ONAYLA", targetRole.value(),
                 "ASSIGNEE", "ONAYLANDI", "NONE", null, "RECORD_APPROVE");
-        AtomicReference<List<TransitionRuleRecord>> rows = new AtomicReference<>(List.of(send, other));
+        // Hedefin inis durumunda (BSK_YRD_INCELEMESINDE) isleyebildigini gosteren kural:
+        // ADR-0008 K4 hedefin olu uca atanmasini engelledigi icin bu satir olmadan gecis
+        // WORKFLOW_TARGET_CANNOT_ACT alirdi. Reload sonrasi da yerinde kalir.
+        TransitionRuleRecord landing = new TransitionRuleRecord("BSK_YRD_INCELEMESINDE", "BASKANA_ILET",
+                targetRole.value(), "ASSIGNEE", "BASKAN_INCELEMESINDE", "ROLE", actorRole.value(), "RECORD_FORWARD");
+        AtomicReference<List<TransitionRuleRecord>> rows = new AtomicReference<>(List.of(send, other, landing));
         ReloadableTransitionRuleSource source = new ReloadableTransitionRuleSource(rows::get);
         var originalSnapshot = source.snapshot();
         WorkflowRecordPort records = mock(WorkflowRecordPort.class);
@@ -55,7 +60,8 @@ class WorkflowSnapshotConsistencyTest {
         when(resolver.resolve(any(), any(), any(), any())).thenAnswer(invocation -> {
             resolving.countDown();
             if (!finish.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("resolution timed out");
-            return new TargetResolution.Resolved(new WorkflowUserSnapshot(target, targetRole, true));
+            return new TargetResolution.Resolved(new WorkflowUserSnapshot(target, targetRole, true,
+                    true, java.util.Set.of("RECORD_VIEW", "RECORD_FORWARD", "RECORD_RETURN")));
         });
         WorkflowApplicationService service = new WorkflowApplicationService(records,
                 () -> new CurrentActor(actor, actorRole, true, Set.of("RECORD_VIEW", "RECORD_FORWARD")),
@@ -66,7 +72,7 @@ class WorkflowSnapshotConsistencyTest {
             var inFlight = executor.submit(() -> service.performAction(recordId, request));
             try {
                 assertThat(resolving.await(10, TimeUnit.SECONDS)).isTrue();
-                rows.set(List.of(other));
+                rows.set(List.of(other, landing));
                 source.reload();
                 assertThat(source.snapshot()).isNotSameAs(originalSnapshot);
                 assertThat(originalSnapshot.find(RecordStatus.TASLAK, WorkflowAction.GONDER, actorRole)).isPresent();

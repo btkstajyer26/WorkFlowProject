@@ -199,7 +199,7 @@ public class GlobalExceptionHandler {
             // Ucu de kural ihlali degil, gecici catisma: kayit kilitli, tekil rol
             // hedefi cozulemedi veya kayit istek hazirlanirken degismis.
             case WORKFLOW_RECORD_LOCKED, WORKFLOW_ROLE_NOT_CONFIGURED, WORKFLOW_VERSION_CONFLICT,
-                    WORKFLOW_DEPARTMENT_ROUTING_NOT_CONFIGURED ->
+                    WORKFLOW_DEPARTMENT_ROUTING_NOT_CONFIGURED, WORKFLOW_TARGET_CANNOT_ACT ->
                     HttpStatus.CONFLICT;
             case WORKFLOW_STATUS_NOT_CONFIGURED -> HttpStatus.INTERNAL_SERVER_ERROR;
             default -> HttpStatus.BAD_REQUEST;
@@ -228,6 +228,8 @@ public class GlobalExceptionHandler {
             case WORKFLOW_TARGET_NOT_ALLOWED -> "Gönderilen hedef alanı bu işlem için uygun değil";
             case WORKFLOW_TARGET_ROLE_INVALID -> "Seçilen hedef kullanıcının rolü uygun değil";
             case WORKFLOW_TARGET_INACTIVE -> "Seçilen hedef kullanıcı pasif durumda";
+            case WORKFLOW_TARGET_CANNOT_ACT ->
+                    "İşlemi devralacak kişi bu kayıt üzerinde işlem yapamıyor, yöneticinize başvurun";
             case WORKFLOW_ROLE_NOT_ALLOWED -> "Rolünüz bu işlemi yapamaz";
             case WORKFLOW_STATUS_NOT_CONFIGURED -> "İş akışı yapılandırması eksik";
             case WORKFLOW_ROLE_NOT_CONFIGURED ->

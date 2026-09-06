@@ -26,6 +26,18 @@ import java.util.Set;
  * @param targetRoleId              servis tarafindan cozulen hedef kullanicinin rolu;
  *                                hedef yoksa veya cozulemediyse {@code null}
  * @param targetActive            cozulen hedef kullanicinin {@code is_active} degeri
+ * @param actorWorkflowActor      aktorun rolu workflow aktoru olabilir mi
+ * @param actorPermissionCodes    aktorun aktif permission kodlari
+ * @param targetResolutionPending hedef henuz cozulmedi mi. Iki asamali dogrulamanin
+ *                                ilk asamasinda {@code true}; validator bu durumda
+ *                                hedefe bagli kontrolleri atlar ve
+ *                                {@link TransitionDecision.Pending} doner (ADR-0008 K3)
+ * @param targetIsCreator         cozulen hedef {@code records.created_by} mu. Hedefin
+ *                                iniş durumundaki yetenegi hesaplanirken gerekir:
+ *                                {@code actor_requirement} CREATOR olan bir gecis
+ *                                yalnizca olusturan icin saglanir (K4.3)
+ * @param targetWorkflowActor     cozulen hedefin rolu workflow aktoru olabilir mi (K4.2)
+ * @param targetPermissionCodes   cozulen hedefin aktif permission kodlari (K4.3)
  */
 public record TransitionContext(
         RecordStatus currentStatus,
@@ -39,13 +51,21 @@ public record TransitionContext(
         RoleId targetRoleId,
         boolean targetActive,
         boolean actorWorkflowActor,
-        Set<String> actorPermissionCodes) {
+        Set<String> actorPermissionCodes,
+        // ADR-0008 ile eklenen hedef alanlari. Mevcut bilesenlerin arasina degil SONUNA
+        // eklendiler: aradaki dort boolean'in sirasi degisseydi cagri yerleri sessizce
+        // yanlis anlam kazanirdi, derleyici yakalayamazdi.
+        boolean targetResolutionPending,
+        boolean targetIsCreator,
+        boolean targetWorkflowActor,
+        Set<String> targetPermissionCodes) {
 
     public TransitionContext {
         Objects.requireNonNull(currentStatus, "currentStatus");
         Objects.requireNonNull(action, "action");
         Objects.requireNonNull(actorRoleId, "actorRoleId");
         actorPermissionCodes = Set.copyOf(actorPermissionCodes);
+        targetPermissionCodes = Set.copyOf(targetPermissionCodes);
     }
 
     /** Aciklamanin dolu olup olmadigi. Yalnizca bosluktan olusan metin bos sayilir. */

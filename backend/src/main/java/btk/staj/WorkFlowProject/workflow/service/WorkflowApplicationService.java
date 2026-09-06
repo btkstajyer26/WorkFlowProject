@@ -31,6 +31,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -46,9 +47,6 @@ import java.util.UUID;
  * <p>Bu servis üretimde yalnız transaction sağlayan bir Spring adaptörü içinden çağrılabilir.</p>
  */
 public final class WorkflowApplicationService {
-
-    private static final WorkflowErrorCode UNRESOLVED_TARGET_SENTINEL =
-            WorkflowErrorCode.WORKFLOW_TARGET_ROLE_INVALID;
 
     private final WorkflowRecordPort recordPort;
     private final CurrentActorProvider currentActorProvider;
@@ -109,7 +107,12 @@ public final class WorkflowApplicationService {
                 null,
                 false,
                 actor.workflowActor(),
-                actor.permissionCodes()), snapshot);
+                actor.permissionCodes(),
+                // Hedef henuz cozulmedi: hedefe bagli kontroller atlanir.
+                true,
+                false,
+                false,
+                Set.of()), snapshot);
 
         // Kural, on dogrulamadan SONRA aranir: gecis tanimli degilse on dogrulama zaten
         // WORKFLOW_INVALID_TRANSITION ile reddetmistir ve asagidaki kontrol onu firlatir.
@@ -143,7 +146,11 @@ public final class WorkflowApplicationService {
                         target.roleId(),
                         target.active(),
                         actor.workflowActor(),
-                        actor.permissionCodes()), snapshot);
+                        actor.permissionCodes(),
+                        false,
+                        target.id().equals(record.createdBy()),
+                        target.workflowActor(),
+                        target.permissionCodes()), snapshot);
         TransitionDecision.Allowed allowed = requireAllowed(finalDecision);
 
         UUID assignedTo = target == null ? null : target.id();
@@ -245,8 +252,8 @@ public final class WorkflowApplicationService {
             TransitionRule rule,
             TransitionDecision decision) {
         if (requiresTargetUser(rule)) {
-            if (decision instanceof TransitionDecision.Rejected rejected
-                    && rejected.errorCode() == UNRESOLVED_TARGET_SENTINEL) {
+            // Beklenen sonuc: hedef henuz cozulmedigi icin karar askida.
+            if (decision instanceof TransitionDecision.Pending) {
                 return;
             }
             if (decision instanceof TransitionDecision.Rejected rejected) {

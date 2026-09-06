@@ -38,11 +38,11 @@ public final class TransitionRules {
             new RuleTemplate(TASLAK,                GONDER,                          CALISAN,            CREATOR,               BSK_YRD_INCELEMESINDE, TargetStrategy.ROLE,           BASKAN_YARDIMCISI, "RECORD_FORWARD"),
             new RuleTemplate(DUZENLEME_BEKLIYOR,    TEKRAR_GONDER,                   CALISAN,            CREATOR_AND_ASSIGNEE,  BSK_YRD_INCELEMESINDE, TargetStrategy.ROLE,           BASKAN_YARDIMCISI, "RECORD_FORWARD"),
             new RuleTemplate(BSK_YRD_INCELEMESINDE, BASKANA_ILET,                    BASKAN_YARDIMCISI,  ASSIGNEE,              BASKAN_INCELEMESINDE,  TargetStrategy.ROLE,           BASKAN, "RECORD_FORWARD"),
-            new RuleTemplate(BSK_YRD_INCELEMESINDE, CALISANA_GERI_GONDER,            BASKAN_YARDIMCISI,  ASSIGNEE,              DUZENLEME_BEKLIYOR,    TargetStrategy.CREATOR,        CALISAN, "RECORD_RETURN"),
+            new RuleTemplate(BSK_YRD_INCELEMESINDE, CALISANA_GERI_GONDER,            BASKAN_YARDIMCISI,  ASSIGNEE,              DUZENLEME_BEKLIYOR,    TargetStrategy.CREATOR,        null, "RECORD_RETURN"),
             new RuleTemplate(BASKAN_INCELEMESINDE,  ONAYLA,                          BASKAN,             ASSIGNEE,              ONAYLANDI,             TargetStrategy.NONE,           null, "RECORD_APPROVE"),
             new RuleTemplate(BASKAN_INCELEMESINDE,  REDDET,                          BASKAN,             ASSIGNEE,              REDDEDILDI,            TargetStrategy.NONE,           null, "RECORD_REJECT"),
-            new RuleTemplate(BASKAN_INCELEMESINDE,  CALISANA_GERI_GONDER,            BASKAN,             ASSIGNEE,              DUZENLEME_BEKLIYOR,    TargetStrategy.CREATOR,        CALISAN, "RECORD_RETURN"),
-            new RuleTemplate(BASKAN_INCELEMESINDE,  BASKAN_YARDIMCISINA_GERI_GONDER, BASKAN,             ASSIGNEE,              BSK_YRD_INCELEMESINDE, TargetStrategy.PREVIOUS_ACTOR, BASKAN_YARDIMCISI, "RECORD_RETURN"),
+            new RuleTemplate(BASKAN_INCELEMESINDE,  CALISANA_GERI_GONDER,            BASKAN,             ASSIGNEE,              DUZENLEME_BEKLIYOR,    TargetStrategy.CREATOR,        null, "RECORD_RETURN"),
+            new RuleTemplate(BASKAN_INCELEMESINDE,  BASKAN_YARDIMCISINA_GERI_GONDER, BASKAN,             ASSIGNEE,              BSK_YRD_INCELEMESINDE, TargetStrategy.PREVIOUS_ACTOR, null, "RECORD_RETURN"),
             // ADR-0006 / V23: departmana gonderim. Hedef rol tasimazlar; departman icinde
             // kimin yetkili oldugu department_routing_rules'tan calisma zamaninda cozulur.
             new RuleTemplate(TASLAK,                DEPARTMANA_GONDER,               CALISAN,            CREATOR,               BSK_YRD_INCELEMESINDE, TargetStrategy.DEPARTMENT,     null, "RECORD_FORWARD"),

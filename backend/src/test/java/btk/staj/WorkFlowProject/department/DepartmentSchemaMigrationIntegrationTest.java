@@ -12,6 +12,7 @@ import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.FlywayException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -86,6 +87,37 @@ class DepartmentSchemaMigrationIntegrationTest {
                 Integer.class)).isEqualTo(2);
         assertThat(jdbc.queryForObject("SELECT comment_required FROM workflow_actions "
                 + "WHERE name = 'DEPARTMANA_GONDER'", Boolean.class)).isFalse();
+        entityManagerFactory();
+    }
+
+    @Test
+    @DisplayName("V24 hedef rolu yalniz ROLE stratejisine birakir")
+    void narrowsExpectedTargetRoleToTheRoleStrategyInV24() {
+        Flyway flyway = migrate("24");
+        flyway.validate();
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("24");
+        assertFinalSchema();
+
+        // Gecis sayisi degismez; degisen yalnizca kolonun anlami (ADR-0008 K6).
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM workflow_transitions", Integer.class)).isEqualTo(10);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM workflow_transitions "
+                + "WHERE target_strategy IN ('CREATOR', 'CURRENT_ASSIGNEE', 'PREVIOUS_ACTOR') "
+                + "AND expected_target_role_id IS NOT NULL", Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM workflow_transitions "
+                + "WHERE target_strategy = 'ROLE' AND expected_target_role_id IS NOT NULL",
+                Integer.class)).isEqualTo(3);
+
+        // Daraltilan kisit: ROLE disindaki strateji artik hedef rol tasiyamaz.
+        assertThatThrownBy(() -> jdbc.update("UPDATE workflow_transitions t "
+                + "SET expected_target_role_id = (SELECT id FROM roles WHERE system_key = 'CALISAN') "
+                + "WHERE t.target_strategy = 'PREVIOUS_ACTOR'"))
+                .hasMessageContaining("chk_transition_target_strategy_role");
+
+        // ...ve ROLE hedef rolsuz kalamaz.
+        assertThatThrownBy(() -> jdbc.update("UPDATE workflow_transitions "
+                + "SET expected_target_role_id = NULL WHERE target_strategy = 'ROLE'"))
+                .hasMessageContaining("chk_transition_target_strategy_role");
+
         entityManagerFactory();
     }
 

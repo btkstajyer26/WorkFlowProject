@@ -29,7 +29,9 @@ class PermissionAuthorizationTest {
                 null,
                 false,
                 actor,
-                codes);
+                codes,
+                // Hedef gerektirmeyen gecis: hedef alanlari notr.
+                false, false, false, java.util.Set.of());
     }
 
     @Test void permissionIsRequiredAndWrongPermissionCannotSubstitute() {

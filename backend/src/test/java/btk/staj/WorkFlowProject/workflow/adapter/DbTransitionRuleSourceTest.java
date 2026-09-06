@@ -412,10 +412,30 @@ class DbTransitionRuleSourceTest {
     }
 
     @Test
-    @DisplayName("hedef gerektiren gecis beklenen hedef rolsuz kalirsa reddedilir")
-    void rejectsTargetStrategyWithoutExpectedTargetRole() {
-        // Bu kombinasyon veritabani CHECK'ini gecerdi (CHECK yalniz ROLE icin rolu zorunlu
-        // kilar) ama servisin sentinel protokolunu sessizce kirardi.
+    @DisplayName("ROLE stratejisi beklenen hedef rolsuz kalirsa reddedilir")
+    void rejectsRoleStrategyWithoutExpectedTargetRole() {
+        // ROLE'un hedefi bu roldan aranir; rol bos olsaydi cozulecek bir sey kalmazdi.
+        TransitionRuleRecord inconsistent = new TransitionRuleRecord(
+                "TASLAK",
+                "GONDER",
+                WorkflowRoleFixtures.value(RoleName.CALISAN),
+                "CREATOR",
+                "BSK_YRD_INCELEMESINDE",
+                "ROLE",
+                null,
+                AuthorizationFixtures.requiredPermission("GONDER"));
+
+        assertThatThrownBy(() -> source(List.of(inconsistent)))
+                .isInstanceOf(TransitionRuleConfigurationException.class)
+                .hasMessageContaining("row 1")
+                .hasMessageContaining("ROLE");
+    }
+
+    @Test
+    @DisplayName("ROLE disindaki strateji hedef rol tasirsa reddedilir")
+    void rejectsNonRoleStrategyCarryingAnExpectedTargetRole() {
+        // V24 sonrasi kolon yalniz ROLE'un arama anahtaridir; kimligi calisma zamaninda
+        // belirlenen hedefe statik rol dayatmak B02'nin kok sebebiydi (ADR-0008 K2).
         TransitionRuleRecord inconsistent = new TransitionRuleRecord(
                 "BSK_YRD_INCELEMESINDE",
                 "CALISANA_GERI_GONDER",
@@ -423,7 +443,7 @@ class DbTransitionRuleSourceTest {
                 "ASSIGNEE",
                 "DUZENLEME_BEKLIYOR",
                 "CREATOR",
-                null,
+                WorkflowRoleFixtures.value(RoleName.CALISAN),
                 AuthorizationFixtures.requiredPermission("CALISANA_GERI_GONDER"));
 
         assertThatThrownBy(() -> source(List.of(inconsistent)))
@@ -474,8 +494,9 @@ class DbTransitionRuleSourceTest {
     void mapsEveryTargetStrategy() {
         assertThat(TargetStrategy.values()).hasSize(6);
         for (TargetStrategy strategy : TargetStrategy.values()) {
-            Integer role = strategy == TargetStrategy.NONE || strategy == TargetStrategy.DEPARTMENT
-                    ? null : WorkflowRoleFixtures.value(RoleName.CALISAN);
+            // Hedef rol yalniz ROLE stratejisinde tasinir (ADR-0008 K2).
+            Integer role = strategy == TargetStrategy.ROLE
+                    ? WorkflowRoleFixtures.value(RoleName.CALISAN) : null;
             DbTransitionRuleSource source = source(List.of(new TransitionRuleRecord(
                     "TASLAK",
                     "GONDER",

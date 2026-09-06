@@ -310,7 +310,7 @@ class WorkflowApplicationServiceTest {
         arrange(record, RoleName.CALISAN);
         when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
                 .thenReturn(new TargetResolution.Resolved(
-                        new WorkflowUserSnapshot(TARGET_ID, WorkflowRoleFixtures.id(RoleName.BASKAN_YARDIMCISI), false)));
+                        WorkflowRoleFixtures.target(TARGET_ID, RoleName.BASKAN_YARDIMCISI, false)));
 
         WorkflowApplicationException exception = assertThrows(
                 WorkflowApplicationException.class,
@@ -330,7 +330,7 @@ class WorkflowApplicationServiceTest {
         arrange(record, RoleName.CALISAN);
         when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
                 .thenReturn(new TargetResolution.Resolved(
-                        new WorkflowUserSnapshot(TARGET_ID, WorkflowRoleFixtures.id(RoleName.ADMIN), true)));
+                        WorkflowRoleFixtures.target(TARGET_ID, RoleName.ADMIN, true)));
 
         WorkflowApplicationException exception = assertThrows(
                 WorkflowApplicationException.class,
@@ -456,7 +456,7 @@ class WorkflowApplicationServiceTest {
         arrange(record, RoleName.BASKAN_YARDIMCISI);
         when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
                 .thenReturn(new TargetResolution.Resolved(
-                        new WorkflowUserSnapshot(TARGET_ID, WorkflowRoleFixtures.id(RoleName.BASKAN), true)));
+                        WorkflowRoleFixtures.target(TARGET_ID, RoleName.BASKAN, true)));
 
         WorkflowActionResponse response = service.performAction(RECORD_ID, request);
 
@@ -667,7 +667,7 @@ class WorkflowApplicationServiceTest {
                         null,
                         null,
                         new TargetResolution.Resolved(
-                                new WorkflowUserSnapshot(TARGET_ID, WorkflowRoleFixtures.id(RoleName.BASKAN_YARDIMCISI), true)),
+                                WorkflowRoleFixtures.target(TARGET_ID, RoleName.BASKAN_YARDIMCISI, true)),
                         RecordStatus.BSK_YRD_INCELEMESINDE,
                         TARGET_ID,
                         LAST_DEPUTY_ID),
@@ -682,7 +682,7 @@ class WorkflowApplicationServiceTest {
                         null,
                         null,
                         new TargetResolution.Resolved(
-                                new WorkflowUserSnapshot(TARGET_ID, WorkflowRoleFixtures.id(RoleName.BASKAN_YARDIMCISI), true)),
+                                WorkflowRoleFixtures.target(TARGET_ID, RoleName.BASKAN_YARDIMCISI, true)),
                         RecordStatus.BSK_YRD_INCELEMESINDE,
                         TARGET_ID,
                         LAST_DEPUTY_ID),
@@ -697,7 +697,7 @@ class WorkflowApplicationServiceTest {
                         null,
                         null,
                         new TargetResolution.Resolved(
-                                new WorkflowUserSnapshot(TARGET_ID, WorkflowRoleFixtures.id(RoleName.BASKAN), true)),
+                                WorkflowRoleFixtures.target(TARGET_ID, RoleName.BASKAN, true)),
                         RecordStatus.BASKAN_INCELEMESINDE,
                         TARGET_ID,
                         ACTOR_ID),
@@ -712,7 +712,7 @@ class WorkflowApplicationServiceTest {
                         null,
                         "duzeltiniz",
                         new TargetResolution.Resolved(
-                                new WorkflowUserSnapshot(CREATOR_ID, WorkflowRoleFixtures.id(RoleName.CALISAN), true)),
+                                WorkflowRoleFixtures.target(CREATOR_ID, RoleName.CALISAN, true)),
                         RecordStatus.DUZENLEME_BEKLIYOR,
                         CREATOR_ID,
                         LAST_DEPUTY_ID),
@@ -755,7 +755,7 @@ class WorkflowApplicationServiceTest {
                         null,
                         "duzeltiniz",
                         new TargetResolution.Resolved(
-                                new WorkflowUserSnapshot(CREATOR_ID, WorkflowRoleFixtures.id(RoleName.CALISAN), true)),
+                                WorkflowRoleFixtures.target(CREATOR_ID, RoleName.CALISAN, true)),
                         RecordStatus.DUZENLEME_BEKLIYOR,
                         CREATOR_ID,
                         LAST_DEPUTY_ID),
@@ -770,7 +770,7 @@ class WorkflowApplicationServiceTest {
                         null,
                         "tekrar inceleyiniz",
                         new TargetResolution.Resolved(
-                                new WorkflowUserSnapshot(LAST_DEPUTY_ID, WorkflowRoleFixtures.id(RoleName.BASKAN_YARDIMCISI), true)),
+                                WorkflowRoleFixtures.target(LAST_DEPUTY_ID, RoleName.BASKAN_YARDIMCISI, true)),
                         RecordStatus.BSK_YRD_INCELEMESINDE,
                         LAST_DEPUTY_ID,
                         LAST_DEPUTY_ID));
