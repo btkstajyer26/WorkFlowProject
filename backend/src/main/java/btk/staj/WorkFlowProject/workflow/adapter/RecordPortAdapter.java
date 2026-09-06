@@ -44,7 +44,7 @@ public final class RecordPortAdapter implements WorkflowRecordPort {
     }
 
     @Override
-    public void update(WorkflowRecordUpdate update) {
+    public int update(WorkflowRecordUpdate update) {
         WorkflowRecordUpdate requiredUpdate = Objects.requireNonNull(update, "update");
 
         Record record = recordRepository.findById(requiredUpdate.recordId())
@@ -85,6 +85,10 @@ public final class RecordPortAdapter implements WorkflowRecordPort {
 
         try {
             recordRepository.saveAndFlush(record);
+            // Flush sirasinda Hibernate yonetilen entity'nin @Version alanini yerinde
+            // artirir; yeni surum buradan okunur. Yeniden okuma fazladan sorgu ve yarisa
+            // acik, "expectedVersion + 1" aritmetigi ise kirilgan olurdu.
+            return record.getVersion() == null ? 0 : record.getVersion();
         } catch (OptimisticLockingFailureException ex) {
             // Port sozlesmesi geregi altyapiya ozgu kilitleme istisnasi bu siniri
             // gecmez; cekirdek persistence teknolojisini tanimaz. Ust tip

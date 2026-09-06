@@ -2,6 +2,7 @@ package btk.staj.WorkFlowProject.workflow.service;
 
 import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
 import btk.staj.WorkFlowProject.support.WorkflowRoleFixtures;
+import btk.staj.WorkFlowProject.common.dto.AssignmentView;
 import btk.staj.WorkFlowProject.workflow.dto.WorkflowActionRequest;
 import btk.staj.WorkFlowProject.workflow.dto.WorkflowActionResponse;
 import btk.staj.WorkFlowProject.workflow.exception.WorkflowApplicationException;
@@ -48,6 +49,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -119,6 +121,8 @@ class WorkflowApplicationServiceTest {
                 scenario.previousStatus(),
                 scenario.newStatus(),
                 scenario.expectedAssignedTo(),
+                AssignmentView.of(scenario.expectedAssignedTo(), null),
+                scenario.version() + 1,
                 ACTOR_ID,
                 PERFORMED_AT));
         verify(recordPort).update(new WorkflowRecordUpdate(
@@ -624,6 +628,10 @@ class WorkflowApplicationServiceTest {
                 AuthorizationFixtures.workflowActor(actorRole),
                 AuthorizationFixtures.permissions(actorRole)));
         when(recordPort.findById(RECORD_ID)).thenReturn(Optional.of(record));
+        // Port, guncelleme sonrasi surumu doner (B11 SS4); yanittaki version bundan gelir.
+        // lenient: gecisi erken reddeden testler update'e hic ulasmaz, bu bir iddia degil
+        // port'un varsayilan davranisi.
+        lenient().when(recordPort.update(any())).thenReturn(record.version() + 1);
     }
 
     private void assertNoMutation() {

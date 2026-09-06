@@ -1,5 +1,6 @@
 package btk.staj.WorkFlowProject.workflow.service;
 
+import btk.staj.WorkFlowProject.common.dto.AssignmentView;
 import btk.staj.WorkFlowProject.workflow.dto.WorkflowActionRequest;
 import btk.staj.WorkFlowProject.workflow.dto.WorkflowActionResponse;
 import btk.staj.WorkFlowProject.workflow.exception.WorkflowApplicationException;
@@ -153,7 +154,7 @@ public final class WorkflowApplicationService {
                 : record.lastDeputyId();
         Instant performedAt = clock.instant();
 
-        recordPort.update(new WorkflowRecordUpdate(
+        int newVersion = recordPort.update(new WorkflowRecordUpdate(
                 record.id(),
                 allowed.targetStatus(),
                 assignedTo,
@@ -186,12 +187,17 @@ public final class WorkflowApplicationService {
                 performedAt,
                 assignedDepartmentId));
 
+        // Atama nesnesi burada yalniz kimliklerden kurulur; gosterim adlari Spring
+        // sinirinda (WorkflowActionService) eklenir. Cekirdek kullanici/departman
+        // deposunu tanimaz ve tanimamalidir.
         return new WorkflowActionResponse(
                 record.id(),
                 action,
                 record.status(),
                 allowed.targetStatus(),
                 assignedTo,
+                AssignmentView.of(assignedTo, assignedDepartmentId),
+                newVersion,
                 actor.id(),
                 performedAt);
     }

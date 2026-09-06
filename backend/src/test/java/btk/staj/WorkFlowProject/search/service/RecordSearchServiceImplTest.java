@@ -10,6 +10,8 @@ import btk.staj.WorkFlowProject.common.dto.PagedResponse;
 import btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
+import btk.staj.WorkFlowProject.department.repository.DepartmentRepository;
+import btk.staj.WorkFlowProject.record.view.AssignmentViewResolver;
 import btk.staj.WorkFlowProject.record.view.RecordContentView;
 import btk.staj.WorkFlowProject.search.dto.RecordSearchCriteria;
 import btk.staj.WorkFlowProject.search.dto.RecordSearchResponse;
@@ -46,7 +48,8 @@ class RecordSearchServiceImplTest {
     private final UserRepository userRepository = mock(UserRepository.class);
     private final RecordSearchServiceImpl service =
             new RecordSearchServiceImpl(recordRepository, currentVisibilityActorProvider,
-                    new RecordContentView(new RecordAccessPolicy(actor -> java.util.Set.of())), userRepository, new RecordAccessPolicy(actor -> java.util.Set.of()));
+                    new RecordContentView(new RecordAccessPolicy(actor -> java.util.Set.of())), userRepository, new RecordAccessPolicy(actor -> java.util.Set.of()),
+                    new AssignmentViewResolver(userRepository, mock(DepartmentRepository.class)));
 
     @Test
     @DisplayName("sayfalama bilgisini oldugu gibi aktarir")

@@ -28,8 +28,11 @@ public interface WorkflowRecordPort {
      * yukaridaki koda cevrilmelidir; workflow cekirdegi persistence
      * teknolojisini tanimaz.
      *
+     * @return guncelleme sonrasi kayit surumu; istemcinin bayat ekranini ayirt
+     *         edebilmesi icin yanitta acilir (B11 SS4). Cagirandaki
+     *         {@code expectedVersion} guncelleme oncesi surumdur, donen deger degil.
      * @throws WorkflowApplicationException surum catismasi halinde
      *         {@code WORKFLOW_VERSION_CONFLICT} kodu ile
      */
-    void update(WorkflowRecordUpdate update);
+    int update(WorkflowRecordUpdate update);
 }
