@@ -12,6 +12,7 @@ import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleId;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -72,7 +73,10 @@ class RecordVisibilityIntegrationTest {
         token = jwt.generateAccessToken(viewer, viewer + "@wf2c2.test", "untrusted-display-name");
         owned = record(viewer, null, null, RecordStatus.TASLAK);
         assigned = record(other, viewer, null, RecordStatus.BSK_YRD_INCELEMESINDE);
-        unrelated = record(other, other, viewer, RecordStatus.BASKAN_INCELEMESINDE);
+        // Viewer ile hicbir iliskisi yok: olusturan da atanan da ileten de baskasi.
+        // (B13 oncesi burada last_deputy_id = viewer idi; artik o bir ILISKIDIR
+        //  ve gorunurluk saglar, o yuzden ayri testte olculur.)
+        unrelated = record(other, other, other, RecordStatus.BASKAN_INCELEMESINDE);
         deleted = record(viewer, viewer, viewer, RecordStatus.TASLAK);
         jdbc.update("UPDATE records SET deleted_at = now() WHERE id = ?", deleted);
         fileId = UUID.randomUUID();
@@ -140,7 +144,7 @@ class RecordVisibilityIntegrationTest {
     @Test
     void removingAssignmentClosesEveryReadPathButRetainsCreatorAccess() throws Exception {
         request("/api/records/" + assigned).andExpect(status().isOk());
-        jdbc.update("UPDATE records SET assigned_to = ?, last_deputy_id = ? WHERE id = ?", other, viewer, assigned);
+        jdbc.update("UPDATE records SET assigned_to = ?, last_deputy_id = ? WHERE id = ?", other, other, assigned);
         assertAssignedReadPaths(403, "FORBIDDEN");
         request("/api/records?q=" + prefix).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1));
         jdbc.update("UPDATE records SET assigned_to = ? WHERE id = ?", other, owned);
@@ -189,6 +193,21 @@ class RecordVisibilityIntegrationTest {
         request("/api/records/" + owned).andExpect(status().isForbidden());
         request("/api/records?q=" + prefix).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
         verifyNoInteractions(storage);
+    }
+
+    @Test
+    @DisplayName("kaydi ileten dinamik rol, kayit geri dondukten sonra da gorur")
+    void theForwardingActorKeepsSeeingTheRecordRegardlessOfSystemRole() throws Exception {
+        // B13: gorunurluk "yerlesik Baskan Yardimcisi miyim?" sorusundan degil, kayitla
+        // kurulan iliskiden gelir. Viewer'in rolu dinamiktir (system_key = NULL).
+        UUID forwarded = record(other, other, viewer, RecordStatus.DUZENLEME_BEKLIYOR);
+
+        request("/api/records/" + forwarded).andExpect(status().isOk());
+        request("/api/audit-logs/record/" + forwarded).andExpect(status().isOk());
+
+        // Ayni durumda ilettigi kayit olmayan bir kayit hala kapalidir.
+        UUID untouched = record(other, other, other, RecordStatus.DUZENLEME_BEKLIYOR);
+        request("/api/records/" + untouched).andExpect(status().isForbidden());
     }
 
     @Test
