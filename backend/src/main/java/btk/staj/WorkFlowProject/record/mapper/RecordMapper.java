@@ -3,7 +3,9 @@ package btk.staj.WorkFlowProject.record.mapper;
 import btk.staj.WorkFlowProject.record.dto.RecordCreateRequest;
 import btk.staj.WorkFlowProject.record.dto.RecordResponse;
 import btk.staj.WorkFlowProject.record.entity.Record;
+import btk.staj.WorkFlowProject.record.view.AssignmentViewResolver;
 import btk.staj.WorkFlowProject.record.view.RecordContentView;
+import java.util.Objects;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import org.springframework.stereotype.Component;
 
@@ -11,6 +13,13 @@ import java.util.UUID;
 
 @Component
 public class RecordMapper {
+
+    private final AssignmentViewResolver assignmentViewResolver;
+
+    public RecordMapper(AssignmentViewResolver assignmentViewResolver) {
+        this.assignmentViewResolver = Objects.requireNonNull(assignmentViewResolver, "assignmentViewResolver");
+    }
+
 
     public Record toEntity(RecordCreateRequest request, UUID createdBy) {
         return Record.builder()
@@ -50,6 +59,11 @@ public class RecordMapper {
         response.setStatus(record.getStatus());
         response.setCreatedAt(record.getCreatedAt());
         response.setCreatedBy(record.getCreatedBy());
+        response.setVersion(record.getVersion());
+        // Atamasi olmayan kayitta (TASLAK, terminal) sorgu acilmaz; resolver dogrudan
+        // NONE doner. Bu yuzden olusturma/guncelleme yollari da ek maliyet almaz.
+        response.setAssignment(assignmentViewResolver.resolve(
+                record.getAssignedTo(), record.getAssignedDepartmentId()));
         return response;
     }
 }

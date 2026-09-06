@@ -23,7 +23,7 @@ describe('useRecordWorkflowAction', () => {
       category: 'İnsan Kaynakları',
       status: 'BSK_YRD_INCELEMESINDE',
       createdBy: 'John Doe',
-      assignedTo: 'Ayşe Kaya',
+      assignedTo: 'Ayşe Kaya', assignment: { kind: 'USER', userId: 'user-ayse-kaya', userFullName: 'Ayşe Kaya' },
       lastAction: 'Başkan Yardımcısına gönderildi',
       createdAt: '2026-08-02T10:00:00Z',
       updatedAt: '2026-08-04T14:20:00Z',

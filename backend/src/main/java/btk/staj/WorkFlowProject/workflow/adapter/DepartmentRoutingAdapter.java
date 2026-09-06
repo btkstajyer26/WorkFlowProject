@@ -77,6 +77,12 @@ public class DepartmentRoutingAdapter implements DepartmentRoutingPort {
     }
 
     @Override
+    public Set<Integer> activeDepartmentIds() {
+        return departments.findAllByActiveTrueOrderByNameAsc().stream()
+                .map(DepartmentEntity::getId).collect(Collectors.toSet());
+    }
+
+    @Override
     public boolean roleHasPermission(RoleId roleId, String permissionCode) {
         return permissions.findActiveCodesByRoleId(roleId.value()).contains(permissionCode);
     }

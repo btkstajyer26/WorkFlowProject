@@ -16,6 +16,16 @@ export interface AdminUserSearchCriteria {
   role?: string;
 }
 
+export interface AssignmentView {
+  /** @format int32 */
+  departmentId?: number;
+  departmentName?: string;
+  kind?: "USER" | "DEPARTMENT" | "NONE";
+  userFullName?: string;
+  /** @format uuid */
+  userId?: string;
+}
+
 export interface AuditLogResponse {
   action?: string;
   comment?: string;
@@ -38,6 +48,44 @@ export interface AuditLogResponse {
   userFullName?: string;
   /** @format uuid */
   userId?: string;
+}
+
+export interface AvailableActionView {
+  action?:
+    | "GONDER"
+    | "TEKRAR_GONDER"
+    | "BASKANA_ILET"
+    | "CALISANA_GERI_GONDER"
+    | "BASKAN_YARDIMCISINA_GERI_GONDER"
+    | "ONAYLA"
+    | "REDDET"
+    | "DEPARTMANA_GONDER";
+  commentRequired?: boolean;
+  displayName?: string;
+  targetDepartmentRequired?: boolean;
+  targetUserRequired?: boolean;
+}
+
+export type AvailableActionsData = AvailableActionsResponse;
+
+export interface AvailableActionsParams {
+  /** @format uuid */
+  recordId: string;
+}
+
+export interface AvailableActionsResponse {
+  actions?: AvailableActionView[];
+  /** @format uuid */
+  recordId?: string;
+  status?:
+    | "TASLAK"
+    | "BSK_YRD_INCELEMESINDE"
+    | "BASKAN_INCELEMESINDE"
+    | "DUZENLEME_BEKLIYOR"
+    | "ONAYLANDI"
+    | "REDDEDILDI";
+  /** @format int32 */
+  version?: number;
 }
 
 export interface CategoryResponse {
@@ -425,6 +473,7 @@ export interface RecordCreateRequest {
 }
 
 export interface RecordResponse {
+  assignment?: AssignmentView;
   /** @format int32 */
   categoryId?: number;
   /** @format date-time */
@@ -443,11 +492,14 @@ export interface RecordResponse {
     | "ONAYLANDI"
     | "REDDEDILDI";
   title?: string;
+  /** @format int32 */
+  version?: number;
 }
 
 export interface RecordSearchResponse {
   /** @format uuid */
   assignedTo?: string;
+  assignment?: AssignmentView;
   /** @format int32 */
   categoryId?: number;
   /** @format date-time */
@@ -468,6 +520,8 @@ export interface RecordSearchResponse {
   title?: string;
   /** @format date-time */
   updatedAt?: string;
+  /** @format int32 */
+  version?: number;
 }
 
 export interface RecordUpdateRequest {
@@ -526,6 +580,23 @@ export interface SetActiveParams {
 
 export interface SetActiveRequest {
   active: boolean;
+}
+
+export interface TargetDepartmentView {
+  /** @format int32 */
+  id?: number;
+  name?: string;
+}
+
+export type TargetDepartmentsData = TargetDepartmentsResponse;
+
+export interface TargetDepartmentsParams {
+  /** @format uuid */
+  recordId: string;
+}
+
+export interface TargetDepartmentsResponse {
+  departments?: TargetDepartmentView[];
 }
 
 export type UpdateRecordData = RecordResponse;
@@ -665,6 +736,7 @@ export interface WorkflowActionResponse {
     | "DEPARTMANA_GONDER";
   /** @format uuid */
   assignedTo?: string;
+  assignment?: AssignmentView;
   newStatus?:
     | "TASLAK"
     | "BSK_YRD_INCELEMESINDE"
@@ -685,4 +757,6 @@ export interface WorkflowActionResponse {
     | "REDDEDILDI";
   /** @format uuid */
   recordId?: string;
+  /** @format int32 */
+  version?: number;
 }
