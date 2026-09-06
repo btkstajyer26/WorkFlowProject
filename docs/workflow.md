@@ -314,9 +314,9 @@ Yardımcısının hem Başkanın kullandığı iki ayrı satırda bulunur.
 | Strateji | Hedefin kaynağı | Başarısızlık davranışı |
 | --- | --- | --- |
 | `ROLE` | `expected_target_role_id` rolündeki tek aktif kullanıcı | Tam olarak bir aktif kullanıcı yoksa `WORKFLOW_ROLE_NOT_CONFIGURED` |
-| `CREATOR` | `record.createdBy` | Referans kullanıcı yoksa veri bütünlüğü hatası; rolü/aktifliği yanlışsa hedef doğrulama hatası |
-| `CURRENT_ASSIGNEE` | `record.assignedTo` | Alan boşsa veya kullanıcı yoksa veri bütünlüğü hatası |
-| `PREVIOUS_ACTOR` | `record.lastDeputyId` | Alan boşsa veya kullanıcı yoksa veri bütünlüğü hatası; rolü/aktifliği yanlışsa hedef doğrulama hatası |
+| `CREATOR` | `record.createdBy` | Referans kullanıcı yoksa veri bütünlüğü hatası; pasifse `WORKFLOW_TARGET_INACTIVE`, iniş durumunda işlem yapamıyorsa `WORKFLOW_TARGET_CANNOT_ACT` |
+| `CURRENT_ASSIGNEE` | `record.assignedTo` | Alan boşsa veya kullanıcı yoksa veri bütünlüğü hatası; yeteneği yoksa `WORKFLOW_TARGET_CANNOT_ACT` |
+| `PREVIOUS_ACTOR` | `record.lastDeputyId` | Alan boşsa veya kullanıcı yoksa veri bütünlüğü hatası; yeteneği yoksa `WORKFLOW_TARGET_CANNOT_ACT`. **Rolü artık dayatılmaz** — ileten kim olursa olsun geri dönüş ona yapılır (ADR-0008 K1/K2) |
 | `NONE` | Hedef yok | `assignedTo=null` |
 | `DEPARTMENT` | İstekteki `targetDepartmentId`; kullanıcı seçilmez | Aktif departman ve kullanılabilir iniş routing'i zorunlu |
 
@@ -450,7 +450,8 @@ Bean Validation hatalarında ayrıca `fieldErrors` bulunur. Mevcut `ApiError` mo
 | `WORKFLOW_TARGET_NOT_ALLOWED` | `400` | Aksiyon için yanlış hedef alanı gönderildi |
 | `WORKFLOW_DEPARTMENT_INVALID` | `400` | Hedef departman yok veya pasif |
 | `WORKFLOW_DEPARTMENT_ROUTING_NOT_CONFIGURED` | `409` | İniş durumunda uygun üye/rol/permission/transition/routing birleşimi yok |
-| `WORKFLOW_TARGET_ROLE_INVALID` | `400` | Hedef bulunamazsa veya beklenen rolde değilse |
+| `WORKFLOW_TARGET_ROLE_INVALID` | `400` | **Yalnız `ROLE` stratejisinde:** çözülen hedef `expected_target_role_id` rolünde değilse. İki aşamalı doğrulamanın nöbetçisi olarak **artık üretilmez** — o rolü `TransitionDecision.Pending` aldı (ADR-0008 K3) |
+| `WORKFLOW_TARGET_CANNOT_ACT` | `409` | Çözülen hedef kayıtla hiçbir işlem yapamıyor: rolü workflow aktörü değil, ya da iniş durumunda o role tanımlı kullanılabilir geçiş yok. Statik rol dayatmasının yerine gelen yetenek kontrolüdür (ADR-0008 K4/K5); departman kolundaki `WORKFLOW_DEPARTMENT_ROUTING_NOT_CONFIGURED` ile aynı fikrin kişi kolundaki karşılığı |
 | `WORKFLOW_TARGET_INACTIVE` | `400` | Hedef kullanıcı pasifse |
 | `WORKFLOW_STATUS_NOT_CONFIGURED` | `500` | Rezerve kod; durum kataloğu `workflow_statuses` ile FK altında olduğu için bunu üreten bir yol yoktur |
 | `WORKFLOW_VERSION_CONFLICT` | `409` | Kayıt, istek hazırlanırken başka bir işlem tarafından değiştirilmişse. Durum makinesi üretmez; `RecordPortAdapter` flush anındaki `@Version` çatışmasını bu koda çevirir |
@@ -530,7 +531,7 @@ kodda şu sapmalar vardır:
 
 | No | Sapma | Öncelik |
 | --- | --- | --- |
-| B02 | Dinamik departman rolü `BASKANA_ILET` yaptığında `last_deputy_id` bu üyeye yazılır; Başkan'ın `BASKAN_YARDIMCISINA_GERI_GONDER` geçişi V15 seed'i gereği hedefin yerleşik `BASKAN_YARDIMCISI` olmasını istediği için `WORKFLOW_TARGET_ROLE_INVALID` ile reddedilir. Dinamik aktörün geri dönüş kolu tamamlanmaz. **Karar verildi:** [ADR-0008](decisions/0008-hedef-rol-semantigi-ve-onceki-aktore-donus.md) — kolonun üç anlamı ayrıştırılır, statik rol dayatması yerine "hedef iniş durumunda işlem yapabiliyor mu?" kontrolü gelir, uygunsuz önceki aktör `WORKFLOW_PREVIOUS_ACTOR_UNAVAILABLE` ile reddedilir. `V24` ve kod henüz uygulanmadı | P1 |
+| B02 | ~~Dinamik departman rolü `BASKANA_ILET` yaptığında Başkan'ın geri dönüşü `WORKFLOW_TARGET_ROLE_INVALID` alıyordu.~~ **Kapandı (6 Eylül 2026):** [ADR-0008](decisions/0008-hedef-rol-semantigi-ve-onceki-aktore-donus.md) uygulandı — `V24` ile `expected_target_role_id` yalnız `ROLE` stratejisinin arama anahtarı oldu, nöbetçi `TransitionDecision.Pending`'e taşındı ve statik rol dayatmasının yerine yetenek kontrolü (`WORKFLOW_TARGET_CANNOT_ACT`) geldi. Görünürlük ayağı `B13` ile birlikte kapandı | ✅ |
 | B03 | Görev devri ve `last_deputy_id` toplu güncellemeleri `records.version` artırmadığı için, kaydı önceden yüklemiş bir workflow transaction'ı devir sonrası eski `lastDeputyId` ile çatışmasız yazabilir | P1 |
 | B01 | Workflow e-postasının hızlı işlem tokenı `AFTER_COMMIT` aşamasında üretilemez; dinleyici hatayı yakalar ve mail düğmesiz gider (NT-7 mail üzerinden işlem kabulü sağlanmaz) | P1 |
 | B04 | `RecordLockValidator` kayıt kilidi almaz ve dosya yükleme kaydın sürümüne dokunmaz; kontrol ile dosya satırının yazılması arasında kayıt incelemeye geçse bile yükleme commit edilir | P1 |

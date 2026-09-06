@@ -1,7 +1,7 @@
 # ADR-0008: Hedef Rol Semantiği ve Önceki Aktöre Dönüş
 
-- Durum: Önerildi
-- Tarih: 2026-09-04
+- Durum: Kabul Edildi
+- Tarih: 2026-09-04 · uygulandı 6 Eylül 2026 (`V24` + `B02` + `B13`)
 - Karar sahipleri: Burak (`WF`) · Alperen (`DB`)
 - Kapsadığı bulgu: `B02` (P1)
 
@@ -138,9 +138,23 @@ hedefin permission kümesi üzerinden yapılır; **validator DB bağımlılığ�
 alanlarını da taşır; bu değerleri servis katmanı `WorkflowUserPort` üzerinden
 doldurur ve `WorkflowUserSnapshot` genişletilir.
 
+> **Uygulama notu (6 Eylül 2026) — üç sapma.**
+>
+> 1. **Hata kodu strateji-nötrdür.** K5 `WORKFLOW_PREVIOUS_ACTOR_UNAVAILABLE` diyordu, ama
+>    K4 kontrolü üç stratejiyi birden kapsıyor; `CREATOR` hedefi için "previous actor
+>    unavailable" demek istemciyi yanıltırdı. Uygulanan kod tek nötr kod kullanır:
+>    **`WORKFLOW_TARGET_CANNOT_ACT`** (`409`).
+> 2. **Nöbetçi bir hata kodu değil, ayrı bir karar varyantıdır.** K3 "iç nöbetçi reddi"
+>    diyordu; uygulama `TransitionDecision.Pending` ekledi. Nöbetçiyi hata kodu olarak
+>    taşımak `B02`'nin sınıfıydı — sinyal ile gerçek ret ayırt edilemiyordu. Ayrı varyantla
+>    `WORKFLOW_TARGET_ROLE_INVALID` yalnız gerçek rol uyuşmazlığında üretilir (K3'ün hedefi).
+> 3. **`TransitionContext` dört alan aldı, üç değil.** K4 `targetPermissionCodes` ve
+>    `targetWorkflowActor`'ı sayıyor, ama K4.3'ün `isSatisfiedBy(hedef == createdBy, true)`
+>    hesabı için **`targetIsCreator`** de gerekli: validator aktörün creator'lığını bilir,
+>    hedefinkini bilmezdi. Dördüncüsü `targetResolutionPending`'dir.
+
 **K5 — Uygunsuz önceki aktör sessizce yönlendirilmez.**
-K4 sağlanmazsa geçiş yeni `WORKFLOW_PREVIOUS_ACTOR_UNAVAILABLE` kodu ile
-reddedilir (HTTP `409`). Departman kuyruğuna veya yerleşik role otomatik dönüş
+K4 sağlanmazsa geçiş `WORKFLOW_TARGET_CANNOT_ACT` kodu ile reddedilir (HTTP `409`). Departman kuyruğuna veya yerleşik role otomatik dönüş
 yapılmaz. Kayıt mahsur kalmaz: Başkanın `CALISANA_GERI_GONDER` kolu `CREATOR`
 stratejisiyle açık kalır.
 
@@ -208,8 +222,8 @@ sabitler.
 | Bulgu | `B02` (P1) |
 | Sahip | Burak (`WF`) · Alperen (`DB`, `V24`) |
 | Yeni migration | `V24` |
-| Yeni hata kodu | `WORKFLOW_PREVIOUS_ACTOR_UNAVAILABLE` (`409`) |
-| Değişen tipler | `TransitionContext`, `TransitionRule`, `WorkflowUserSnapshot`, `WorkflowUserPort`, `WorkflowTransitionValidator`, `WorkflowApplicationService` |
+| Yeni hata kodu | `WORKFLOW_TARGET_CANNOT_ACT` (`409`) — uygulamada strateji-nötr ada çevrildi |
+| Değişen tipler | `TransitionContext`, `TransitionRule`, `TransitionDecision`, `WorkflowUserSnapshot`, `UserPortAdapter`, `WorkflowTransitionValidator`, `WorkflowApplicationService`, `AvailableActionResolver` |
 | Değişmeyen | Sekiz yerleşik geçişin davranışı, `RoleId` kimliği, validator saflığı, `GONDER` yolu |
 
 **Kabul testleri**
