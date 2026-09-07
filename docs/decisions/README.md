@@ -12,7 +12,7 @@ Bu dizin, projeyi uzun vadede etkileyen kararları Architecture Decision Record 
 | [0005](0005-departman-atamasi-ve-akis-kurali.md) | Departman ataması ve akış kuralı | Kabul Edildi |
 | [0006](0006-departman-hedefli-target-strategy.md) | Departman hedefli `target_strategy` ve gönderim sözleşmesi | Kabul Edildi |
 | [0007](0007-rol-kapasitesi-ve-birim-tekilligi.md) | Rol kapasitesi ve birim tekilliği | Kabul Edildi |
-| [0008](0008-hedef-rol-semantigi-ve-onceki-aktore-donus.md) | Hedef rol semantiği ve önceki aktöre dönüş (`B02`) | Önerildi |
+| [0008](0008-hedef-rol-semantigi-ve-onceki-aktore-donus.md) | Hedef rol semantiği ve önceki aktöre dönüş (`B02`) | Kabul Edildi |
 
 > **ADR-0003 tarihsel öneridir; yerini yeni kararlar aldı.** ADR, rolün **daire başına**
 > tekil olmasını öneriyor: `roles.scope` (`GLOBAL`/`UNIT`/`MULTI`),
@@ -20,7 +20,8 @@ Bu dizin, projeyi uzun vadede etkileyen kararları Architecture Decision Record 
 > **sistem genelinde** tekil — tekillik `roles.max_users` kolonuyla taşınıyor
 > (`V12` ile geldi; `BASKAN`, `BASKAN_YARDIMCISI` ve `ADMIN` için `1`).
 > V18–V22 departman/üyelik/routing ve kayıt ataması kalıcılığını eklemiştir;
-> departman runtime'ı henüz bağlanmamıştır.
+> departman runtime'ı `V23` ile bağlanmıştır (`DEPARTMANA_GONDER`, `DEPARTMENT`
+> hedef stratejisi, routing/eligibility resolver). Yönetim ekranları hâlâ açıktır.
 >
 > **Bu fark [ADR-0005](0005-departman-atamasi-ve-akis-kurali.md) ile karara
 > bağlandı (3 Eylül 2026):** birim semantiği `departments` + `department_members`
@@ -46,7 +47,11 @@ hedef rol dayatması kimliği çalışma zamanında belirlenen stratejilerde yer
 role bağlı olmayan bir yetenek kontrolüne bırakır ve uygunsuz önceki aktör sessizce
 yönlendirilmez. İstemci ve bildirim tarafındaki karşılığı
 [APP-9/APP-10/B11 sözleşmesindedir](../APP9_APP10_B11_ISTEMCI_SOZLESMESI.md).
-Karar **Önerildi** durumundadır; `V24` ve kod değişikliği henüz uygulanmamıştır.
+Karar **Kabul Edildi** durumundadır ve 6 Eylül 2026'da uygulanmıştır: `V24`
+migration'ı `expected_target_role_id` kolonunu yalnız `ROLE` stratejisine
+daraltır, statik rol dayatmasının yerini yetenek kontrolü
+(`WORKFLOW_TARGET_CANNOT_ACT`, `409`) alır. Uygulama sırasında alınan üç
+bilinçli sapma ADR'nin kendi metnindedir.
 
 ADR-0004 WebSocket kararı henüz bu dizinde yoktur. Kabul edilmiş ADR-0005/0006/0007,
 WF-5/WF-6 uygulaması ve ürün kabulü yerine geçmez. Güncel hazır/açık kapsam
