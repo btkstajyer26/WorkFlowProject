@@ -2,18 +2,31 @@
 
 Bu belge TEST ortamının güncel topolojisini, dağıtım kontrollerini ve işletim yönergelerini tanımlar. Tarihli dağıtım, hesap, seed ve cihaz kabul kanıtları [M9 arşiv belgesinde](archive/M9_TEST_KABUL_KANITI.md) korunur.
 
-Bu topoloji repo yapılandırmasını anlatır; çalışan TEST sunucusunun son commit'i
-ve `flyway_schema_history` sürümü bu dokümantasyon turunda doğrulanmadı. Repo
-tarafındaki 776 testlik yerel backend kabulü (`c9b0297`) TEST'e deploy veya
-departman ürün kabulü sayılmaz. [Teslim durumu](README.md).
+Bu topoloji repo yapılandırmasını anlatır. **7 Eylül 2026 itibarıyla çalışan bir TEST
+sunucusu yoktur** (aşağıdaki karara bakınız). Repo tarafındaki 831 testlik yerel
+backend kabulü (`8adcf21`) deploy veya ürün kabulü sayılmaz.
+[Teslim durumu](README.md).
 
-> **Açık karar — web barındırma.** Aşağıdaki API-only topoloji ile Workflow V1'in
-> web ve mail kabulü çelişir: `deploy/Caddyfile` bütün ürün yollarını backend'e
-> gönderdiği için `/hizli-islem` sayfası bu ortamda çalışmaz ve NT-7 mail üzerinden
-> işlem kabulü TEST'te gösterilemez. V1 teslimi için erişilebilir bir frontend
-> adresi ve deploy sorumluluğu karara bağlanmalıdır.
+> **Karar (7 Eylül 2026) — TEST web barındırma ertelendi.** Çalışan bir TEST
+> sunucusu ve alan adı bulunmuyor; M9 kabulünün yapıldığı ortam kullanılmıyor ve
+> genişletme kararı alınmadı. Bu nedenle aşağıdaki **API-only topoloji korunur** ve
+> Workflow V1'in web/mail kabulü **yerel ortamda** yapılır (bkz. *Yerel kabul yolu*).
+> Karar sahibi Burak; gerekçesi ve bedeli görev dağılımı belgesinin kapsam kararı
+> bölümünde kayıtlıdır.
+>
+> **Sunucu sağlandığı gün yapılacak iş** (yeniden keşfedilmesin diye):
+> 1. Frontend için statik build imajı (`npm run build` çıktısını servis eden aşama).
+> 2. `docker-compose.test.yml`'e host portu yayınlamayan bir servis.
+> 3. `deploy/Caddyfile`'da yol bölmesi: `/api*`, `/ws*`, `/actuator*`, `/swagger-ui*`,
+>    `/v3/api-docs*` backend'de kalır; `/mail*` Mailpit'te kalır; geri kalan her şey
+>    web'e gider ve bilinmeyen yollarda `index.html` döner (SPA fallback — istemci
+>    tarafı `/hizli-islem`, `/kayitlar/:id` gibi rotalar bunsuz 404 verir).
+> 4. `deploy/preflight.sh`'daki `FRONTEND_URL == TEST_DOMAIN` engelinin tersine
+>    çevrilmesi — aynı adres artık beklenen değerdir.
+> 5. `.github/workflows/ci.yml`'deki `has("frontend")` kontrolünün güncellenmesi;
+>    yeni servis host portu yayınlamamalı, yoksa "yalnız Caddy yayınlar" kontrolü düşer.
 
-TEST ortamı tek sunucuda Docker Compose ile backend, PostgreSQL, Mailpit ve Caddy çalıştırır. Sunucuya özgü Elastic IP, SSH anahtarı ve bölge bilgileri repository dışında ortam sahibinde tutulur.
+TEST ortamı, ayağa kaldırıldığında tek sunucuda Docker Compose ile backend, PostgreSQL, Mailpit ve Caddy çalıştıracak biçimde yapılandırılmıştır; aşağıdaki topoloji bu yapılandırmayı anlatır, şu an çalışan bir kurulumu değil. Sunucuya özgü Elastic IP, SSH anahtarı ve bölge bilgileri repository dışında ortam sahibinde tutulur.
 
 ## Topoloji: API-only
 
@@ -31,9 +44,68 @@ Birleştirilmiş TEST yapılandırması `db`, `backend` ve `mailpit` host portla
 
 ## E-posta derin bağlantısı sınırlaması
 
-Backend e-posta bağlantılarını `FRONTEND_URL` üzerinden üretir. TEST'te ürün web arayüzü bulunmadığı için e-posta kayıt/parola bağlantıları ve `/hizli-islem#token=...` sayfası desteklenmez; kodlar Mailpit arayüzünden elle okunur.
+Backend derin bağlantıları `FRONTEND_URL` üzerinden üretir. Bu yalnız **evrak durum
+değişikliği bildirimi** için geçerlidir: `MailService.render` `deepLink`'i
+`FRONTEND_URL + "/records/{id}"`, `quickActionLink`'i
+`FRONTEND_URL + "/hizli-islem#token=..."` olarak kurar. **Parola sıfırlama maili
+bağlantı içermez** — yalnız doğrulama kodu taşır ve kod arayüzdeki forma elle girilir;
+7 Eylül'de yerel Mailpit üzerinde doğrulandı (gövdede hiçbir `http` adresi yok).
+Dolayısıyla web arayüzü yayınlanmasa bile parola akışı çalışır; kırılan yalnız evrak
+bildirimindeki iki derin bağlantıdır.
 
-`FRONTEND_URL` alanına API adresi yazılmamalıdır. Aksi hâlde tarayıcı bağlantıları HTML arayüzü yerine JSON API'ye gider. `deploy/preflight.sh` bunu engelleyici bulgu olarak raporlar. Mobil istemci `EXPO_PUBLIC_API_BASE_URL` ile doğrudan API'ye bağlandığı için bu sınırlamadan etkilenmez.
+`FRONTEND_URL` alanına API adresi yazılmamalıdır; API-only topoloji korunduğu sürece bu
+kural geçerlidir ve `deploy/preflight.sh` bunu engelleyici bulgu olarak raporlar. Mobil
+istemci `EXPO_PUBLIC_API_BASE_URL` ile doğrudan API'ye bağlandığı için bu sınırlamadan
+etkilenmez.
+
+## Yerel kabul yolu
+
+TEST sunucusu bulunmadığı için Workflow V1'in web ve mail kabulü geliştirici
+makinesinde yapılır. Ürün web arayüzü temel Compose dosyasında **profil arkasındadır**;
+backend'in `FRONTEND_URL` varsayılanı zaten `http://localhost:5173`'tür ve
+`CORS_ALLOWED_ORIGINS` varsayılanı bu adresi içerir — yani yerelde ek yapılandırma
+gerekmez.
+
+```bash
+docker compose up -d --build backend      # --build zorunlu; bkz. bayat imaj tuzağı
+docker compose --profile frontend up -d
+```
+
+Aşağıdaki kontroller **7 Eylül 2026'da `8adcf21` üzerinde çalıştırıldı**:
+
+| Kontrol | Sonuç |
+| --- | --- |
+| `GET :8080/actuator/health` | `{"status":"UP"}` |
+| `http://localhost:5173/giris` | Giriş ekranı render edildi |
+| `http://localhost:5173/hizli-islem` (token'sız) | Sayfa açıldı; beklenen "Bağlantı eksik veya bozuk görünüyor" durumunu gösterdi |
+| Tarayıcıdan `:5173` → `:8080/api/categories` | `401` — CORS zinciri çalışıyor, backend kimliksiz isteği reddediyor |
+| `POST /api/auth/forgot-password` → Mailpit | `202`; mail `http://localhost:8025` kutusuna düştü |
+
+**Bu koşumda doğrulanmayanlar:** giriş, workflow aksiyonu ve evrak bildirimi mailindeki
+iki derin bağlantı (`/records/{id}` ve `/hizli-islem#token=...`). Bunlar hesap parolası
+gerektirir. Ayrıca hızlı işlem düğmesi `B01` kapanmadan üretilmediği için mail → işlem
+zinciri bugün uçtan uca gösterilemez; sayfanın kendisinin çalışıyor olması bu zincirin
+kabulü değildir. Yerel hesaplar: `calisan@local.test`, `byardimci@local.test`,
+`baskan@local.test`, `admin@local.test`.
+
+### Bayat imaj tuzağı
+
+`V24` uygulanmış bir veritabanına **eski backend imajı** bağlanırsa uygulama açılışta
+düşer ve konteyner yeniden başlatma döngüsüne girer:
+
+```
+workflow-backend  Restarting (1)
+Caused by: targetStrategy PREVIOUS_ACTOR requires expectedTargetRoleId
+```
+
+7 Eylül 2026'da yerel ortamda gerçekleşti: imaj 3 Eylül'de üretilmişti (`V24` ve
+`c0e08d7` öncesi), veritabanında ise `flyway_schema_history` **24**'ü gösteriyordu.
+Eski kodun invariant'ı `PREVIOUS_ACTOR` satırında `expected_target_role_id` beklerken
+`V24` o kolonu boşaltmıştır. Kod hatası değildir; `docker compose up -d --build backend`
+ile imaj yenilendiğinde servis sağlıklı hâle gelir.
+
+Kural: **migration uygulanmış bir ortamda `--build` olmadan `up` yapmayın.** Aynı sebeple
+`V24` ve kod değişikliği tek teslimde dağıtılır; ayrı dağıtılırsa uygulama açılmaz.
 
 ## Dağıtım öncesi kontrol
 
