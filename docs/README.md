@@ -1,23 +1,24 @@
 # Dokümantasyon ve teslim durumu
 
 Bu dizin çalışan kodu, kabul edilmiş tasarım kararlarını ve tarihli test kanıtlarını
-ayrı takip eder. **Kod tabanı: 4 Eylül 2026, `codex/ap-2-frontend-uyum` @ `c9b0297`;
-PR #69 ve #70 yerel geçmişte birleşmiştir.**
+ayrı takip eder. **Kod tabanı: 7 Eylül 2026, `test` dalı; `origin/test` @ `beadcb0`
+(PR #75 ve #76 içeride) üzerine B04/B05/B07/B08/R03/R06 çalışması eklenmiştir.**
 Bir ADR'nin kabul edilmesi ilgili runtime'ın uygulandığı anlamına gelmez.
 Aynı biçimde “kod mevcut”, “dala birleşti”, “CI geçti”, “TEST'e dağıtıldı” ve
 “ürün kabulü geçti” ayrı durumlardır; bu belgede karıştırılmaz.
 
-> **Karar paketi — 4 Eylül 2026.** `B02` ve istemci/bildirim sözleşmeleri karara
-> bağlanmıştır: [ADR-0008](decisions/0008-hedef-rol-semantigi-ve-onceki-aktore-donus.md)
-> ve [APP-9/APP-10/B11 sözleşmesi](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md). İkisi de
-> **Önerildi** durumundadır — karar metni hazırdır, kod ve `V24` migration'ı henüz
-> uygulanmamıştır. Tamer (`B10`/`WEB-1`), Bahadır (`B09`/`MOB-1`/`NT-5`) ve
-> Alperen (`B12`) bu sözleşmelere göre çalışmaya başlayabilir.
+> **Karar paketi — uygulandı.** [ADR-0008](decisions/0008-hedef-rol-semantigi-ve-onceki-aktore-donus.md)
+> ve [APP-9/APP-10/B11 sözleşmesi](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md) artık
+> **Kabul Edildi** durumundadır ve kodu `origin/test`'tedir: `V24` migration'ı,
+> yetenek kontrolü (`WORKFLOW_TARGET_CANNOT_ACT`), iki APP-9 okuma ucu ve ortak
+> `assignment`/`version` alanları uygulanmıştır. Kalan iş istemci tarafındadır —
+> Tamer (`B10`/`WEB-1`), Bahadır (`B09`/`MOB-1`/`NT-5`) ve Alperen (`B12`).
 
 > **Açık davranış problemleri:** 4 Eylül 2026 tarihli inceleme, çalıştırılmış
-> regresyon problarıyla sekiz backend davranış ihlali (B01–B08) ve dört istemci/sözleşme
-> boşluğu (B09–B12) doğrulamıştır; beşi P1'dir. Aşağıdaki “hazır teslim”
-> sütunu bu problemleri kapsamaz.
+> regresyon problarıyla sekiz backend davranış ihlali (B01–B08) ve beş istemci/sözleşme
+> boşluğu (B09–B13) doğrulamıştır. **Bugün yedisi kapalıdır** (`B02`, `B04`, `B05`,
+> `B07`, `B08`, `B11`, `B13`); **açık kalanlar `B01`, `B03`, `B06`, `B09`, `B10`,
+> `B12`'dir.** Aşağıdaki “hazır teslim” sütunu bu problemleri kapsamaz.
 
 ## Hangi belge okunmalı?
 
@@ -44,8 +45,8 @@ Aynı biçimde “kod mevcut”, “dala birleşti”, “CI geçti”, “TEST'
 | Aktör rolü bağlama (`WF-8`) | `WorkflowActorBindingService.listTransitions/bind/unbind`, permission/koruma, audit ve commit sonrası snapshot | `AP-8` HTTP adapter ve yönetim ekranı. `workflow` altındaki tek yönetim ucu `POST /api/workflow/rules/reload`'dur; bu tek başına AP-8 değildir |
 | Departman veri katmanı (`DB-11/12`) | V18–V22 tablo/entity/repository; ad 150, self-parent CHECK, RESTRICT FK, çoklu üyelik ve routing tekilliği | Yönetim servis/API/UI (`AP-4/5`): departman ve routing için controller yoktur; parent döngüsü ve açık kuyruk koruması karara bağlanmalıdır |
 | Atama (`DB-13/WF-5`) | V23, snapshot/update/event departman alanları, karşılıklı dışlama ve gönderim | Yönetim ve gönderim ekranı kabulü |
-| Departman runtime (`WF-6`) | Routing/eligibility resolver, gönderim, ortak görünürlük, event ve yarış testleri | AP-4/AP-5 ekranları; NT-5 fan-out (listener departman için bilinçli olarak boş alıcı döner); dinamik aktörden Başkana iletilen kaydın önceki aktöre dönüşü (B02) |
-| İstemci workflow kabulü | Web dinamik rolü okuyabilir ve departman isteği taşıyabilir | Web aksiyon paneli `systemKey` sabitlerine bağlıdır; dinamik rol düğme göremez (B10). Mobil `roleName` Zod enum'u dinamik rolü reddeder (B09). Atama alanları yanıt DTO'larında yoktur (B11) |
+| Departman runtime (`WF-6`) | Routing/eligibility resolver, gönderim, ortak görünürlük, event ve yarış testleri; dinamik aktörden Başkana iletilen kaydın önceki aktöre dönüşü (B02 ✅, `V24`) | AP-4/AP-5 ekranları; NT-5 fan-out (listener departman için bilinçli olarak boş alıcı döner) |
+| İstemci workflow kabulü | Web dinamik rolü okuyabilir ve departman isteği taşıyabilir; atama (`assignment.kind`) ve `version` üç yanıt tipinde de taşınır ve üretilmiş istemcide açıktır (B11 ✅) | Web aksiyon paneli `systemKey` sabitlerine bağlıdır; dinamik rol düğme göremez ve üretilmiş `WorkflowQueryController.ts` hiçbir bileşen tarafından tüketilmez (B10). Mobil `roleName` Zod enum'u dinamik rolü reddeder (B09) |
 | Bildirim ve istemci kabulü | Mevcut REST/polling, uygulama içi bildirim, mail-action altyapısı, FCM desteği ve token temizliği | WebSocket, departman fan-out (`NT-5`), mail E2E (B01 düzeltmesine bağlı) ve gerçek cihaz push kabulü |
 
 ## WF-5/WF-6 entegrasyon sınırı
@@ -81,19 +82,24 @@ departman kabulünü kapatmaz.
 
 ## Doğrulama kanıtı
 
-**Güncel tur — 4 Eylül 2026, `codex/ap-2-frontend-uyum` @ `c9b0297`:** Backend
-`mvn -o ... verify` **776 test / 0 failure / 0 error / 0 skipped**, JAR üretildi.
-Frontend `npm test` **126 test / 22 dosya**, lint, build ve E2E typecheck başarılı.
-Mobil lint/typecheck başarılı, `npm test -- --runInBand` **64 / 64**. Gerçek
-backend ile Playwright **15 / 15** (ayrı `workflow-review-e2e` Compose projesi,
-Chromium). Backend testleri yalnız `wf-scratch` içinde oluşturulan
-`workflow_review_20260904` veritabanında çalıştı; geliştirme DB'si (`5433`) ve
-`8080`'deki backend hedef yapılmadı.
+**Güncel tur — 7 Eylül 2026, `origin/test` @ `beadcb0` + B04/B05/B07/B08 çalışması:**
+Backend `./mvnw clean verify` **831 test / 0 failure / 0 error / 0 skipped**, JAR
+üretildi. Koşum, geliştirme veritabanına dokunmamak için aynı PostgreSQL
+sunucusunda açılan ayrı bir `b04_b08_test` veritabanına karşı yapıldı; `V22`–`V24`
+dahil bütün migration'lar ilk koşumda uygulandı. **831 = rev.4'teki 816 + bu turda
+eklenen 15 regresyon testi.**
 
-Bu koşumların kaynağı 4 Eylül 2026 inceleme turudur; bu dokümantasyon turunda
-yalnız frontend `npm test` yeniden çalıştırılarak **126/126** doğrulanmıştır.
-Backend, mobil ve Playwright sayıları raporun aynı commit üzerindeki tarihli
-kanıtından alınmıştır, bu turda tekrar edilmemiştir.
+**Bu turda frontend, mobil ve Playwright çalıştırılmadı** — bu turun değişiklikleri
+yalnız backend'dedir. 126/126, 64/64 ve 15/15 sayıları önceki turlara aittir ve
+burada tekrar edilmemiştir.
+
+> **Test izolasyonu bulgusu (yeni).** `PreviousActorReturnIntegrationTest` yalnızca
+> aktif bir `BASKAN` kullanıcısı bulunmayan bir veritabanında geçer: kendi `BASKAN`
+> kullanıcısını eklediği için, seed edilmiş bir `BASKAN` zaten varsa `ROLE` hedef
+> stratejisi tekil kullanıcı çözemez ve `BASKANA_ILET` `409` döner. Geliştirme
+> veritabanına karşı koşulduğunda yedi testin yedisi bu nedenle düşer. Bu, bu turun
+> değişiklikleriyle ilgisizdir — değişiklikler rafa kaldırılarak doğrulanmıştır —
+> fakat suite'in "temiz DB" varsayımını görünür kılar.
 
 Bu sayılar **proje testlerinin** sonucudur. İnceleme turunda ayrıca çalıştırılan
 sekiz regresyon probu bu suite'in dışındadır ve hepsi başarısız olmuştur; yeşil

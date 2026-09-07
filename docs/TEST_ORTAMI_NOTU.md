@@ -47,14 +47,16 @@ Betik dosya iznini (`600`), zorunlu değerleri, JWT anahtarı uzunluğunu, alan 
 
 ## Test verisi yükleme
 
-Repo **V23** migration'ına kadar olan zinciri içerir. Dağıtım öncesinde hedef
+Repo **V24** migration'ına kadar olan zinciri içerir. Dağıtım öncesinde hedef
 ortamın `flyway_schema_history` sürümü ve departman verisi incelenmelidir. V22
 kendine-parent verisi bulursa tamamen geri alınır; otomatik veri düzeltmez.
 Paylaşılmış V18–V21 dosyaları değiştirilmez.
 [V22 yükseltme davranışı](database.md#v22-yükseltme-ve-geri-alma-davranışı).
 
 V18–V22 temel departman şemasıdır; V23 `DEPARTMENT` hedef stratejisini,
-`DEPARTMANA_GONDER` aksiyonunu ve iki geçişi ekler (toplam 10 geçiş). V23 tek
+`DEPARTMANA_GONDER` aksiyonunu ve iki geçişi ekler (toplam 10 geçiş). V24
+`expected_target_role_id` kolonunu yalnız `ROLE` stratejisine daraltır; geçiş
+sayısını değiştirmez ve kod değişikliğiyle birlikte dağıtılmalıdır. V23 tek
 başına eski bir backend üzerine dağıtılmaz; WF-5/WF-6 runtime'ı ile birlikte
 gider. Mevcut seed betiği departman gönderim kabulünü hâlâ kanıtlamaz: departman,
 üyelik ve routing için yönetim ucu bulunmadığından bu veriler TEST'te yalnız SQL

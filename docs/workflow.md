@@ -551,8 +551,10 @@ Yukarıdaki boşlukların bir kısmı **Workflow V1 açık işidir**, bir kısm�
 | Departman, üyelik, routing ve atama veri katmanı | V18–V22 ile şema/entity/repository hazır; V22 ad uzunluğu, self-parent ve silme korumalarını DB-1 ile hizalar |
 | Departman runtime ve görünürlük | V23 + WF-5/WF-6 ve policy/SQL departman kolu uygulandı; yönetim ekranları (`AP-4`/`AP-5`) ve NT-5 ayrı teslim. Bildirim dinleyicisi departmana atanan kayıtta bilinçli olarak boş alıcı kümesi döner |
 | Dinamik aktörden Başkana iletilen kaydın geri dönüşü | Workflow V1 açık işi — B02; karar [ADR-0008](decisions/0008-hedef-rol-semantigi-ve-onceki-aktore-donus.md) ile verildi, uygulama açık |
-| Departman hedefinin kalıcı workflow audit'ine yazılması | Workflow V1 açık işi — B12; `WorkflowTransitionAudit` departman/kişi atama alanı taşımaz |
-| İstemcinin kullanılabilir aksiyonu backend'den öğrenmesi | Workflow V1 açık işi — B10; sözleşme [APP-9](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md) ile verildi (`available-actions` ve `target-departments` uçları), uygulama açık |
+| Departman hedefinin kalıcı workflow audit'ine yazılması | Workflow V1 açık işi — B12; `WorkflowTransitionAudit` departman alanı taşımaz, `AuditLogService` modeldeki kişi atamasını da kaydetmez |
+| Dosya işlemlerinin kayıt kilidi ve tarihsel dosya erişimi | Uygulandı: dosya ekleme/silme `findByIdForUpdate` ile kaydı kilitler (B04), geri alınan yüklemede disk temizlenir (R06), indirme listeyle aynı zaman kesitini kullanır (B07) |
+| Silinmiş kaydın değiştirilmesi | Uygulandı: değiştirme yolları aktif kayıt yükleyicisini kullanır; tekrar `DELETE` `404` döner (B08) |
+| İstemcinin kullanılabilir aksiyonu backend'den öğrenmesi | Backend tamam: `available-actions` ve `target-departments` uçları uygulandı ve üretilmiş istemcide açık. Kalan iş istemci tarafında — web paneli hâlâ `systemKey` sabitleriyle çalışır (B10), mobil kendi hesabını kurar (B09) |
 | Mevcut geçişe dinamik aktör rolü bağlama | WF-8 servis ve sözleşmesi uygulandı; AP-8 HTTP/UI açık |
 | Admin'den rol/permission yönetimi | Workflow V1 — `AP-2`/`AP-3` |
 | WebSocket bildirim kanalı | Workflow V1 — `NT-2`…`NT-4` |
