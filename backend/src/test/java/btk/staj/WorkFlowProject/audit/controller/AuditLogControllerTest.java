@@ -138,7 +138,7 @@ class AuditLogControllerTest {
     @DisplayName("olmayan kayit icin 404 anlamli hata doner")
     void aMissingRecordIsReportedAsNotFound() {
         givenActor(OWNER_ID, RoleName.CALISAN);
-        when(recordRepository.findById(RECORD_ID)).thenReturn(Optional.empty());
+        when(recordRepository.findByIdAndDeletedAtIsNull(RECORD_ID)).thenReturn(Optional.empty());
 
         assertThatExceptionOfType(ResourceNotFoundException.class)
                 .isThrownBy(() -> controller.getGecmis(RECORD_ID));
@@ -198,7 +198,7 @@ class AuditLogControllerTest {
         record.setAssignedTo(assignedTo);
         record.setLastDeputyId(lastDeputyId);
         record.setStatus(status);
-        when(recordRepository.findById(RECORD_ID)).thenReturn(Optional.of(record));
+        when(recordRepository.findByIdAndDeletedAtIsNull(RECORD_ID)).thenReturn(Optional.of(record));
     }
 
     private static AuditLogResponse row() {

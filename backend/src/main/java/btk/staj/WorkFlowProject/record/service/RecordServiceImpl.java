@@ -72,8 +72,16 @@ public class RecordServiceImpl implements RecordService {
         return getCurrentUser().getId();
     }
 
+    /**
+     * Aktif kaydin yukleyicisi (B08).
+     *
+     * <p>Onceden yalnizca okuma yolu {@code deletedAt} filtreliyordu; degistirme
+     * yollari filtrelemedigi icin soft-delete edilmis bir taslak guncellenebiliyor
+     * ve ikinci kez silinebiliyordu. Silinmis kayit artik her iki yol icin de
+     * yoktur: tekrar {@code DELETE} de {@code 404} doner.
+     */
     private Record findRecordOrThrow(UUID id) {
-        return recordRepository.findById(id)
+        return recordRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Kayıt bulunamadı! ID: " + id));
     }
 
@@ -110,9 +118,7 @@ public class RecordServiceImpl implements RecordService {
 
     @Override
     public RecordResponse getRecordById(UUID id) {
-        Record record = recordRepository.findById(id)
-                .filter(found -> found.getDeletedAt() == null)
-                .orElseThrow(() -> new ResourceNotFoundException("Kayıt bulunamadı! ID: " + id));
+        Record record = findRecordOrThrow(id);
         VisibilityActor actor = VisibilityActor.from(getCurrentUser());
 
         recordAccessPolicy.assertCanView(actor, record);

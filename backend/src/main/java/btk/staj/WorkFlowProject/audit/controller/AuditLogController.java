@@ -41,8 +41,7 @@ public class AuditLogController {
     public List<AuditLogResponse> getGecmis(@PathVariable UUID recordId) {
         VisibilityActor actor = currentVisibilityActorProvider.currentVisibilityActor();
 
-        Record record = recordRepository.findById(recordId)
-                .filter(found -> found.getDeletedAt() == null)
+        Record record = recordRepository.findByIdAndDeletedAtIsNull(recordId)
                 .orElseThrow(() -> new ResourceNotFoundException("Kayıt bulunamadı: " + recordId));
 
         recordAccessPolicy.assertCanView(actor, record);

@@ -155,7 +155,7 @@ class RecordServiceImplTest {
     @Test
     void olmayanKayitIcinResourceNotFoundFirlatilmali() {
         girisYapmisKullaniciOlustur(ownerId, RoleName.CALISAN);
-        when(recordRepository.findById(recordId)).thenReturn(Optional.empty());
+        when(recordRepository.findByIdAndDeletedAtIsNull(recordId)).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> service().getRecordById(recordId));
     }
@@ -164,7 +164,7 @@ class RecordServiceImplTest {
     void erisimPolicyReddedersegetRecordByIdForbiddenFirlatmali() {
         girisYapmisKullaniciOlustur(otherUserId, RoleName.CALISAN);
         Record kayit = ornekKayit(RecordStatus.TASLAK, ownerId);
-        when(recordRepository.findById(recordId)).thenReturn(Optional.of(kayit));
+        when(recordRepository.findByIdAndDeletedAtIsNull(recordId)).thenReturn(Optional.of(kayit));
 
         doThrow(new ForbiddenException("Bu kaydı görüntüleme yetkiniz yok"))
                 .when(recordAccessPolicy).assertCanView(visibility(RoleName.CALISAN, otherUserId), kayit);
@@ -176,7 +176,7 @@ class RecordServiceImplTest {
     void erisimPolicyIzinVerirsegetRecordByIdSonucDonmeli() {
         girisYapmisKullaniciOlustur(ownerId, RoleName.CALISAN);
         Record kayit = ornekKayit(RecordStatus.TASLAK, ownerId);
-        when(recordRepository.findById(recordId)).thenReturn(Optional.of(kayit));
+        when(recordRepository.findByIdAndDeletedAtIsNull(recordId)).thenReturn(Optional.of(kayit));
         // Detay cevabi olusturanin adini da tasir; ad kaydin created_by'sindan
         // cozulur, denetim izinden degil.
         when(userRepository.findById(ownerId)).thenReturn(Optional.of(kullanici("Ahmet", "Yılmaz")));
@@ -195,7 +195,7 @@ class RecordServiceImplTest {
     void duzenlenemeyenDurumdaBusinessRuleFirlatilmali() {
         girisYapmisKullaniciOlustur(ownerId, RoleName.CALISAN);
         Record kayit = ornekKayit(RecordStatus.ONAYLANDI, ownerId);
-        when(recordRepository.findById(recordId)).thenReturn(Optional.of(kayit));
+        when(recordRepository.findByIdAndDeletedAtIsNull(recordId)).thenReturn(Optional.of(kayit));
         when(permissionService.canEditRecord(AuthorizationFixtures.permissions(RoleName.CALISAN), RecordStatus.ONAYLANDI)).thenReturn(false);
 
         assertThrows(BusinessRuleException.class,
@@ -210,7 +210,7 @@ class RecordServiceImplTest {
     void sahibiOlmayanKullaniciDuzenleyemeMeli() {
         girisYapmisKullaniciOlustur(otherUserId, RoleName.CALISAN);
         Record kayit = ornekKayit(RecordStatus.TASLAK, ownerId);
-        when(recordRepository.findById(recordId)).thenReturn(Optional.of(kayit));
+        when(recordRepository.findByIdAndDeletedAtIsNull(recordId)).thenReturn(Optional.of(kayit));
         when(permissionService.canEditRecord(AuthorizationFixtures.permissions(RoleName.CALISAN), RecordStatus.TASLAK)).thenReturn(true);
 
         assertThrows(ForbiddenException.class,
@@ -225,7 +225,7 @@ class RecordServiceImplTest {
     void sahibiTaslagiDuzenleyebilmeli() {
         girisYapmisKullaniciOlustur(ownerId, RoleName.CALISAN);
         Record kayit = ornekKayit(RecordStatus.TASLAK, ownerId);
-        when(recordRepository.findById(recordId)).thenReturn(Optional.of(kayit));
+        when(recordRepository.findByIdAndDeletedAtIsNull(recordId)).thenReturn(Optional.of(kayit));
         when(permissionService.canEditRecord(AuthorizationFixtures.permissions(RoleName.CALISAN), RecordStatus.TASLAK)).thenReturn(true);
         // Güncelleme işleminde saveAndFlush kullanıldığı için mock buna göre güncellendi
         when(recordRepository.saveAndFlush(kayit)).thenReturn(kayit);
@@ -254,7 +254,7 @@ class RecordServiceImplTest {
     void taslakOlmayanKayitSilinemeMeli() {
         girisYapmisKullaniciOlustur(ownerId, RoleName.CALISAN);
         Record kayit = ornekKayit(RecordStatus.DUZENLEME_BEKLIYOR, ownerId);
-        when(recordRepository.findById(recordId)).thenReturn(Optional.of(kayit));
+        when(recordRepository.findByIdAndDeletedAtIsNull(recordId)).thenReturn(Optional.of(kayit));
         // DUZENLEME_BEKLIYOR duzenlemeye acik olabilir ama silmeye acik degildir.
         when(permissionService.canDeleteRecord(AuthorizationFixtures.permissions(RoleName.CALISAN), RecordStatus.DUZENLEME_BEKLIYOR)).thenReturn(false);
 
@@ -267,7 +267,7 @@ class RecordServiceImplTest {
     void sahibiOlmayanKullaniciSilemeMeli() {
         girisYapmisKullaniciOlustur(otherUserId, RoleName.CALISAN);
         Record kayit = ornekKayit(RecordStatus.TASLAK, ownerId);
-        when(recordRepository.findById(recordId)).thenReturn(Optional.of(kayit));
+        when(recordRepository.findByIdAndDeletedAtIsNull(recordId)).thenReturn(Optional.of(kayit));
         when(permissionService.canDeleteRecord(AuthorizationFixtures.permissions(RoleName.CALISAN), RecordStatus.TASLAK)).thenReturn(true);
 
         assertThrows(ForbiddenException.class, () -> service().deleteRecord(recordId));
@@ -279,7 +279,7 @@ class RecordServiceImplTest {
     void sahibiTaslagiSilebilmeli() {
         girisYapmisKullaniciOlustur(ownerId, RoleName.CALISAN);
         Record kayit = ornekKayit(RecordStatus.TASLAK, ownerId);
-        when(recordRepository.findById(recordId)).thenReturn(Optional.of(kayit));
+        when(recordRepository.findByIdAndDeletedAtIsNull(recordId)).thenReturn(Optional.of(kayit));
         when(permissionService.canDeleteRecord(AuthorizationFixtures.permissions(RoleName.CALISAN), RecordStatus.TASLAK)).thenReturn(true);
 
         service().deleteRecord(recordId);
@@ -296,5 +296,42 @@ class RecordServiceImplTest {
                 RecordStatus.TASLAK,
                 "Kayıt soft delete işlemiyle silindi."
         );
+    }
+
+    // ---------------------------------------------------------------
+    // B08 — silinmis kayit degistirilemez
+    // ---------------------------------------------------------------
+
+    /**
+     * B08: soft-delete edilmis bir taslak TASLAK durumunda kaldigi icin
+     * yetki kontrollerinden geciyor ve guncellenebiliyordu. Okuma yolu ayni
+     * kaydi zaten 404 veriyordu; degistirme yolu artik onunla ayni davraniyor.
+     */
+    @Test
+    void silinmisTaslakGuncellenemeMeli() {
+        girisYapmisKullaniciOlustur(ownerId, RoleName.CALISAN);
+        when(recordRepository.findByIdAndDeletedAtIsNull(recordId)).thenReturn(Optional.empty());
+
+        RecordUpdateRequest request = new RecordUpdateRequest();
+        request.setTitle("Yeni başlık");
+        request.setCategoryId(1);
+
+        assertThrows(ResourceNotFoundException.class, () -> service().updateRecord(recordId, request));
+        verify(recordRepository, never()).saveAndFlush(any());
+        verify(auditLogService, never()).recordLifecycleEvent(any(), any(), any(), any(), any(), any());
+    }
+
+    /**
+     * B08 sozlesme karari: tekrar DELETE idempotent degil, 404'tur. Ikinci
+     * silme ne kaydi tekrar damgalar ne de ikinci bir audit satiri yazar.
+     */
+    @Test
+    void silinmisKaydinTekrarSilinmesi404Donmeli() {
+        girisYapmisKullaniciOlustur(ownerId, RoleName.CALISAN);
+        when(recordRepository.findByIdAndDeletedAtIsNull(recordId)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> service().deleteRecord(recordId));
+        verify(recordRepository, never()).save(any());
+        verify(auditLogService, never()).recordLifecycleEvent(any(), any(), any(), any(), any(), any());
     }
 }
