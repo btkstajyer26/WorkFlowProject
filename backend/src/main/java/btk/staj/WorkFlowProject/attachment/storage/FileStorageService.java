@@ -1,5 +1,6 @@
 package btk.staj.WorkFlowProject.attachment.storage;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -13,6 +14,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 
+@Slf4j
 @Service
 public class FileStorageService {
 
@@ -44,6 +46,24 @@ public class FileStorageService {
             return resource;
         } catch (MalformedURLException e) {
             throw new RuntimeException("Dosya yolu hatalı: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Diske yazilmis dosyayi kaliciyi olarak siler (R06).
+     *
+     * <p>Yalnizca transaction geri alindiginda, ayni transaction icinde yazilmis
+     * dosyalari temizlemek icin kullanilir. Kullanicinin sildigi ekler soft-delete
+     * ile yonetilir ve diskte kalir: dondurulmus gorunum onlari hala acabilmelidir.
+     *
+     * <p>Silme basarisiz olursa istisna firlatilmaz; geri alma yolunda ikinci bir
+     * hata uretmek, asil hatanin ustunu ortmekten baska ise yaramaz.
+     */
+    public void delete(String storedFilename) {
+        try {
+            Files.deleteIfExists(resolveWithinUploadDir(storedFilename));
+        } catch (IOException | IllegalArgumentException e) {
+            log.warn("Geri alma sonrasi dosya silinemedi: {} ({})", storedFilename, e.getMessage());
         }
     }
 

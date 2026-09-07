@@ -10,8 +10,12 @@ import org.springframework.data.jpa.repository.Modifying; // Eklendi
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
+
+import jakarta.persistence.LockModeType;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface RecordRepository extends JpaRepository<Record, UUID>, JpaSpecificationExecutor<Record> {
@@ -43,5 +47,20 @@ public interface RecordRepository extends JpaRepository<Record, UUID>, JpaSpecif
     @Modifying
     @Query("UPDATE Record r SET r.lastDeputyId = :yeniKullaniciId WHERE r.lastDeputyId = :eskiKullaniciId")
     int updateLastDeputyId(@Param("eskiKullaniciId") UUID eskiKullaniciId, @Param("yeniKullaniciId") UUID yeniKullaniciId);
+
+    // 8. Aktif (silinmemis) kaydin tekil yukleyicisi (B08).
+    // Okuma yollari bu filtreyi zaten uyguluyordu; degistirme yollari uygulamiyordu.
+    // Filtre uc yere kopyalanmak yerine tek bir sorguda toplanir.
+    Optional<Record> findByIdAndDeletedAtIsNull(UUID id);
+
+    // 9. Satir kilidiyle yukleme (B04).
+    // Dosya ekleme/silme, durum kontrolu ile yazim arasinda kaydin degismedigini
+    // garanti edebilmek icin bu metodu kullanir: kilit transaction sonuna kadar
+    // tutuldugundan araya giren workflow gecisi ya bekler ya da bizden once
+    // commit edip bizim taze durumu gormemizi saglar.
+    // Ayni kalip: RoleRepository.findByIdForUpdate, UserRepository.findByIdForUpdate.
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT r FROM Record r WHERE r.id = :id")
+    Optional<Record> findByIdForUpdate(@Param("id") UUID id);
 
 }

@@ -21,10 +21,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -234,8 +237,8 @@ class FileServiceTest {
         record.setCreatedBy(UPLOADER_ID);
         record.setStatus(RecordStatus.TASLAK);
 
-        when(fileRepository.findByIdAndDeletedAtIsNull(fileId)).thenReturn(Optional.of(entity));
-        when(recordRepository.findById(RECORD_ID)).thenReturn(Optional.of(record));
+        when(fileRepository.findById(fileId)).thenReturn(Optional.of(entity));
+        when(recordRepository.findByIdAndDeletedAtIsNull(RECORD_ID)).thenReturn(Optional.of(record));
         when(fileStorageService.loadAsResource("stored-guid.pdf"))
                 .thenReturn(new ByteArrayResource("pdf-content".getBytes()));
 
@@ -264,8 +267,8 @@ class FileServiceTest {
         record.setCreatedBy(UPLOADER_ID);
         record.setStatus(RecordStatus.TASLAK);
 
-        when(fileRepository.findByIdAndDeletedAtIsNull(fileId)).thenReturn(Optional.of(entity));
-        when(recordRepository.findById(RECORD_ID)).thenReturn(Optional.of(record));
+        when(fileRepository.findById(fileId)).thenReturn(Optional.of(entity));
+        when(recordRepository.findByIdAndDeletedAtIsNull(RECORD_ID)).thenReturn(Optional.of(record));
         when(fileStorageService.loadAsResource("stored-guid.png"))
                 .thenReturn(new ByteArrayResource("image-content".getBytes()));
 
@@ -276,5 +279,66 @@ class FileServiceTest {
         assertThat(response.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION))
                 .contains("inline")
                 .contains("filename=\"onizleme.png\"");
+    }
+
+    /**
+     * R06: depolama yazimi veritabani insert'inden once yapiliyor ve dosya
+     * sistemi transaction'a katilmiyor. Transaction geri alinirsa diske yazilan
+     * dosya yetim kalirdi; afterCompletion kancasi bunu temizler.
+     *
+     * <p>Birim testinde gercek bir transaction yok, bu yuzden senkronizasyon
+     * yasam dongusu elle kurulur ve geri alma sinyali elle verilir.
+     */
+    @Test
+    @DisplayName("R06: transaction geri alinirsa diske yazilan dosya silinir")
+    void geriAlmadaDiskeYazilanDosyaSilinir() {
+        MultipartFile file = new MockMultipartFile("files", "rapor.pdf", "application/pdf", "content".getBytes());
+
+        when(fileContentValidator.detectAndValidate(any())).thenReturn("application/pdf");
+        when(fileContentValidator.extensionFor("application/pdf")).thenReturn(".pdf");
+        when(fileRepository.save(any(FileEntity.class)))
+                .thenThrow(new DataIntegrityViolationException("kayit yazilamadi"));
+
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            assertThatThrownBy(() -> fileService().uploadFiles(new MultipartFile[]{file}, RECORD_ID, UPLOADER_ID))
+                    .isInstanceOf(DataIntegrityViolationException.class);
+
+            ArgumentCaptor<String> storedName = ArgumentCaptor.forClass(String.class);
+            verify(fileStorageService).store(any(), storedName.capture());
+
+            // Transaction yoneticisinin geri alma sonrasi yaptigini taklit et.
+            TransactionSynchronizationManager.getSynchronizations()
+                    .forEach(sync -> sync.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK));
+
+            verify(fileStorageService).delete(storedName.getValue());
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+    }
+
+    /**
+     * Ayni kancanin diger yuzu: commit edilen istekte dosya silinmemeli.
+     */
+    @Test
+    @DisplayName("R06: commit edilen yuklemede dosya diskte kalir")
+    void commitEdilenYuklemedeDosyaSilinmez() {
+        MultipartFile file = new MockMultipartFile("files", "rapor.pdf", "application/pdf", "content".getBytes());
+
+        when(fileContentValidator.detectAndValidate(any())).thenReturn("application/pdf");
+        when(fileContentValidator.extensionFor("application/pdf")).thenReturn(".pdf");
+        when(fileRepository.save(any(FileEntity.class))).thenAnswer(call -> call.getArgument(0));
+
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            fileService().uploadFiles(new MultipartFile[]{file}, RECORD_ID, UPLOADER_ID);
+
+            TransactionSynchronizationManager.getSynchronizations()
+                    .forEach(sync -> sync.afterCompletion(TransactionSynchronization.STATUS_COMMITTED));
+
+            verify(fileStorageService, never()).delete(anyString());
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
     }
 }
