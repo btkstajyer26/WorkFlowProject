@@ -58,9 +58,11 @@ public class Record {
     // aksiyonu ve DEPARTMENT hedef stratejisi V23 ile seed'lidir; hedef
     // cozumu DepartmentRoutingResolver, gorunurluk DepartmentVisibilityAdapter
     // uzerinden isler.
-    // NOT: bu alan yanit DTO'larinda (RecordResponse, RecordSearchResponse,
-    // WorkflowActionResponse) ve WorkflowTransitionAudit'te tasinmaz; istemci
-    // ve kalici gecmis kaydin hangi departmanda oldugunu goremez.
+    // NOT: bu alan yanit DTO'larinda ortak AssignmentView.kind ile tasinir
+    // (B11: RecordResponse, RecordSearchResponse, WorkflowActionResponse) ve
+    // kalici gecmise de yazilir (B12 / ADR-0009: audit_logs'un onceki/yeni
+    // atama kolonlari, V25). Kaydin hangi departmana gonderildigi artik hem
+    // istemciden hem gecmisten okunabilir.
     @Column(name = "assigned_department_id")
     private Integer assignedDepartmentId;
 

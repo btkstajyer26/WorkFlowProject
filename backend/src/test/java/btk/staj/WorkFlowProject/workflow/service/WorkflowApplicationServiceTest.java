@@ -132,6 +132,9 @@ class WorkflowApplicationServiceTest {
                 scenario.expectedLastDeputyId(),
                 scenario.version(),
                 PERFORMED_AT));
+        // B12: audit atamanin iki yanini da tasir. Sekiz merkezi gecisin hicbiri
+        // departman gecisi degildir (departman kolu DepartmentWorkflowIntegrationTest'te),
+        // bu yuzden iki departman alani da null dogrulanir - bu da bilgi tasir.
         verify(auditService).record(new WorkflowTransitionAudit(
                 RECORD_ID,
                 scenario.action(),
@@ -139,7 +142,10 @@ class WorkflowApplicationServiceTest {
                 scenario.newStatus(),
                 ACTOR_ID,
                 WorkflowRoleFixtures.id(scenario.actorRole()),
+                scenario.previousAssignedTo(),
+                null,
                 scenario.expectedAssignedTo(),
+                null,
                 scenario.comment(),
                 PERFORMED_AT));
         verify(eventPublisher).publish(new WorkflowStatusChangedEvent(

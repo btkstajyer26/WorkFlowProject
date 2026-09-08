@@ -205,6 +205,7 @@ class AuditLogControllerTest {
         return new AuditLogResponse(
                 UUID.randomUUID(), RECORD_ID, OWNER_ID, "Ahmet Yılmaz", 1, "CALISAN",
                 "GONDER", "TASLAK", "BSK_YRD_INCELEMESINDE",
-                "Onayınıza sunulmuştur.", null, null, null, null, LocalDateTime.now());
+                "Onayınıza sunulmuştur.", null, null, null, null,
+                null, null, null, null, LocalDateTime.now());
     }
 }

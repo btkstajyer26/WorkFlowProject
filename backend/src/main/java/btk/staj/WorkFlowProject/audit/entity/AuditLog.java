@@ -53,6 +53,29 @@ public class AuditLog {
     @Column(columnDefinition = "TEXT", updatable = false)
     private String comment;
 
+    /*
+     * Atama kolonlari (B12 / ADR-0009). Bir gecisin atamayi nereden nereye
+     * tasidigini gosterirler; tur (USER/DEPARTMENT/NONE) saklanmaz, okuma
+     * aninda AssignmentView.of(...) ile turetilir.
+     *
+     * DIKKAT: bu dort kolon yalniz GECIS satirlarinda anlamlidir. Kayit yasam
+     * dongusu olaylari (recordLifecycleEvent) ve HTTP erisim loglari
+     * (recordAccess) atama degistirmez, dordu de NULL kalir ve okuma tarafi bu
+     * satirlarda atamayi yorumlamamalidir. Gecis satiri ayrimi previousStatus
+     * uzerinden yapilir.
+     */
+    @Column(name = "previous_assigned_to", updatable = false)
+    private UUID previousAssignedTo;
+
+    @Column(name = "previous_assigned_department_id", updatable = false)
+    private Integer previousAssignedDepartmentId;
+
+    @Column(name = "new_assigned_to", updatable = false)
+    private UUID newAssignedTo;
+
+    @Column(name = "new_assigned_department_id", updatable = false)
+    private Integer newAssignedDepartmentId;
+
     @Column(name = "http_method", length = 10, updatable = false)
     private String httpMethod;
 

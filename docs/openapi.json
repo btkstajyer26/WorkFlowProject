@@ -1943,6 +1943,12 @@
           "comment" : {
             "type" : "string"
           },
+          "previousAssignment" : {
+            "$ref" : "#/components/schemas/AssignmentView"
+          },
+          "newAssignment" : {
+            "$ref" : "#/components/schemas/AssignmentView"
+          },
           "httpMethod" : {
             "type" : "string"
           },

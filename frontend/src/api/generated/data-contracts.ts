@@ -37,7 +37,9 @@ export interface AuditLogResponse {
   httpStatus?: number;
   /** @format uuid */
   id?: string;
+  newAssignment?: AssignmentView;
   newStatus?: string;
+  previousAssignment?: AssignmentView;
   previousStatus?: string;
   /** @format uuid */
   recordId?: string;

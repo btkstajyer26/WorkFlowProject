@@ -170,6 +170,10 @@ public final class WorkflowApplicationService {
                 performedAt,
                 assignedDepartmentId));
 
+        // Atamanin iki yani da kalici audit'e gider (B12 / ADR-0009): onceki yan
+        // guncellemeden ONCE okunmus snapshot'tan, yeni yan bu gecisin cozdugu
+        // hedeften. Snapshot immutable oldugu icin yukaridaki recordPort.update
+        // bu degerleri degistirmez.
         auditService.record(new WorkflowTransitionAudit(
                 record.id(),
                 action,
@@ -177,7 +181,10 @@ public final class WorkflowApplicationService {
                 allowed.targetStatus(),
                 actor.id(),
                 actor.roleId(),
+                record.assignedTo(),
+                record.assignedDepartmentId(),
                 assignedTo,
+                assignedDepartmentId,
                 request.comment(),
                 performedAt));
 
