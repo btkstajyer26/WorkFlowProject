@@ -533,7 +533,7 @@ kodda şu sapmalar vardır:
 | --- | --- | --- |
 | B02 | ~~Dinamik departman rolü `BASKANA_ILET` yaptığında Başkan'ın geri dönüşü `WORKFLOW_TARGET_ROLE_INVALID` alıyordu.~~ **Kapandı (6 Eylül 2026):** [ADR-0008](decisions/0008-hedef-rol-semantigi-ve-onceki-aktore-donus.md) uygulandı — `V24` ile `expected_target_role_id` yalnız `ROLE` stratejisinin arama anahtarı oldu, nöbetçi `TransitionDecision.Pending`'e taşındı ve statik rol dayatmasının yerine yetenek kontrolü (`WORKFLOW_TARGET_CANNOT_ACT`) geldi. Görünürlük ayağı `B13` ile birlikte kapandı | ✅ |
 | B03 | Görev devri ve `last_deputy_id` toplu güncellemeleri `records.version` artırmadığı için, kaydı önceden yüklemiş bir workflow transaction'ı devir sonrası eski `lastDeputyId` ile çatışmasız yazabilir | P1 |
-| B01 | Workflow e-postasının hızlı işlem tokenı `AFTER_COMMIT` aşamasında üretilemez; dinleyici hatayı yakalar ve mail düğmesiz gider (NT-7 mail üzerinden işlem kabulü sağlanmaz) | P1 |
+| B01 | ~~Workflow e-postasının hızlı işlem tokenı `AFTER_COMMIT` aşamasında üretilemiyordu; dinleyici hatayı yakalıyor ve mail düğmesiz gidiyordu.~~ **Kapandı (8 Eylül 2026):** `MailActionTokenService.issue` `Propagation.REQUIRES_NEW` ile kendi transaction'ında commit eder. Dinleyicinin `catch (RuntimeException)` yedeği bilinçli korundu — token üretilemezse mail yine düğmesiz gider. `MailActionTokenIntegrationTest` gerçek commit → mail bağlantısı → preview → tek tüketim → ikinci tüketimin reddi zincirini ve iki rollback senaryosunu sabitler | ✅ |
 | B04 | `RecordLockValidator` kayıt kilidi almaz ve dosya yükleme kaydın sürümüne dokunmaz; kontrol ile dosya satırının yazılması arasında kayıt incelemeye geçse bile yükleme commit edilir | P1 |
 | B06 | Dondurulmuş içerik gösterilirken `q`/kategori filtreleri güncel kayıt kolonlarında çalışır; gösterilmeyen düzenleme arama sonucunu etkiler | P2 |
 
@@ -554,7 +554,7 @@ Yukarıdaki boşlukların bir kısmı **Workflow V1 açık işidir**, bir kısm�
 | Departman hedefinin kalıcı workflow audit'ine yazılması | Workflow V1 açık işi — B12; `WorkflowTransitionAudit` departman alanı taşımaz, `AuditLogService` modeldeki kişi atamasını da kaydetmez |
 | Dosya işlemlerinin kayıt kilidi ve tarihsel dosya erişimi | Uygulandı: dosya ekleme/silme `findByIdForUpdate` ile kaydı kilitler (B04), geri alınan yüklemede disk temizlenir (R06), indirme listeyle aynı zaman kesitini kullanır (B07) |
 | Silinmiş kaydın değiştirilmesi | Uygulandı: değiştirme yolları aktif kayıt yükleyicisini kullanır; tekrar `DELETE` `404` döner (B08) |
-| İstemcinin kullanılabilir aksiyonu backend'den öğrenmesi | Backend tamam: `available-actions` ve `target-departments` uçları uygulandı ve üretilmiş istemcide açık. Kalan iş istemci tarafında — web paneli hâlâ `systemKey` sabitleriyle çalışır (B10), mobil kendi hesabını kurar (B09) |
+| İstemcinin kullanılabilir aksiyonu backend'den öğrenmesi | Backend tamam: `available-actions` ve `target-departments` uçları uygulandı ve üretilmiş istemcide açık. **Mobil bu uçlara geçti (B09 ✅, 8 Eylül):** istemci tarafı aksiyon hesabı kaldırıldı, düğmeler ve departman hedefi backend yanıtından üretilir. Kalan iş web tarafında — panel hâlâ `systemKey` sabitleriyle çalışır (B10) |
 | Mevcut geçişe dinamik aktör rolü bağlama | WF-8 servis ve sözleşmesi uygulandı; AP-8 HTTP/UI açık |
 | Admin'den rol/permission yönetimi | Workflow V1 — `AP-2`/`AP-3` |
 | WebSocket bildirim kanalı | Workflow V1 — `NT-2`…`NT-4` |

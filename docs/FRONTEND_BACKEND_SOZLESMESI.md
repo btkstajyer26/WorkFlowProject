@@ -99,7 +99,7 @@ Mevcut endpointler:
 | `POST` | `/api/auth/forgot-password` | Açık | E-posta adresine 6 haneli doğrulama kodu yollar |
 | `POST` | `/api/auth/verify-reset-code` | Açık | Kodu doğrular, tek kullanımlık sıfırlama anahtarı üretir |
 | `POST` | `/api/auth/reset-password` | Açık | Sıfırlama anahtarıyla yeni parola belirler |
-| `GET` | `/api/users/me` | Bearer | Aktif kullanıcının kimlik ve rol bilgisini döner |
+| `GET` | `/api/users/me` | Bearer | Aktif kullanıcının kimlik, rol ve **aktif permission kodlarını** döner (`CurrentUserResponse`) |
 
 Giriş isteği:
 
@@ -511,6 +511,18 @@ Rol yönetimi kuralları (`AP-2`):
 
 `GET /api/users/me` ve bütün `/api/admin/users` cevapları rolü **üç ayrı alanla**
 taşır. Karıştırılmamalıdır:
+
+> **8 Eylül 2026 — `/api/users/me` ayrı bir DTO'ya geçti.** Uç artık
+> `UserResponse` değil `CurrentUserResponse` döner: aşağıdaki üç rol alanının
+> üstüne **`permissionCodes`** (aktif yetki kodları kümesi) eklenmiştir.
+> `/api/admin/users` cevapları `UserResponse` olarak kalır. Değişiklik ekleme
+> yönündedir; `me` cevabının eski alanları aynen durur. Mobil bu alanı `B09` ile
+> tüketmeye başladı (`RECORD_CREATE`/`RECORD_EDIT`/`RECORD_DELETE` kontrolleri).
+> **Web tarafında iş kalmıştır:** üretilmiş istemcide `MeData = UserResponse`
+> tanımı hâlâ eski şemayı gösteriyor ve `permissionCodes` alanını taşımıyor;
+> `npm run api:generate` ile yeniden üretilmelidir. `OpenApiSnapshotDriftTest`
+> yalnız `docs/openapi.json` ile çalışan uygulamayı karşılaştırır, üretilmiş
+> istemciyi kapsamaz.
 
 | Alan | Anlam | İstemci nasıl kullanır |
 | --- | --- | --- |

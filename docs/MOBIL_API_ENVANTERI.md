@@ -4,32 +4,29 @@ Mobil istemcinin kullandığı REST uçlarını, istek/yanıt biçimlerini ve ha
 davranışlarını tanımlar. Uç değiştiğinde bu belge aynı değişiklik kapsamında
 güncellenir.
 
-4 Eylül 2026, `codex/ap-2-frontend-uyum` @ `c9b0297` tabanı ile hizalanmıştır.
+8 Eylül 2026, `test` @ `f22fa1a` tabanı ile hizalanmıştır.
 `DEPARTMANA_GONDER` aksiyonu ve `targetDepartmentId` alanı backend'de mevcuttur;
 mobil istemci MOB-1 ile kayıt kapsamlı departman seçimi için bunları kullanır. AP-3/AP-4/AP-5/AP-8 yönetim uçları hâlâ
 yoktur. Mobilin tüketeceği yeni uçlar ve ortak `assignment` nesnesi
 [APP-9 / APP-10 / B11 sözleşmesinde](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md)
 tanımlıdır. [Güncel teslim sınırları](README.md) ayrı izlenir.
 
-> **Açık kırılma — B09 (P1).** `mobile/src/api/users.ts` içindeki `roleName`
-> yalnız `CALISAN`, `BASKAN_YARDIMCISI`, `BASKAN`, `ADMIN` değerlerini kabul eden
-> bir Zod enum'uyla ayrıştırılır; `roleId` ve `systemKey` hiç kullanılmaz. Admin'in
-> oluşturduğu **dinamik rol** veya **yeniden adlandırılmış yerleşik rol** için
-> geçerli bir `GET /api/users/me` cevabı istemcide reddedilir. Login token
-> verebilir; kırılma profil okunurken ve ona bağlı ekranlarda oluşur.
-> `RecordWorkflowActions` ve dashboard da aynı sabit rol adlarına bağlıdır.
-> Web AP-2 düzeltmesinin mobil karşılığı eksiktir: profil şeması, etiketler,
-> dashboard, oluşturma yetkisi ve workflow aksiyon seçimi **birlikte**
-> dönüştürülmelidir. Kabul: yeni dinamik rol ve yeniden adlandırılmış yerleşik
-> rolle giriş sonrası liste, detay ve yetkili işlem çalışmalıdır.
+> **B09 kapandı (8 Eylül 2026).** Kapalı `roleName` enum'u kaldırıldı; profil
+> `roleId` + nullable `systemKey` + gösterim adı + `permissionCodes` taşır ve
+> dinamik ya da yeniden adlandırılmış rolle gelen `GET /api/users/me` cevabı
+> reddedilmez. `RecordWorkflowActions` içindeki istemci tarafı
+> `getAvailableActions()` kaldırıldı; düğmeler
+> `GET /api/records/{id}/workflow/available-actions` yanıtından üretilir. Kayıt
+> oluşturma/düzenleme/silme yetkisi `permissionCodes` ile kontrol edilir
+> (`RECORD_CREATE`, `RECORD_EDIT`, `RECORD_DELETE`); rol adına bakılmaz.
+> [APP-9 / APP-10 / B11 sözleşmesi](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md) bu
+> kapsamda **uygulanmıştır**.
 >
-> **Hedef model karara bağlanmıştır** (4 Eylül 2026,
-> [APP-9 / APP-10 / B11 sözleşmesi](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md)):
-> profil `roleId` + nullable `systemKey` + gösterim adı taşır; workflow düğmeleri
-> istemcide hesaplanmaz, `GET /api/records/{id}/workflow/available-actions`
-> yanıtından üretilir. `RecordWorkflowActions` içindeki istemci tarafı
-> `getAvailableActions()` kaldırılır. Sözleşme **Önerildi** durumundadır; uçlar
-> henüz uygulanmamıştır.
+> **Kalan iki sınır (MOB-1):** (1) mobil ortak `assignment` nesnesini ve `version`
+> alanını hâlâ tüketmez — kayıt ekranları yalnız `assignedTo` görür ve atama
+> gösterimi yoktur; (2) dashboard kısayol kartları `systemKey` ile eşlenir, bu
+> yüzden **dinamik rolde kart listesi boş** gelir. İkisi de bilinçli sınırdır:
+> kayıt listesi, detay ve yetkili işlem dinamik rolde çalışır.
 
 Kanonik kaynaklar: [FRONTEND_BACKEND_SOZLESMESI.md](FRONTEND_BACKEND_SOZLESMESI.md)
 (alan sözleşmesi) · [workflow.md](workflow.md) (durum geçişleri ve görünürlük) ·
@@ -168,13 +165,24 @@ değil `JwtAuthenticationFilter`'da zorlanır, mobil UI gizlemesine güvenilmez.
 ```json
 {
   "id": "uuid", "firstName": "Ahmet", "lastName": "Yılmaz",
-  "email": "a@ornek.local", "roleName": "CALISAN",
+  "email": "a@ornek.local",
+  "roleId": 1, "systemKey": "CALISAN", "roleName": "Çalışan",
+  "permissionCodes": ["RECORD_VIEW", "RECORD_CREATE", "RECORD_EDIT"],
   "active": true, "createdAt": "2026-08-01T09:00:00"
 }
 ```
 
-`roleName` mobilin rol bazlı ekran seçimini besler. **Nihai yetki yine
-backend'de** — rol bilgisi sadece görünüm içindir.
+Yanıt `CurrentUserResponse`'tur ve `/api/admin/users` cevaplarındaki
+`UserResponse`'un üstüne `permissionCodes` ekler. Alanların işi ayrıdır:
+`roleId` ilişkisel kimliktir, `systemKey` yerleşik rolün değişmez anahtarıdır ve
+**dinamik rolde `null` gelir**, `roleName` yalnız gösterim adıdır (AP-2 ile
+değişebilir, kapalı bir listeye karşı doğrulanmaz), `permissionCodes` ise
+backend'in hesapladığı aktif yetkilerdir.
+
+İstemci **yetki kararlarını `permissionCodes` ile**, yerleşik role özgü görünüm
+seçimlerini `systemKey` ile yapar; `roleName` yalnız ekranda gösterilir. Workflow
+düğmeleri bunların hiçbirinden türetilmez — `available-actions` ucundan gelir.
+**Nihai yetki yine backend'dedir.**
 
 ---
 
