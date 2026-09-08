@@ -29,6 +29,13 @@ const availableWorkflowActionsResponseSchema = z.object({
   version: z.number().int(),
 });
 
+const targetDepartmentsResponseSchema = z.object({
+  departments: z.array(z.object({
+    id: z.number().int(),
+    name: z.string(),
+  })),
+});
+
 const workflowActionResponseSchema = z.object({
   action: workflowActionSchema,
   assignedTo: z.string().uuid().nullish(),
@@ -53,6 +60,8 @@ export type WorkflowActionResponse = z.infer<
 export type WorkflowActionRequest = {
   action: WorkflowAction;
   comment?: string;
+  targetDepartmentId?: number;
+  targetUserId?: string;
 };
 
 export async function getAvailableWorkflowActions(
@@ -63,6 +72,13 @@ export async function getAvailableWorkflowActions(
   );
 
   return availableWorkflowActionsResponseSchema.parse(response);
+}
+
+export async function getWorkflowTargetDepartments(recordId: string) {
+  const response = await apiRequest<unknown>(
+    `/api/records/${recordId}/workflow/target-departments`,
+  );
+  return targetDepartmentsResponseSchema.parse(response);
 }
 
 export async function performWorkflowAction(
