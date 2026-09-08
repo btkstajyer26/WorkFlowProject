@@ -21,6 +21,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
@@ -120,8 +121,11 @@ public class MailActionTokenService {
      * ve loglanmaz.
      *
      * <p>Ayni evrak/kisi icin acik kalmis eski anahtarlar once kapatilir.
+     * AFTER_COMMIT dinleyicisinden cagrildiginda onceki transaction'in kaynaklari
+     * hala bagli olabilir, ancak tekrar commit edilmez. Eski anahtarlari kapatma
+     * ve yeni anahtari yazma bu nedenle kendi transaction'inda tamamlanmalidir.
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public String issue(UUID recordId, User user, WorkflowAction action) {
         Objects.requireNonNull(recordId, "recordId");
         Objects.requireNonNull(user, "user");
