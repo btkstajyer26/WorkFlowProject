@@ -65,7 +65,10 @@ export default function CreateRecordScreen() {
     );
   }
 
-  if (currentUserQuery.isError || currentUserQuery.data?.roleName !== 'CALISAN') {
+  if (
+    currentUserQuery.isError ||
+    !currentUserQuery.data?.permissionCodes.includes('RECORD_CREATE')
+  ) {
     return (
       <Screen className="justify-center px-5" edges={['left', 'right']}>
         <AppCard className="gap-4">
@@ -73,7 +76,7 @@ export default function CreateRecordScreen() {
             Yeni kayıt oluşturulamaz
           </AppText>
           <AppText tone="muted">
-            Yeni kayıt oluşturma işlemi çalışan rolüne açıktır.
+            Yeni kayıt oluşturmak için gerekli yetkiniz bulunmuyor.
           </AppText>
           <AppButton
             label="Dashboard'a dön"

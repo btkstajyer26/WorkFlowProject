@@ -11,7 +11,6 @@ import { AppButton } from '@/components/ui/AppButton';
 import { AppCard } from '@/components/ui/AppCard';
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
-import { userRoleLabels } from '@/constants/userRoles';
 import { useCurrentUser } from '@/query/currentUser';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { appTokens } from '@/theme/theme';
@@ -90,7 +89,7 @@ export default function ProfileScreen() {
               <View className="flex-row items-center gap-1.5">
                 <ShieldCheck color={appTokens.brand[500]} size={16} />
                 <AppText tone="muted" variant="caption">
-                  {userRoleLabels[user.roleName]}
+                  {user.roleName ?? 'Rol bilgisi yok'}
                 </AppText>
               </View>
             </View>

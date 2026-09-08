@@ -11,7 +11,23 @@ export const workflowActionSchema = z.enum([
   'BASKAN_YARDIMCISINA_GERI_GONDER',
   'ONAYLA',
   'REDDET',
+  'DEPARTMANA_GONDER',
 ]);
+
+const availableWorkflowActionSchema = z.object({
+  action: workflowActionSchema,
+  commentRequired: z.boolean(),
+  displayName: z.string(),
+  targetDepartmentRequired: z.boolean(),
+  targetUserRequired: z.boolean(),
+});
+
+const availableWorkflowActionsResponseSchema = z.object({
+  actions: z.array(availableWorkflowActionSchema),
+  recordId: z.string().uuid(),
+  status: recordStatusSchema,
+  version: z.number().int(),
+});
 
 const workflowActionResponseSchema = z.object({
   action: workflowActionSchema,
@@ -24,6 +40,13 @@ const workflowActionResponseSchema = z.object({
 });
 
 export type WorkflowAction = z.infer<typeof workflowActionSchema>;
+export type AvailableWorkflowAction = z.infer<
+  typeof availableWorkflowActionSchema
+>;
+export type AvailableWorkflowActionsResponse = z.infer<
+  typeof availableWorkflowActionsResponseSchema
+>;
+
 export type WorkflowActionResponse = z.infer<
   typeof workflowActionResponseSchema
 >;
@@ -31,6 +54,16 @@ export type WorkflowActionRequest = {
   action: WorkflowAction;
   comment?: string;
 };
+
+export async function getAvailableWorkflowActions(
+  recordId: string,
+): Promise<AvailableWorkflowActionsResponse> {
+  const response = await apiRequest<unknown>(
+    `/api/records/${recordId}/workflow/available-actions`,
+  );
+
+  return availableWorkflowActionsResponseSchema.parse(response);
+}
 
 export async function performWorkflowAction(
   recordId: string,

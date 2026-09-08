@@ -58,13 +58,13 @@ export default function RecordDetailScreen() {
   )?.name;
   const canEdit = Boolean(
     record &&
-      currentUser?.roleName === 'CALISAN' &&
+      currentUser?.permissionCodes.includes('RECORD_EDIT') &&
       currentUser.id === record.createdBy &&
       (record.status === 'TASLAK' || record.status === 'DUZENLEME_BEKLIYOR'),
   );
   const canDelete = Boolean(
     record &&
-      currentUser?.roleName === 'CALISAN' &&
+      currentUser?.permissionCodes.includes('RECORD_DELETE') &&
       currentUser.id === record.createdBy &&
       record.status === 'TASLAK',
   );
@@ -243,7 +243,6 @@ export default function RecordDetailScreen() {
             <RecordWorkflowActions
               onActionSuccess={() => router.replace('/')}
               record={record}
-              user={currentUser}
             />
             <RecordFilesIntegrationSlot
               canModify={canEdit}
