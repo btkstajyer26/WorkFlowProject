@@ -79,4 +79,32 @@ public final class DepartmentRoutingResolver {
                         && resolved.eligibleUserIds().stream().anyMatch(id ->
                                 rule.actorRequirement().isSatisfiedBy(id.equals(creatorId), true)));
     }
+
+    public Set<UUID> eligibleAssignees(int departmentId, RecordStatus status,
+            TransitionRuleSource snapshot) {
+        if (status.isTerminal()) return Set.of();
+
+        Map<WorkflowAction, DepartmentRoutingResolution> resolutions = new HashMap<>();
+        Set<UUID> eligible = new LinkedHashSet<>();
+
+        snapshot.all().stream()
+                .filter(rule -> rule.from() == status)
+                .filter(rule -> rule.actorRequirement()
+                        == btk.staj.WorkFlowProject.workflow.statemachine.ActorRequirement.ASSIGNEE)
+                .forEach(rule -> {
+                    DepartmentRoutingResolution resolution = resolutions.computeIfAbsent(
+                            rule.action(),
+                            action -> routing.resolve(departmentId, status, action));
+
+                    if (resolution instanceof DepartmentRoutingResolution.Resolved resolved
+                            && resolved.targetRoleId().equals(rule.actorRoleId())
+                            && routing.roleHasPermission(resolved.targetRoleId(), "RECORD_VIEW")
+                            && routing.roleHasPermission(
+                                    resolved.targetRoleId(), rule.requiredPermissionCode())) {
+                        eligible.addAll(resolved.eligibleUserIds());
+                    }
+                });
+
+        return Set.copyOf(eligible);
+    }
 }

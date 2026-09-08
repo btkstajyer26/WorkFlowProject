@@ -10,6 +10,8 @@ import btk.staj.WorkFlowProject.record.repository.RecordRepository;
 import btk.staj.WorkFlowProject.user.entity.User;
 import btk.staj.WorkFlowProject.user.repository.UserRepository;
 import btk.staj.WorkFlowProject.workflow.model.WorkflowStatusChangedEvent;
+import btk.staj.WorkFlowProject.workflow.service.DepartmentRoutingResolver;
+import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRuleSource;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,19 +56,27 @@ public class WorkflowStatusChangedListener {
     private final MailActionTokenService mailActionTokenService;
     private final RecordRepository recordRepository;
     private final UserRepository userRepository;
+    private final DepartmentRoutingResolver departmentRoutingResolver;
+    private final TransitionRuleSource transitionRuleSource;
 
     public WorkflowStatusChangedListener(NotificationService notificationService,
                                          MailService mailService,
                                          @Nullable PushNotificationService pushNotificationService,
                                          @Nullable MailActionTokenService mailActionTokenService,
                                          RecordRepository recordRepository,
-                                         UserRepository userRepository) {
+                                         UserRepository userRepository,
+                                         DepartmentRoutingResolver departmentRoutingResolver,
+                                         TransitionRuleSource transitionRuleSource) {
         this.notificationService = Objects.requireNonNull(notificationService, "notificationService");
         this.mailService = Objects.requireNonNull(mailService, "mailService");
         this.pushNotificationService = pushNotificationService;
         this.mailActionTokenService = mailActionTokenService;
         this.recordRepository = Objects.requireNonNull(recordRepository, "recordRepository");
         this.userRepository = Objects.requireNonNull(userRepository, "userRepository");
+        this.departmentRoutingResolver =
+                Objects.requireNonNull(departmentRoutingResolver, "departmentRoutingResolver");
+        this.transitionRuleSource =
+                Objects.requireNonNull(transitionRuleSource, "transitionRuleSource");
     }
 
     @EventListener
@@ -165,7 +175,8 @@ public class WorkflowStatusChangedListener {
      * Bildirimi kim(ler) almali:
      * <ul>
      *   <li>{@code event.assignedTo() != null} -> yalniz atanan kisi.</li>
-     *   <li>Departman atamasinda NT-5 fan-out teslimine kadar bos kume.</li>
+     *   <li>Departman atamasinda workflow routing'e gore uygun departman
+     *       uyeleri; islemi yapan aktor haric.</li>
      *   <li>Iki atama da null (nihai onay/ret) -> kaydi olusturan ve
      *       kaydi Baskana ileten yardimci ({@code Record.lastDeputyId}).</li>
      * </ul>
@@ -179,8 +190,24 @@ public class WorkflowStatusChangedListener {
             return recipients;
         }
 
-        // Department fan-out is NT-5; never fall through to terminal recipients.
-        if (event.assignedDepartmentId() != null) return Collections.emptySet();
+        if (event.assignedDepartmentId() != null) {
+            recipients.addAll(departmentRoutingResolver.eligibleAssignees(
+                    event.assignedDepartmentId(),
+                    event.newStatus(),
+                    transitionRuleSource.snapshot()));
+
+            recipients.remove(event.actorId());
+
+            if (recipients.isEmpty()) {
+                log.warn(
+                        "Departman bildirimi için uygun alıcı bulunamadı. Evrak: {}, Departman: {}, Durum: {}",
+                        event.recordId(),
+                        event.assignedDepartmentId(),
+                        event.newStatus());
+            }
+
+            return recipients;
+        }
 
         Optional<Record> recordOpt = recordRepository.findById(event.recordId());
         if (recordOpt.isEmpty()) {
