@@ -391,7 +391,7 @@ Okuma öncesinde `RecordAccessPolicy.assertCanView` çalışır. `AuditLogRespon
 | Geçiş sonucu | Uygulama içi bildirim, e-posta ve push alıcısı |
 | --- | --- |
 | Bir kullanıcıya atanan kayıt | Yeni `assignedTo` kullanıcısı |
-| Departmana atanan kayıt | Event `assignedDepartmentId` taşır; NT-5 tamamlanana kadar alıcı kümesi boştur, oluşturan/yardımcı fallback'ine düşmez |
+| Departmana atanan kayıt | Event `assignedDepartmentId` taşır; alıcılar o departmanın workflow routing'ine göre uygun üyeleridir (`DepartmentRoutingResolver.eligibleAssignees`: `ASSIGNEE` gereksinimli kural, routing hedef rolü, `RECORD_VIEW` + kuralın permission'ı). İşlemi yapan aktör kümeden çıkarılır; uygun alıcı yoksa küme boş kalır ve uyarı log'lanır — oluşturan/yardımcı fallback'ine **düşmez** (NT-5) |
 | `ONAYLANDI` veya `REDDEDILDI` | Kaydı oluşturan kullanıcı ve kaydı Başkana ileten son Başkan Yardımcısı; aynı kullanıcıysa tekilleştirilir |
 
 Uygulama içi mesaj 500 karaktere sığacak şekilde kısaltılır. Bildirim türü aksiyondan `RECORD_SUBMITTED`, `RECORD_FORWARDED`, `RECORD_RETURNED`, `RECORD_APPROVED` veya `RECORD_REJECTED` olarak türetilir.
@@ -549,8 +549,8 @@ Yukarıdaki boşlukların bir kısmı **Workflow V1 açık işidir**, bir kısm�
 | --- | --- |
 | Ortak görünürlük ve dinamik rol okuma erişimi | Departman/durum çiftleri dahil ortak policy/SQL, JWT okuma uçları ve sayfalama testleri uygulandı |
 | Departman, üyelik, routing ve atama veri katmanı | V18–V22 ile şema/entity/repository hazır; V22 ad uzunluğu, self-parent ve silme korumalarını DB-1 ile hizalar |
-| Departman runtime ve görünürlük | V23 + WF-5/WF-6 ve policy/SQL departman kolu uygulandı; yönetim ekranları (`AP-4`/`AP-5`) ve NT-5 ayrı teslim. Bildirim dinleyicisi departmana atanan kayıtta bilinçli olarak boş alıcı kümesi döner |
-| Dinamik aktörden Başkana iletilen kaydın geri dönüşü | Workflow V1 açık işi — B02; karar [ADR-0008](decisions/0008-hedef-rol-semantigi-ve-onceki-aktore-donus.md) ile verildi, uygulama açık |
+| Departman runtime ve görünürlük | V23 + WF-5/WF-6 ve policy/SQL departman kolu uygulandı; bildirim alıcı fan-out'u da uygulandı (NT-5 ✅, 8 Eylül) ve görünürlük adaptörüyle aynı süzgeci kullanır. Kalan: yönetim ekranları (`AP-4`/`AP-5`) |
+| Dinamik aktörden Başkana iletilen kaydın geri dönüşü | Uygulandı (B02 ✅, `V24`): [ADR-0008](decisions/0008-hedef-rol-semantigi-ve-onceki-aktore-donus.md) kararı gereği `expected_target_role_id` yalnız `ROLE` stratejisinin arama anahtarıdır; diğer hedeflerde statik rol dayatması yerine yetenek kontrolü çalışır (`WORKFLOW_TARGET_CANNOT_ACT`, `409`). Dinamik rolün dönüş sonrası görünürlüğü de kapalıdır (B13 ✅) |
 | Departman hedefinin kalıcı workflow audit'ine yazılması | Workflow V1 açık işi — B12; `WorkflowTransitionAudit` departman alanı taşımaz, `AuditLogService` modeldeki kişi atamasını da kaydetmez |
 | Dosya işlemlerinin kayıt kilidi ve tarihsel dosya erişimi | Uygulandı: dosya ekleme/silme `findByIdForUpdate` ile kaydı kilitler (B04), geri alınan yüklemede disk temizlenir (R06), indirme listeyle aynı zaman kesitini kullanır (B07) |
 | Silinmiş kaydın değiştirilmesi | Uygulandı: değiştirme yolları aktif kayıt yükleyicisini kullanır; tekrar `DELETE` `404` döner (B08) |

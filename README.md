@@ -32,7 +32,7 @@ ayrıca doğrulanmalıdır:
 - **AP-2 rol yönetim ekranı bu dalda mevcuttur** (`frontend/src/pages/admin/RolesPage.tsx`). Rol CRUD backend uçları ve kullanımdaki rolün korunması hazırdır.
 - **WF-8 backend servisi hazırdır** fakat HTTP adapter'ı yoktur: `workflow` altındaki tek yönetim ucu `POST /api/workflow/rules/reload`'dur. `AP-8` açıktır.
 - **Yönetim HTTP katmanı eksiktir:** `AP-3` (permission matrisi), `AP-4` (departman/üyelik) ve `AP-5` (routing) için controller bulunmaz; Admin bu nesneleri panelden yönetemez.
-- **NT-5 departman fan-out'u açıktır:** bildirim dinleyicisi departmana atanan kayıtta bilinçli olarak boş alıcı kümesi döner.
+- **Departman bildirim fan-out'u çalışır (NT-5 ✅, 8 Eylül):** departmana atanan kayıtta alıcılar workflow routing'inden çözülür (`DepartmentRoutingResolver.eligibleAssignees`), aynı süzgeç görünürlük adaptörüyle ortaktır, işlemi yapan aktör kümeden çıkarılır ve uygun alıcı bulunamazsa kayıt `log.warn` ile bırakılır. Kör fan-out yapılmaz.
 - **Mail hızlı işlem tokenı çalışır (B01 ✅, 8 Eylül):** `MailActionTokenService.issue` kendi transaction'ında (`REQUIRES_NEW`) commit eder; gerçek commit → mail bağlantısı → preview → tek tüketim → ikinci tüketimin reddi zinciri entegrasyon testiyle sabitlenmiştir.
 - **Mobil istemci dinamik role uyumludur (B09 ✅, 8 Eylül):** `GET /api/users/me` artık `roleId`, `systemKey`, `roleName` ve `permissionCodes` döner; mobil workflow düğmeleri `available-actions` ucundan üretilir, departman hedefi `target-departments` ile seçilir. **Kalan:** mobil ortak `assignment`/`version` alanlarını hâlâ göstermez (MOB-1) ve web aksiyon paneli `systemKey` sabitlerine bağlıdır (B10).
 - Grafik düzenleme, workflow definition/versioning ve draft/publish Workflow V2 kapsamındadır; V1 eksiği sayılmaz.
@@ -49,9 +49,10 @@ probunun koşum sonuçları ve tekrar üretim adımları
 
 Son kayıtlı backend `verify`: **831 test, 0 failure/error/skipped; JAR üretildi**
 (7 Eylül 2026, yerel, ayrı `b04_b08_test` veritabanına karşı). **Bu sayı güncel
-değildir:** `B01` ve `B09` teslimleriyle beş backend testi daha eklendi (beklenen
-**836**) ve suite o teslimlerden sonra **koşturulmadı**. 8 Eylül 2026'da `f22fa1a`
-üzerinde ölçülenler: mobil **85/85** (lint ve typecheck temiz) ve web **126/126**.
+değildir:** `B01` (3), `B09` (2) ve `NT-5` (3) teslimleriyle sekiz backend testi
+daha eklendi (beklenen **839**) ve suite o teslimlerden sonra **koşturulmadı**.
+8 Eylül 2026'da `f22fa1a` üzerinde ölçülenler: mobil **85/85** (lint ve typecheck
+temiz) ve web **126/126**; `28dfac5` bu iki kaynağa dokunmadığı için geçerlidir.
 Playwright bu turda çalıştırılmadı; 15/15 önceki turun tarihli sonucudur. Yeşil
 sonuç açık kalan dört bulguyu kapatmaz; CI, TEST deploy veya ürün kabulü bu
 sonuçtan çıkarılmaz. Kaynaklar ve devam bağımlılıkları

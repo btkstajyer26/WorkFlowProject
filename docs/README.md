@@ -12,8 +12,8 @@ Aynı biçimde “kod mevcut”, “dala birleşti”, “CI geçti”, “TEST'
 > **Kabul Edildi** durumundadır ve kodu `origin/test`'tedir: `V24` migration'ı,
 > yetenek kontrolü (`WORKFLOW_TARGET_CANNOT_ACT`), iki APP-9 okuma ucu ve ortak
 > `assignment`/`version` alanları uygulanmıştır. Kalan iş istemci tarafındadır —
-> Tamer (`B10`/`WEB-1`), Bahadır (`MOB-1` atama gösterimi ve `NT-5`) ve Alperen
-> (`B12`). Bahadır'ın `B01` ve `B09` teslimleri 8 Eylül'de kapandı.
+> Tamer (`B10`/`WEB-1`), Bahadır (`MOB-1` atama gösterimi) ve Alperen (`B12`).
+> Bahadır'ın `B01`, `B09` ve `NT-5` teslimleri 8 Eylül'de kapandı.
 
 > **Açık davranış problemleri:** 4 Eylül 2026 tarihli inceleme, çalıştırılmış
 > regresyon problarıyla sekiz backend davranış ihlali (B01–B08) ve beş istemci/sözleşme
@@ -46,9 +46,9 @@ Aynı biçimde “kod mevcut”, “dala birleşti”, “CI geçti”, “TEST'
 | Aktör rolü bağlama (`WF-8`) | `WorkflowActorBindingService.listTransitions/bind/unbind`, permission/koruma, audit ve commit sonrası snapshot | `AP-8` HTTP adapter ve yönetim ekranı. `workflow` altındaki tek yönetim ucu `POST /api/workflow/rules/reload`'dur; bu tek başına AP-8 değildir |
 | Departman veri katmanı (`DB-11/12`) | V18–V22 tablo/entity/repository; ad 150, self-parent CHECK, RESTRICT FK, çoklu üyelik ve routing tekilliği | Yönetim servis/API/UI (`AP-4/5`): departman ve routing için controller yoktur; parent döngüsü ve açık kuyruk koruması karara bağlanmalıdır |
 | Atama (`DB-13/WF-5`) | V23, snapshot/update/event departman alanları, karşılıklı dışlama ve gönderim | Yönetim ve gönderim ekranı kabulü |
-| Departman runtime (`WF-6`) | Routing/eligibility resolver, gönderim, ortak görünürlük, event ve yarış testleri; dinamik aktörden Başkana iletilen kaydın önceki aktöre dönüşü (B02 ✅, `V24`) | AP-4/AP-5 ekranları; NT-5 fan-out (listener departman için bilinçli olarak boş alıcı döner) |
+| Departman runtime (`WF-6`) | Routing/eligibility resolver, gönderim, ortak görünürlük, event ve yarış testleri; dinamik aktörden Başkana iletilen kaydın önceki aktöre dönüşü (B02 ✅, `V24`) | AP-4/AP-5 ekranları. NT-5 fan-out ✅ kapandı (8 Eylül): listener alıcıyı routing'den çözer, aktörü çıkarır, boş kümeyi log'lar |
 | İstemci workflow kabulü | Web dinamik rolü okuyabilir ve departman isteği taşıyabilir; atama (`assignment.kind`) ve `version` üç yanıt tipinde de taşınır ve üretilmiş istemcide açıktır (B11 ✅). **Mobil dinamik role uyumludur (B09 ✅):** profil `roleId`/`systemKey`/`permissionCodes` okur, workflow düğmeleri `available-actions` ucundan üretilir, departman hedefi `target-departments` ile seçilir | Web aksiyon paneli `systemKey` sabitlerine bağlıdır; dinamik rol düğme göremez ve üretilmiş `WorkflowQueryController.ts` hiçbir bileşen tarafından tüketilmez (B10). Mobil ortak `assignment`/`version` alanlarını hâlâ göstermez (MOB-1). Üretilmiş web istemcisi `/api/users/me` için hâlâ `UserResponse` tipini taşır; `permissionCodes` alanı yoktur ve yeniden üretilmelidir |
-| Bildirim ve istemci kabulü | Mevcut REST/polling, uygulama içi bildirim, mail-action altyapısı (B01 ✅ — token commit sonrası kalıcı), FCM desteği ve token temizliği | WebSocket, departman fan-out (`NT-5`), `NT-7`'nin gerçek Mailpit/tarayıcı kabulü ve gerçek cihaz push kabulü |
+| Bildirim ve istemci kabulü | Mevcut REST/polling, uygulama içi bildirim, mail-action altyapısı (B01 ✅ — token commit sonrası kalıcı), **departman alıcı fan-out'u (NT-5 ✅)**, FCM desteği ve token temizliği | WebSocket (`NT-2`…`NT-4`), `NT-5`'in gerçek DB üzerinde entegrasyon kabulü ve pasif üye senaryosu, `NT-7`'nin gerçek Mailpit/tarayıcı kabulü ve gerçek cihaz push kabulü |
 
 ## WF-5/WF-6 entegrasyon sınırı
 
@@ -83,7 +83,9 @@ departman kabulünü kapatmaz.
 
 ## Doğrulama kanıtı
 
-**Güncel tur — 7 Eylül 2026, `origin/test` @ `beadcb0` + B04/B05/B07/B08 çalışması:**
+**Son tam backend koşumu — 7 Eylül 2026, `origin/test` @ `beadcb0` + B04/B05/B07/B08 çalışması.
+Bu sayı güncel değildir:** `B01` (3), `B09` (2) ve `NT-5` (3) teslimleriyle sekiz test
+daha eklendi (**beklenen 839, ölçülmedi**). O turun kaydı:
 Backend `./mvnw clean verify` **831 test / 0 failure / 0 error / 0 skipped**, JAR
 üretildi. Koşum, geliştirme veritabanına dokunmamak için aynı PostgreSQL
 sunucusunda açılan ayrı bir `b04_b08_test` veritabanına karşı yapıldı; `V22`–`V24`
