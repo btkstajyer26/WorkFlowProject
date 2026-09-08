@@ -11,6 +11,8 @@ import btk.staj.WorkFlowProject.support.WorkflowRoleFixtures;
 import btk.staj.WorkFlowProject.user.entity.User;
 import btk.staj.WorkFlowProject.user.repository.UserRepository;
 import btk.staj.WorkFlowProject.workflow.model.WorkflowStatusChangedEvent;
+import btk.staj.WorkFlowProject.workflow.service.DepartmentRoutingResolver;
+import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRuleSource;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
@@ -36,6 +38,8 @@ class WorkflowStatusChangedListenerTest {
     private static final UUID ACTOR_ID = UUID.fromString("00000000-0000-0000-0000-000000000041");
     private static final UUID ASSIGNEE_ID = UUID.fromString("00000000-0000-0000-0000-000000000042");
     private static final UUID CREATOR_ID = UUID.fromString("00000000-0000-0000-0000-000000000043");
+    private static final UUID DEPARTMENT_MEMBER_ID =
+            UUID.fromString("00000000-0000-0000-0000-000000000044");
 
     private final NotificationService notificationService = mock(NotificationService.class);
     private final MailService mailService = mock(MailService.class);
@@ -43,19 +47,85 @@ class WorkflowStatusChangedListenerTest {
     private final PushNotificationService pushNotificationService = mock(PushNotificationService.class);
     private final RecordRepository recordRepository = mock(RecordRepository.class);
     private final UserRepository userRepository = mock(UserRepository.class);
+    private final DepartmentRoutingResolver departmentRoutingResolver =
+            mock(DepartmentRoutingResolver.class);
+    private final TransitionRuleSource transitionRuleSource = mock(TransitionRuleSource.class);
 
     private final WorkflowStatusChangedListener listener = new WorkflowStatusChangedListener(
             notificationService, mailService, pushNotificationService, mailActionTokenService,
-            recordRepository, userRepository);
+            recordRepository, userRepository, departmentRoutingResolver, transitionRuleSource);
 
     @Test
-    void departmentAssignmentDoesNotFallBackToCreatorOrPreviousDeputy() {
+    void notifiesEligibleDepartmentMembersAndExcludesTheActor() {
         var event = new WorkflowStatusChangedEvent(RECORD_ID, WorkflowAction.DEPARTMANA_GONDER,
                 RecordStatus.TASLAK, RecordStatus.BSK_YRD_INCELEMESINDE, ACTOR_ID,
                 WorkflowRoleFixtures.id(RoleName.CALISAN), null, null, null, Instant.now(), 42);
-        assertThat(listener.recipientsOf(event)).isEmpty();
+
+        Record record = mock(Record.class);
+        when(record.getCreatedBy()).thenReturn(CREATOR_ID);
+        when(recordRepository.findById(RECORD_ID)).thenReturn(Optional.of(record));
+        when(transitionRuleSource.snapshot()).thenReturn(transitionRuleSource);
+        when(departmentRoutingResolver.eligibleAssignees(
+                42, RecordStatus.BSK_YRD_INCELEMESINDE, transitionRuleSource))
+                .thenReturn(java.util.Set.of(ACTOR_ID, DEPARTMENT_MEMBER_ID));
+
+        assertThat(listener.recipientsOf(event))
+                .containsExactly(DEPARTMENT_MEMBER_ID);
+
         listener.createInAppNotification(event);
-        verifyNoInteractions(recordRepository, notificationService);
+
+        verify(notificationService).create(
+                eq(DEPARTMENT_MEMBER_ID), eq(RECORD_ID), any(),
+                eq(NotificationType.RECORD_SUBMITTED));
+        verify(notificationService, never()).create(eq(ACTOR_ID), any(), any(), any());
+    }
+
+    @Test
+    void usesTheSameEligibleDepartmentRecipientsForInAppPushAndMail() {
+        var event = new WorkflowStatusChangedEvent(RECORD_ID, WorkflowAction.DEPARTMANA_GONDER,
+                RecordStatus.TASLAK, RecordStatus.BSK_YRD_INCELEMESINDE, ACTOR_ID,
+                WorkflowRoleFixtures.id(RoleName.CALISAN), null, null, null, Instant.now(), 42);
+
+        givenRecord();
+
+        User member = user(
+                DEPARTMENT_MEMBER_ID, "Ayse", "Yilmaz", "ayse@ornek.test");
+        when(userRepository.findById(DEPARTMENT_MEMBER_ID))
+                .thenReturn(Optional.of(member));
+
+        when(transitionRuleSource.snapshot()).thenReturn(transitionRuleSource);
+        when(departmentRoutingResolver.eligibleAssignees(
+                42, RecordStatus.BSK_YRD_INCELEMESINDE, transitionRuleSource))
+                .thenReturn(java.util.Set.of(ACTOR_ID, DEPARTMENT_MEMBER_ID));
+
+        listener.createInAppNotification(event);
+        listener.sendMail(event);
+
+        verify(notificationService).create(
+                eq(DEPARTMENT_MEMBER_ID), eq(RECORD_ID), any(),
+                eq(NotificationType.RECORD_SUBMITTED));
+
+        verify(pushNotificationService).sendPushNotification(
+                eq(DEPARTMENT_MEMBER_ID),
+                eq("Bütçe talebi"),
+                any(),
+                eq(RECORD_ID),
+                eq(NotificationType.RECORD_SUBMITTED));
+
+        verify(mailService).sendStatusChangeMail(
+                eq("ayse@ornek.test"),
+                eq("Ayse Yilmaz"),
+                eq(RECORD_ID),
+                eq("Bütçe talebi"),
+                eq("BSK_YRD_INCELEMESINDE"),
+                isNull(),
+                isNull());
+
+        verify(notificationService, never()).create(
+                eq(ACTOR_ID), any(), any(), any());
+        verify(pushNotificationService, never()).sendPushNotification(
+                eq(ACTOR_ID), any(), any(), any(), any());
+        verify(userRepository, never()).findById(ACTOR_ID);
     }
 
     @Test
