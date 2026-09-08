@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 
 import type { RecordStatus } from '@/api/records';
-import type { UserRole } from '@/api/users';
 import {
   DashboardSummaryCard,
   type SummaryTone,
@@ -24,12 +23,13 @@ import { AppButton } from '@/components/ui/AppButton';
 import { AppCard } from '@/components/ui/AppCard';
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
-import { userRoleLabels } from '@/constants/userRoles';
 import type { RecordListViewKey } from '@/constants/recordListViews';
 import { useCurrentUser } from '@/query/currentUser';
 import { useRecordCounts, useRecords } from '@/query/records';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { appTokens } from '@/theme/theme';
+
+type DashboardRole = 'BASKAN' | 'BASKAN_YARDIMCISI' | 'CALISAN';
 
 type DashboardCardConfig = {
   icon: LucideIcon;
@@ -39,8 +39,7 @@ type DashboardCardConfig = {
   view: RecordListViewKey;
 };
 
-const dashboardCards: Record<UserRole, DashboardCardConfig[]> = {
-  ADMIN: [],
+const dashboardCards: Record<DashboardRole, DashboardCardConfig[]> = {
   BASKAN: [
     {
       icon: Clock3,
@@ -149,13 +148,19 @@ export default function DashboardScreen() {
   const router = useRouter();
   const { colors } = useAppTheme();
   const currentUser = useCurrentUser();
-  const role = currentUser.data?.roleName;
-  const cards = useMemo(() => (role ? dashboardCards[role] : []), [role]);
+  const systemKey = currentUser.data?.systemKey;
+  const cards = useMemo(
+    () =>
+      systemKey && systemKey in dashboardCards
+        ? dashboardCards[systemKey as DashboardRole]
+        : [],
+    [systemKey],
+  );
   const dashboardStatuses = useMemo(
     () => [...new Set(cards.flatMap((card) => card.statuses))],
     [cards],
   );
-  const recordsEnabled = currentUser.isSuccess && role !== 'ADMIN';
+  const recordsEnabled = currentUser.isSuccess && systemKey !== 'ADMIN';
   const countQueries = useRecordCounts(dashboardStatuses, recordsEnabled);
   const recentRecordsQuery = useRecords(
     { page: 0, size: 3, sort: 'createdAt,desc' },
@@ -194,7 +199,7 @@ export default function DashboardScreen() {
 
   const user = currentUser.data;
 
-  if (user.roleName === 'ADMIN') {
+  if (user.systemKey === 'ADMIN') {
     return (
       <Screen className="justify-center px-5" edges={['left', 'right']}>
         <AppCard className="gap-2 p-5">
@@ -249,7 +254,7 @@ export default function DashboardScreen() {
             Hoş geldiniz, {user.firstName} {user.lastName}
           </AppText>
           <AppText tone="muted">
-            {userRoleLabels[user.roleName]} olarak kayıt süreçlerinizi buradan takip
+            {user.roleName ?? 'Rol bilgisi olmayan kullanıcı'} olarak kayıt süreçlerinizi buradan takip
             edebilirsiniz.
           </AppText>
         </View>
@@ -332,7 +337,7 @@ export default function DashboardScreen() {
               <AppText className="text-center" tone="muted">
                 Yetkiniz kapsamındaki kayıtlar oluşturulduğunda burada görünecek.
               </AppText>
-              {user.roleName === 'CALISAN' ? (
+              {user.permissionCodes.includes('RECORD_CREATE') ? (
                 <AppButton
                   label="Yeni kayıt oluştur"
                   onPress={() => router.push('/olustur')}
