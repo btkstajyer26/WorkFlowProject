@@ -5,12 +5,14 @@ import { RecordWorkflowActions } from './RecordWorkflowActions';
 import {
   useAvailableWorkflowActions,
   useRecordWorkflow,
+  useWorkflowTargetDepartments,
 } from '@/query/workflow';
 import { createWrapper } from '@/test-utils/testWrapper';
 
 jest.mock('@/query/workflow', () => ({
   useAvailableWorkflowActions: jest.fn(),
   useRecordWorkflow: jest.fn(),
+  useWorkflowTargetDepartments: jest.fn(),
 }));
 
 const mockRecord: RecordDetail = {
@@ -33,6 +35,10 @@ const baseAvailableActionsResponse = {
 describe('RecordWorkflowActions', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (useWorkflowTargetDepartments as jest.Mock).mockReturnValue({
+      data: { departments: [{ id: 12, name: 'Hukuk' }, { id: 15, name: 'Satın Alma' }] },
+      isPending: false, isFetching: false, isError: false, refetch: jest.fn(),
+    });
 
     (useRecordWorkflow as jest.Mock).mockReturnValue({
       isPending: false,
@@ -82,7 +88,7 @@ describe('RecordWorkflowActions', () => {
     expect(screen.queryByText('Kayıt işlemleri')).toBeNull();
   });
 
-  it('targetDepartmentRequired aksiyonunu MOB-1 tamamlanana kadar göstermez', async () => {
+  it('targetDepartmentRequired aksiyonunu gösterir', async () => {
     (useAvailableWorkflowActions as jest.Mock).mockReturnValue({
       data: {
         ...baseAvailableActionsResponse,
@@ -104,10 +110,10 @@ describe('RecordWorkflowActions', () => {
       wrapper: createWrapper(),
     });
 
-    expect(screen.queryByText('Departmana gönder')).toBeNull();
+    expect(screen.getByText('Departmana gönder')).toBeTruthy();
   });
 
-  it('targetUserRequired aksiyonunu hedef kullanıcı seçimi desteklenene kadar göstermez', async () => {
+  it('sözleşmede desteklenmeyen kullanıcı hedefini gizlemez ama göndermez', async () => {
     (useAvailableWorkflowActions as jest.Mock).mockReturnValue({
       data: {
         ...baseAvailableActionsResponse,
@@ -129,7 +135,10 @@ describe('RecordWorkflowActions', () => {
       wrapper: createWrapper(),
     });
 
-    expect(screen.queryByText('Hedef kullanıcıya gönder')).toBeNull();
+    await fireEvent.press(screen.getByText('Hedef kullanıcıya gönder'));
+    expect(screen.getByText('Bu işlem için kullanıcı seçimi şu anda desteklenmiyor.')).toBeTruthy();
+    await fireEvent.press(screen.getByText('İşlemi onayla'));
+    expect((useRecordWorkflow as jest.Mock).mock.results[0].value.mutateAsync).not.toHaveBeenCalled();
   });
 
   it('seçilen backend aksiyonunu mutation ile gönderir', async () => {
@@ -161,8 +170,8 @@ describe('RecordWorkflowActions', () => {
       wrapper: createWrapper(),
     });
 
-    fireEvent.press(screen.getByText('Onayla'));
-    fireEvent.press(await screen.findByText('İşlemi onayla'));
+    await fireEvent.press(screen.getByText('Onayla'));
+    await fireEvent.press(await screen.findByText('İşlemi onayla'));
 
     expect(mutateAsyncMock).toHaveBeenCalledWith({
       action: 'ONAYLA',
@@ -198,12 +207,102 @@ describe('RecordWorkflowActions', () => {
       wrapper: createWrapper(),
     });
 
-    fireEvent.press(screen.getByText('Reddet'));
-    fireEvent.press(await screen.findByText('İşlemi onayla'));
+    await fireEvent.press(screen.getByText('Reddet'));
+    await fireEvent.press(await screen.findByText('İşlemi onayla'));
 
     expect(
       await screen.findByText('Bu işlem için açıklama zorunludur.'),
     ).toBeTruthy();
     expect(mutateAsyncMock).not.toHaveBeenCalled();
+  });
+});
+
+const departmentAction = {
+  action: 'DEPARTMANA_GONDER', displayName: 'Hukuk birimine yönlendir',
+  commentRequired: false, targetDepartmentRequired: true, targetUserRequired: false,
+};
+
+// These flags and labels come from the server, independently of the user's role.
+describe('workflow hedef departman seçimi', () => {
+  const mutateAsync = jest.fn();
+  const refetch = jest.fn();
+  const options = [{ id: 12, name: 'Hukuk' }, { id: 15, name: 'Satın Alma' }];
+  function targetState(overrides = {}) {
+    (useWorkflowTargetDepartments as jest.Mock).mockReturnValue({
+      data: { departments: options }, isPending: false, isFetching: false,
+      isError: false, refetch, ...overrides,
+    });
+  }
+  async function open() {
+    await render(<RecordWorkflowActions record={mockRecord} />, { wrapper: createWrapper() });
+    await fireEvent.press(screen.getByText(departmentAction.displayName));
+  }
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mutateAsync.mockResolvedValue({});
+    (useRecordWorkflow as jest.Mock).mockReturnValue({ isPending: false, mutateAsync });
+    (useAvailableWorkflowActions as jest.Mock).mockReturnValue({
+      data: { ...baseAvailableActionsResponse, actions: [departmentAction,
+        { ...departmentAction, action: 'ONAYLA', displayName: 'Son onay', targetDepartmentRequired: false }] },
+      isPending: false, isError: false,
+    });
+    targetState();
+  });
+  it('yalnız seçim gereken modal açıldığında seçenekleri ister', async () => {
+    await open();
+    expect(useWorkflowTargetDepartments).toHaveBeenNthCalledWith(1, mockRecord.id, false);
+    expect(useWorkflowTargetDepartments).toHaveBeenLastCalledWith(mockRecord.id, true);
+  });
+  it('departman seçmeden göndermez', async () => {
+    await open();
+    await fireEvent.press(screen.getByText('İşlemi onayla'));
+    expect(screen.getByText('Bir hedef departman seçin.')).toBeTruthy();
+    expect(mutateAsync).not.toHaveBeenCalled();
+  });
+  it('seçilen integer kimliği ve açıklamayı gönderir', async () => {
+    await open();
+    await fireEvent.press(screen.getByText('Hukuk'));
+    await fireEvent.changeText(screen.getByPlaceholderText('Açıklamanızı yazın'), '  İncelensin  ');
+    await fireEvent.press(screen.getByText('İşlemi onayla'));
+    expect(mutateAsync).toHaveBeenCalledWith({ action: 'DEPARTMANA_GONDER', targetDepartmentId: 12, comment: 'İncelensin' });
+  });
+  it('action değişince hedefi temizler ve hedefsiz aksiyona kimlik eklemez', async () => {
+    await open();
+    await fireEvent.press(screen.getByText('Hukuk'));
+    await fireEvent.press(screen.getByText('Vazgeç'));
+    await fireEvent.press(screen.getByText(departmentAction.displayName));
+    await fireEvent.press(screen.getByText('İşlemi onayla'));
+    expect(mutateAsync).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByText('Vazgeç'));
+    await fireEvent.press(screen.getByText('Son onay'));
+    await fireEvent.press(screen.getByText('İşlemi onayla'));
+    expect(mutateAsync).toHaveBeenCalledWith({ action: 'ONAYLA' });
+  });
+  it.each([
+    [{ isPending: true }, 'Departmanlar yükleniyor…'],
+    [{ isFetching: true }, 'Departmanlar yükleniyor…'],
+    [{ isError: true }, 'Departmanlar yüklenemedi.'],
+    [{ data: { departments: [] } }, 'Gönderilebilecek departman yok.'],
+  ])('seçenekler kullanılamazken göndermez: %s', async (state, message) => {
+    targetState(state);
+    await open();
+    expect(screen.getByText(message)).toBeTruthy();
+    await fireEvent.press(screen.getByText('İşlemi onayla'));
+    expect(mutateAsync).not.toHaveBeenCalled();
+  });
+  it('seçenek hatasını yeniden deneyebilir', async () => {
+    targetState({ isError: true });
+    await open();
+    await fireEvent.press(screen.getByText('Departmanları yeniden yükle'));
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+  it('yenilenen listeden çıkarılan eski hedefi göndermez', async () => {
+    const view = await render(<RecordWorkflowActions record={mockRecord} />, { wrapper: createWrapper() });
+    await fireEvent.press(screen.getByText(departmentAction.displayName));
+    await fireEvent.press(screen.getByText('Hukuk'));
+    targetState({ data: { departments: [options[1]] } });
+    await view.rerender(<RecordWorkflowActions record={mockRecord} />);
+    await fireEvent.press(screen.getByText('İşlemi onayla'));
+    expect(mutateAsync).not.toHaveBeenCalled();
   });
 });

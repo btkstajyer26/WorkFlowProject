@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiClientError } from '@/api/errors';
 import {
   getAvailableWorkflowActions,
+  getWorkflowTargetDepartments,
   performWorkflowAction,
   type WorkflowActionRequest,
 } from '@/api/workflow';
@@ -12,6 +13,8 @@ import { recordQueryKeys } from './records';
 
 export const workflowQueryKeys = {
   all: ['workflow'] as const,
+  targetDepartments: (recordId: string) =>
+    [...workflowQueryKeys.all, 'target-departments', recordId] as const,
   availableActions: (recordId: string) =>
     [...workflowQueryKeys.all, 'available-actions', recordId] as const,
 };
@@ -21,6 +24,15 @@ export function useAvailableWorkflowActions(recordId: string, enabled = true) {
     enabled: enabled && Boolean(recordId),
     queryFn: () => getAvailableWorkflowActions(recordId),
     queryKey: workflowQueryKeys.availableActions(recordId),
+  });
+}
+
+export function useWorkflowTargetDepartments(recordId: string, enabled: boolean) {
+  return useQuery({
+    enabled: enabled && Boolean(recordId),
+    queryFn: () => getWorkflowTargetDepartments(recordId),
+    queryKey: workflowQueryKeys.targetDepartments(recordId),
+    staleTime: 0,
   });
 }
 
@@ -36,9 +48,12 @@ export function useRecordWorkflow(recordId: string) {
   const refreshAfterConflict = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: recordQueryKeys.all }),
-    queryClient.invalidateQueries({
-      queryKey: workflowQueryKeys.availableActions(recordId),
-    }),
+      queryClient.invalidateQueries({
+        queryKey: workflowQueryKeys.availableActions(recordId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: workflowQueryKeys.targetDepartments(recordId),
+      }),
       queryClient.invalidateQueries({
         queryKey: auditLogQueryKeys.record(recordId),
       }),
@@ -49,9 +64,12 @@ export function useRecordWorkflow(recordId: string) {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: recordQueryKeys.lists() }),
       queryClient.invalidateQueries({ queryKey: recordQueryKeys.counts() }),
-    queryClient.invalidateQueries({
-      queryKey: workflowQueryKeys.availableActions(recordId),
-    }),
+      queryClient.invalidateQueries({
+        queryKey: workflowQueryKeys.availableActions(recordId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: workflowQueryKeys.targetDepartments(recordId),
+      }),
       queryClient.invalidateQueries({
         exact: true,
         queryKey: recordQueryKeys.detail(recordId),

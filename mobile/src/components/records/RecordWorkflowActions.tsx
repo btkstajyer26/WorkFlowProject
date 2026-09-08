@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Modal, Pressable, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, View } from 'react-native';
 
 import { ApiClientError } from '@/api/errors';
 import type { RecordDetail } from '@/api/records';
@@ -14,6 +14,7 @@ import { AppTextInput } from '@/components/ui/AppTextInput';
 import {
   useAvailableWorkflowActions,
   useRecordWorkflow,
+  useWorkflowTargetDepartments,
 } from '@/query/workflow';
 
 export function RecordWorkflowActions({
@@ -30,21 +31,35 @@ export function RecordWorkflowActions({
   const [comment, setComment] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  const availableActions =
-    availableActionsQuery.data?.actions.filter(
-      (action) =>
-        !action.targetDepartmentRequired && !action.targetUserRequired,
-    ) ?? [];
+  const [targetDepartmentId, setTargetDepartmentId] = useState<number | null>(null);
+  const availableActions = availableActionsQuery.data?.actions ?? [];
+  const targetDepartmentsQuery = useWorkflowTargetDepartments(
+    record.id,
+    Boolean(selectedAction?.targetDepartmentRequired && !selectedAction.targetUserRequired),
+  );
+  const departments = targetDepartmentsQuery.data?.departments ?? [];
+  const targetUnavailable = Boolean(selectedAction?.targetUserRequired) || Boolean(
+    selectedAction?.targetDepartmentRequired && (
+      targetDepartmentsQuery.isPending || targetDepartmentsQuery.isFetching ||
+      targetDepartmentsQuery.isError || departments.length === 0
+    ),
+  );
 
   const closeModal = () => {
     if (mutation.isPending) return;
     setSelectedAction(null);
+    setTargetDepartmentId(null);
     setComment('');
     setErrorMessage('');
   };
 
   const submitAction = async () => {
-    if (!selectedAction) return;
+    if (!selectedAction || mutation.isPending || targetUnavailable) return;
+    if (selectedAction.targetDepartmentRequired &&
+        !departments.some((department) => department.id === targetDepartmentId)) {
+      setErrorMessage('Bir hedef departman seçin.');
+      return;
+    }
     const normalizedComment = comment.trim();
 
     if (selectedAction.commentRequired && !normalizedComment) {
@@ -56,6 +71,8 @@ export function RecordWorkflowActions({
       setErrorMessage('');
       await mutation.mutateAsync({
         action: selectedAction.action,
+        ...(selectedAction.targetDepartmentRequired && targetDepartmentId !== null
+          ? { targetDepartmentId } : {}),
         ...(normalizedComment ? { comment: normalizedComment } : {}),
       });
       onActionSuccess?.(selectedAction.action);
@@ -85,7 +102,12 @@ export function RecordWorkflowActions({
           <AppButton
             key={action.action}
             label={action.displayName}
-            onPress={() => setSelectedAction(action)}
+            onPress={() => {
+              setTargetDepartmentId(null);
+              setComment('');
+              setErrorMessage('');
+              setSelectedAction(action);
+            }}
             variant={action.action === 'ONAYLA' ? 'primary' : 'secondary'}
           />
         ))}
@@ -110,6 +132,51 @@ export function RecordWorkflowActions({
                   : 'İsterseniz işlem notu ekleyebilirsiniz.'}
               </AppText>
             </View>
+            {selectedAction?.targetUserRequired ? (
+              <AppText tone="danger">
+                Bu işlem için kullanıcı seçimi şu anda desteklenmiyor.
+              </AppText>
+            ) : selectedAction?.targetDepartmentRequired ? (
+              <View className="gap-2">
+                <AppText variant="label">Hedef departman</AppText>
+                {targetDepartmentsQuery.isPending || targetDepartmentsQuery.isFetching ? (
+                  <View className="gap-2">
+                    <ActivityIndicator />
+                    <AppText tone="muted">Departmanlar yükleniyor…</AppText>
+                  </View>
+                ) : targetDepartmentsQuery.isError ? (
+                  <View className="gap-2">
+                    <AppText tone="danger">Departmanlar yüklenemedi.</AppText>
+                    <AppButton label="Departmanları yeniden yükle"
+                      onPress={() => void targetDepartmentsQuery.refetch()} variant="secondary" />
+                  </View>
+                ) : departments.length === 0 ? (
+                  <AppText tone="muted">Gönderilebilecek departman yok.</AppText>
+                ) : (
+                  <ScrollView style={{ maxHeight: 180 }} nestedScrollEnabled>
+                    <View className="gap-2">
+                      {departments.map((department) => (
+                        <Pressable key={department.id} accessibilityRole="radio"
+                          accessibilityState={{ selected: targetDepartmentId === department.id,
+                            disabled: mutation.isPending }}
+                          disabled={mutation.isPending}
+                          className={`min-h-11 justify-center rounded-app-lg border px-4 py-2 ${
+                            targetDepartmentId === department.id
+                              ? 'border-brand-600 bg-brand-100 dark:border-brand-400 dark:bg-brand-900/40'
+                              : 'border-app-border bg-app-surface-strong dark:border-app-border-dark dark:bg-app-surface-strong-dark'
+                          }`}
+                          onPress={() => {
+                            setTargetDepartmentId(department.id);
+                            setErrorMessage('');
+                          }}>
+                          <AppText>{department.name}</AppText>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </ScrollView>
+                )}
+              </View>
+            ) : null}
             <AppTextInput
               className="min-h-28 py-3"
               error={errorMessage || undefined}
@@ -127,6 +194,7 @@ export function RecordWorkflowActions({
               value={comment}
             />
             <AppButton
+              disabled={targetUnavailable}
               isLoading={mutation.isPending}
               label="İşlemi onayla"
               onPress={() => void submitAction()}

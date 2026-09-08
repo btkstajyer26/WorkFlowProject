@@ -6,7 +6,7 @@ güncellenir.
 
 4 Eylül 2026, `codex/ap-2-frontend-uyum` @ `c9b0297` tabanı ile hizalanmıştır.
 `DEPARTMANA_GONDER` aksiyonu ve `targetDepartmentId` alanı backend'de mevcuttur;
-mobil istemci bunları **kullanmaz**. AP-3/AP-4/AP-5/AP-8 yönetim uçları hâlâ
+mobil istemci MOB-1 ile kayıt kapsamlı departman seçimi için bunları kullanır. AP-3/AP-4/AP-5/AP-8 yönetim uçları hâlâ
 yoktur. Mobilin tüketeceği yeni uçlar ve ortak `assignment` nesnesi
 [APP-9 / APP-10 / B11 sözleşmesinde](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md)
 tanımlıdır. [Güncel teslim sınırları](README.md) ayrı izlenir.
@@ -274,6 +274,19 @@ Yetki `@PreAuthorize` ile değil, durum makinesiyle belirlenir.
 ```
 
 Departmana gönderim `assigned_department_id` alanını doldurur ve `assigned_to` alanını temizler. Hedef aktif olmalı; iniş durumu için aktif routing/transition, aktif workflow rolü, uygun aktif üye, `RECORD_VIEW` ve geçiş permission'ı bulunmalıdır. Eksik/pasif departman `400 WORKFLOW_DEPARTMENT_INVALID`, kullanılabilir iniş routing'i yoksa `409 WORKFLOW_DEPARTMENT_ROUTING_NOT_CONFIGURED` döner. Kayıt zaten departmandayken eksik routing veya yetkisiz üyelik `403 WORKFLOW_FORBIDDEN` üretir. Üyelik tek başına yetki vermez.
+
+**MOB-1 mobil hedef seçimi:** `targetDepartmentRequired=true` olduğunda
+`GET /api/records/{recordId}/workflow/target-departments` çağrılır. Yanıt
+`{ "departments": [{ "id": 12, "name": "Hukuk" }] }` biçimindedir; uygunluk
+backend'de filtrelenir. Mobil bu listeye rol/routing kuralı eklemez. Seçim
+zorunludur; yükleme, hata ve boş liste durumunda gönderim yapılmaz. Hedef
+istemeyen aksiyonlara hedef kimliği eklenmez. Workflow POST `version` istemez.
+
+Kullanıcı seçimi mevcut sözleşmede desteklenmez: bütün aksiyonların
+`targetUserRequired` değeri false'tur ve normal kullanıcı için hedef kullanıcı
+keşif ucu yoktur. Beklenmedik true değerinde mobil aksiyonu gizlemez; desteklenmeyen
+seçim mesajı gösterir ve gönderimi engeller. Kullanıcı seçimini açmak backend hedef
+çözümü ve görünürlük sözleşmesi için ayrı tasarım kararı gerektirir.
 
 Cevap:
 
