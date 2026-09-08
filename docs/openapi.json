@@ -841,7 +841,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/UserResponse"
+                  "$ref" : "#/components/schemas/CurrentUserResponse"
                 }
               }
             }
@@ -1596,6 +1596,47 @@
           },
           "roleName" : {
             "type" : "string"
+          },
+          "active" : {
+            "type" : "boolean"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "CurrentUserResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "firstName" : {
+            "type" : "string"
+          },
+          "lastName" : {
+            "type" : "string"
+          },
+          "email" : {
+            "type" : "string"
+          },
+          "roleId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "systemKey" : {
+            "type" : "string"
+          },
+          "roleName" : {
+            "type" : "string"
+          },
+          "permissionCodes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
           },
           "active" : {
             "type" : "boolean"
