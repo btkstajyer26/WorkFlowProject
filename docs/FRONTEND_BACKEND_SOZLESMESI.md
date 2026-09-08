@@ -4,7 +4,9 @@
 
 Bu belge EBYS frontendinin kullandığı API sözleşmesini ve henüz tamamlanmamış entegrasyon ihtiyaçlarını tanımlar. Mevcut endpoint ve cevap modellerinde backend kodu ile çalışan uygulamanın `/v3/api-docs` çıktısı esas alınır; `docs/openapi.json` bunun sürümlenmiş inceleme anlık görüntüsüdür. Gelecekte eklenmesi beklenen işlemler ayrıca "backend bekleniyor" olarak işaretlenir.
 
-> Son dokümantasyon karşılaştırması: 4 Eylül 2026, `codex/ap-2-frontend-uyum` @ `c9b0297` (AP-2 hizalaması + V23 + WF-5/WF-6).
+> Bu belge **sözleşmedir**; alan veya hata eşlemesi değiştiğinde aynı değişiklik
+> kapsamında güncellenir. Canlı şema `localhost:8080/v3/api-docs`, sürümlenmiş
+> kopya [openapi.json](openapi.json).
 > WF-8 ve V18–V22 yeni HTTP uçları/alanları eklemedi. AP-2 ile rol yönetimi uçları
 > ve `UserResponse`'un rol alanları değişti (aşağıda). Departman gönderimi
 > bu dalda uygulanmıştır. Bu turda sürümlenmiş `openapi.json` ile çalışan
@@ -445,10 +447,20 @@ değil, düz alanlar** olarak döner (`userId`, `userFullName`, `roleId`,
     "previousStatus": "BSK_YRD_INCELEMESINDE",
     "newStatus": "BASKAN_INCELEMESINDE",
     "comment": "Uygun bulunmuştur.",
+    "previousAssignment": { "kind": "USER", "userId": "user-uuid", "userFullName": "Ayşe Kaya", "departmentId": null, "departmentName": null },
+    "newAssignment": { "kind": "DEPARTMENT", "userId": null, "userFullName": null, "departmentId": 4, "departmentName": "Hukuk" },
     "createdAt": "2026-08-04T10:30:00Z"
   }
 ]
 ```
+
+**`previousAssignment` / `newAssignment` (B12, 8 Eylül).** Geçişin atamayı
+nereden nereye taşıdığı, §3'teki ortak `AssignmentView` sözleşmesiyle döner —
+`kind` alanı `USER` / `DEPARTMENT` / `NONE` değerlerinden birini alır. **Tür ham
+alanlardan çıkarsanmaz**, sunucu gönderir. Geçiş olmayan satırlarda (yaşam
+döngüsü olayları ve Admin HTTP denetim satırları) ikisi de `NONE`'dur; bu
+satırlarda atama yorumlanmamalıdır — geçiş satırı ayrımı `previousStatus != null`
+ile yapılır. Silinmiş kullanıcı/departman için ad `null` gelir, kimlik korunur.
 
 Audit kayıtlarını güncelleyen veya silen endpoint olmamalıdır. Kullanıcı yalnız görmeye yetkili olduğu kaydın ilgili geçmişini görebilir; sistem genelindeki audit logları ayrı bir idari yetkidir.
 

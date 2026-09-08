@@ -2,10 +2,14 @@
 
 Bu belge PostgreSQL şemasını, tasarım kararlarını ve migration yönetimini tanımlar. Kaynağı `backend/src/main/resources/db/migration/` altındaki Flyway dosyalarıdır.
 
-> Repo şeması **`V1`–`V23`**'tür (4 Eylül 2026, `codex/ap-2-frontend-uyum` @ `c9b0297`). V22 departman şemasını hizalar, V23 `DEPARTMENT` hedef stratejisini, `DEPARTMANA_GONDER` aksiyonunu ve iki geçişi ekler. Bu kaynak kod durumudur; belirli bir veritabanının V23'e yükseltildiğini göstermez — hedef ortamın `flyway_schema_history` sürümü ayrıca doğrulanmalıdır. Şema değiştiğinde belge aynı değişiklik kapsamında güncellenmelidir.
+> **Şemanın tek doğruluk kaynağı `db/migration/` dizinidir.** Bu belge o dosyaları
+> anlatır; sürüm numarası saymaz. Kaynak koddaki en yüksek migration, belirli bir
+> veritabanının o sürüme yükseltildiğini **göstermez** — hedef ortamın
+> `flyway_schema_history` tablosu ayrıca doğrulanmalıdır. Şema değiştiğinde bu
+> belge aynı değişiklik kapsamında güncellenir.
 
 - **Veritabanı:** PostgreSQL 15.18
-- **Migration:** Flyway (`V1`–`V23`; `V3` tarihsel olarak yoktur). Aşağıdaki gövde `V1`–`V11` tabanını anlatır; `V12`–`V17` ile gelen katalog/capability/FK değişiklikleri ve `V18`–`V23` ile gelen departman şeması/gönderim primitive'leri belgenin sonundaki bölümlerde ele alınır.
+- **Migration:** Flyway (`V3` tarihsel olarak yoktur). Aşağıdaki gövde `V1`–`V11` tabanını anlatır; `V12`–`V17` katalog/capability/FK, `V18`–`V23` departman şeması ve gönderim primitive'leri, `V24`–`V25` hedef rol semantiği ve audit atama kolonları belgenin sonundaki bölümlerde ele alınır.
 - **ORM:** Spring Data JPA / Hibernate, `ddl-auto=validate`
 
 ## İçindekiler
@@ -367,7 +371,7 @@ doğrulanmış biçimde eksiktir; ilgili migration/kod işleri aşağıdaki tabl
 | `records.version` ve görev devri | `devretBekleyenIsleri` ve `updateLastDeputyId` toplu JPQL güncellemeleri sürümü artırmaz; eşzamanlı workflow yazımı çatışma almaz (B03) |
 | `records.version` ve dosya yükleme | Ek yükleme kaydın sürümüne dokunmaz; kilit kontrolü ile dosya satırının yazılması arasında durum değişebilir (B04) |
 | Soft-delete edilmiş kayıt | Detay okuması `deleted_at` dolu kaydı dışlar; update/delete ortak yükleyicisi dışlamaz (B08) |
-| Workflow audit | `WorkflowTransitionAudit` departman ve kişi atama alanı taşımaz; departman hedefi kalıcı geçmişe yazılmaz. Yapılandırılmış audit sözleşmesi ve ileri migration gerekir (B12); alan şekli [APP-9/APP-10/B11 §3](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md#3-b11--ortak-atama-sözleşmesi) içindeki `kind` ayrımıyla uyumlu olmalıdır |
+| Workflow audit | **Kapandı (B12 ✅, `V25`, [ADR-0009](decisions/0009-audit-atama-sozlesmesi.md)).** `audit_logs` dört nullable kolon taşır — `previous_assigned_to` / `previous_assigned_department_id` ve `new_assigned_to` / `new_assigned_department_id` — her yan için ayrı karşılıklı dışlama CHECK'i vardır (`chk_audit_previous_assignment_exclusive`, `chk_audit_new_assignment_exclusive`) ve dördü de `users`/`departments`'a `ON DELETE RESTRICT` FK ile bağlıdır. Atama **türü** kolonu açılmadı; tür okuma anında `AssignmentView.of(...)` ile türetilir ([APP-9/APP-10/B11 §3](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md#3-b11--ortak-atama-sözleşmesi) `kind` ayrımı). Kolonlar yalnız **geçiş** satırlarında anlamlıdır; yaşam döngüsü ve HTTP erişim satırlarında NULL kalır. `V25` öncesi satırlara geriye dönük değer yazılmadı |
 | Dinamik önceki aktöre dönüş | V15 seed'i `BASKAN_YARDIMCISINA_GERI_GONDER` için yerleşik `BASKAN_YARDIMCISI` hedef rolünü ister; dinamik departman aktörüne dönüş `WORKFLOW_TARGET_ROLE_INVALID` alır (B02). **Karar verildi:** [ADR-0008](decisions/0008-hedef-rol-semantigi-ve-onceki-aktore-donus.md) — `V24` üç satırda `expected_target_role_id` değerini `NULL` yapar ve `chk_transition_target_strategy_role` kısıtını "yalnız `ROLE` dolu olabilir" biçiminde daraltır. Migration ve kod aynı teslimde gider; ayrı dağıtılırsa uygulama açılışta düşer |
 
 ### Numaralandırmadaki boşluk
@@ -505,7 +509,7 @@ senaryo başına `dept_schema_test_<UUID>`, tam Spring test paketi ayrı
 kimlikleri Alperen'in `origin/feature/Veri-katmanı` dalıyla aynıdır. Yerel `public`
 şema V17'de kalmıştır; test şemalarının V22'ye çıkması uygulama veritabanını yükseltmez.
 
-**Merge doğrulaması — 4 Eylül 2026:** PR #66, `test` @ `3eb3691` ile birleşti.
+**Merge kaydı:** PR #66.
 Merge edilen dosya ağacı test edilen teslimle aynıdır. Bu ayrı Git kanıtıdır;
 712 test sonucu departman runtime/E2E, güncel CI veya TEST deploy kabulü değildir.
 

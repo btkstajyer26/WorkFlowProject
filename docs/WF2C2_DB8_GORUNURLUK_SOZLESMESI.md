@@ -96,7 +96,7 @@ B06 ve B07'nin prob adları, gözlenen sonuçları ve tekrar üretim adımları
 
 ## 6. Kabul kanıtı
 
-**Yerel doğrulama — 4 Eylül 2026, 11:27 TRT:** İlgili 111 test ve ardından tam backend `verify` başarılıdır: **667 test / 0 failure / 0 error / 0 skipped**. JAR paketleme de tamamlandı. Komut backend dizininde `DB_PORT=5433` ortam değişkeniyle `mvn -o verify` olarak çalıştırıldı (mevcut Maven repository yolu açıkça verildi). Bu kayıt yerel çalışma ağacının kanıtıdır; PR/CI/merge veya departman V1 kabulü değildir.
+Bu sözleşmenin regresyonları backend suite'i içindedir; koşum sayıları ve tarihli kanıtlar burada tutulmaz.
 
 - `RecordAccessPolicyTest`: dinamik rol ilişkileri, sistem kapsamları, capability ve ADMIN deny, içerik/geçmiş seçimleri, silinmiş kayıt.
 - `RecordVisibilityIntegrationTest`: PostgreSQL'de policy–sorgu ID eşitliği, filtre/sayfalama toplamları; gerçek JWT ile bütün okuma uçları, permission/atama kaldırma, pasif hesap/rol, soft-delete ve ADMIN deny.

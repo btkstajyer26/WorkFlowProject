@@ -2,15 +2,13 @@
 
 - **Durum:** Kabul edildi
 - **Karar tarihi:** 1 Eylül 2026
-- **Son güncelleme:** 4 Eylül 2026 — repo şeması V23'e alındı; departman gönderim runtime'ı uygulandı, açık davranış kayıtları eklendi
 - **Kapsam:** DB-1
 - **Sözleşmenin başlangıç tabanı:** Flyway `V1`–`V11` (`V3` tarihsel olarak yoktur)
-- **Güncel repo şeması:** `V1`–`V23`, `codex/ap-2-frontend-uyum` @ `c9b0297`
 - **Uygulama durumu:** Çekirdek DB-1 §17 kabulü 2 Eylül 2026'da doğrulandı.
   V12–V17 katalog/capability, V18–V22 departman veri katmanı ve V23 gönderim
   primitive/seed'leri hazırdır; WF-5/WF-6 runtime'ı uygulanmıştır. Açık kalanlar
   yönetim uçları (`AP-3`/`AP-4`/`AP-5`/`AP-8`), atama alanlarının yanıt DTO'larına
-  taşınması (B11), workflow audit'inin departman hedefini yazması (B12) ve
+  taşınması (B11 ✅), workflow audit'inin departman hedefini yazması (B12 ✅, `V25`) ve
   dinamik önceki aktöre dönüş (B02). B02, B11 ve alıcı çözümü **karara
   bağlanmıştır** ([ADR-0008](decisions/0008-hedef-rol-semantigi-ve-onceki-aktore-donus.md),
   [APP-9/APP-10/B11 sözleşmesi](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md)); `V24` ve
@@ -42,39 +40,12 @@ Bu sözleşmede **zorunludur**, **yasaktır** ve **yalnızca** ifadeleri bağlay
 “İleride” veya “ayrı karar gerekir” olarak işaretlenen bölümler mevcut
 iterasyonun uygulama kapsamına girmez.
 
-## 2. Sözleşme yazılırken mevcut durum (1 Eylül 2026 snapshot'ı)
+## 2. Başlangıç durumu
 
-> Bu bölüm **tarihsel**tir: sözleşmenin çözmek için yazıldığı başlangıç durumunu
-> anlatır. Bugünkü uygulama durumu için §20'ye bakın.
-
-Sözleşme hazırlanırken kod ve şemada aşağıdaki yapı vardı:
-
-- `roles(id, name, description)` ve `users.role_id` kullanılmaktadır.
-- Bir kullanıcı tam olarak bir role sahiptir.
-- `records.status`, `VARCHAR(50)` olarak Java `RecordStatus` enum adını tutar ve
-  `chk_records_status` ile altı değere sınırlandırılmıştır.
-- Yedi aksiyon ve sekiz geçiş Java'daki `TransitionRules` tablosunda statik
-  olarak tanımlıdır.
-- `WorkflowAction`, yorum zorunluluğu ve beklenen hedef rol gibi bazı davranışları
-  enum üzerinde taşır.
-- `RoleName`, `RecordStatus` ve `WorkflowAction` hâlen çalışma zamanında
-  kullanılmaktadır.
-- Uygulanmış Flyway migration'ları `V1`–`V11` aralığındadır.
-
-Hedef model aşağıdaki çekirdeği ekler:
-
-```text
-roles
-permissions
-role_permissions
-
-workflow_statuses
-workflow_actions
-workflow_transitions
-
-users
-records
-```
+Sözleşme yazılırken workflow kuralları Java'da statik tablodaydı (`TransitionRules`),
+roller yalnız `roles(id, name, description)` ile taşınıyordu ve uygulanmış migration
+zinciri `V1`–`V11`'di. Bu sözleşme o modeli `permissions` / `role_permissions` ve
+`workflow_statuses` / `workflow_actions` / `workflow_transitions` çekirdeğine taşır.
 
 ## 3. Bağlayıcı mimari kararlar
 
@@ -893,30 +864,9 @@ giderilmiştir:
 - `backend/src/main/java/btk/staj/WorkFlowProject/workflow/statemachine/TransitionRuleSource.java`
   — statik ve DB-backed kaynakların portu
 
-## 20. Güncel uygulama sınırları ve kanıtlar
+## 20. Uygulama durumu
 
-*Son doğrulama: 3 Eylül 2026, `test` @ `aa113f1` (PR #64 dahil).*
-
-| Konu | Durum / kanıt |
-| --- | --- |
-| Şema ve seed | `V12`–`V17`; 6 durum, 7 aksiyon, 8 başlangıç geçişi; 19 permission ve 23 rol-permission seed eşlemesi |
-| Permission + kapasite | `AuthenticatedUserFactory`, `RoleCapacityService`; WF-2B / WF-2C1 kapanışı WF2A envanteri §18.8'de |
-| Aktör ve hedef kimliği | `TransitionRule`, `CurrentActor`, `TransitionContext`, kullanıcı portu, audit ve event modellerinde `RoleId`; PR #61 / #60 |
-| Canlı kural yenileme | `ReloadableTransitionRuleSource`, `WorkflowRuleAdminController`; PR #56. Bean sarmalayıcıdır, sardığı snapshot `DbTransitionRuleSource`'tur |
-| Aktör rolü bağlama | WF-8 `WorkflowActorBindingService`: mevcut geçişe dinamik rol, kullanımda kaldırma koruması, transaction/audit ve commit sonrası snapshot. AP-8 HTTP/UI ayrı teslimdir |
-| Dinamik rol kanıtı | `DynamicWorkflowRoleIntegrationTest`: 11 PostgreSQL/HTTP senaryosu |
-| Görünürlük | [WF-2C2 / DB-8 sözleşmesi](WF2C2_DB8_GORUNURLUK_SOZLESMESI.md) mevcut şemada uygulanmıştır: RoleId aktörü, ortak scope ve dinamik rol okuma erişimi. Departman query/runtime ve V1 kabulü açık; yeni migration eklenmedi |
-| Admin paneli | PR #57 rol listesi getirir. Rol CRUD, permission matrisi ve durum katalog ekranı teslim edilmiş değildir |
-| Statik kaynak | `TZ-1` **tamamlandı**: `TransitionRules` ve `StaticTransitionRuleSource` test ağacına taşındı ve production jar'ından çıktı. Parity oracle'ı ve invariantlar korundu; invariantlar artık veritabanı kaynağı üzerinde de koşuyor |
-| Atama sözleşmesi | `TransitionContext.actorHoldsAssignment` (`WF-5` ile yeniden adlandırıldı); departman anlamı `WF-6` ile gelecek |
-| Departman | ADR-0005 ve ADR-0006 **Kabul Edildi**; §15 şeması/entity/repository V18–V22, gönderim primitive/seed'leri V23 ile hazır. Gönderim yolu, routing/eligibility resolver ve departman görünürlüğü uygulanmıştır. Açık: yönetim uçları (`AP-4`/`AP-5`), atama alanlarının yanıt DTO'ları (B11), audit'e departman hedefi (B12) ve dinamik önceki aktöre dönüş (B02) |
-
-> **Bu §20 tablosu kendi teslim tarihine aittir.** Güncel kod tabanındaki durum
-> yukarıdaki başlık bloğunda, doğrulanmış açık davranış problemleri ise
-> [database.md'deki açık davranış kayıtlarında](database.md#bu-şemanın-açık-davranış-kayıtları)
-> `B`-kimlikleriyle izlenir; son yerel backend
-> koşumu `c9b0297` üzerinde **776 test / 0 failure / 0 error / 0 skipped**'tir.
-
-Test kanıtı: bu doğrulamada tam süit **646 test / 0 failure / 0 error / 0 skipped**
-(TZ-1 öncesi kayıt 639; `TZ-1`'in eklediği kaynak-agnostik invariantlar ve mutasyon
-testleriyle arttı). Uzak CI ve TEST sunucusu doğrulaması ayrıca yapılır.
+Bu sözleşme **hedef modeli** tanımlar. Hangi maddenin uygulandığı, hangisinin açık
+olduğu ve teslim kanıtları burada tutulmaz — tarih taşıyan her tablo yazıldığı gün
+eskir. Güncel durum için görev dağılımı ve yol haritası belgesine, uygulanmış şema
+zinciri için [database.md](database.md) ve `db/migration/` dizinine bakın.

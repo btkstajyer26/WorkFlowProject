@@ -2,12 +2,8 @@
 
 Bu belge, İş Akışı ve Onay Yönetim Sistemi'nin çalışan backend kodundaki workflow davranışını tanımlar. Ürün hedefinden çok **mevcut uygulamayı** esas alır; planlanan ancak henüz uygulanmayan davranışlar ile uygulanmış olup beklenen sonucu vermeyen davranışlar “Bilinen boşluklar” bölümünde ayrıca belirtilir. Durum makinesi, API veya hata eşlemesi değiştirildiğinde belge aynı değişiklik kapsamında güncellenir.
 
-4 Eylül 2026 — `codex/ap-2-frontend-uyum` @ `c9b0297`: AP-2 hizalaması, V23,
-WF-5/WF-6 ve departman görünürlüğü birlikte uygulanmıştır (PR #69 ve #70 yerel
-geçmişte birleşmiştir). Uzak `test`/CI/ortam kabulü ayrıca doğrulanmalıdır.
-Bu belgenin anlattığı davranışın **doğrulanmış istisnaları** aşağıdaki “Bilinen
-boşluklar” bölümündedir; sekiz backend probunun tekrar üretim adımları
-[kanıt klasöründedir](reviews/2026-09-04/TEKRAR_URETIM.md).
+Bu belgenin anlattığı davranışın bilinçli sınırları aşağıdaki “Bilinen boşluklar”
+bölümündedir.
 
 ## İçindekiler
 
@@ -547,18 +543,10 @@ Yukarıdaki boşlukların bir kısmı **Workflow V1 açık işidir**, bir kısm�
 
 | Boşluk | Nereye ait |
 | --- | --- |
-| Ortak görünürlük ve dinamik rol okuma erişimi | Departman/durum çiftleri dahil ortak policy/SQL, JWT okuma uçları ve sayfalama testleri uygulandı |
-| Departman, üyelik, routing ve atama veri katmanı | V18–V22 ile şema/entity/repository hazır; V22 ad uzunluğu, self-parent ve silme korumalarını DB-1 ile hizalar |
-| Departman runtime ve görünürlük | V23 + WF-5/WF-6 ve policy/SQL departman kolu uygulandı; bildirim alıcı fan-out'u da uygulandı (NT-5 ✅, 8 Eylül) ve görünürlük adaptörüyle aynı süzgeci kullanır. Kalan: yönetim ekranları (`AP-4`/`AP-5`) |
-| Dinamik aktörden Başkana iletilen kaydın geri dönüşü | Uygulandı (B02 ✅, `V24`): [ADR-0008](decisions/0008-hedef-rol-semantigi-ve-onceki-aktore-donus.md) kararı gereği `expected_target_role_id` yalnız `ROLE` stratejisinin arama anahtarıdır; diğer hedeflerde statik rol dayatması yerine yetenek kontrolü çalışır (`WORKFLOW_TARGET_CANNOT_ACT`, `409`). Dinamik rolün dönüş sonrası görünürlüğü de kapalıdır (B13 ✅) |
-| Departman hedefinin kalıcı workflow audit'ine yazılması | Workflow V1 açık işi — B12; `WorkflowTransitionAudit` departman alanı taşımaz, `AuditLogService` modeldeki kişi atamasını da kaydetmez |
-| Dosya işlemlerinin kayıt kilidi ve tarihsel dosya erişimi | Uygulandı: dosya ekleme/silme `findByIdForUpdate` ile kaydı kilitler (B04), geri alınan yüklemede disk temizlenir (R06), indirme listeyle aynı zaman kesitini kullanır (B07) |
-| Silinmiş kaydın değiştirilmesi | Uygulandı: değiştirme yolları aktif kayıt yükleyicisini kullanır; tekrar `DELETE` `404` döner (B08) |
-| İstemcinin kullanılabilir aksiyonu backend'den öğrenmesi | Backend tamam: `available-actions` ve `target-departments` uçları uygulandı ve üretilmiş istemcide açık. **Mobil bu uçlara geçti (B09 ✅, 8 Eylül):** istemci tarafı aksiyon hesabı kaldırıldı, düğmeler ve departman hedefi backend yanıtından üretilir. Kalan iş web tarafında — panel hâlâ `systemKey` sabitleriyle çalışır (B10) |
-| Mevcut geçişe dinamik aktör rolü bağlama | WF-8 servis ve sözleşmesi uygulandı; AP-8 HTTP/UI açık |
-| Admin'den rol/permission yönetimi | Workflow V1 — `AP-2`/`AP-3` |
-| WebSocket bildirim kanalı | Workflow V1 — `NT-2`…`NT-4` |
-| Aksiyon metadata'sının enum'dan tabloya taşınması | V1 acceptance'ı için zorunlu değil |
+| Admin'den permission, departman, üyelik ve routing yönetimi | **Workflow V1** — yönetim HTTP/UI katmanı; servis ve katalog hazır |
+| Mevcut geçişe dinamik aktör rolü bağlamanın arayüzü | **Workflow V1** — WF-8 servisi hazır, HTTP/UI ayrı teslim |
+| WebSocket bildirim kanalı | **Workflow V1** — transport var, yayınlayan ve abonelik yetkisi yok |
+| Aksiyon metadata'sının enum'dan tabloya taşınması | V1 kabulü için zorunlu değil |
 | Grafik topolojisinin arayüzden düzenlenmesi, workflow definition/versioning, draft/publish | **Workflow V2** — V1'de yasak (DB-1 §14) |
 
 Geçiş kuralları veritabanından okunur; `TransitionRules` statik tablosu test ağacındaki parity ve veritabanısız test referansıdır. Workflow rol kimliği `WF-2D2` ile tamamen `RoleId`'ye taşındı. Dinamik rol görünürlüğü mevcut şemada ortaktır; departman görünürlüğü uygulandı, WebSocket bildirim kanalı açıktır. HTTP istek audit'i `ADMIN` sistem anahtarında `audit_logs`, diğerlerinde `user_audit_logs` tablosuna gider; rolün yeniden adlandırılması bu dağılımı değiştirmez.

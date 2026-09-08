@@ -2,11 +2,9 @@
 
 Bu belge İş Akışı ve Onay Yönetim Sistemi'nin **çalışan mimarisini** tanımlar. Hedef durumu değil, koda bakılarak doğrulanmış mevcut yapıyı anlatır. Modül sınırları, katmanlama veya bağımlılık yönü değiştiğinde belge aynı değişiklik kapsamında güncellenir.
 
-7 Eylül 2026, `test` @ `origin/test` (`beadcb0` üzerine B04/B05/B07/B08 çalışması) tabanı incelenmiştir. Hazır
-teslimler ve açık bağlantılar [dokümantasyon dizininde](README.md) özetlenir.
-Doğrulanmış davranış problemleri aşağıdaki
-[Bilinen mimari boşluklar](#bilinen-mimari-boşluklar) bölümünde `B`-kimlikleriyle
-işaretlidir.
+Kalıcı mimari sınırlar aşağıdaki [Bilinen mimari boşluklar](#bilinen-mimari-boşluklar)
+bölümündedir. Belge ilerleme durumu tutmaz; belge haritası için
+[dokümantasyon dizinine](README.md) bakın.
 
 ## İçindekiler
 
@@ -204,16 +202,31 @@ Aşağıdakiler uygulanmış davranışlardır:
 
 ## Bilinen mimari boşluklar
 
-- **Son Admin'in rolü korunmuyor.** `setActive` Admin hesabının pasifleştirilmesini engelliyor, ancak `changeRole` sistemdeki tek Admin'in rolünü başka bir role çevirmeyi engellemiyor. Tekil rol kontrolü yalnız bir role *girerken* çalışıyor, *çıkarken* değil. Sistem yönetimsiz kalabilir.
-- **Audit append-only kuralı veritabanında zorlanmıyor.** Uygulama güncelleme veya silme ucu sunmuyor, fakat DB trigger'ı ya da rol kısıtı yok.
-- **E-posta teslim garantisi yok.** Gönderim asenkron ve best-effort; retry, outbox veya DLQ bulunmuyor.
-- **ADR kapsamı seçicidir.** Dizinde altı ADR bulunur; rol kapasitesi ve tekillik ADR-0007'de karara bağlanmıştır. Port/adapter sınırı bu belgede gerekçelendirilir. ADR-0003'ün rol kapsamı/tekillik önerisinin yerine ADR-0005/0007 geçmiştir; dizindeki her kabul edilmiş kararın runtime'ı tamamlanmış değildir.
+Aşağıdakiler **kalıcı mimari eksiklerdir** — bir teslimle kapanan iş kalemleri
+değil, bilinçli olarak taşınan sınırlar. Hangi işin açık olduğu ve kimde olduğu
+bu belgede tutulmaz (bkz. [dokümantasyon dizini](README.md)).
 
-- **Departman runtime'ı bağlıdır; yönetim ve istemci katmanı değildir.** Görünürlük ortak `RecordVisibilityScope` üzerinden tekil policy ve SQL predicate üretir. Şema/entity/repository V18–V22, gönderim stratejisi/aksiyonu/seed'leri V23 ile hazırdır. `DepartmentRoutingResolver`, `DepartmentRoutingAdapter` (`DepartmentRoutingPort`) ve `DepartmentVisibilityAdapter` (`DepartmentVisibilityPort`) runtime'ı bağlar; validator DB bağımlılığı almaz. Açık kalanlar: departman/üyelik/routing yönetim uçları (`AP-4`/`AP-5`), NT-5 alıcı fan-out'u ve istemci departman seçicisi. Sınırlar ve DB-8 entegrasyonu: [WF-2C2 sözleşmesi](WF2C2_DB8_GORUNURLUK_SOZLESMESI.md).
-- **Geçiş grafiği arayüzden düzenlenemiyor.** WF-8'in Spring yönetim servisi mevcut geçişlere dinamik aktör rolü bağlar; topoloji, routing, permission ve aktör ilişkisini değiştirmez. AP-8 HTTP/UI entegrasyonu açıktır. Bağ yazımı ve audit tek transaction'dadır; reload ile ortak koordinatör doğrulanmış snapshot'ı commit sonrası yayınlar. Saf workflow çekirdeği işlem başına bir snapshot kullanır. Grafik topolojisini düzenlemek Workflow V2/versioning kapsamındadır (DB-1 §14). [WF-8 sözleşmesi](WF8_AP8_AKTOR_ROL_BAGLAMA_SOZLESMESI.md).
-- **Atama hedefi kalıcı audit'e yazılmıyor.** Yanıt tarafı kapandı: ortak `AssignmentView` (`kind` = `USER`/`DEPARTMENT`/`NONE`) ve `version`, `RecordResponse` · `RecordSearchResponse` · `WorkflowActionResponse` üçünde de taşınır (B11 ✅). Kalan boşluk audit tarafındadır: `WorkflowTransitionAudit` departman hedefini taşımaz ve `AuditLogService` modeldeki kişi atamasını da kaydetmez, bu yüzden bir kaydın hangi departmana gönderildiği kalıcı geçmişten okunamaz (B12).
-- **İstemci workflow yetkisi ikinci kez istemcide kuruluyor.** Backend tarafı kapandı: `WorkflowQueryController` `available-actions` ve `target-departments` uçlarını sunar, hesap `AvailableActionResolver`'da `performAction` ile aynı validator ve aynı kural snapshot'ı üzerinden yapılır (APP-9 ✅). Boşluk istemcidedir: web aksiyon paneli düğmeleri hâlâ `systemKey` sabitlerine bağlıdır ve `systemKey=null` olan dinamik rol için panel tamamen kapanır; üretilmiş `WorkflowQueryController.ts` istemcisi kayıtlı olmasına rağmen hiçbir bileşen tüketmez (B10). Mobil aynı hesabı `getAvailableActions()` ile kendi kurar (B09).
-- **Eşzamanlılık koruması görev devrinde hâlâ eksiktir.** Görev devri ve `last_deputy_id` toplu JPQL güncellemeleri `records.version` değerini artırmaz (B03). Dosya yolu ve oturum yolu kapandı: `RecordLockValidator` artık `RecordRepository.findByIdForUpdate` ile satır kilidi alır ve kilitli kaydı döndürür, böylece kontrol ile dosya satırının yazılması arasına giren workflow geçişi araya giremez (B04 ✅); refresh token koşullu `UPDATE ... WHERE revoked = false` ile tek seferde tüketilir (B05 ✅).
-- **WebSocket bildirim kanalı yoktur.** Bildirimler REST/polling ile taşınır. `/ws` STOMP endpoint'i ve CONNECT JWT doğrulaması girmiştir; ancak repoda `SimpMessagingTemplate`/`convertAndSend` kullanımı yoktur (yayınlayan yok), `setUserDestinationPrefix` çağrılmamıştır ve SUBSCRIBE yetkilendirmesi eklenmemiştir (NT-2/3/4).
-- **Dosya geri alımında disk temizliği ve tarihsel erişim kapandı.** Yükleme, aynı transaction'da diske yazdığı dosyaları `TransactionSynchronization.afterCompletion` ile geri alma durumunda siler (R06 ✅). İndirme/önizleme dosyayı `deleted_at` üzerinden erken elemez; görünürlük çözüldükten sonra dondurulmuş görünümde `existedAt`, güncel görünümde `deletedAt == null` kuralı uygulanır, yani liste ile indirme aynı zaman kesitine bağlıdır (B07 ✅).
-- **Silinmiş kayıt artık değiştirilemez.** `RecordServiceImpl.findRecordOrThrow` aktif kayıt yükleyicisine (`findByIdAndDeletedAtIsNull`) taşındı; aynı yükleyici okuma, dosya ve audit yollarında ortaklaştırıldı. Tekrar `DELETE` idempotent değildir, `404` döner (B08 ✅).
+- **Son Admin'in rolü korunmuyor.** `setActive` Admin hesabının
+  pasifleştirilmesini engeller, fakat `changeRole` sistemdeki tek Admin'in rolünü
+  başka bir role çevirmeyi engellemez. Tekil rol kontrolü yalnız bir role
+  *girerken* çalışır, *çıkarken* değil; sistem yönetimsiz kalabilir.
+- **Audit append-only kuralı veritabanında zorlanmıyor.** Uygulama güncelleme
+  veya silme ucu sunmaz (`AuditLogRepository` bilinçli olarak `JpaRepository`
+  değildir), fakat DB trigger'ı ya da rol kısıtı yoktur.
+- **E-posta teslim garantisi yok.** Gönderim asenkron ve best-effort; retry,
+  outbox veya DLQ bulunmaz.
+- **Kural önbelleği tek JVM'de yenilenir.** `ReloadableTransitionRuleSource`
+  snapshot'ı süreç içindedir; çoklu instance'a geçilirse invalidation tasarımı
+  gerekir.
+- **Geçiş grafiği arayüzden düzenlenemez.** WF-8 servisi mevcut geçişlere dinamik
+  aktör rolü bağlar; topolojiyi, routing'i, permission'ı ve aktör ilişkisini
+  değiştirmez. Grafik topolojisini düzenlemek **Workflow V2 / versioning**
+  kapsamındadır (DB-1 §14). [WF-8 sözleşmesi](WF8_AP8_AKTOR_ROL_BAGLAMA_SOZLESMESI.md)
+- **WebSocket bildirim kanalı taşımıyor.** `/ws` STOMP endpoint'i ve CONNECT JWT
+  doğrulaması mevcuttur, ancak yayınlayan yoktur (`SimpMessagingTemplate`
+  kullanımı yok), `setUserDestinationPrefix` çağrılmamıştır ve SUBSCRIBE
+  yetkilendirmesi eklenmemiştir. Bildirimler REST/polling ile taşınır.
+- **Yönetim HTTP katmanı eksiktir.** Permission matrisi, departman/üyelik ve
+  routing için controller yoktur; bu nesneler yalnız SQL ile yönetilebilir.
+  Servis ve katalog katmanı hazırdır.
+

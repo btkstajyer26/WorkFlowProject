@@ -4,7 +4,6 @@
 - **Sahip:** Burak (`WF` / `APP`)
 - **Tüketiciler:** Tamer (`B10` / `WEB-1`), Bahadır (`B09` / `MOB-1`, `NT-5`), Alperen (`B12`)
 - **Kapsadığı bulgular:** `B09`, `B10`, `B11` · Kapsadığı işler: `APP-9`, `APP-10`
-- **Kod tabanı:** `codex/ap-2-frontend-uyum` @ `c9b0297`
 
 Bu belge üç kulvarı aynı anda açan tek sözleşmedir. Üçü de aynı ilkeye dayanır:
 
@@ -316,7 +315,7 @@ ve `DepartmentVisibilityAdapter` ile aynı port ve aynı koşulları kullanır.
 - Departman kolu §5'teki kümeyi kullanır; dedupe ve kanal testleri eklenir.
 - Yetkisiz departman üyesinin bildirim **almadığı** negatif testle gösterilir.
 
-**Veri (`B12` — Alperen)**
+**Veri (`B12` — Alperen) — ✅ uygulandı (8 Eylül, `V25` + [ADR-0009](decisions/0009-audit-atama-sozlesmesi.md))**
 
 - Workflow audit'i önceki/yeni atamayı §3'teki `kind` ayrımıyla uyumlu biçimde,
   yapılandırılmış olarak taşır. Serbest metin açıklamasına güvenilmez.

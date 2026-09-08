@@ -21,42 +21,6 @@ Expo mobil ┘                         ├── dosya deposu
 
 Workflow geçişleri `workflow_transitions` tablosundan okunur. `ReloadableTransitionRuleSource`, doğrulanmış kuralları `TransitionRuleSource` sınırının arkasında sunar. Her workflow işlemi başlangıçta tek snapshot alır. Kurallar `POST /api/workflow/rules/reload` ile veya WF-8 rol bağlama servisi üzerinden başarılı değişiklik sonrasında yeniden başlatmadan yenilenir. İstemciler hedef durumu hesaplamaz.
 
-## Mevcut teslim durumu
-
-7 Eylül 2026, `test` dalında — `origin/test` @ `beadcb0` (PR #75 ve #76 içeride)
-üzerine B04/B05/B07/B08/R03/R06 çalışması eklenmiştir; uzak CI ve `main` durumu
-ayrıca doğrulanmalıdır:
-
-- Dinamik roller tanımlı geçiş, permission ve kayıt ilişkisiyle workflow aksiyonu alabilir. `RECORD_VIEW` ile oluşturdukları veya doğrudan atandıkları kayıtları okuyabilir.
-- **Departman runtime'ı V23 ile uygulanmıştır:** `DEPARTMANA_GONDER` aksiyonu, `DEPARTMENT` hedef stratejisi, `DepartmentRoutingResolver`/`DepartmentRoutingAdapter` ve `DepartmentVisibilityAdapter` çalışır durumdadır. Şema `V1`–`V24`'tür.
-- **AP-2 rol yönetim ekranı bu dalda mevcuttur** (`frontend/src/pages/admin/RolesPage.tsx`). Rol CRUD backend uçları ve kullanımdaki rolün korunması hazırdır.
-- **WF-8 backend servisi hazırdır** fakat HTTP adapter'ı yoktur: `workflow` altındaki tek yönetim ucu `POST /api/workflow/rules/reload`'dur. `AP-8` açıktır.
-- **Yönetim HTTP katmanı eksiktir:** `AP-3` (permission matrisi), `AP-4` (departman/üyelik) ve `AP-5` (routing) için controller bulunmaz; Admin bu nesneleri panelden yönetemez.
-- **Departman bildirim fan-out'u çalışır (NT-5 ✅, 8 Eylül):** departmana atanan kayıtta alıcılar workflow routing'inden çözülür (`DepartmentRoutingResolver.eligibleAssignees`), aynı süzgeç görünürlük adaptörüyle ortaktır, işlemi yapan aktör kümeden çıkarılır ve uygun alıcı bulunamazsa kayıt `log.warn` ile bırakılır. Kör fan-out yapılmaz.
-- **Mail hızlı işlem tokenı çalışır (B01 ✅, 8 Eylül):** `MailActionTokenService.issue` kendi transaction'ında (`REQUIRES_NEW`) commit eder; gerçek commit → mail bağlantısı → preview → tek tüketim → ikinci tüketimin reddi zinciri entegrasyon testiyle sabitlenmiştir.
-- **Mobil istemci dinamik role uyumludur (B09 ✅, 8 Eylül):** `GET /api/users/me` artık `roleId`, `systemKey`, `roleName` ve `permissionCodes` döner; mobil workflow düğmeleri `available-actions` ucundan üretilir, departman hedefi `target-departments` ile seçilir. **Kalan:** mobil ortak `assignment`/`version` alanlarını hâlâ göstermez (MOB-1) ve web aksiyon paneli `systemKey` sabitlerine bağlıdır (B10).
-- Grafik düzenleme, workflow definition/versioning ve draft/publish Workflow V2 kapsamındadır; V1 eksiği sayılmaz.
-
-**Açık davranış problemleri:** 4 Eylül 2026 tarihli inceleme, çalıştırılmış
-regresyon problarıyla sekiz backend davranış ihlali (B01–B08) ve beş istemci /
-sözleşme boşluğu (B09–B13) doğrulamıştır. **Dokuzu kapanmıştır** — `B01`, `B02`,
-`B04`, `B05`, `B07`, `B08`, `B09`, `B11`, `B13` — ve her biri kalıcı regresyon
-testiyle sabitlenmiştir. **Açık kalan dört bulgu:** `B03` (görev devrinde sürüm
-artışı), `B06` (görünür içerikle arama), `B10` (web aksiyon paneli), `B12` (atama
-audit'i). Workflow V1 teslim tanımı bugün hâlâ karşılanmamaktadır. Sekiz backend
-probunun koşum sonuçları ve tekrar üretim adımları
-[kanıt klasöründedir](docs/reviews/2026-09-04/TEKRAR_URETIM.md).
-
-Son kayıtlı backend `verify`: **831 test, 0 failure/error/skipped; JAR üretildi**
-(7 Eylül 2026, yerel, ayrı `b04_b08_test` veritabanına karşı). **Bu sayı güncel
-değildir:** `B01` (3), `B09` (2) ve `NT-5` (3) teslimleriyle sekiz backend testi
-daha eklendi (beklenen **839**) ve suite o teslimlerden sonra **koşturulmadı**.
-8 Eylül 2026'da `f22fa1a` üzerinde ölçülenler: mobil **85/85** (lint ve typecheck
-temiz) ve web **126/126**; `28dfac5` bu iki kaynağa dokunmadığı için geçerlidir.
-Playwright bu turda çalıştırılmadı; 15/15 önceki turun tarihli sonucudur. Yeşil
-sonuç açık kalan dört bulguyu kapatmaz; CI, TEST deploy veya ürün kabulü bu
-sonuçtan çıkarılmaz. Kaynaklar ve devam bağımlılıkları
-[dokümantasyon dizinindedir](docs/README.md).
 
 ## Hızlı başlangıç
 
@@ -147,7 +111,7 @@ npx expo export --platform web
 
 | Belge | Kapsam |
 | --- | --- |
-| [Dokümantasyon dizini ve teslim sınırları](docs/README.md) | Güncel kanıt, hazır/açık işler ve WF-5/WF-6 öncesi bağımlılıklar |
+| [Dokümantasyon dizini](docs/README.md) | Belge haritası, kalıcı departman sınırları ve doğrulama tuzakları |
 | [Sistem mimarisi](docs/architecture.md) | Modül sınırları, port/adapter yapısı ve topoloji |
 | [Workflow](docs/workflow.md) | Durumlar, geçişler, yetki, audit ve bildirim davranışı |
 | [Veritabanı](docs/database.md) | Şema ve Flyway yönetimi |
@@ -160,10 +124,6 @@ npx expo export --platform web
 | [TEST ortamı notu](docs/TEST_ORTAMI_NOTU.md) | Güncel topoloji, dağıtım ve operasyon yönergeleri |
 | [Mimari kararlar](docs/decisions/README.md) | ADR dizini |
 
-Tarihsel belgeler aktif gereksinim kaynağı değildir:
-
-- [Backend açık işler ve görev dağılımı](docs/archive/BACKEND_ACIK_ISLER_VE_GOREV_DAGILIMI.md)
-- [Eksik controllerlar ve kararlar](docs/archive/EKSIK_CONTROLLERLAR_VE_KARARLAR.md)
-- [Eksik sınıflar ve öncelik](docs/archive/EKSIK_SINIFLAR_VE_ONCELIK.md)
-- [Mobil entegrasyon görev dağılımı](docs/archive/MOBIL_ENTEGRASYON_GOREV_DAGILIMI.md)
-- [M9 TEST kabul kanıtı](docs/archive/M9_TEST_KABUL_KANITI.md)
+Tarihsel belgeler [`docs/archive/`](docs/archive/) altındadır ve aktif gereksinim
+kaynağı değildir: kapatılmış görev dağılımları, aşamalı dönüşüm kayıtları
+(WF-2A envanteri, WF-2D2 rollout) ve ortam kabul kanıtları.

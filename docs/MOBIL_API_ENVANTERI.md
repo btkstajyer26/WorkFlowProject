@@ -4,7 +4,7 @@ Mobil istemcinin kullandığı REST uçlarını, istek/yanıt biçimlerini ve ha
 davranışlarını tanımlar. Uç değiştiğinde bu belge aynı değişiklik kapsamında
 güncellenir.
 
-8 Eylül 2026, `test` @ `f22fa1a` tabanı ile hizalanmıştır.
+Sözleşme değiştiğinde aynı değişiklik kapsamında güncellenir.
 `DEPARTMANA_GONDER` aksiyonu ve `targetDepartmentId` alanı backend'de mevcuttur;
 mobil istemci MOB-1 ile kayıt kapsamlı departman seçimi için bunları kullanır. AP-3/AP-4/AP-5/AP-8 yönetim uçları hâlâ
 yoktur. Mobilin tüketeceği yeni uçlar ve ortak `assignment` nesnesi
@@ -375,10 +375,20 @@ Yetki: kaydı görebilen herkes. Sayfalama **yok**, tüm satırlar tek listede
   "action": "BASKANA_ILET",
   "previousStatus": "BSK_YRD_INCELEMESINDE", "newStatus": "BASKAN_INCELEMESINDE",
   "comment": "Uygun bulunmuştur.",
+  "previousAssignment": { "kind": "USER", "userId": "uuid", "userFullName": "Ayşe Kaya", "departmentId": null, "departmentName": null },
+  "newAssignment": { "kind": "DEPARTMENT", "userId": null, "userFullName": null, "departmentId": 4, "departmentName": "Hukuk" },
   "httpMethod": null, "requestPath": null, "httpStatus": null, "errorCode": null,
   "createdAt": "2026-08-20T14:05:00"
 }]
 ```
+
+**`previousAssignment` / `newAssignment` (B12, 8 Eylül).** Geçişin atamayı
+nereden nereye taşıdığını ortak `AssignmentView` şekliyle taşır; `kind` =
+`USER` / `DEPARTMENT` / `NONE`. Mobil şema bu iki alanı **opsiyonel nesne**
+olarak okumalı ve türü `kind`'dan almalıdır — iki nullable kimliği
+karşılaştırarak çıkarsamamalıdır. Geçiş olmayan satırlarda ikisi de `NONE`
+gelir. Aynı `AssignmentView` şekli kayıt yanıtlarında da vardır (`MOB-1`'in
+kalan atama gösterimi ayağı).
 
 `httpMethod` / `requestPath` / `httpStatus` / `errorCode` kayıt geçmişinde
 **her zaman `null`** — o alanlar Admin HTTP denetim satırları içindir. Mobil
