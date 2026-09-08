@@ -25,6 +25,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -37,23 +38,29 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 /** Real commits, workflow, listener, repository and mail template; no external SMTP.
- * Requires disposable PostgreSQL at localhost:55439/workflow_b01_test.
- * Each context uses a fresh schema and never falls back to the development datasource.
+ * Uses the repository's DB_* PostgreSQL configuration (including CI's service).
+ * Each context uses a fresh schema to isolate committed fixtures from other tests.
  */
 @SpringBootTest(properties = {
-        "spring.datasource.username=postgres", "spring.datasource.password=b01-test-only",
         "app.frontend-url=http://b01.invalid", "bootstrap.admin.email=", "bootstrap.admin.password=",
         "fcm.project-id=", "fcm.client-email=", "fcm.private-key="
 })
+// This unique-schema context cannot be reused; release its pool before other integration tests.
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class MailActionTokenIntegrationTest {
     private static final String SCHEMA = "b01_" + UUID.randomUUID().toString().replace("-", "");
 
     @DynamicPropertySource
     static void isolatedDatabase(DynamicPropertyRegistry properties) {
         properties.add("spring.datasource.url", () ->
-                "jdbc:postgresql://localhost:55439/workflow_b01_test?currentSchema=" + SCHEMA);
+                "jdbc:postgresql://" + env("DB_HOST", "localhost") + ":" + env("DB_PORT", "5432")
+                        + "/" + env("DB_NAME", "workflowdb") + "?currentSchema=" + SCHEMA);
         properties.add("spring.flyway.schemas", () -> SCHEMA);
         properties.add("spring.flyway.default-schema", () -> SCHEMA);
+    }
+
+    private static String env(String name, String fallback) {
+        return System.getenv().getOrDefault(name, fallback);
     }
 
     @Autowired JdbcTemplate jdbc;

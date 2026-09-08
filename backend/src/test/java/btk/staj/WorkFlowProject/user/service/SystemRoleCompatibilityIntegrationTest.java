@@ -27,7 +27,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.LocalDateTime;
+import java.util.HexFormat;
 import java.util.UUID;
 import static org.assertj.core.api.Assertions.*;
 
@@ -130,10 +133,20 @@ class SystemRoleCompatibilityIntegrationTest {
         assertThat(users.countByRole_IdAndActiveTrue(adminRole.getId())).isEqualTo(1);
     }
 
-    @Test void mailActionUsesCurrentPermissionDataAndRealValidator() {
+    @Test void mailActionUsesCurrentPermissionDataAndRealValidator() throws Exception {
         Role president = renamed("BASKAN"); User actor = user(president);
         Record record = record(actor, actor, RecordStatus.BASKAN_INCELEMESINDE);
-        String token = mail.issue(record.getId(), actor, WorkflowAction.ONAYLA);
+        // This test covers consumption authorization. Seed the token in the same
+        // rollback transaction as its record/user: issue() uses REQUIRES_NEW and
+        // cannot see these uncommitted fixtures. Real issuance is covered by
+        // MailActionTokenIntegrationTest with committed workflow transactions.
+        String token = UUID.randomUUID().toString();
+        String tokenHash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                .digest(token.getBytes(StandardCharsets.UTF_8)));
+        jdbc.update("""
+                INSERT INTO mail_action_tokens(token_hash, record_id, user_id, action, expires_at)
+                VALUES (?, ?, ?, 'ONAYLA', current_timestamp + interval '1 day')
+                """, tokenHash, record.getId(), actor.getId());
         jdbc.update("DELETE FROM role_permissions WHERE role_id = ? AND permission_id = (SELECT id FROM permissions WHERE code = 'RECORD_APPROVE')", president.getId());
         WorkflowApplicationException error = catchThrowableOfType(WorkflowApplicationException.class, () -> mail.consume(token));
         assertThat(error.errorCode()).isEqualTo(WorkflowErrorCode.WORKFLOW_FORBIDDEN);
