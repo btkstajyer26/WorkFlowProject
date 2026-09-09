@@ -524,6 +524,9 @@ Merge edilen dosya ağacı test edilen teslimle aynıdır. Bu ayrı Git kanıtı
   İstemcinin eski ekrandan daha sonra gönderdiği sırayla işlenen güncellemeyi
   yakalamak için ayrıca beklenen sürüm/ETag sözleşmesi gerekir; mevcut API'de yoktur.
 
+
+- **`B06` sıralama kapsam dışı bırakıldı.** Arama/kategori filtresi görünen içerik sürümüne göre düzeltildi (`RecordSpecifications.seesFrozenContent`), ama `title`/`description`'a göre sıralama hâlâ canlı kolonda çalışıyor. Sebep: `JpaSpecificationExecutor.findAll(spec, pageable)` sıralamayı `Specification`'dan bağımsız uyguluyor — `SimpleJpaRepository` bizim `query.orderBy(...)`'ımızı `sort.isSorted()` true olduğunda koşulsuz eziyor. Doğru çözüm `JpaSpecificationExecutor`'dan vazgeçip elle `CriteriaQuery` + ayrı `COUNT` sorgusu yazmayı gerektiriyor; kapsam `B06`'nın (P2) ötesine geçtiği için bilinçli olarak açık bırakıldı.  
+
 ## Dinamik rol, yetki ve workflow veri modeli (V12–V17)
 
 > Kaynak: `DB_1_VERI_MODELI_SOZLESMESI.md` (kabul edildi, 1 Eylül 2026).
