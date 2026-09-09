@@ -37,15 +37,27 @@ public interface RecordRepository extends JpaRepository<Record, UUID>, JpaSpecif
     Page<Record> searchByTitleOrDescription(@Param("keyword") String keyword, Pageable pageable);
 
     // 6. Eski kullanıcının (Başkan, Bşk. Yrd. vb.) üzerindeki tüm kayıtları yeni kullanıcıya devretme
-    @Modifying
-    @Query("UPDATE Record r SET r.assignedTo = :yeniKullaniciId WHERE r.assignedTo = :eskiKullaniciId")
+    //
+    // B03 fix: version artik artiyor. Toplu JPQL UPDATE'ler Hibernate'in optimistic
+    // locking mekanizmasini (UPDATE ... WHERE id = ? AND version = ?) BYPASS eder -
+    // versiyonu artirmazsak, eski snapshot'i elinde tutan baska bir transaction'in
+    // yazisi hicbir catisma yakalanmadan basariyla gecer.
+    //
+    // clearAutomatically = true: bu sorgudan etkilenen Record'larin persistence
+    // context'teki eski (bayat) hallerini temizler. flushAutomatically = true:
+    // sorgu calismadan once bekleyen degisiklikleri flush eder.
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Record r SET r.assignedTo = :yeniKullaniciId, r.version = r.version + 1 WHERE r.assignedTo = :eskiKullaniciId")
     int devretBekleyenIsleri(@Param("eskiKullaniciId") UUID eskiKullaniciId, @Param("yeniKullaniciId") UUID yeniKullaniciId);
 
     // 7. İş M5 fix: Bşk. Yrd. koltuğu el değiştirdiğinde, eski kullanıcıyı "son Bşk. Yrd."
     // olarak referanslayan kayıtları da güncelle. Aksi halde BASKAN_YARDIMCISINA_GERI_GONDER
     // işlemi artık Bşk. Yrd. olmayan eski kullanıcıyı hedeflemeye çalışıp hata veriyor.
-    @Modifying
-    @Query("UPDATE Record r SET r.lastDeputyId = :yeniKullaniciId WHERE r.lastDeputyId = :eskiKullaniciId")
+    //
+    // B03 fix: ayni gerekce - version artik artiyor, ayni clearAutomatically/
+    // flushAutomatically korumasi.
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Record r SET r.lastDeputyId = :yeniKullaniciId, r.version = r.version + 1 WHERE r.lastDeputyId = :eskiKullaniciId")
     int updateLastDeputyId(@Param("eskiKullaniciId") UUID eskiKullaniciId, @Param("yeniKullaniciId") UUID yeniKullaniciId);
 
     // 8. Aktif (silinmemis) kaydin tekil yukleyicisi (B08).
