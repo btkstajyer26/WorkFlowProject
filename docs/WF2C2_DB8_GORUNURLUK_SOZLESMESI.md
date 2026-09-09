@@ -26,13 +26,13 @@ Yetkili departman üyesi son OR grubuna eklenmiştir. Sadece `RECORD_VIEW`, baş
 
 Aşağıdaki tüm izinler aktif kullanıcı/rol, `RECORD_VIEW` ve silinmemiş kayıt önkoşullarını taşır:
 
-| Aktör | Kapsam |
-|---|---|
-| Dinamik rol (`system_key=NULL`) | Oluşturan, doğrudan atanan veya yetkili departman/durum çifti |
-| CALISAN | Oluşturan, doğrudan atanan veya yetkili departman/durum çifti |
-| BASKAN_YARDIMCISI | Oluşturan veya doğrudan atanan; ayrıca `DUZENLEME_BEKLIYOR` durumundaki tüm kayıtlar veya `last_deputy_id=actor.id` |
-| BASKAN | Oluşturan veya doğrudan atanan; ayrıca `BASKAN_INCELEMESINDE`, `ONAYLANDI`, `REDDEDILDI` durumları |
-| ADMIN | Hiçbir kayıt |
+| Aktör                           | Kapsam                                                                                                              |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Dinamik rol (`system_key=NULL`) | Oluşturan, doğrudan atanan veya yetkili departman/durum çifti                                                       |
+| CALISAN                         | Oluşturan, doğrudan atanan veya yetkili departman/durum çifti                                                       |
+| BASKAN_YARDIMCISI               | Oluşturan veya doğrudan atanan; ayrıca `DUZENLEME_BEKLIYOR` durumundaki tüm kayıtlar veya `last_deputy_id=actor.id` |
+| BASKAN                          | Oluşturan veya doğrudan atanan; ayrıca `BASKAN_INCELEMESINDE`, `ONAYLANDI`, `REDDEDILDI` durumları                  |
+| ADMIN                           | Hiçbir kayıt                                                                                                        |
 
 Yardımcı ve başkanın geniş takip kapsamları mevcut ürün davranışını koruyan **açık istisnalardır**. Dinamik rollere aktarılamaz. Geçmişte işlem yapmak veya `last_deputy_id` olmak dinamik rol için tek başına yeterli değildir. Dinamik aktörün ataması kaldırıldığında, oluşturucu değilse erişim de biter.
 
@@ -51,13 +51,13 @@ Yardımcı ve başkanın geniş takip kapsamları mevcut ürün davranışını 
 
 `RecordAccessPolicy` tekil kaydı bu scope ile değerlendirir. `RecordSpecifications.withFilters` hazır scope alır ve yalnız SQL karşılığını üretir; rol adına veya sistem rolüne göre ikinci bir kural seçimi yapmaz. Arama filtreleri scope ile AND'lenir; soft-delete koşulu her scope için zorunludur. Eleme SQL'de, sayfalama ve toplam sayı hesaplanmadan önce yapılır.
 
-| Okuma | Davranış |
-|---|---|
-| `GET /api/records` | Yalnız kapsam içi kayıtlar; permission yoksa veya ADMIN ise boş sayfa, toplam 0 |
-| `GET /api/records/{id}` | Görünür kayıt ve aktöre uygun içerik |
-| `GET /api/audit-logs/record/{id}` | Aynı kapsam ve aktöre uygun geçmiş kesimi |
-| `GET /api/records/{id}/files` | Aynı kapsam ve mevcut dosya görünümü |
-| `GET /api/files/{id}/download`, `/preview` | Ana kaydın kapsamı ve dosyanın görünürlüğü doğrulandıktan sonra storage okunur |
+| Okuma                                      | Davranış                                                                        |
+| ------------------------------------------ | ------------------------------------------------------------------------------- |
+| `GET /api/records`                         | Yalnız kapsam içi kayıtlar; permission yoksa veya ADMIN ise boş sayfa, toplam 0 |
+| `GET /api/records/{id}`                    | Görünür kayıt ve aktöre uygun içerik                                            |
+| `GET /api/audit-logs/record/{id}`          | Aynı kapsam ve aktöre uygun geçmiş kesimi                                       |
+| `GET /api/records/{id}/files`              | Aynı kapsam ve mevcut dosya görünümü                                            |
+| `GET /api/files/{id}/download`, `/preview` | Ana kaydın kapsamı ve dosyanın görünürlüğü doğrulandıktan sonra storage okunur  |
 
 Mevcut fakat kapsam dışındaki tekil kayıt `403 FORBIDDEN`; bulunmayan veya soft-delete edilmiş ana kayıt `404 RESOURCE_NOT_FOUND` döner. Oturumsuz/pasif kimlik mevcut authentication katmanında reddedilir. Okuma uçlarının alanları değişmez; workflow gönderim isteği ayrıca `targetDepartmentId` taşır. Oluşturma, düzenleme, silme ve workflow aksiyonlarının mevcut yetkileri korunur.
 
@@ -86,13 +86,29 @@ ile SQL predicate aynı kayıt kimliklerini üretir. Aşağıdakiler **bu parity
 kapsamında değildir** ve 4 Eylül 2026 incelemesinde çalıştırılarak doğrulanmış
 sapmalar taşır:
 
-| Konu | Doğrulanan sapma | Kabul senaryosu |
-| --- | --- | --- |
-| **İçerik sürümü parity'si (B06)** | Dondurulmuş (handoff snapshot) içerik gösterilen aktör için `q` ve kategori filtreleri **güncel** kayıt kolonlarında çalışır. Yalnız canlı açıklamada bulunan benzersiz bir sözcük, snapshot ile sınırlı aktörün sorgusunda kaydı döndürür | Snapshot ile sınırlı aktörün araması, filtresi ve sıralaması yalnız kendisine gösterilen içerik sürümünü esas almalı; snapshot başlığı/açıklaması/kategorisi SQL tarafına tutarlı aktarılmalıdır |
-| **Dosya erişimi parity'si (B07)** | Handoff anında mevcut olup sonradan silinen dosya dondurulmuş görünümde doğru listelenir; download/preview görünürlük kontrolüne gelmeden `findByIdAndDeletedAtIsNull` kullandığı için `ResourceNotFoundException` verir | Liste ile indirme aynı zaman kesitine bağlanmalı; dosyanın bulunması ile güncel/tarihsel erişim yetkisi ayrı değerlendirilmelidir. Güncel görünümde silinmiş dosyanın açılması engellenmeye devam etmelidir |
+| Konu                              | Doğrulanan sapma                                                                                                                                                                                                                           | Kabul senaryosu                                                                                                                                                                                             |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **İçerik sürümü parity'si (B06)** | Dondurulmuş (handoff snapshot) içerik gösterilen aktör için `q` ve kategori filtreleri **güncel** kayıt kolonlarında çalışır. Yalnız canlı açıklamada bulunan benzersiz bir sözcük, snapshot ile sınırlı aktörün sorgusunda kaydı döndürür | Snapshot ile sınırlı aktörün araması, filtresi ve sıralaması yalnız kendisine gösterilen içerik sürümünü esas almalı; snapshot başlığı/açıklaması/kategorisi SQL tarafına tutarlı aktarılmalıdır            |
+| **Dosya erişimi parity'si (B07)** | Handoff anında mevcut olup sonradan silinen dosya dondurulmuş görünümde doğru listelenir; download/preview görünürlük kontrolüne gelmeden `findByIdAndDeletedAtIsNull` kullandığı için `ResourceNotFoundException` verir                   | Liste ile indirme aynı zaman kesitine bağlanmalı; dosyanın bulunması ile güncel/tarihsel erişim yetkisi ayrı değerlendirilmelidir. Güncel görünümde silinmiş dosyanın açılması engellenmeye devam etmelidir |
 
 B06 ve B07'nin prob adları, gözlenen sonuçları ve tekrar üretim adımları
 [kanıt klasöründedir](reviews/2026-09-04/TEKRAR_URETIM.md).
+
+### İçerik sürümü ve sıralama — bilinen sınır (B06)
+
+`RecordSpecifications`'taki arama (`q`) ve kategori filtresi artık
+`RecordContentView.visibleContent`'in gösterdiği sürümle (canlı ya da
+devir anındaki dondurulmuş `snapshot_*`) aynı satırda çalışıyor —
+`seesFrozenContent`, `RecordAccessPolicy.seesRecordAsOfHandoff`'un mekanik
+SQL çevirisidir.
+
+**Sıralama bu kapsamda değildir.** `title`/`description`'a göre sıralama
+isteği (`Pageable`'daki `Sort`), Spring Data tarafından `Specification`'dan
+bağımsız, doğrudan entity'nin canlı kolonuna uygulanır — içerik-duyarlı hale
+getirmek `JpaSpecificationExecutor`'dan vazgeçmeyi (elle `CriteriaQuery` +
+ayrı sayım sorgusu) gerektirir. Devreden bir kaydı sıralı listede "yanlış
+konumda" görebilir; bu görünürlük ihlali değildir (görmemesi gereken bir
+kaydı görmüyor), yalnız sıralama tutarsızlığıdır.
 
 ## 6. Kabul kanıtı
 
