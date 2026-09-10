@@ -10,10 +10,13 @@ import btk.staj.WorkFlowProject.notification.repository.NotificationRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -23,7 +26,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -37,7 +42,51 @@ class NotificationServiceTest {
     private static final UUID NOTIFICATION_ID = UUID.fromString("00000000-0000-0000-0000-000000000053");
 
     private final NotificationRepository notificationRepository = mock(NotificationRepository.class);
-    private final NotificationService service = new NotificationService(notificationRepository);
+    private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
+    private final NotificationService service = new NotificationService(notificationRepository, eventPublisher);
+
+    @Test
+    @DisplayName("kaydedilen bildirim icin realtime event yayinlanir")
+    void createPublishesRealtimeNotificationEvent() {
+        UUID userId = UUID.randomUUID();
+        UUID recordId = UUID.randomUUID();
+        Notification savedNotification = new Notification(
+                userId, recordId, "Test notification", NotificationType.RECORD_SUBMITTED);
+        when(notificationRepository.save(any(Notification.class))).thenReturn(savedNotification);
+
+        Notification result = service.create(
+                userId, recordId, "Test notification", NotificationType.RECORD_SUBMITTED);
+
+        var order = inOrder(notificationRepository, eventPublisher);
+        order.verify(notificationRepository).save(any(Notification.class));
+        ArgumentCaptor<RealtimeNotificationCreatedEvent> captor =
+                ArgumentCaptor.forClass(RealtimeNotificationCreatedEvent.class);
+        order.verify(eventPublisher).publishEvent(captor.capture());
+        assertThat(result).isSameAs(savedNotification);
+        assertThat(captor.getValue().notification()).isSameAs(savedNotification);
+    }
+
+    @Test
+    void createRequiresAWritableTransaction() throws NoSuchMethodException {
+        Transactional annotation = NotificationService.class
+                .getMethod("create", UUID.class, UUID.class, String.class, NotificationType.class)
+                .getAnnotation(Transactional.class);
+
+        assertThat(annotation).isNotNull();
+        assertThat(annotation.propagation()).isEqualTo(Propagation.REQUIRED);
+        assertThat(annotation.readOnly()).isFalse();
+    }
+
+    @Test
+    void failedSaveDoesNotPublishRealtimeEvent() {
+        when(notificationRepository.save(any(Notification.class)))
+                .thenThrow(new IllegalStateException("save failed"));
+
+        assertThatExceptionOfType(IllegalStateException.class).isThrownBy(() ->
+                service.create(USER_ID, RECORD_ID, "Test notification", NotificationType.RECORD_SUBMITTED));
+
+        verifyNoInteractions(eventPublisher);
+    }
 
     @Test
     @DisplayName("gecmis okunmus ve okunmamis bildirimleri birlikte, sayfali doner")
