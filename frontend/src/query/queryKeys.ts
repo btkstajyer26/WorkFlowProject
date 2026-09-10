@@ -40,6 +40,11 @@ export const queryKeys = {
       all: ['admin', 'actor-bindings'] as const,
       list: ['admin', 'actor-bindings', 'list'] as const,
     },
+    departments: {
+      all: ['admin', 'departments'] as const,
+      list: (includeInactive: boolean) => ['admin', 'departments', 'list', includeInactive] as const,
+      members: (departmentId: number) => ['admin', 'departments', departmentId, 'members'] as const,
+    },
     auditLogs: {
       all: ['admin', 'audit-logs'] as const,
       list: (query: object) => ['admin', 'audit-logs', 'list', query] as const,

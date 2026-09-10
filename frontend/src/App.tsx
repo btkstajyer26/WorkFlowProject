@@ -34,6 +34,7 @@ const AdminUsersPage = lazy(() => import('./pages/admin/AdminUsersPage').then((m
 const RolesPage = lazy(() => import('./pages/admin/RolesPage').then((module) => ({ default: module.RolesPage })))
 const PermissionsPage = lazy(() => import('./pages/admin/PermissionsPage').then((module) => ({ default: module.PermissionsPage })))
 const ActorBindingsPage = lazy(() => import('./pages/admin/ActorBindingsPage').then((module) => ({ default: module.ActorBindingsPage })))
+const DepartmentsPage = lazy(() => import('./pages/admin/DepartmentsPage').then((module) => ({ default: module.DepartmentsPage })))
 
 function App() {
   const navigate = useNavigate()
@@ -243,6 +244,7 @@ function AdminApplication({
       <Suspense fallback={<RoutePageSkeleton />}><Routes>
         <Route path="/admin" element={<AdminDashboardPage />} />
         <Route path="/admin/kullanicilar" element={<AdminUsersPage />} />
+        <Route path="/admin/departmanlar" element={<DepartmentsPage />} />
         <Route path="/admin/roller" element={<RolesPage />} />
         <Route path="/admin/yetkiler" element={<PermissionsPage />} />
         <Route path="/admin/aktor-baglama" element={<ActorBindingsPage />} />

@@ -10,6 +10,18 @@
  * ---------------------------------------------------------------
  */
 
+export interface AddDepartmentMemberRequest {
+  /** @format uuid */
+  userId: string;
+}
+
+export type AddMemberData = DepartmentMembersResponse;
+
+export interface AddMemberParams {
+  /** @format int32 */
+  id: number;
+}
+
 export interface AdminUserSearchCriteria {
   active?: boolean;
   q?: string;
@@ -152,6 +164,18 @@ export type ConsumeData = Record<string, string>;
 /** @format int64 */
 export type CountUnreadData = number;
 
+export type CreateDepartmentData = DepartmentResponse;
+
+export interface CreateDepartmentRequest {
+  /**
+   * @minLength 0
+   * @maxLength 150
+   */
+  name: string;
+  /** @format int32 */
+  parentDepartmentId?: number;
+}
+
 export type CreateRecordData = RecordResponse;
 
 export type CreateRoleData = RoleResponse;
@@ -218,6 +242,22 @@ export type DeleteRecordData = any;
 export interface DeleteRecordParams {
   /** @format uuid */
   id: string;
+}
+
+export interface DepartmentMembersResponse {
+  /** @format int32 */
+  departmentId?: number;
+  departmentName?: string;
+  members?: UserResponse[];
+}
+
+export interface DepartmentResponse {
+  active?: boolean;
+  /** @format int32 */
+  id?: number;
+  name?: string;
+  /** @format int32 */
+  parentDepartmentId?: number;
 }
 
 export interface DeviceTokenDeleteRequest {
@@ -338,11 +378,25 @@ export interface ListAuditLogsParams {
 
 export type ListData = WorkflowActorBindingView[];
 
+export type ListDepartmentsData = DepartmentResponse[];
+
+export interface ListDepartmentsParams {
+  /** @default false */
+  includeInactive?: boolean;
+}
+
 export type ListFilesData = FileResponseDto[];
 
 export interface ListFilesParams {
   /** @format uuid */
   id: string;
+}
+
+export type ListMembersData = DepartmentMembersResponse;
+
+export interface ListMembersParams {
+  /** @format int32 */
+  id: number;
 }
 
 export type ListPermissionsData = PermissionResponse[];
@@ -598,6 +652,15 @@ export type RegisterTokenData = any;
 
 export type ReloadData = Record<string, number>;
 
+export type RemoveMemberData = DepartmentMembersResponse;
+
+export interface RemoveMemberParams {
+  /** @format int32 */
+  id: number;
+  /** @format uuid */
+  userId: string;
+}
+
 export type RemoveTokenData = any;
 
 export type ResetPasswordData = any;
@@ -665,6 +728,25 @@ export type UnbindData = WorkflowActorBindingView;
 export interface UnbindParams {
   /** @format int32 */
   bindingId: number;
+}
+
+export type UpdateDepartmentData = DepartmentResponse;
+
+export interface UpdateDepartmentParams {
+  /** @format int32 */
+  id: number;
+}
+
+export interface UpdateDepartmentRequest {
+  active?: boolean;
+  clearParent?: boolean;
+  /**
+   * @minLength 0
+   * @maxLength 150
+   */
+  name?: string;
+  /** @format int32 */
+  parentDepartmentId?: number;
 }
 
 export type UpdateRecordData = RecordResponse;

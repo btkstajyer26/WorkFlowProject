@@ -1129,6 +1129,196 @@
         }
       }
     },
+    "/api/admin/departments" : {
+      "get" : {
+        "tags" : [ "department-admin-controller" ],
+        "operationId" : "listDepartments",
+        "parameters" : [ {
+          "name" : "includeInactive",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/DepartmentResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "department-admin-controller" ],
+        "operationId" : "createDepartment",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateDepartmentRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DepartmentResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/departments/{id}" : {
+      "patch" : {
+        "tags" : [ "department-admin-controller" ],
+        "operationId" : "updateDepartment",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateDepartmentRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DepartmentResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/departments/{id}/members" : {
+      "get" : {
+        "tags" : [ "department-admin-controller" ],
+        "operationId" : "listMembers",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DepartmentMembersResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "department-admin-controller" ],
+        "operationId" : "addMember",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AddDepartmentMemberRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DepartmentMembersResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/departments/{id}/members/{userId}" : {
+      "delete" : {
+        "tags" : [ "department-admin-controller" ],
+        "operationId" : "removeMember",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "userId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DepartmentMembersResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/admin/roles" : {
       "get" : {
         "tags" : [ "role-admin-controller" ],
@@ -2166,6 +2356,88 @@
           "totalPages" : {
             "type" : "integer",
             "format" : "int32"
+          }
+        }
+      },
+      "CreateDepartmentRequest" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "maxLength" : 150,
+            "minLength" : 0
+          },
+          "parentDepartmentId" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "name" ]
+      },
+      "UpdateDepartmentRequest" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "maxLength" : 150,
+            "minLength" : 0
+          },
+          "parentDepartmentId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "clearParent" : {
+            "type" : "boolean"
+          },
+          "active" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "DepartmentResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "parentDepartmentId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "active" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "AddDepartmentMemberRequest" : {
+        "type" : "object",
+        "properties" : {
+          "userId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "userId" ]
+      },
+      "DepartmentMembersResponse" : {
+        "type" : "object",
+        "properties" : {
+          "departmentId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "departmentName" : {
+            "type" : "string"
+          },
+          "members" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/UserResponse"
+            }
           }
         }
       },

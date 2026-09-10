@@ -99,6 +99,8 @@ class AuthorizationMatrixTest {
     @MockitoBean private btk.staj.WorkFlowProject.rbac.repository.PermissionRepository permissionRepository;
     // AssignmentViewResolver / WorkflowQueryService bu depoyu ister (B11, APP-9).
     @MockitoBean private btk.staj.WorkFlowProject.department.repository.DepartmentRepository departmentRepository;
+    // AP-4 DepartmentAdminService bagimliligi.
+    @MockitoBean private btk.staj.WorkFlowProject.department.repository.DepartmentMemberRepository departmentMemberRepository;
     @MockitoBean private btk.staj.WorkFlowProject.workflow.repository.WorkflowActionRepository workflowActionRepository;
 
     private static final String RECORD_JSON = """

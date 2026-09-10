@@ -72,6 +72,36 @@ export type AdminRolePermissions = {
   permissionCodes: string[]
 }
 
+/**
+ * AP-4 departman katalogu. `parentDepartmentId` yalnız yapısal bilgidir;
+ * hedef çözümünde veya otomatik eskalasyonda kullanılmaz.
+ */
+export type AdminDepartment = {
+  id: number
+  name: string
+  parentDepartmentId: number | null
+  isActive: boolean
+}
+
+export type CreateAdminDepartmentInput = {
+  name: string
+  parentDepartmentId?: number
+}
+
+export type UpdateAdminDepartmentInput = {
+  name?: string
+  parentDepartmentId?: number
+  /** true ise üst departman (gövdedeki parentDepartmentId'ye bakılmaksızın) kaldırılır. */
+  clearParent?: boolean
+  active?: boolean
+}
+
+export type AdminDepartmentMembers = {
+  departmentId: number
+  departmentName: string
+  members: ManagedUser[]
+}
+
 export type ActorRequirement = 'CREATOR' | 'ASSIGNEE' | 'CREATOR_AND_ASSIGNEE'
 
 /**

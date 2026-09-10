@@ -6,6 +6,11 @@ import btk.staj.WorkFlowProject.audit.controller.UserAuditLogController;
 import btk.staj.WorkFlowProject.audit.service.AuditLogService;
 import btk.staj.WorkFlowProject.audit.service.UserAuditLogService;
 import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
+import btk.staj.WorkFlowProject.department.controller.DepartmentAdminController;
+import btk.staj.WorkFlowProject.department.dto.AddDepartmentMemberRequest;
+import btk.staj.WorkFlowProject.department.dto.CreateDepartmentRequest;
+import btk.staj.WorkFlowProject.department.dto.UpdateDepartmentRequest;
+import btk.staj.WorkFlowProject.department.service.DepartmentAdminService;
 import btk.staj.WorkFlowProject.rbac.Role;
 import btk.staj.WorkFlowProject.rbac.controller.PermissionAdminController;
 import btk.staj.WorkFlowProject.rbac.controller.RoleAdminController;
@@ -52,13 +57,14 @@ class EndpointPermissionMatrixTest {
     @Configuration
     @EnableMethodSecurity
     @Import({AdminController.class, RoleAdminController.class, PermissionAdminController.class,
-            WorkflowActorBindingController.class, RecordController.class, FileController.class,
-            UserAuditLogController.class})
+            WorkflowActorBindingController.class, DepartmentAdminController.class, RecordController.class,
+            FileController.class, UserAuditLogController.class})
     static class Config {
         @Bean UserService users() { return mock(UserService.class); }
         @Bean RoleAdminService roleAdmin() { return mock(RoleAdminService.class); }
         @Bean PermissionAdminService permissionAdmin() { return mock(PermissionAdminService.class); }
         @Bean WorkflowActorBindingService actorBindings() { return mock(WorkflowActorBindingService.class); }
+        @Bean DepartmentAdminService departmentAdmin() { return mock(DepartmentAdminService.class); }
         @Bean RecordService records() { return mock(RecordService.class); }
         @Bean RecordSearchService search() { return mock(RecordSearchService.class); }
         @Bean FileService files() { return mock(FileService.class); }
@@ -73,6 +79,8 @@ class EndpointPermissionMatrixTest {
     @Autowired PermissionAdminService permissionAdminService;
     @Autowired WorkflowActorBindingController actorBindingController;
     @Autowired WorkflowActorBindingService actorBindingService;
+    @Autowired DepartmentAdminController departmentAdmin;
+    @Autowired DepartmentAdminService departmentAdminService;
     @Autowired RecordController records;
     @Autowired FileController files;
     @Autowired UserAuditLogController userAudit;
@@ -84,8 +92,8 @@ class EndpointPermissionMatrixTest {
     private static final UUID ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
 
     @BeforeEach void prepare() {
-        reset(userService, roleAdminService, permissionAdminService, actorBindingService, recordService,
-                fileService, auditService, userAuditService);
+        reset(userService, roleAdminService, permissionAdminService, actorBindingService, departmentAdminService,
+                recordService, fileService, auditService, userAuditService);
         when(userService.createUser(any(), any(), any(), any())).thenReturn(new User());
         when(userService.changeRole(any(), any(Integer.class), any())).thenReturn(new User());
         when(userService.setActive(any(), anyBoolean())).thenReturn(new User());
@@ -110,6 +118,9 @@ class EndpointPermissionMatrixTest {
                 new String[]{"role-permissions-update", "ROLE_MANAGE"},
                 new String[]{"actor-binding-list", "WORKFLOW_VIEW"}, new String[]{"actor-binding-bind", "WORKFLOW_MANAGE"},
                 new String[]{"actor-binding-unbind", "WORKFLOW_MANAGE"},
+                new String[]{"department-list", "DEPARTMENT_VIEW"}, new String[]{"department-create", "DEPARTMENT_MANAGE"},
+                new String[]{"department-update", "DEPARTMENT_MANAGE"}, new String[]{"department-members-list", "DEPARTMENT_VIEW"},
+                new String[]{"department-member-add", "DEPARTMENT_MANAGE"}, new String[]{"department-member-remove", "DEPARTMENT_MANAGE"},
                 new String[]{"audit-list", "AUDIT_VIEW"}, new String[]{"user-history", "AUDIT_VIEW"})
                 .flatMap(row -> Stream.of(Arguments.of(row[0], row[1], true),
                         Arguments.of(row[0], "", false), Arguments.of(row[0], "ADMIN_PANEL_ACCESS", false)));
@@ -127,12 +138,12 @@ class EndpointPermissionMatrixTest {
         if (allowed) {
             assertThatCode(call::run).doesNotThrowAnyException();
             assertThat(Stream.of(userService, roleAdminService, permissionAdminService, actorBindingService,
-                            recordService, fileService, auditService, userAuditService)
+                            departmentAdminService, recordService, fileService, auditService, userAuditService)
                     .mapToInt(service -> mockingDetails(service).getInvocations().size()).sum()).isPositive();
         } else {
             assertThatThrownBy(call::run).isInstanceOf(AccessDeniedException.class);
             verifyNoInteractions(userService, roleAdminService, permissionAdminService, actorBindingService,
-                    recordService, fileService, auditService, userAuditService);
+                    departmentAdminService, recordService, fileService, auditService, userAuditService);
         }
     }
 
@@ -171,6 +182,20 @@ class EndpointPermissionMatrixTest {
                 actorBindingController.bind(request);
             }
             case "actor-binding-unbind" -> actorBindingController.unbind(1);
+            case "department-list" -> departmentAdmin.listDepartments(false);
+            case "department-create" -> {
+                CreateDepartmentRequest request = new CreateDepartmentRequest();
+                request.setName("Hukuk");
+                departmentAdmin.createDepartment(request);
+            }
+            case "department-update" -> departmentAdmin.updateDepartment(1, new UpdateDepartmentRequest());
+            case "department-members-list" -> departmentAdmin.listMembers(1);
+            case "department-member-add" -> {
+                AddDepartmentMemberRequest request = new AddDepartmentMemberRequest();
+                request.setUserId(ID);
+                departmentAdmin.addMember(1, request);
+            }
+            case "department-member-remove" -> departmentAdmin.removeMember(1, ID);
             case "audit-list" -> admin.listAuditLogs("USER", Pageable.unpaged());
             case "user-history" -> userAudit.getGecmis(ID);
             default -> throw new IllegalArgumentException(endpoint);

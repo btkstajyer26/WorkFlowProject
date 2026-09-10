@@ -3,6 +3,7 @@ import { AdminController } from './generated/AdminController'
 import { AuditLogController } from './generated/AuditLogController'
 import { AuthController } from './generated/AuthController'
 import { CategoryController } from './generated/CategoryController'
+import { DepartmentAdminController } from './generated/DepartmentAdminController'
 import { FileController } from './generated/FileController'
 import { HttpClient } from './generated/http-client'
 import { NotificationController } from './generated/NotificationController'
@@ -72,6 +73,8 @@ export const api = {
   auditLogs: new AuditLogController(apiHttpClient),
   auth: new AuthController(apiHttpClient),
   categories: new CategoryController(apiHttpClient),
+  // AP-4 departman/uyelik yonetimi.
+  departments: new DepartmentAdminController(apiHttpClient),
   files: new FileController(apiHttpClient),
   notifications: new NotificationController(apiHttpClient),
   // AP-3 rol <-> permission matrisi.
