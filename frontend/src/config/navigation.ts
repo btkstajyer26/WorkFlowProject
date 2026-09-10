@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import { Bell, FileClock, FolderKanban, LayoutDashboard, ShieldCheck, UsersRound } from 'lucide-react'
+import { Bell, Building2, FileClock, FolderKanban, KeyRound, LayoutDashboard, ShieldCheck, UsersRound, Workflow } from 'lucide-react'
 import type { SystemRoleKey } from '../types/auth'
 
 export type RecordView = {
@@ -33,9 +33,24 @@ export const adminNavigation: PrimaryNavigationItem[] = [
     icon: UsersRound,
   },
   {
+    label: 'Departmanlar',
+    to: '/admin/departmanlar',
+    icon: Building2,
+  },
+  {
     label: 'Roller',
     to: '/admin/roller',
     icon: ShieldCheck,
+  },
+  {
+    label: 'Yetkiler',
+    to: '/admin/yetkiler',
+    icon: KeyRound,
+  },
+  {
+    label: 'Aktör Bağlama',
+    to: '/admin/aktor-baglama',
+    icon: Workflow,
   },
   {
     label: 'İşlem Kayıtları',

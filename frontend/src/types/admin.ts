@@ -53,6 +53,104 @@ export type UpdateAdminRoleInput = {
   active?: boolean
 }
 
+/**
+ * AP-3 kapalı capability katalogu. Admin yeni kod üretemez; bu tip yalnız
+ * backend'in Flyway seed'iyle gelen kodları taşır.
+ */
+export type AdminPermission = {
+  id: number
+  code: string
+  displayName: string
+  description: string | null
+  isActive: boolean
+}
+
+/** Bir rolün o an taşıdığı permission kodları (matrisin tek satırı). */
+export type AdminRolePermissions = {
+  roleId: number
+  roleName: string
+  permissionCodes: string[]
+}
+
+/**
+ * AP-4 departman katalogu. `parentDepartmentId` yalnız yapısal bilgidir;
+ * hedef çözümünde veya otomatik eskalasyonda kullanılmaz.
+ */
+export type AdminDepartment = {
+  id: number
+  name: string
+  parentDepartmentId: number | null
+  isActive: boolean
+}
+
+export type CreateAdminDepartmentInput = {
+  name: string
+  parentDepartmentId?: number
+}
+
+export type UpdateAdminDepartmentInput = {
+  name?: string
+  parentDepartmentId?: number
+  /** true ise üst departman (gövdedeki parentDepartmentId'ye bakılmaksızın) kaldırılır. */
+  clearParent?: boolean
+  active?: boolean
+}
+
+export type AdminDepartmentMembers = {
+  departmentId: number
+  departmentName: string
+  members: ManagedUser[]
+}
+
+/**
+ * AP-5: bir departmanda, belirli bir (durum, aksiyon) için hangi rolün işlem
+ * yapmaya yetkili sayıldığını taşır. `(departmentId, fromStatusId, actionId)`
+ * DB'de tekildir - aynı üçlü için en fazla bir kural olabilir.
+ */
+export type AdminDepartmentRoutingRule = {
+  id: number
+  departmentId: number
+  fromStatusId: number
+  fromStatus: string
+  fromStatusDisplayName: string
+  actionId: number
+  action: string
+  actionDisplayName: string
+  targetRoleId: number
+  targetRoleName: string
+  isActive: boolean
+}
+
+export type ActorRequirement = 'CREATOR' | 'ASSIGNEE' | 'CREATOR_AND_ASSIGNEE'
+
+/**
+ * AP-8 aktör-rol bağı: sabit bir geçişe (durum + aksiyon + hedef) bağlanmış
+ * bir rol. Grafik topolojisi değişmez; yalnız hangi rolün bu geçişte aktör
+ * olabileceği değişir. `protected` (backend'de `protectedBinding`) sistem
+ * rolüne ait satırları işaretler - bunlar panelden kaldırılamaz.
+ */
+export type AdminActorBinding = {
+  bindingId: number
+  fromStatusId: number
+  fromStatus: string
+  fromStatusDisplayName: string
+  actionId: number
+  action: string
+  actionDisplayName: string
+  toStatusId: number
+  toStatus: string
+  toStatusDisplayName: string
+  actorRoleId: number
+  actorRoleName: string
+  actorRequirement: ActorRequirement
+  targetStrategy: string
+  expectedTargetRoleId: number | null
+  requiredPermissionId: number | null
+  requiredPermissionCode: string | null
+  isActive: boolean
+  isProtected: boolean
+}
+
 export type AdminLogType = 'USER' | 'RECORD'
 
 export type AdminAuditLog = {

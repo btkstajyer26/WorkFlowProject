@@ -30,6 +30,21 @@ export const queryKeys = {
     roles: {
       all: ['admin', 'roles'] as const,
       list: (includeInactive: boolean) => ['admin', 'roles', 'list', includeInactive] as const,
+      permissions: (roleId: number) => ['admin', 'roles', roleId, 'permissions'] as const,
+    },
+    permissions: {
+      all: ['admin', 'permissions'] as const,
+      list: ['admin', 'permissions', 'list'] as const,
+    },
+    actorBindings: {
+      all: ['admin', 'actor-bindings'] as const,
+      list: ['admin', 'actor-bindings', 'list'] as const,
+    },
+    departments: {
+      all: ['admin', 'departments'] as const,
+      list: (includeInactive: boolean) => ['admin', 'departments', 'list', includeInactive] as const,
+      members: (departmentId: number) => ['admin', 'departments', departmentId, 'members'] as const,
+      routingRules: (departmentId: number) => ['admin', 'departments', departmentId, 'routing-rules'] as const,
     },
     auditLogs: {
       all: ['admin', 'audit-logs'] as const,

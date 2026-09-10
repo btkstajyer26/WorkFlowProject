@@ -75,4 +75,18 @@ public interface RecordRepository extends JpaRepository<Record, UUID>, JpaSpecif
     @Query("SELECT r FROM Record r WHERE r.id = :id")
     Optional<Record> findByIdForUpdate(@Param("id") UUID id);
 
+    // 10. AP-4: departman pasiflestirmeden once acik kuyruk etkisi kontrolu.
+    // WF-8'in hasOpenRecords sorgusuyla ayni muhafazakar kalip: silinmemis ve
+    // terminal olmayan durum. Departman routing'e (WorkflowTransitionRepository
+    // sorgusundaki gibi) bakmaya gerek yok; burada tek soru "bu departmana
+    // atanmis, hala islem bekleyen bir kayit var mi" sorusudur.
+    @Query(value = """
+            SELECT EXISTS (
+                SELECT 1 FROM records r
+                JOIN workflow_statuses s ON s.name = r.status
+                WHERE r.deleted_at IS NULL AND s.is_terminal = false
+                  AND r.assigned_department_id = :departmentId
+            )
+            """, nativeQuery = true)
+    boolean hasOpenRecordsForDepartment(@Param("departmentId") Integer departmentId);
 }

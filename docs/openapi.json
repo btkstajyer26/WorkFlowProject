@@ -244,6 +244,83 @@
         }
       }
     },
+    "/api/workflow/actor-bindings" : {
+      "get" : {
+        "tags" : [ "Workflow Actor Bindings" ],
+        "summary" : "Aktif ve pasif tüm aktör-rol bağlarını listeler",
+        "operationId" : "list",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/WorkflowActorBindingView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "Workflow Actor Bindings" ],
+        "summary" : "Bir şablon geçişe dinamik bir rolü aktör olarak bağlar",
+        "operationId" : "bind",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/BindActorRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WorkflowActorBindingView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/workflow/actor-bindings/{bindingId}" : {
+      "delete" : {
+        "tags" : [ "Workflow Actor Bindings" ],
+        "summary" : "Bir aktör-rol bağını pasifleştirir",
+        "operationId" : "unbind",
+        "parameters" : [ {
+          "name" : "bindingId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WorkflowActorBindingView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/records/{recordId}/workflow/actions" : {
       "post" : {
         "tags" : [ "workflow-action-controller" ],
@@ -1052,6 +1129,306 @@
         }
       }
     },
+    "/api/admin/departments" : {
+      "get" : {
+        "tags" : [ "department-admin-controller" ],
+        "operationId" : "listDepartments",
+        "parameters" : [ {
+          "name" : "includeInactive",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/DepartmentResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "department-admin-controller" ],
+        "operationId" : "createDepartment",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateDepartmentRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DepartmentResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/departments/{id}" : {
+      "patch" : {
+        "tags" : [ "department-admin-controller" ],
+        "operationId" : "updateDepartment",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateDepartmentRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DepartmentResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/departments/{id}/members" : {
+      "get" : {
+        "tags" : [ "department-admin-controller" ],
+        "operationId" : "listMembers",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DepartmentMembersResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "department-admin-controller" ],
+        "operationId" : "addMember",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AddDepartmentMemberRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DepartmentMembersResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/departments/{id}/members/{userId}" : {
+      "delete" : {
+        "tags" : [ "department-admin-controller" ],
+        "operationId" : "removeMember",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "userId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DepartmentMembersResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/departments/{departmentId}/routing-rules" : {
+      "get" : {
+        "tags" : [ "department-routing-rule-controller" ],
+        "operationId" : "listRules",
+        "parameters" : [ {
+          "name" : "departmentId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/DepartmentRoutingRuleResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "department-routing-rule-controller" ],
+        "operationId" : "createRule",
+        "parameters" : [ {
+          "name" : "departmentId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateDepartmentRoutingRuleRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DepartmentRoutingRuleResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/departments/{departmentId}/routing-rules/{ruleId}" : {
+      "patch" : {
+        "tags" : [ "department-routing-rule-controller" ],
+        "operationId" : "updateRule",
+        "parameters" : [ {
+          "name" : "departmentId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "ruleId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateDepartmentRoutingRuleRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DepartmentRoutingRuleResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/admin/roles" : {
       "get" : {
         "tags" : [ "role-admin-controller" ],
@@ -1138,6 +1515,89 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/permissions" : {
+      "get" : {
+        "tags" : [ "permission-admin-controller" ],
+        "operationId" : "listPermissions",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/PermissionResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/roles/{id}/permissions" : {
+      "get" : {
+        "tags" : [ "permission-admin-controller" ],
+        "operationId" : "getRolePermissions",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RolePermissionsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put" : {
+        "tags" : [ "permission-admin-controller" ],
+        "operationId" : "updateRolePermissions",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateRolePermissionsRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RolePermissionsResponse"
                 }
               }
             }
@@ -2009,6 +2469,165 @@
           }
         }
       },
+      "CreateDepartmentRequest" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "maxLength" : 150,
+            "minLength" : 0
+          },
+          "parentDepartmentId" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "name" ]
+      },
+      "UpdateDepartmentRequest" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "maxLength" : 150,
+            "minLength" : 0
+          },
+          "parentDepartmentId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "clearParent" : {
+            "type" : "boolean"
+          },
+          "active" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "DepartmentResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "parentDepartmentId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "active" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "AddDepartmentMemberRequest" : {
+        "type" : "object",
+        "properties" : {
+          "userId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "userId" ]
+      },
+      "DepartmentMembersResponse" : {
+        "type" : "object",
+        "properties" : {
+          "departmentId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "departmentName" : {
+            "type" : "string"
+          },
+          "members" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/UserResponse"
+            }
+          }
+        }
+      },
+      "CreateDepartmentRoutingRuleRequest" : {
+        "type" : "object",
+        "properties" : {
+          "fromStatusId" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          },
+          "actionId" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          },
+          "targetRoleId" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          }
+        },
+        "required" : [ "actionId", "fromStatusId", "targetRoleId" ]
+      },
+      "UpdateDepartmentRoutingRuleRequest" : {
+        "type" : "object",
+        "properties" : {
+          "targetRoleId" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          },
+          "active" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "DepartmentRoutingRuleResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "departmentId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "fromStatusId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "fromStatus" : {
+            "type" : "string"
+          },
+          "fromStatusDisplayName" : {
+            "type" : "string"
+          },
+          "actionId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "action" : {
+            "type" : "string"
+          },
+          "actionDisplayName" : {
+            "type" : "string"
+          },
+          "targetRoleId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "targetRoleName" : {
+            "type" : "string"
+          },
+          "active" : {
+            "type" : "boolean"
+          }
+        }
+      },
       "CreateRoleRequest" : {
         "type" : "object",
         "properties" : {
@@ -2042,6 +2661,144 @@
             "type" : "boolean"
           },
           "active" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "UpdateRolePermissionsRequest" : {
+        "type" : "object",
+        "properties" : {
+          "permissionCodes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            },
+            "uniqueItems" : true
+          }
+        },
+        "required" : [ "permissionCodes" ]
+      },
+      "PermissionResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "code" : {
+            "type" : "string"
+          },
+          "displayName" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "active" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "RolePermissionsResponse" : {
+        "type" : "object",
+        "properties" : {
+          "roleId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "roleName" : {
+            "type" : "string"
+          },
+          "permissionCodes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
+      "BindActorRequest" : {
+        "type" : "object",
+        "properties" : {
+          "templateTransitionId" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          },
+          "actorRoleId" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          }
+        },
+        "required" : [ "actorRoleId", "templateTransitionId" ]
+      },
+      "WorkflowActorBindingView" : {
+        "type" : "object",
+        "properties" : {
+          "bindingId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "fromStatusId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "fromStatus" : {
+            "type" : "string"
+          },
+          "fromStatusDisplayName" : {
+            "type" : "string"
+          },
+          "actionId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "action" : {
+            "type" : "string"
+          },
+          "actionDisplayName" : {
+            "type" : "string"
+          },
+          "toStatusId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "toStatus" : {
+            "type" : "string"
+          },
+          "toStatusDisplayName" : {
+            "type" : "string"
+          },
+          "actorRoleId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "actorRoleName" : {
+            "type" : "string"
+          },
+          "actorRequirement" : {
+            "type" : "string",
+            "enum" : [ "CREATOR", "ASSIGNEE", "CREATOR_AND_ASSIGNEE" ]
+          },
+          "targetStrategy" : {
+            "type" : "string"
+          },
+          "expectedTargetRoleId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "requiredPermissionId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "requiredPermissionCode" : {
+            "type" : "string"
+          },
+          "active" : {
+            "type" : "boolean"
+          },
+          "protectedBinding" : {
             "type" : "boolean"
           }
         }

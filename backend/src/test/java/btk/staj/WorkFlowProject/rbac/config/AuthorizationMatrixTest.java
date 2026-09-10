@@ -94,8 +94,16 @@ class AuthorizationMatrixTest {
     // WF-8 management has no HTTP endpoint in this matrix; its real DB boundary is tested separately.
     @MockitoBean private btk.staj.WorkFlowProject.workflow.service.WorkflowActorBindingService workflowActorBindingService;
     @MockitoBean private btk.staj.WorkFlowProject.rbac.repository.RolePermissionRepository rolePermissionRepository;
+    // AP-3 PermissionAdminService bagimliligi; bu context JPA autoconfig'ini
+    // kapattigi icin gercek bir bean uretilemez.
+    @MockitoBean private btk.staj.WorkFlowProject.rbac.repository.PermissionRepository permissionRepository;
     // AssignmentViewResolver / WorkflowQueryService bu depoyu ister (B11, APP-9).
     @MockitoBean private btk.staj.WorkFlowProject.department.repository.DepartmentRepository departmentRepository;
+    // AP-4 DepartmentAdminService bagimliligi.
+    @MockitoBean private btk.staj.WorkFlowProject.department.repository.DepartmentMemberRepository departmentMemberRepository;
+    // AP-5 DepartmentRoutingRuleAdminService bagimliligi.
+    @MockitoBean private btk.staj.WorkFlowProject.department.repository.DepartmentRoutingRuleRepository departmentRoutingRuleRepository;
+    @MockitoBean private btk.staj.WorkFlowProject.workflow.repository.WorkflowStatusRepository workflowStatusRepository;
     @MockitoBean private btk.staj.WorkFlowProject.workflow.repository.WorkflowActionRepository workflowActionRepository;
 
     private static final String RECORD_JSON = """

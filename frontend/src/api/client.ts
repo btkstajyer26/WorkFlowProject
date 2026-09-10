@@ -3,13 +3,17 @@ import { AdminController } from './generated/AdminController'
 import { AuditLogController } from './generated/AuditLogController'
 import { AuthController } from './generated/AuthController'
 import { CategoryController } from './generated/CategoryController'
+import { DepartmentAdminController } from './generated/DepartmentAdminController'
+import { DepartmentRoutingRuleController } from './generated/DepartmentRoutingRuleController'
 import { FileController } from './generated/FileController'
 import { HttpClient } from './generated/http-client'
 import { NotificationController } from './generated/NotificationController'
+import { PermissionAdminController } from './generated/PermissionAdminController'
 import { RecordController } from './generated/RecordController'
 import { RoleAdminController } from './generated/RoleAdminController'
 import { UserController } from './generated/UserController'
 import { WorkflowActionController } from './generated/WorkflowActionController'
+import { WorkflowActorBindings } from './generated/WorkflowActorBindings'
 import { WorkflowQueryController } from './generated/WorkflowQueryController'
 import { apiBaseUrl } from './config'
 import { toApiClientError } from './errors'
@@ -70,12 +74,20 @@ export const api = {
   auditLogs: new AuditLogController(apiHttpClient),
   auth: new AuthController(apiHttpClient),
   categories: new CategoryController(apiHttpClient),
+  // AP-4 departman/uyelik yonetimi.
+  departments: new DepartmentAdminController(apiHttpClient),
+  // AP-5 departman routing kurallari.
+  departmentRoutingRules: new DepartmentRoutingRuleController(apiHttpClient),
   files: new FileController(apiHttpClient),
   notifications: new NotificationController(apiHttpClient),
+  // AP-3 rol <-> permission matrisi.
+  permissions: new PermissionAdminController(apiHttpClient),
   records: new RecordController(apiHttpClient),
   roles: new RoleAdminController(apiHttpClient),
   users: new UserController(apiHttpClient),
   workflow: new WorkflowActionController(apiHttpClient),
+  // AP-8 aktor-rol baglama yonetimi.
+  workflowActorBindings: new WorkflowActorBindings(apiHttpClient),
   // APP-9 okuma uclari: yetkili aksiyonlar ve hedef departman kesfi.
   workflowQuery: new WorkflowQueryController(apiHttpClient),
 }

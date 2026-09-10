@@ -83,6 +83,9 @@ class WorkflowActionControllerTest {
     @MockitoBean private UserRepository userRepository;
     // AssignmentViewResolver / WorkflowQueryService bu depoyu ister (B11, APP-9).
     @MockitoBean private btk.staj.WorkFlowProject.department.repository.DepartmentRepository departmentRepository;
+    @MockitoBean private btk.staj.WorkFlowProject.department.repository.DepartmentMemberRepository departmentMemberRepository;
+    @MockitoBean private btk.staj.WorkFlowProject.department.repository.DepartmentRoutingRuleRepository departmentRoutingRuleRepository;
+    @MockitoBean private btk.staj.WorkFlowProject.workflow.repository.WorkflowStatusRepository workflowStatusRepository;
     @MockitoBean private btk.staj.WorkFlowProject.workflow.repository.WorkflowActionRepository workflowActionRepository;
     @MockitoBean private RoleRepository roleRepository;
     @MockitoBean private FileRepository fileRepository;
@@ -99,6 +102,7 @@ class WorkflowActionControllerTest {
     // This context excludes JPA and exercises action HTTP behavior, not WF-8 management writes.
     @MockitoBean private btk.staj.WorkFlowProject.workflow.service.WorkflowActorBindingService workflowActorBindingService;
     @MockitoBean private btk.staj.WorkFlowProject.rbac.repository.RolePermissionRepository rolePermissionRepository;
+    @MockitoBean private btk.staj.WorkFlowProject.rbac.repository.PermissionRepository permissionRepository;
 
     @TestConfiguration
     static class NoOpTransactionConfig {

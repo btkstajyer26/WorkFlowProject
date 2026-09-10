@@ -10,6 +10,18 @@
  * ---------------------------------------------------------------
  */
 
+export interface AddDepartmentMemberRequest {
+  /** @format uuid */
+  userId: string;
+}
+
+export type AddMemberData = DepartmentMembersResponse;
+
+export interface AddMemberParams {
+  /** @format int32 */
+  id: number;
+}
+
 export interface AdminUserSearchCriteria {
   active?: boolean;
   q?: string;
@@ -90,6 +102,21 @@ export interface AvailableActionsResponse {
   version?: number;
 }
 
+export interface BindActorRequest {
+  /**
+   * @format int32
+   * @min 0
+   */
+  actorRoleId: number;
+  /**
+   * @format int32
+   * @min 0
+   */
+  templateTransitionId: number;
+}
+
+export type BindData = WorkflowActorBindingView;
+
 export interface CategoryResponse {
   /** @format int32 */
   id?: number;
@@ -137,6 +164,36 @@ export type ConsumeData = Record<string, string>;
 /** @format int64 */
 export type CountUnreadData = number;
 
+export type CreateDepartmentData = DepartmentResponse;
+
+export interface CreateDepartmentRequest {
+  /**
+   * @minLength 0
+   * @maxLength 150
+   */
+  name: string;
+  /** @format int32 */
+  parentDepartmentId?: number;
+}
+
+export interface CreateDepartmentRoutingRuleRequest {
+  /**
+   * @format int32
+   * @min 0
+   */
+  actionId: number;
+  /**
+   * @format int32
+   * @min 0
+   */
+  fromStatusId: number;
+  /**
+   * @format int32
+   * @min 0
+   */
+  targetRoleId: number;
+}
+
 export type CreateRecordData = RecordResponse;
 
 export type CreateRoleData = RoleResponse;
@@ -153,6 +210,13 @@ export interface CreateRoleRequest {
    */
   name: string;
   workflowActor?: boolean;
+}
+
+export type CreateRuleData = DepartmentRoutingRuleResponse;
+
+export interface CreateRuleParams {
+  /** @format int32 */
+  departmentId: number;
 }
 
 export type CreateUserData = UserResponse;
@@ -174,6 +238,23 @@ export interface CreateUserRequest {
   password: string;
 }
 
+export interface CurrentUserResponse {
+  active?: boolean;
+  /** @format date-time */
+  createdAt?: string;
+  email?: string;
+  firstName?: string;
+  /** @format uuid */
+  id?: string;
+  lastName?: string;
+  /** @uniqueItems true */
+  permissionCodes?: string[];
+  /** @format int32 */
+  roleId?: number;
+  roleName?: string;
+  systemKey?: string;
+}
+
 export type DeleteFileData = any;
 
 export interface DeleteFileParams {
@@ -186,6 +267,41 @@ export type DeleteRecordData = any;
 export interface DeleteRecordParams {
   /** @format uuid */
   id: string;
+}
+
+export interface DepartmentMembersResponse {
+  /** @format int32 */
+  departmentId?: number;
+  departmentName?: string;
+  members?: UserResponse[];
+}
+
+export interface DepartmentResponse {
+  active?: boolean;
+  /** @format int32 */
+  id?: number;
+  name?: string;
+  /** @format int32 */
+  parentDepartmentId?: number;
+}
+
+export interface DepartmentRoutingRuleResponse {
+  action?: string;
+  actionDisplayName?: string;
+  /** @format int32 */
+  actionId?: number;
+  active?: boolean;
+  /** @format int32 */
+  departmentId?: number;
+  fromStatus?: string;
+  fromStatusDisplayName?: string;
+  /** @format int32 */
+  fromStatusId?: number;
+  /** @format int32 */
+  id?: number;
+  /** @format int32 */
+  targetRoleId?: number;
+  targetRoleName?: string;
 }
 
 export interface DeviceTokenDeleteRequest {
@@ -287,6 +403,13 @@ export interface GetRecordByIdParams {
   id: string;
 }
 
+export type GetRolePermissionsData = RolePermissionsResponse;
+
+export interface GetRolePermissionsParams {
+  /** @format int32 */
+  id: number;
+}
+
 export type GetUnreadData = NotificationResponse[];
 
 export type ListAuditLogsData = PagedResponseObject;
@@ -297,6 +420,15 @@ export interface ListAuditLogsParams {
   type?: string;
 }
 
+export type ListData = WorkflowActorBindingView[];
+
+export type ListDepartmentsData = DepartmentResponse[];
+
+export interface ListDepartmentsParams {
+  /** @default false */
+  includeInactive?: boolean;
+}
+
 export type ListFilesData = FileResponseDto[];
 
 export interface ListFilesParams {
@@ -304,11 +436,27 @@ export interface ListFilesParams {
   id: string;
 }
 
+export type ListMembersData = DepartmentMembersResponse;
+
+export interface ListMembersParams {
+  /** @format int32 */
+  id: number;
+}
+
+export type ListPermissionsData = PermissionResponse[];
+
 export type ListRolesData = RoleResponse[];
 
 export interface ListRolesParams {
   /** @default false */
   includeInactive?: boolean;
+}
+
+export type ListRulesData = DepartmentRoutingRuleResponse[];
+
+export interface ListRulesParams {
+  /** @format int32 */
+  departmentId: number;
 }
 
 export type ListUsersData = PagedResponseUserResponse;
@@ -367,7 +515,7 @@ export interface MarkAsReadParams {
   id: string;
 }
 
-export type MeData = UserResponse;
+export type MeData = CurrentUserResponse;
 
 export interface NotificationResponse {
   /** @format date-time */
@@ -453,6 +601,15 @@ export type PerformActionData = WorkflowActionResponse;
 export interface PerformActionParams {
   /** @format uuid */
   recordId: string;
+}
+
+export interface PermissionResponse {
+  active?: boolean;
+  code?: string;
+  description?: string;
+  displayName?: string;
+  /** @format int32 */
+  id?: number;
 }
 
 export type PreviewData = MailActionPreview;
@@ -546,6 +703,15 @@ export type RegisterTokenData = any;
 
 export type ReloadData = Record<string, number>;
 
+export type RemoveMemberData = DepartmentMembersResponse;
+
+export interface RemoveMemberParams {
+  /** @format int32 */
+  id: number;
+  /** @format uuid */
+  userId: string;
+}
+
 export type RemoveTokenData = any;
 
 export type ResetPasswordData = any;
@@ -558,6 +724,13 @@ export interface ResetPasswordRequest {
   newPassword: string;
   /** @minLength 1 */
   token: string;
+}
+
+export interface RolePermissionsResponse {
+  permissionCodes?: string[];
+  /** @format int32 */
+  roleId?: number;
+  roleName?: string;
 }
 
 export interface RoleResponse {
@@ -601,6 +774,41 @@ export interface TargetDepartmentsResponse {
   departments?: TargetDepartmentView[];
 }
 
+export type UnbindData = WorkflowActorBindingView;
+
+export interface UnbindParams {
+  /** @format int32 */
+  bindingId: number;
+}
+
+export type UpdateDepartmentData = DepartmentResponse;
+
+export interface UpdateDepartmentParams {
+  /** @format int32 */
+  id: number;
+}
+
+export interface UpdateDepartmentRequest {
+  active?: boolean;
+  clearParent?: boolean;
+  /**
+   * @minLength 0
+   * @maxLength 150
+   */
+  name?: string;
+  /** @format int32 */
+  parentDepartmentId?: number;
+}
+
+export interface UpdateDepartmentRoutingRuleRequest {
+  active?: boolean;
+  /**
+   * @format int32
+   * @min 0
+   */
+  targetRoleId?: number;
+}
+
 export type UpdateRecordData = RecordResponse;
 
 export interface UpdateRecordParams {
@@ -613,6 +821,18 @@ export type UpdateRoleData = RoleResponse;
 export interface UpdateRoleParams {
   /** @format int32 */
   id: number;
+}
+
+export type UpdateRolePermissionsData = RolePermissionsResponse;
+
+export interface UpdateRolePermissionsParams {
+  /** @format int32 */
+  id: number;
+}
+
+export interface UpdateRolePermissionsRequest {
+  /** @uniqueItems true */
+  permissionCodes: string[];
 }
 
 export interface UpdateRoleRequest {
@@ -628,6 +848,15 @@ export interface UpdateRoleRequest {
    */
   name?: string;
   workflowActor?: boolean;
+}
+
+export type UpdateRuleData = DepartmentRoutingRuleResponse;
+
+export interface UpdateRuleParams {
+  /** @format int32 */
+  departmentId: number;
+  /** @format int32 */
+  ruleId: number;
 }
 
 export type UploadFilesData = FileResponseDto[];
@@ -761,4 +990,33 @@ export interface WorkflowActionResponse {
   recordId?: string;
   /** @format int32 */
   version?: number;
+}
+
+export interface WorkflowActorBindingView {
+  action?: string;
+  actionDisplayName?: string;
+  /** @format int32 */
+  actionId?: number;
+  active?: boolean;
+  actorRequirement?: "CREATOR" | "ASSIGNEE" | "CREATOR_AND_ASSIGNEE";
+  /** @format int32 */
+  actorRoleId?: number;
+  actorRoleName?: string;
+  /** @format int32 */
+  bindingId?: number;
+  /** @format int32 */
+  expectedTargetRoleId?: number;
+  fromStatus?: string;
+  fromStatusDisplayName?: string;
+  /** @format int32 */
+  fromStatusId?: number;
+  protectedBinding?: boolean;
+  requiredPermissionCode?: string;
+  /** @format int32 */
+  requiredPermissionId?: number;
+  targetStrategy?: string;
+  toStatus?: string;
+  toStatusDisplayName?: string;
+  /** @format int32 */
+  toStatusId?: number;
 }

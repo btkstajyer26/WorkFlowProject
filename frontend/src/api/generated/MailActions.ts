@@ -10,12 +10,13 @@
  * ---------------------------------------------------------------
  */
 
-import {
+import type {
   ConsumeData,
   MailActionTokenRequest,
   PreviewData,
 } from "./data-contracts";
-import { HttpClient, RequestParams } from "./http-client";
+import { HttpClient } from "./http-client";
+import type { RequestParams } from "./http-client";
 
 export class MailActions<SecurityDataType = unknown> {
   http: HttpClient<SecurityDataType>;

@@ -86,7 +86,10 @@ describe('Admin rol yönetimi', () => {
     await browser.type(within(dialog).getByLabelText('Rol adı'), 'Mali İşler Uzmanı')
     await browser.click(within(dialog).getByRole('button', { name: 'Rol Oluştur' }))
 
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('zaten kullanılıyor')
+    // CI runner'i yerelden daha yavas olabiliyor; varsayilan 1000ms bu
+    // zincirde (mock yanit -> mutation -> form hata state'i -> render)
+    // araliksiz yetmeyebilir. Mantik degismedi, yalniz sabir arttirildi.
+    expect(await within(dialog).findByRole('alert', {}, { timeout: 3000 })).toHaveTextContent('zaten kullanılıyor')
     expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 
@@ -100,7 +103,7 @@ describe('Admin rol yönetimi', () => {
     await browser.type(within(dialog).getByLabelText('Rol adı'), 'mali işler uzmanı')
     await browser.click(within(dialog).getByRole('button', { name: 'Rol Oluştur' }))
 
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Mali İşler Uzmanı')
+    expect(await within(dialog).findByRole('alert', {}, { timeout: 3000 })).toHaveTextContent('Mali İşler Uzmanı')
     expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 

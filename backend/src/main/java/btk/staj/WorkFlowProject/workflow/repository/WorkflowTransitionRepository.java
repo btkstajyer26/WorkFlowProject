@@ -57,6 +57,15 @@ public interface WorkflowTransitionRepository extends JpaRepository<WorkflowTran
 
     List<WorkflowTransitionEntity> findAllByActiveTrueOrderByIdAsc();
 
+    /**
+     * AP-5 routing kurali yazicisi: (durum, aksiyon) ciftinin gercek, aktif
+     * bir gecise karsilik geldigini dogrular. Departman routing kurallari
+     * yalniz kayit departmana atandiktan SONRA o durumdan alinabilecek
+     * gercek aksiyonlari hedefler - keyfi durum/aksiyon kombinasyonlarini
+     * degil (WORKFLOW_V1_V2_PLANI.md SS11 ornegi).
+     */
+    boolean existsByFromStatusIdAndActionIdAndActiveTrue(Integer fromStatusId, Integer actionId);
+
     /** Active transitions with raw role foreign keys; names are display data only. */
     @Query("""
             SELECT new btk.staj.WorkFlowProject.workflow.repository.TransitionRuleRow(

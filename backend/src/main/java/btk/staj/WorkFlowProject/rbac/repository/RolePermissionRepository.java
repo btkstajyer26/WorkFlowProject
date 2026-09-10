@@ -19,4 +19,17 @@ public interface RolePermissionRepository extends JpaRepository<RolePermission, 
 
     List<RolePermission> findAllByIdRoleId(Integer roleId);
     List<RolePermission> findAllByIdPermissionId(Integer permissionId);
+
+    /**
+     * AP-3 yonetim ekrani icindir: {@link #findActiveCodesByRoleId} aksine rol
+     * veya permission pasif olsa da atanmis kodu goruntuler, boylece admin
+     * sonradan pasiflesen bir permission'i da matristen kaldirabilir.
+     */
+    @Query("""
+            SELECT p.code FROM RolePermission rp
+            JOIN Permission p ON p.id = rp.id.permissionId
+            WHERE rp.id.roleId = :roleId
+            ORDER BY p.code
+            """)
+    List<String> findAllCodesByRoleId(@Param("roleId") Integer roleId);
 }
