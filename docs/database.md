@@ -354,10 +354,10 @@ Kullanıcı tohumlanmaz. İlk Admin, `BOOTSTRAP_ADMIN_EMAIL` ve `BOOTSTRAP_ADMIN
 | `V17__authorization_capabilities.sql`       | `FILE_MANAGE`, `RECORD_DELETE` → `CALISAN`; `AUDIT_VIEW` → `ADMIN`                            |
 | `V18__departments.sql`                      | `departments` — self-FK, `is_active`                                                          |
 | `V19__department_members.sql`               | `department_members` — N:N üyelik                                                             |
-| `V20__department_routing_rules.sql`         | `department_routing_rules` — `(dept, durum, aksiyon) → rol`                                  |
-| `V21__records_assigned_department.sql`      | `records.assigned_department_id` + mutual exclusion CHECK                                    |
-| `V22__align_department_schema_contract.sql` | Departman adı 150 karakter, kendine-parent CHECK'i ve üyelik/routing FK'lerinde RESTRICT       |
-| `V23__department_send_action.sql`            | `DEPARTMENT` CHECK genişletmesi, `DEPARTMANA_GONDER` aksiyonu ve iki geçiş; toplam 10 geçiş                    |
+| `V20__department_routing_rules.sql`         | `department_routing_rules` — `(dept, durum, aksiyon) → rol`                                   |
+| `V21__records_assigned_department.sql`      | `records.assigned_department_id` + mutual exclusion CHECK                                     |
+| `V22__align_department_schema_contract.sql` | Departman adı 150 karakter, kendine-parent CHECK'i ve üyelik/routing FK'lerinde RESTRICT      |
+| `V23__department_send_action.sql`           | `DEPARTMENT` CHECK genişletmesi, `DEPARTMANA_GONDER` aksiyonu ve iki geçiş; toplam 10 geçiş   |
 
 ### Bu şemanın açık davranış kayıtları
 
@@ -366,13 +366,13 @@ doğrulanmış biçimde eksiktir; ilgili migration/kod işleri aşağıdaki tabl
 `B`-kimlikleriyle takip edilir. Sekiz backend probunun koşum sonuçları
 [kanıt klasöründedir](reviews/2026-09-04/TEKRAR_URETIM.md).
 
-| Konu | Durum |
-| --- | --- |
-| `records.version` ve görev devri | `devretBekleyenIsleri` ve `updateLastDeputyId` toplu JPQL güncellemeleri sürümü artırmaz; eşzamanlı workflow yazımı çatışma almaz (B03) |
-| `records.version` ve dosya yükleme | Ek yükleme kaydın sürümüne dokunmaz; kilit kontrolü ile dosya satırının yazılması arasında durum değişebilir (B04) |
-| Soft-delete edilmiş kayıt | Detay okuması `deleted_at` dolu kaydı dışlar; update/delete ortak yükleyicisi dışlamaz (B08) |
-| Workflow audit | **Kapandı (B12 ✅, `V25`, [ADR-0009](decisions/0009-audit-atama-sozlesmesi.md)).** `audit_logs` dört nullable kolon taşır — `previous_assigned_to` / `previous_assigned_department_id` ve `new_assigned_to` / `new_assigned_department_id` — her yan için ayrı karşılıklı dışlama CHECK'i vardır (`chk_audit_previous_assignment_exclusive`, `chk_audit_new_assignment_exclusive`) ve dördü de `users`/`departments`'a `ON DELETE RESTRICT` FK ile bağlıdır. Atama **türü** kolonu açılmadı; tür okuma anında `AssignmentView.of(...)` ile türetilir ([APP-9/APP-10/B11 §3](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md#3-b11--ortak-atama-sözleşmesi) `kind` ayrımı). Kolonlar yalnız **geçiş** satırlarında anlamlıdır; yaşam döngüsü ve HTTP erişim satırlarında NULL kalır. `V25` öncesi satırlara geriye dönük değer yazılmadı |
-| Dinamik önceki aktöre dönüş | V15 seed'i `BASKAN_YARDIMCISINA_GERI_GONDER` için yerleşik `BASKAN_YARDIMCISI` hedef rolünü ister; dinamik departman aktörüne dönüş `WORKFLOW_TARGET_ROLE_INVALID` alır (B02). **Karar verildi:** [ADR-0008](decisions/0008-hedef-rol-semantigi-ve-onceki-aktore-donus.md) — `V24` üç satırda `expected_target_role_id` değerini `NULL` yapar ve `chk_transition_target_strategy_role` kısıtını "yalnız `ROLE` dolu olabilir" biçiminde daraltır. Migration ve kod aynı teslimde gider; ayrı dağıtılırsa uygulama açılışta düşer |
+| Konu                               | Durum                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `records.version` ve görev devri   | `devretBekleyenIsleri` ve `updateLastDeputyId` toplu JPQL güncellemeleri sürümü artırmaz; eşzamanlı workflow yazımı çatışma almaz (B03)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `records.version` ve dosya yükleme | Ek yükleme kaydın sürümüne dokunmaz; kilit kontrolü ile dosya satırının yazılması arasında durum değişebilir (B04)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Soft-delete edilmiş kayıt          | Detay okuması `deleted_at` dolu kaydı dışlar; update/delete ortak yükleyicisi dışlamaz (B08)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Workflow audit                     | **Kapandı (B12 ✅, `V25`, [ADR-0009](decisions/0009-audit-atama-sozlesmesi.md)).** `audit_logs` dört nullable kolon taşır — `previous_assigned_to` / `previous_assigned_department_id` ve `new_assigned_to` / `new_assigned_department_id` — her yan için ayrı karşılıklı dışlama CHECK'i vardır (`chk_audit_previous_assignment_exclusive`, `chk_audit_new_assignment_exclusive`) ve dördü de `users`/`departments`'a `ON DELETE RESTRICT` FK ile bağlıdır. Atama **türü** kolonu açılmadı; tür okuma anında `AssignmentView.of(...)` ile türetilir ([APP-9/APP-10/B11 §3](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md#3-b11--ortak-atama-sözleşmesi) `kind` ayrımı). Kolonlar yalnız **geçiş** satırlarında anlamlıdır; yaşam döngüsü ve HTTP erişim satırlarında NULL kalır. `V25` öncesi satırlara geriye dönük değer yazılmadı |
+| Dinamik önceki aktöre dönüş        | V15 seed'i `BASKAN_YARDIMCISINA_GERI_GONDER` için yerleşik `BASKAN_YARDIMCISI` hedef rolünü ister; dinamik departman aktörüne dönüş `WORKFLOW_TARGET_ROLE_INVALID` alır (B02). **Karar verildi:** [ADR-0008](decisions/0008-hedef-rol-semantigi-ve-onceki-aktore-donus.md) — `V24` üç satırda `expected_target_role_id` değerini `NULL` yapar ve `chk_transition_target_strategy_role` kısıtını "yalnız `ROLE` dolu olabilir" biçiminde daraltır. Migration ve kod aynı teslimde gider; ayrı dağıtılırsa uygulama açılışta düşer                                                                                                                                                                                                                                                                                             |
 
 ### Numaralandırmadaki boşluk
 
@@ -403,21 +403,21 @@ Kaynak: `DB-1` §15 ve kabul edilmiş `ADR-0005`/`ADR-0006`. Departman,
 üyelik, routing ve kayıt ataması için şema, entity ve repository katmanı hazırdır.
 V23 + WF-5/WF-6 departmana gönderim, routing/eligibility ve ortak policy/SQL görünürlüğünü uygular. AP-4/AP-5 ekranları ve NT-5 fan-out ayrı teslimdir.
 
-| Migration | Teslim durumu |
-| --- | --- |
-| `V18` departments | Tablo ve parent FK hazır; ad uzunluğu ve self-parent koruması V22 ile hizalandı |
-| `V19` department_members | Çoklu üyelik hazır; iki FK V22 ile RESTRICT oldu |
-| `V20` department_routing_rules | Routing şeması hazır; departman FK'si V22 ile RESTRICT oldu |
-| `V21` records.assigned_department_id | Kolon, FK ve karşılıklı dışlama CHECK'i hazır |
-| `V22` sözleşme düzeltmeleri | Mevcut satırları koruyan ileri migration; V18–V21 dosyaları değiştirilmedi |
-| `V23` departmana gönderim | Alperen'in migration'ı WF-5/WF-6 runtime'ı ile birlikte teslim edilir; tek başına eski backend'e uygulanmaz |
+| Migration                            | Teslim durumu                                                                                               |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `V18` departments                    | Tablo ve parent FK hazır; ad uzunluğu ve self-parent koruması V22 ile hizalandı                             |
+| `V19` department_members             | Çoklu üyelik hazır; iki FK V22 ile RESTRICT oldu                                                            |
+| `V20` department_routing_rules       | Routing şeması hazır; departman FK'si V22 ile RESTRICT oldu                                                 |
+| `V21` records.assigned_department_id | Kolon, FK ve karşılıklı dışlama CHECK'i hazır                                                               |
+| `V22` sözleşme düzeltmeleri          | Mevcut satırları koruyan ileri migration; V18–V21 dosyaları değiştirilmedi                                  |
+| `V23` departmana gönderim            | Alperen'in migration'ı WF-5/WF-6 runtime'ı ile birlikte teslim edilir; tek başına eski backend'e uygulanmaz |
 
 ### `departments` (`V18`, `V22`)
 
 | Kolon                  | Tip            | Null  | Açıklama                                    |
 | ---------------------- | -------------- | ----- | ------------------------------------------- |
 | `id`                   | `SERIAL`       | hayır | Birincil anahtar                            |
-| `name`                 | `VARCHAR(150)` | hayır | Benzersiz; JPA eşlemesi de 150 karakter      |
+| `name`                 | `VARCHAR(150)` | hayır | Benzersiz; JPA eşlemesi de 150 karakter     |
 | `parent_department_id` | `INT`          | evet  | Self-FK, `RESTRICT`. `NULL` = kök departman |
 | `is_active`            | `BOOLEAN`      | hayır | Varsayılan `TRUE`                           |
 
@@ -513,6 +513,38 @@ kimlikleri Alperen'in `origin/feature/Veri-katmanı` dalıyla aynıdır. Yerel `
 Merge edilen dosya ağacı test edilen teslimle aynıdır. Bu ayrı Git kanıtıdır;
 712 test sonucu departman runtime/E2E, güncel CI veya TEST deploy kabulü değildir.
 
+## DB-9 durum notu (dolu yükseltme + seed uyumu)
+
+**Dolu `V22→V25` yükseltme — kapandı.**
+`DepartmentSchemaMigrationIntegrationTest.
+upgradesPopulatedV22ThroughV25WithoutChangingPriorDataOrChecksums` — `V22`'de
+gerçek departman/üyelik/routing/kayıt verisiyle başlayıp tek seferde `V25`'e
+kadar yükseltiyor. Doğrulanan: departman/üyelik/routing/kayıt verisi
+değişmeden kalıyor; `V22` ve öncesi migration'ların checksum'ları
+değişmiyor; `V25` öncesi yazılmış bir audit satırının eski kolonları aynen
+duruyor, yeni dört kolonu `NULL` geliyor; `V23`/`V24`'ün getirmesi gereken
+değişiklikler (yeni aksiyon, yeni geçişler, daraltılmış
+`expected_target_role_id`) gerçekten uygulanmış.
+
+**`deploy/seed-test-data.sh` uyumu — kişi bazlı senaryo için doğrulandı,
+departman senaryosu `AP-4`'e bloke.**
+Script yalnız `GONDER`/`BASKANA_ILET`/`CALISANA_GERI_GONDER`/`ONAYLA`/
+`REDDET` aksiyonlarını ve kişiye atamayı kullanıyor; bunların hiçbiri
+`V24`/`V25` tarafından davranışsal olarak değiştirilmedi (`V24` yalnız
+`expected_target_role_id`'yi etkiledi, `V25` yalnız `audit_logs`'a kolon
+ekledi). Script bugünkü haliyle **kırılmadan çalışır**.
+
+Script'in departman senaryosunu (üyelik, routing, `DEPARTMANA_GONDER`)
+kapsayacak şekilde genişletilmesi şu an **mümkün değil** — script'in kendi
+tasarım ilkesi yalnız HTTP API kullanmak, doğrudan SQL yazmamak (parolalar
+bcrypt'li, audit satırları yalnız servis katmanından geçince oluşuyor).
+Departman/üyelik/routing için hiçbir Admin API yok — `AP-4` henüz `%0`,
+`department` paketinde controller/service bulunmuyor. Script'i bu ilkeyi
+çiğneyip doğrudan SQL ile genişletmek, `AP-4` geldiğinde muhtemelen
+yeniden yazılması gerekecek bir iş olurdu. Bu yüzden departman senaryosu
+**`AP-4`'e bağımlı olarak açık bırakıldı**, `Tamer`'in kulvarındaki bu iş
+tamamlanınca script API üzerinden genişletilecek.
+
 ## Bilinen eksikler
 
 - **Append-only kuralı veritabanında zorlanmıyor.** `audit_logs` ve `user_audit_logs` uygulama üzerinden güncellenemez veya silinemez, ancak bunu garanti eden bir trigger ya da rol kısıtı yoktur. Şartname §4.2 "silinemez tablo" diyor; garanti şu an yalnız uygulama seviyesinde.
@@ -524,8 +556,7 @@ Merge edilen dosya ağacı test edilen teslimle aynıdır. Bu ayrı Git kanıtı
   İstemcinin eski ekrandan daha sonra gönderdiği sırayla işlenen güncellemeyi
   yakalamak için ayrıca beklenen sürüm/ETag sözleşmesi gerekir; mevcut API'de yoktur.
 
-
-- **`B06` sıralama kapsam dışı bırakıldı.** Arama/kategori filtresi görünen içerik sürümüne göre düzeltildi (`RecordSpecifications.seesFrozenContent`), ama `title`/`description`'a göre sıralama hâlâ canlı kolonda çalışıyor. Sebep: `JpaSpecificationExecutor.findAll(spec, pageable)` sıralamayı `Specification`'dan bağımsız uyguluyor — `SimpleJpaRepository` bizim `query.orderBy(...)`'ımızı `sort.isSorted()` true olduğunda koşulsuz eziyor. Doğru çözüm `JpaSpecificationExecutor`'dan vazgeçip elle `CriteriaQuery` + ayrı `COUNT` sorgusu yazmayı gerektiriyor; kapsam `B06`'nın (P2) ötesine geçtiği için bilinçli olarak açık bırakıldı.  
+- **`B06` sıralama kapsam dışı bırakıldı.** Arama/kategori filtresi görünen içerik sürümüne göre düzeltildi (`RecordSpecifications.seesFrozenContent`), ama `title`/`description`'a göre sıralama hâlâ canlı kolonda çalışıyor. Sebep: `JpaSpecificationExecutor.findAll(spec, pageable)` sıralamayı `Specification`'dan bağımsız uyguluyor — `SimpleJpaRepository` bizim `query.orderBy(...)`'ımızı `sort.isSorted()` true olduğunda koşulsuz eziyor. Doğru çözüm `JpaSpecificationExecutor`'dan vazgeçip elle `CriteriaQuery` + ayrı `COUNT` sorgusu yazmayı gerektiriyor; kapsam `B06`'nın (P2) ötesine geçtiği için bilinçli olarak açık bırakıldı.
 
 ## Dinamik rol, yetki ve workflow veri modeli (V12–V17)
 

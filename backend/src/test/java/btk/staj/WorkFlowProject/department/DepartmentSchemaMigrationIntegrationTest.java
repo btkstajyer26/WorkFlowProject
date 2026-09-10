@@ -209,6 +209,71 @@ class DepartmentSchemaMigrationIntegrationTest {
         assertFinalSchema();
     }
 
+        /**
+     * DB-9: yukaridaki testler her surumun bitis noktasini (V22 baseline, V23
+     * gonderim yolu, V24 daraltilmis CHECK, V25 audit kolonlari) TEK TEK
+     * sinar, ama hicbiri populer bir veritabanini uc duzeltmenin (V23+V24+V25)
+     * tumunden BIRDEN gecirmez. Gorev takibinin "dolu V22->V25 yukseltme"
+     * dedigi bosluk tam olarak budur: V22'de gercek departman/routing/kayit
+     * verisi olan bir veritabani, uc migration'in ardindan o veriyi BOZULMADAN
+     * cikarmali.
+     *
+     * <p>workflow_transitions bilerek "degismemesi gereken" kumeye DAHIL
+     * EDILMEDI: V23 oraya 2 yeni satir ekler, V24 ise mevcut satirlarin
+     * expected_target_role_id'sini gercekten degistirir (CREATOR/
+     * CURRENT_ASSIGNEE/PREVIOUS_ACTOR satirlarinda NULL'a ceker - ADR-0008
+     * K6). Bu degisiklikler BEKLENEN ve DOGRU davranistir; workflow_transitions'i
+     * "degismedi" diye sinamak yanlis pozitif kirmizi uretirdi. Bu yuzden
+     * departman/kayit tarafi icin ayri, daraltilmis bir kume kullanilir
+     * (bkz. departmentAndRecordRows()).
+     */
+    @Test
+    @DisplayName("DB-9: dolu V22 verisi V23-V24-V25 yukseltmesinden degismeden cikar")
+    void upgradesPopulatedV22ThroughV25WithoutChangingPriorDataOrChecksums() {
+        migrate("22");
+        Fixture fixture = seedDepartmentData();
+
+        UUID preExistingAuditId = UUID.randomUUID();
+        jdbc.update("INSERT INTO audit_logs(id, record_id, user_id, action, new_status, created_at) "
+                        + "VALUES (?, ?, ?, 'GONDER', 'BSK_YRD_INCELEMESINDE', CURRENT_TIMESTAMP)",
+                preExistingAuditId, fixture.record(), fixture.user());
+
+        Map<String, List<Map<String, Object>>> before = departmentAndRecordRows();
+        List<Map<String, Object>> auditBefore = jdbc.queryForList(
+                "SELECT id, record_id, user_id, action, new_status FROM audit_logs WHERE id = ?",
+                preExistingAuditId);
+        List<Map<String, Object>> historyBefore = jdbc.queryForList(
+                "SELECT version, checksum FROM flyway_schema_history "
+                        + "WHERE version IS NOT NULL AND CAST(version AS INT) <= 22 ORDER BY installed_rank");
+
+        Flyway upgraded = migrate("25");
+        upgraded.validate();
+
+        assertThat(departmentAndRecordRows()).isEqualTo(before);
+
+        assertThat(jdbc.queryForList("SELECT version, checksum FROM flyway_schema_history "
+                        + "WHERE version IS NOT NULL AND CAST(version AS INT) <= 22 ORDER BY installed_rank"))
+                .isEqualTo(historyBefore);
+
+        assertThat(jdbc.queryForList("SELECT id, record_id, user_id, action, new_status FROM audit_logs WHERE id = ?",
+                preExistingAuditId)).isEqualTo(auditBefore);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE id = ? "
+                        + "AND previous_assigned_to IS NULL AND previous_assigned_department_id IS NULL "
+                        + "AND new_assigned_to IS NULL AND new_assigned_department_id IS NULL",
+                Integer.class, preExistingAuditId)).isOne();
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM workflow_transitions", Integer.class)).isEqualTo(10);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM workflow_actions WHERE name = 'DEPARTMANA_GONDER'",
+                Integer.class)).isOne();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM workflow_transitions "
+                        + "WHERE target_strategy IN ('CREATOR', 'CURRENT_ASSIGNEE', 'PREVIOUS_ACTOR') "
+                        + "AND expected_target_role_id IS NOT NULL", Integer.class)).isZero();
+
+        assertFinalSchema();
+        entityManagerFactory();
+    }
+
+
     @Test
     void preexistingSelfParentAbortsUpgradeWithoutPartialSchemaOrDataChanges() {
         migrate("21");
@@ -371,6 +436,22 @@ class DepartmentSchemaMigrationIntegrationTest {
             result.put(table, jdbc.queryForList("SELECT * FROM " + table + " ORDER BY id"));
         }
         result.put("department_members", jdbc.queryForList("SELECT * FROM department_members ORDER BY department_id, user_id"));
+        return result;
+    }
+
+        /**
+     * departments / department_members / department_routing_rules / records -
+     * yani DB-9'un "dolu yukseltme" testinin gercekten degismemesini bekledigi
+     * kume. rows()'tan farki: workflow_transitions kasitli olarak disaridadir
+     * (yukaridaki test metodunun javadoc'una bakin).
+     */
+    private Map<String, List<Map<String, Object>>> departmentAndRecordRows() {
+        Map<String, List<Map<String, Object>>> result = new LinkedHashMap<>();
+        for (String table : List.of("departments", "department_routing_rules", "records")) {
+            result.put(table, jdbc.queryForList("SELECT * FROM " + table + " ORDER BY id"));
+        }
+        result.put("department_members", jdbc.queryForList(
+                "SELECT * FROM department_members ORDER BY department_id, user_id"));
         return result;
     }
 
