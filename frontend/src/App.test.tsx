@@ -217,6 +217,7 @@ describe('App authorization boundaries', () => {
       systemKey: 'CALISAN',
       roleName: 'CALISAN',
       mustChangePassword: false,
+      permissionCodes: ['RECORD_CREATE', 'RECORD_VIEW', 'RECORD_EDIT', 'RECORD_FORWARD'],
     })
     renderApp('/kayitlar/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1/duzenle')
     expect(await screen.findByRole('heading', { name: 'Bu sayfayı görüntüleme yetkiniz yok' })).toBeInTheDocument()

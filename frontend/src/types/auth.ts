@@ -28,6 +28,11 @@ export type AuthUser = {
   systemKey: SystemRoleKey | null
   roleName: string
   mustChangePassword: boolean
+  /**
+   * B10/WEB-1: yetki kararları rol adından değil buradan verilir - dinamik
+   * rolde (systemKey null) davranış kararı verecek başka bir alan yoktur.
+   */
+  permissionCodes: string[]
 }
 
 const systemRoleKeys: SystemRoleKey[] = ['CALISAN', 'BASKAN_YARDIMCISI', 'BASKAN', 'ADMIN']

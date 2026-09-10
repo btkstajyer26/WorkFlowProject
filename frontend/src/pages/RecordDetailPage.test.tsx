@@ -96,14 +96,15 @@ describe('RecordDetailPage', () => {
   it('Başkan ve Başkan Yardımcısı için yalnızca durumlarına uygun kararları gösterir', async () => {
     const deputyView = await renderRecordDetail('BASKAN_YARDIMCISI', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2')
     const deputyActions = await screen.findByRole('region', { name: 'Karar' })
-    expect(within(deputyActions).getByRole('button', { name: 'Geri Gönder' })).toBeInTheDocument()
+    expect(within(deputyActions).getByRole('button', { name: 'Çalışana Geri Gönder' })).toBeInTheDocument()
     expect(within(deputyActions).getByRole('button', { name: 'Başkana İlet' })).toBeInTheDocument()
     expect(within(deputyActions).queryByRole('button', { name: 'Onayla' })).not.toBeInTheDocument()
     deputyView.unmount()
 
     await renderRecordDetail('BASKAN', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa3')
     const chairActions = await screen.findByRole('region', { name: 'Karar' })
-    expect(within(chairActions).getByRole('button', { name: 'Geri Gönder' })).toBeInTheDocument()
+    expect(within(chairActions).getByRole('button', { name: 'Çalışana Geri Gönder' })).toBeInTheDocument()
+    expect(within(chairActions).getByRole('button', { name: 'Başkan Yardımcısına Geri Gönder' })).toBeInTheDocument()
     expect(within(chairActions).getByRole('button', { name: 'Reddet' })).toBeInTheDocument()
     expect(within(chairActions).getByRole('button', { name: 'Onayla' })).toBeInTheDocument()
     expect(within(chairActions).queryByRole('button', { name: 'Başkana İlet' })).not.toBeInTheDocument()

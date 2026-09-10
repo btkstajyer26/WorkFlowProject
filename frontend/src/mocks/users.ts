@@ -16,6 +16,7 @@ export const demoAccounts: DemoAccount[] = [
     systemKey: 'CALISAN',
     roleName: 'CALISAN',
     mustChangePassword: false,
+    permissionCodes: ['RECORD_CREATE', 'RECORD_VIEW', 'RECORD_EDIT', 'RECORD_FORWARD'],
     summary: 'Kayıt oluşturur ve süreçlerini takip eder.',
   },
   {
@@ -28,6 +29,7 @@ export const demoAccounts: DemoAccount[] = [
     systemKey: 'BASKAN_YARDIMCISI',
     roleName: 'BASKAN_YARDIMCISI',
     mustChangePassword: false,
+    permissionCodes: ['RECORD_VIEW', 'RECORD_FORWARD', 'RECORD_RETURN'],
     summary: 'Gelen kayıtları inceler ve Başkana iletir.',
   },
   {
@@ -40,6 +42,7 @@ export const demoAccounts: DemoAccount[] = [
     systemKey: 'BASKAN',
     roleName: 'BASKAN',
     mustChangePassword: false,
+    permissionCodes: ['RECORD_VIEW', 'RECORD_APPROVE', 'RECORD_REJECT', 'RECORD_RETURN'],
     summary: 'Nihai onay, red ve geri gönderme işlemlerini yapar.',
   },
   {
@@ -52,6 +55,11 @@ export const demoAccounts: DemoAccount[] = [
     systemKey: 'ADMIN',
     roleName: 'ADMIN',
     mustChangePassword: false,
+    permissionCodes: [
+      'USER_VIEW', 'USER_MANAGE', 'ROLE_VIEW', 'ROLE_MANAGE',
+      'DEPARTMENT_VIEW', 'DEPARTMENT_MANAGE', 'WORKFLOW_VIEW', 'WORKFLOW_MANAGE',
+      'ADMIN_PANEL_ACCESS',
+    ],
     summary: 'Kullanıcıları, rollerini ve denetim kayıtlarını yönetir.',
   },
   {
@@ -64,6 +72,7 @@ export const demoAccounts: DemoAccount[] = [
     systemKey: 'CALISAN',
     roleName: 'CALISAN',
     mustChangePassword: true,
+    permissionCodes: ['RECORD_CREATE', 'RECORD_VIEW', 'RECORD_EDIT', 'RECORD_FORWARD'],
     summary: 'Zorunlu şifre değiştirme akışını önizler.',
   },
 ]
@@ -81,5 +90,6 @@ export function getDemoUserByRole(systemKey: AuthUser['systemKey']): AuthUser {
     systemKey: account.systemKey,
     roleName: account.roleName,
     mustChangePassword: account.mustChangePassword,
+    permissionCodes: account.permissionCodes,
   }
 }

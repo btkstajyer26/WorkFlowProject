@@ -5,7 +5,7 @@ import {
   setApiAccessTokenRefresher,
 } from '../api/client'
 import { ApiClientError } from '../api/errors'
-import type { LoginResponse, UserResponse } from '../api/generated/data-contracts'
+import type { CurrentUserResponse, LoginResponse } from '../api/generated/data-contracts'
 import type { AuthUser } from '../types/auth'
 import { toSystemRoleKey } from '../types/auth'
 
@@ -84,7 +84,7 @@ function applyAuthTokens(response: LoginResponse): TokenSession {
  * kullanıcıların oturum açmasını tamamen engellerdi. Kimlik `roleId` ve
  * `systemKey` ile taşınır, ad yalnız gösterim içindir.
  */
-function normalizeCurrentUser(response: UserResponse, mustChangePassword: boolean): AuthUser {
+function normalizeCurrentUser(response: CurrentUserResponse, mustChangePassword: boolean): AuthUser {
   if (
     !response.id ||
     !response.firstName?.trim() ||
@@ -110,6 +110,7 @@ function normalizeCurrentUser(response: UserResponse, mustChangePassword: boolea
     systemKey: toSystemRoleKey(response.systemKey),
     roleName: response.roleName.trim(),
     mustChangePassword,
+    permissionCodes: Array.isArray(response.permissionCodes) ? response.permissionCodes : [],
   }
 }
 
