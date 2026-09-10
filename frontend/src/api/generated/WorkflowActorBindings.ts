@@ -10,14 +10,15 @@
  * ---------------------------------------------------------------
  */
 
-import {
+import type {
   BindActorRequest,
   BindData,
   ListData,
   UnbindData,
   UnbindParams,
 } from "./data-contracts";
-import { HttpClient, RequestParams } from "./http-client";
+import { HttpClient } from "./http-client";
+import type { RequestParams } from "./http-client";
 
 export class WorkflowActorBindings<SecurityDataType = unknown> {
   http: HttpClient<SecurityDataType>;
