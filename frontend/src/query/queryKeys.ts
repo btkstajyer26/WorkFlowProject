@@ -36,6 +36,10 @@ export const queryKeys = {
       all: ['admin', 'permissions'] as const,
       list: ['admin', 'permissions', 'list'] as const,
     },
+    actorBindings: {
+      all: ['admin', 'actor-bindings'] as const,
+      list: ['admin', 'actor-bindings', 'list'] as const,
+    },
     auditLogs: {
       all: ['admin', 'audit-logs'] as const,
       list: (query: object) => ['admin', 'audit-logs', 'list', query] as const,

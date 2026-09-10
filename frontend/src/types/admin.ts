@@ -72,6 +72,36 @@ export type AdminRolePermissions = {
   permissionCodes: string[]
 }
 
+export type ActorRequirement = 'CREATOR' | 'ASSIGNEE' | 'CREATOR_AND_ASSIGNEE'
+
+/**
+ * AP-8 aktör-rol bağı: sabit bir geçişe (durum + aksiyon + hedef) bağlanmış
+ * bir rol. Grafik topolojisi değişmez; yalnız hangi rolün bu geçişte aktör
+ * olabileceği değişir. `protected` (backend'de `protectedBinding`) sistem
+ * rolüne ait satırları işaretler - bunlar panelden kaldırılamaz.
+ */
+export type AdminActorBinding = {
+  bindingId: number
+  fromStatusId: number
+  fromStatus: string
+  fromStatusDisplayName: string
+  actionId: number
+  action: string
+  actionDisplayName: string
+  toStatusId: number
+  toStatus: string
+  toStatusDisplayName: string
+  actorRoleId: number
+  actorRoleName: string
+  actorRequirement: ActorRequirement
+  targetStrategy: string
+  expectedTargetRoleId: number | null
+  requiredPermissionId: number | null
+  requiredPermissionCode: string | null
+  isActive: boolean
+  isProtected: boolean
+}
+
 export type AdminLogType = 'USER' | 'RECORD'
 
 export type AdminAuditLog = {

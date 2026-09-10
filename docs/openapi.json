@@ -244,6 +244,83 @@
         }
       }
     },
+    "/api/workflow/actor-bindings" : {
+      "get" : {
+        "tags" : [ "Workflow Actor Bindings" ],
+        "summary" : "Aktif ve pasif tüm aktör-rol bağlarını listeler",
+        "operationId" : "list",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/WorkflowActorBindingView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "Workflow Actor Bindings" ],
+        "summary" : "Bir şablon geçişe dinamik bir rolü aktör olarak bağlar",
+        "operationId" : "bind",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/BindActorRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WorkflowActorBindingView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/workflow/actor-bindings/{bindingId}" : {
+      "delete" : {
+        "tags" : [ "Workflow Actor Bindings" ],
+        "summary" : "Bir aktör-rol bağını pasifleştirir",
+        "operationId" : "unbind",
+        "parameters" : [ {
+          "name" : "bindingId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WorkflowActorBindingView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/records/{recordId}/workflow/actions" : {
       "post" : {
         "tags" : [ "workflow-action-controller" ],
@@ -2178,6 +2255,92 @@
             "items" : {
               "type" : "string"
             }
+          }
+        }
+      },
+      "BindActorRequest" : {
+        "type" : "object",
+        "properties" : {
+          "templateTransitionId" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          },
+          "actorRoleId" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          }
+        },
+        "required" : [ "actorRoleId", "templateTransitionId" ]
+      },
+      "WorkflowActorBindingView" : {
+        "type" : "object",
+        "properties" : {
+          "bindingId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "fromStatusId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "fromStatus" : {
+            "type" : "string"
+          },
+          "fromStatusDisplayName" : {
+            "type" : "string"
+          },
+          "actionId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "action" : {
+            "type" : "string"
+          },
+          "actionDisplayName" : {
+            "type" : "string"
+          },
+          "toStatusId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "toStatus" : {
+            "type" : "string"
+          },
+          "toStatusDisplayName" : {
+            "type" : "string"
+          },
+          "actorRoleId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "actorRoleName" : {
+            "type" : "string"
+          },
+          "actorRequirement" : {
+            "type" : "string",
+            "enum" : [ "CREATOR", "ASSIGNEE", "CREATOR_AND_ASSIGNEE" ]
+          },
+          "targetStrategy" : {
+            "type" : "string"
+          },
+          "expectedTargetRoleId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "requiredPermissionId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "requiredPermissionCode" : {
+            "type" : "string"
+          },
+          "active" : {
+            "type" : "boolean"
+          },
+          "protectedBinding" : {
+            "type" : "boolean"
           }
         }
       },

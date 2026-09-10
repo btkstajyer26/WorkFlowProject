@@ -90,6 +90,21 @@ export interface AvailableActionsResponse {
   version?: number;
 }
 
+export interface BindActorRequest {
+  /**
+   * @format int32
+   * @min 0
+   */
+  actorRoleId: number;
+  /**
+   * @format int32
+   * @min 0
+   */
+  templateTransitionId: number;
+}
+
+export type BindData = WorkflowActorBindingView;
+
 export interface CategoryResponse {
   /** @format int32 */
   id?: number;
@@ -320,6 +335,8 @@ export interface ListAuditLogsParams {
   /** @default "USER" */
   type?: string;
 }
+
+export type ListData = WorkflowActorBindingView[];
 
 export type ListFilesData = FileResponseDto[];
 
@@ -643,6 +660,13 @@ export interface TargetDepartmentsResponse {
   departments?: TargetDepartmentView[];
 }
 
+export type UnbindData = WorkflowActorBindingView;
+
+export interface UnbindParams {
+  /** @format int32 */
+  bindingId: number;
+}
+
 export type UpdateRecordData = RecordResponse;
 
 export interface UpdateRecordParams {
@@ -815,4 +839,33 @@ export interface WorkflowActionResponse {
   recordId?: string;
   /** @format int32 */
   version?: number;
+}
+
+export interface WorkflowActorBindingView {
+  action?: string;
+  actionDisplayName?: string;
+  /** @format int32 */
+  actionId?: number;
+  active?: boolean;
+  actorRequirement?: "CREATOR" | "ASSIGNEE" | "CREATOR_AND_ASSIGNEE";
+  /** @format int32 */
+  actorRoleId?: number;
+  actorRoleName?: string;
+  /** @format int32 */
+  bindingId?: number;
+  /** @format int32 */
+  expectedTargetRoleId?: number;
+  fromStatus?: string;
+  fromStatusDisplayName?: string;
+  /** @format int32 */
+  fromStatusId?: number;
+  protectedBinding?: boolean;
+  requiredPermissionCode?: string;
+  /** @format int32 */
+  requiredPermissionId?: number;
+  targetStrategy?: string;
+  toStatus?: string;
+  toStatusDisplayName?: string;
+  /** @format int32 */
+  toStatusId?: number;
 }

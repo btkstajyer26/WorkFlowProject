@@ -33,6 +33,7 @@ const AdminLogsPage = lazy(() => import('./pages/admin/AdminLogsPage').then((mod
 const AdminUsersPage = lazy(() => import('./pages/admin/AdminUsersPage').then((module) => ({ default: module.AdminUsersPage })))
 const RolesPage = lazy(() => import('./pages/admin/RolesPage').then((module) => ({ default: module.RolesPage })))
 const PermissionsPage = lazy(() => import('./pages/admin/PermissionsPage').then((module) => ({ default: module.PermissionsPage })))
+const ActorBindingsPage = lazy(() => import('./pages/admin/ActorBindingsPage').then((module) => ({ default: module.ActorBindingsPage })))
 
 function App() {
   const navigate = useNavigate()
@@ -244,6 +245,7 @@ function AdminApplication({
         <Route path="/admin/kullanicilar" element={<AdminUsersPage />} />
         <Route path="/admin/roller" element={<RolesPage />} />
         <Route path="/admin/yetkiler" element={<PermissionsPage />} />
+        <Route path="/admin/aktor-baglama" element={<ActorBindingsPage />} />
         <Route path="/admin/loglar" element={<AdminLogsPage />} />
         <Route path="/profil" element={<ProfilePage user={user} />} />
         <Route path="/403" element={<ErrorStatePage type="403" />} />

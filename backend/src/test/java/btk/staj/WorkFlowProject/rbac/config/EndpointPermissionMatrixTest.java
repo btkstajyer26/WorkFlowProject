@@ -22,6 +22,9 @@ import btk.staj.WorkFlowProject.user.controller.AdminController;
 import btk.staj.WorkFlowProject.user.dto.*;
 import btk.staj.WorkFlowProject.user.entity.User;
 import btk.staj.WorkFlowProject.user.service.UserService;
+import btk.staj.WorkFlowProject.workflow.controller.WorkflowActorBindingController;
+import btk.staj.WorkFlowProject.workflow.dto.BindActorRequest;
+import btk.staj.WorkFlowProject.workflow.service.WorkflowActorBindingService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -49,11 +52,13 @@ class EndpointPermissionMatrixTest {
     @Configuration
     @EnableMethodSecurity
     @Import({AdminController.class, RoleAdminController.class, PermissionAdminController.class,
-            RecordController.class, FileController.class, UserAuditLogController.class})
+            WorkflowActorBindingController.class, RecordController.class, FileController.class,
+            UserAuditLogController.class})
     static class Config {
         @Bean UserService users() { return mock(UserService.class); }
         @Bean RoleAdminService roleAdmin() { return mock(RoleAdminService.class); }
         @Bean PermissionAdminService permissionAdmin() { return mock(PermissionAdminService.class); }
+        @Bean WorkflowActorBindingService actorBindings() { return mock(WorkflowActorBindingService.class); }
         @Bean RecordService records() { return mock(RecordService.class); }
         @Bean RecordSearchService search() { return mock(RecordSearchService.class); }
         @Bean FileService files() { return mock(FileService.class); }
@@ -66,6 +71,8 @@ class EndpointPermissionMatrixTest {
     @Autowired RoleAdminService roleAdminService;
     @Autowired PermissionAdminController permissionAdmin;
     @Autowired PermissionAdminService permissionAdminService;
+    @Autowired WorkflowActorBindingController actorBindingController;
+    @Autowired WorkflowActorBindingService actorBindingService;
     @Autowired RecordController records;
     @Autowired FileController files;
     @Autowired UserAuditLogController userAudit;
@@ -77,8 +84,8 @@ class EndpointPermissionMatrixTest {
     private static final UUID ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
 
     @BeforeEach void prepare() {
-        reset(userService, roleAdminService, permissionAdminService, recordService, fileService, auditService,
-                userAuditService);
+        reset(userService, roleAdminService, permissionAdminService, actorBindingService, recordService,
+                fileService, auditService, userAuditService);
         when(userService.createUser(any(), any(), any(), any())).thenReturn(new User());
         when(userService.changeRole(any(), any(Integer.class), any())).thenReturn(new User());
         when(userService.setActive(any(), anyBoolean())).thenReturn(new User());
@@ -101,6 +108,8 @@ class EndpointPermissionMatrixTest {
                 new String[]{"role-create", "ROLE_MANAGE"}, new String[]{"role-update", "ROLE_MANAGE"},
                 new String[]{"permission-list", "ROLE_VIEW"}, new String[]{"role-permissions-get", "ROLE_VIEW"},
                 new String[]{"role-permissions-update", "ROLE_MANAGE"},
+                new String[]{"actor-binding-list", "WORKFLOW_VIEW"}, new String[]{"actor-binding-bind", "WORKFLOW_MANAGE"},
+                new String[]{"actor-binding-unbind", "WORKFLOW_MANAGE"},
                 new String[]{"audit-list", "AUDIT_VIEW"}, new String[]{"user-history", "AUDIT_VIEW"})
                 .flatMap(row -> Stream.of(Arguments.of(row[0], row[1], true),
                         Arguments.of(row[0], "", false), Arguments.of(row[0], "ADMIN_PANEL_ACCESS", false)));
@@ -117,13 +126,13 @@ class EndpointPermissionMatrixTest {
         Runnable call = () -> invoke(endpoint, principal);
         if (allowed) {
             assertThatCode(call::run).doesNotThrowAnyException();
-            assertThat(Stream.of(userService, roleAdminService, permissionAdminService, recordService, fileService,
-                            auditService, userAuditService)
+            assertThat(Stream.of(userService, roleAdminService, permissionAdminService, actorBindingService,
+                            recordService, fileService, auditService, userAuditService)
                     .mapToInt(service -> mockingDetails(service).getInvocations().size()).sum()).isPositive();
         } else {
             assertThatThrownBy(call::run).isInstanceOf(AccessDeniedException.class);
-            verifyNoInteractions(userService, roleAdminService, permissionAdminService, recordService, fileService,
-                    auditService, userAuditService);
+            verifyNoInteractions(userService, roleAdminService, permissionAdminService, actorBindingService,
+                    recordService, fileService, auditService, userAuditService);
         }
     }
 
@@ -154,6 +163,14 @@ class EndpointPermissionMatrixTest {
                 request.setPermissionCodes(Set.of());
                 permissionAdmin.updateRolePermissions(1, request);
             }
+            case "actor-binding-list" -> actorBindingController.list();
+            case "actor-binding-bind" -> {
+                BindActorRequest request = new BindActorRequest();
+                request.setTemplateTransitionId(1);
+                request.setActorRoleId(2);
+                actorBindingController.bind(request);
+            }
+            case "actor-binding-unbind" -> actorBindingController.unbind(1);
             case "audit-list" -> admin.listAuditLogs("USER", Pageable.unpaged());
             case "user-history" -> userAudit.getGecmis(ID);
             default -> throw new IllegalArgumentException(endpoint);
