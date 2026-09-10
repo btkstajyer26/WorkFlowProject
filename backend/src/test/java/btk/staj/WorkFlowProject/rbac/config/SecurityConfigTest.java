@@ -91,6 +91,8 @@ class SecurityConfigTest {
     // AssignmentViewResolver / WorkflowQueryService bu depoyu ister (B11, APP-9).
     @MockitoBean private btk.staj.WorkFlowProject.department.repository.DepartmentRepository departmentRepository;
     @MockitoBean private btk.staj.WorkFlowProject.department.repository.DepartmentMemberRepository departmentMemberRepository;
+    @MockitoBean private btk.staj.WorkFlowProject.department.repository.DepartmentRoutingRuleRepository departmentRoutingRuleRepository;
+    @MockitoBean private btk.staj.WorkFlowProject.workflow.repository.WorkflowStatusRepository workflowStatusRepository;
     @MockitoBean private btk.staj.WorkFlowProject.workflow.repository.WorkflowActionRepository workflowActionRepository;
 
     @Test

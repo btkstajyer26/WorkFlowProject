@@ -5,6 +5,7 @@ import btk.staj.WorkFlowProject.auth.exception.InvalidResetTokenException;
 import btk.staj.WorkFlowProject.auth.exception.PasswordReuseException;
 import btk.staj.WorkFlowProject.department.exception.DepartmentInUseException;
 import btk.staj.WorkFlowProject.department.exception.DepartmentNotFoundException;
+import btk.staj.WorkFlowProject.department.exception.DepartmentRoutingRuleNotFoundException;
 import btk.staj.WorkFlowProject.notification.exception.InvalidMailActionTokenException;
 import btk.staj.WorkFlowProject.user.service.AdminLimitExceededException;
 import btk.staj.WorkFlowProject.user.service.RoleNotFoundException;
@@ -85,6 +86,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DepartmentInUseException.class)
     public ResponseEntity<ApiError> handleDepartmentInUse(DepartmentInUseException ex) {
         return build("DEPARTMENT_IN_USE", ex.getMessage(), HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(DepartmentRoutingRuleNotFoundException.class)
+    public ResponseEntity<ApiError> handleDepartmentRoutingRuleNotFound(DepartmentRoutingRuleNotFoundException ex) {
+        return build("DEPARTMENT_ROUTING_RULE_NOT_FOUND", ex.getMessage(), HttpStatus.BAD_REQUEST);
     }
 
     // ---------- Kullanici yonetimi ----------

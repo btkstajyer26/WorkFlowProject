@@ -102,6 +102,25 @@ export type AdminDepartmentMembers = {
   members: ManagedUser[]
 }
 
+/**
+ * AP-5: bir departmanda, belirli bir (durum, aksiyon) için hangi rolün işlem
+ * yapmaya yetkili sayıldığını taşır. `(departmentId, fromStatusId, actionId)`
+ * DB'de tekildir - aynı üçlü için en fazla bir kural olabilir.
+ */
+export type AdminDepartmentRoutingRule = {
+  id: number
+  departmentId: number
+  fromStatusId: number
+  fromStatus: string
+  fromStatusDisplayName: string
+  actionId: number
+  action: string
+  actionDisplayName: string
+  targetRoleId: number
+  targetRoleName: string
+  isActive: boolean
+}
+
 export type ActorRequirement = 'CREATOR' | 'ASSIGNEE' | 'CREATOR_AND_ASSIGNEE'
 
 /**

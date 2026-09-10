@@ -1,6 +1,6 @@
-import { Building2, Plus, UserMinus, UserPlus } from 'lucide-react'
+import { ArrowRight, Building2, Plus, Route, UserMinus, UserPlus } from 'lucide-react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import {
   addDepartmentMember,
@@ -10,7 +10,10 @@ import {
   removeDepartmentMember,
   updateDepartment,
 } from '../../api/departments'
+import { createRoutingRule, listRoutingRules, updateRoutingRule } from '../../api/departmentRoutingRules'
+import { listActorBindings } from '../../api/actorBindings'
 import { listAllAdminUsers } from '../../api/admin'
+import { listRoles } from '../../api/roles'
 import { AdminDialog } from '../../components/admin/AdminDialog'
 import { useToast } from '../../context/toastState'
 import { queryKeys } from '../../query/queryKeys'
@@ -289,6 +292,7 @@ function DepartmentDetail({
       </section>
 
       <DepartmentMembersPanel departmentId={department.id} />
+      <RoutingRulesPanel departmentId={department.id} />
     </div>
   )
 }
@@ -398,6 +402,190 @@ function DepartmentMembersPanel({ departmentId }: { departmentId: number }) {
             >
               <UserPlus className="size-3.5" aria-hidden="true" />
               Ekle
+            </button>
+          </div>
+        </>
+      )}
+    </section>
+  )
+}
+
+/**
+ * AP-5: bu departmanda, belirli bir (durum, aksiyon) için hangi rolün işlem
+ * yapabileceğini yönetir. (durum, aksiyon) çifti rastgele seçilemez - yalnız
+ * gerçek, aktif bir geçişe karşılık gelen çiftler sunulur (mevcut aktör-rol
+ * bağlarından türetilir). Hedef rol seçenekleri dinamik (sistem olmayan)
+ * rollerle sınırlıdır; kapasite sınırlı yerleşik roller (ADMIN/BAŞKAN/BAŞKAN
+ * YRD.) sunucu tarafında zaten reddedilir (ADR-0007).
+ */
+function RoutingRulesPanel({ departmentId }: { departmentId: number }) {
+  const queryClient = useQueryClient()
+  const { showToast } = useToast()
+  const [fromStatusActionKey, setFromStatusActionKey] = useState('')
+  const [newTargetRoleId, setNewTargetRoleId] = useState<number | ''>('')
+
+  const rulesQuery = useQuery({
+    queryKey: queryKeys.admin.departments.routingRules(departmentId),
+    queryFn: () => listRoutingRules(departmentId),
+  })
+  const bindingsQuery = useQuery({
+    queryKey: queryKeys.admin.actorBindings.list,
+    queryFn: listActorBindings,
+  })
+  const rolesQuery = useQuery({
+    queryKey: queryKeys.admin.roles.list(false),
+    queryFn: () => listRoles(false),
+  })
+
+  const transitionOptions = useMemo(() => {
+    const byKey = new Map<string, { fromStatusId: number, fromStatusDisplayName: string, actionId: number, actionDisplayName: string }>()
+    for (const binding of bindingsQuery.data ?? []) {
+      const key = `${binding.fromStatusId}:${binding.actionId}`
+      if (!byKey.has(key)) {
+        byKey.set(key, {
+          fromStatusId: binding.fromStatusId,
+          fromStatusDisplayName: binding.fromStatusDisplayName,
+          actionId: binding.actionId,
+          actionDisplayName: binding.actionDisplayName,
+        })
+      }
+    }
+    return Array.from(byKey.entries())
+  }, [bindingsQuery.data])
+
+  const eligibleRoles = useMemo(
+    () => (rolesQuery.data ?? []).filter((role) => !role.isSystem && role.isWorkflowActor),
+    [rolesQuery.data],
+  )
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: queryKeys.admin.departments.routingRules(departmentId) })
+
+  const createMutation = useMutation({
+    mutationFn: (input: { fromStatusId: number, actionId: number, targetRoleId: number }) => createRoutingRule(departmentId, input),
+    onSuccess: async () => {
+      await invalidate()
+      showToast({ title: 'Routing kuralı oluşturuldu', tone: 'success' })
+    },
+    onError: (error) => {
+      showToast({
+        title: 'Routing kuralı oluşturulamadı',
+        description: error instanceof ApiClientError ? error.message : 'Beklenmeyen bir hata oluştu.',
+        tone: 'error',
+      })
+    },
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: ({ ruleId, input }: { ruleId: number, input: { targetRoleId?: number, active?: boolean } }) =>
+      updateRoutingRule(departmentId, ruleId, input),
+    onSuccess: async () => {
+      await invalidate()
+      showToast({ title: 'Routing kuralı güncellendi', tone: 'success' })
+    },
+    onError: (error) => {
+      showToast({
+        title: 'Routing kuralı güncellenemedi',
+        description: error instanceof ApiClientError ? error.message : 'Beklenmeyen bir hata oluştu.',
+        tone: 'error',
+      })
+    },
+  })
+
+  const isPending = rulesQuery.isPending || bindingsQuery.isPending || rolesQuery.isPending
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-app-border bg-app-surface shadow-sm">
+      <div className="border-b border-app-border-subtle px-4 py-3 text-xs font-semibold text-app-text-subtle sm:px-6">
+        Routing kuralları
+      </div>
+      {isPending ? (
+        <ListLoadingSkeleton label="Routing kuralları yükleniyor" rows={3} />
+      ) : (
+        <>
+          <ul className="divide-y divide-app-border-subtle">
+            {(rulesQuery.data ?? []).map((rule) => (
+              <li key={rule.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
+                <span className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
+                  <span className="rounded-full bg-app-surface-muted px-2.5 py-1 text-xs font-bold text-app-text">
+                    {rule.fromStatusDisplayName}
+                  </span>
+                  <ArrowRight className="size-3.5 text-app-text-disabled" aria-hidden="true" />
+                  <span className="text-xs font-semibold text-brand-700 dark:text-brand-300">{rule.actionDisplayName}</span>
+                  <span className="text-xs text-app-text-subtle">→</span>
+                  <select
+                    value={rule.targetRoleId}
+                    disabled={updateMutation.isPending}
+                    onChange={(event) => updateMutation.mutate({ ruleId: rule.id, input: { targetRoleId: Number(event.target.value) } })}
+                    className="min-h-8 rounded-lg border border-app-border bg-app-surface px-2 text-xs text-app-text outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100 dark:focus:ring-brand-800/60"
+                  >
+                    <option value={rule.targetRoleId}>{rule.targetRoleName}</option>
+                    {eligibleRoles.filter((role) => role.id !== rule.targetRoleId).map((role) => (
+                      <option key={role.id} value={role.id}>{role.name}</option>
+                    ))}
+                  </select>
+                </span>
+                <button
+                  type="button"
+                  disabled={updateMutation.isPending}
+                  onClick={() => updateMutation.mutate({ ruleId: rule.id, input: { active: !rule.isActive } })}
+                  className={`min-h-8 shrink-0 rounded-lg px-3 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-45 ${rule.isActive
+                    ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/60'
+                    : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60'}`}
+                >
+                  {rule.isActive ? 'Pasifleştir' : 'Etkinleştir'}
+                </button>
+              </li>
+            ))}
+            {(rulesQuery.data ?? []).length === 0 ? (
+              <li className="px-4 py-6 text-center text-sm text-app-text-subtle sm:px-6">
+                Bu departman için henüz routing kuralı yok.
+              </li>
+            ) : null}
+          </ul>
+
+          <div className="flex flex-wrap items-center gap-2 border-t border-app-border-subtle px-4 py-3 sm:px-6">
+            <select
+              value={fromStatusActionKey}
+              onChange={(event) => setFromStatusActionKey(event.target.value)}
+              className="min-h-9 rounded-lg border border-app-border bg-app-surface px-2 text-xs text-app-text outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100 dark:focus:ring-brand-800/60"
+              aria-label="Durum ve aksiyon seçin"
+            >
+              <option value="">Durum + aksiyon seçin…</option>
+              {transitionOptions.map(([key, option]) => (
+                <option key={key} value={key}>
+                  {option.fromStatusDisplayName} → {option.actionDisplayName}
+                </option>
+              ))}
+            </select>
+            <select
+              value={newTargetRoleId}
+              onChange={(event) => setNewTargetRoleId(event.target.value ? Number(event.target.value) : '')}
+              className="min-h-9 rounded-lg border border-app-border bg-app-surface px-2 text-xs text-app-text outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100 dark:focus:ring-brand-800/60"
+              aria-label="Hedef rol seçin"
+            >
+              <option value="">Hedef rol seçin…</option>
+              {eligibleRoles.map((role) => (
+                <option key={role.id} value={role.id}>{role.name}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              disabled={!fromStatusActionKey || newTargetRoleId === '' || createMutation.isPending}
+              onClick={() => {
+                const option = transitionOptions.find(([key]) => key === fromStatusActionKey)?.[1]
+                if (!option || newTargetRoleId === '') return
+                createMutation.mutate({
+                  fromStatusId: option.fromStatusId,
+                  actionId: option.actionId,
+                  targetRoleId: newTargetRoleId,
+                })
+                setFromStatusActionKey('')
+                setNewTargetRoleId('')
+              }}
+              className="flex min-h-9 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-bold text-white transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              <Route className="size-3.5" aria-hidden="true" />
+              Kural ekle
             </button>
           </div>
         </>

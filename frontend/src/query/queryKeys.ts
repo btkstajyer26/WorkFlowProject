@@ -44,6 +44,7 @@ export const queryKeys = {
       all: ['admin', 'departments'] as const,
       list: (includeInactive: boolean) => ['admin', 'departments', 'list', includeInactive] as const,
       members: (departmentId: number) => ['admin', 'departments', departmentId, 'members'] as const,
+      routingRules: (departmentId: number) => ['admin', 'departments', departmentId, 'routing-rules'] as const,
     },
     auditLogs: {
       all: ['admin', 'audit-logs'] as const,

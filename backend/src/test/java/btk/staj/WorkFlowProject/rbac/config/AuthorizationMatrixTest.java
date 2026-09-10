@@ -101,6 +101,9 @@ class AuthorizationMatrixTest {
     @MockitoBean private btk.staj.WorkFlowProject.department.repository.DepartmentRepository departmentRepository;
     // AP-4 DepartmentAdminService bagimliligi.
     @MockitoBean private btk.staj.WorkFlowProject.department.repository.DepartmentMemberRepository departmentMemberRepository;
+    // AP-5 DepartmentRoutingRuleAdminService bagimliligi.
+    @MockitoBean private btk.staj.WorkFlowProject.department.repository.DepartmentRoutingRuleRepository departmentRoutingRuleRepository;
+    @MockitoBean private btk.staj.WorkFlowProject.workflow.repository.WorkflowStatusRepository workflowStatusRepository;
     @MockitoBean private btk.staj.WorkFlowProject.workflow.repository.WorkflowActionRepository workflowActionRepository;
 
     private static final String RECORD_JSON = """

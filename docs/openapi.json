@@ -1319,6 +1319,116 @@
         }
       }
     },
+    "/api/admin/departments/{departmentId}/routing-rules" : {
+      "get" : {
+        "tags" : [ "department-routing-rule-controller" ],
+        "operationId" : "listRules",
+        "parameters" : [ {
+          "name" : "departmentId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/DepartmentRoutingRuleResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "department-routing-rule-controller" ],
+        "operationId" : "createRule",
+        "parameters" : [ {
+          "name" : "departmentId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateDepartmentRoutingRuleRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DepartmentRoutingRuleResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/departments/{departmentId}/routing-rules/{ruleId}" : {
+      "patch" : {
+        "tags" : [ "department-routing-rule-controller" ],
+        "operationId" : "updateRule",
+        "parameters" : [ {
+          "name" : "departmentId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "ruleId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateDepartmentRoutingRuleRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DepartmentRoutingRuleResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/admin/roles" : {
       "get" : {
         "tags" : [ "role-admin-controller" ],
@@ -2438,6 +2548,83 @@
             "items" : {
               "$ref" : "#/components/schemas/UserResponse"
             }
+          }
+        }
+      },
+      "CreateDepartmentRoutingRuleRequest" : {
+        "type" : "object",
+        "properties" : {
+          "fromStatusId" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          },
+          "actionId" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          },
+          "targetRoleId" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          }
+        },
+        "required" : [ "actionId", "fromStatusId", "targetRoleId" ]
+      },
+      "UpdateDepartmentRoutingRuleRequest" : {
+        "type" : "object",
+        "properties" : {
+          "targetRoleId" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          },
+          "active" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "DepartmentRoutingRuleResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "departmentId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "fromStatusId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "fromStatus" : {
+            "type" : "string"
+          },
+          "fromStatusDisplayName" : {
+            "type" : "string"
+          },
+          "actionId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "action" : {
+            "type" : "string"
+          },
+          "actionDisplayName" : {
+            "type" : "string"
+          },
+          "targetRoleId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "targetRoleName" : {
+            "type" : "string"
+          },
+          "active" : {
+            "type" : "boolean"
           }
         }
       },

@@ -176,6 +176,24 @@ export interface CreateDepartmentRequest {
   parentDepartmentId?: number;
 }
 
+export interface CreateDepartmentRoutingRuleRequest {
+  /**
+   * @format int32
+   * @min 0
+   */
+  actionId: number;
+  /**
+   * @format int32
+   * @min 0
+   */
+  fromStatusId: number;
+  /**
+   * @format int32
+   * @min 0
+   */
+  targetRoleId: number;
+}
+
 export type CreateRecordData = RecordResponse;
 
 export type CreateRoleData = RoleResponse;
@@ -192,6 +210,13 @@ export interface CreateRoleRequest {
    */
   name: string;
   workflowActor?: boolean;
+}
+
+export type CreateRuleData = DepartmentRoutingRuleResponse;
+
+export interface CreateRuleParams {
+  /** @format int32 */
+  departmentId: number;
 }
 
 export type CreateUserData = UserResponse;
@@ -258,6 +283,25 @@ export interface DepartmentResponse {
   name?: string;
   /** @format int32 */
   parentDepartmentId?: number;
+}
+
+export interface DepartmentRoutingRuleResponse {
+  action?: string;
+  actionDisplayName?: string;
+  /** @format int32 */
+  actionId?: number;
+  active?: boolean;
+  /** @format int32 */
+  departmentId?: number;
+  fromStatus?: string;
+  fromStatusDisplayName?: string;
+  /** @format int32 */
+  fromStatusId?: number;
+  /** @format int32 */
+  id?: number;
+  /** @format int32 */
+  targetRoleId?: number;
+  targetRoleName?: string;
 }
 
 export interface DeviceTokenDeleteRequest {
@@ -406,6 +450,13 @@ export type ListRolesData = RoleResponse[];
 export interface ListRolesParams {
   /** @default false */
   includeInactive?: boolean;
+}
+
+export type ListRulesData = DepartmentRoutingRuleResponse[];
+
+export interface ListRulesParams {
+  /** @format int32 */
+  departmentId: number;
 }
 
 export type ListUsersData = PagedResponseUserResponse;
@@ -749,6 +800,15 @@ export interface UpdateDepartmentRequest {
   parentDepartmentId?: number;
 }
 
+export interface UpdateDepartmentRoutingRuleRequest {
+  active?: boolean;
+  /**
+   * @format int32
+   * @min 0
+   */
+  targetRoleId?: number;
+}
+
 export type UpdateRecordData = RecordResponse;
 
 export interface UpdateRecordParams {
@@ -788,6 +848,15 @@ export interface UpdateRoleRequest {
    */
   name?: string;
   workflowActor?: boolean;
+}
+
+export type UpdateRuleData = DepartmentRoutingRuleResponse;
+
+export interface UpdateRuleParams {
+  /** @format int32 */
+  departmentId: number;
+  /** @format int32 */
+  ruleId: number;
 }
 
 export type UploadFilesData = FileResponseDto[];

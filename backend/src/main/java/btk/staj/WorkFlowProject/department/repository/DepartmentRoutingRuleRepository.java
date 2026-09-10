@@ -14,4 +14,10 @@ public interface DepartmentRoutingRuleRepository extends JpaRepository<Departmen
             Integer departmentId, Integer fromStatusId, Integer actionId);
 
     List<DepartmentRoutingRuleEntity> findAllByDepartmentIdOrderByIdAsc(Integer departmentId);
+
+    // uq_routing_dept_status_action ile birebir eslesir (V20): uclu (departman,
+    // durum, aksiyon) tekildir - aktiflikten bagimsiz. AP-5 yazicisi DB
+    // kisitina carpip genel "CONFLICT" mesaji almak yerine burada acik bir
+    // hata verir.
+    boolean existsByDepartmentIdAndFromStatusIdAndActionId(Integer departmentId, Integer fromStatusId, Integer actionId);
 }

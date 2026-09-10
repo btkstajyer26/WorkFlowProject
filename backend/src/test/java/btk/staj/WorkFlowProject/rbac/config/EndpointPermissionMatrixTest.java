@@ -7,10 +7,14 @@ import btk.staj.WorkFlowProject.audit.service.AuditLogService;
 import btk.staj.WorkFlowProject.audit.service.UserAuditLogService;
 import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
 import btk.staj.WorkFlowProject.department.controller.DepartmentAdminController;
+import btk.staj.WorkFlowProject.department.controller.DepartmentRoutingRuleController;
 import btk.staj.WorkFlowProject.department.dto.AddDepartmentMemberRequest;
 import btk.staj.WorkFlowProject.department.dto.CreateDepartmentRequest;
+import btk.staj.WorkFlowProject.department.dto.CreateDepartmentRoutingRuleRequest;
 import btk.staj.WorkFlowProject.department.dto.UpdateDepartmentRequest;
+import btk.staj.WorkFlowProject.department.dto.UpdateDepartmentRoutingRuleRequest;
 import btk.staj.WorkFlowProject.department.service.DepartmentAdminService;
+import btk.staj.WorkFlowProject.department.service.DepartmentRoutingRuleAdminService;
 import btk.staj.WorkFlowProject.rbac.Role;
 import btk.staj.WorkFlowProject.rbac.controller.PermissionAdminController;
 import btk.staj.WorkFlowProject.rbac.controller.RoleAdminController;
@@ -57,7 +61,8 @@ class EndpointPermissionMatrixTest {
     @Configuration
     @EnableMethodSecurity
     @Import({AdminController.class, RoleAdminController.class, PermissionAdminController.class,
-            WorkflowActorBindingController.class, DepartmentAdminController.class, RecordController.class,
+            WorkflowActorBindingController.class, DepartmentAdminController.class,
+            DepartmentRoutingRuleController.class, RecordController.class,
             FileController.class, UserAuditLogController.class})
     static class Config {
         @Bean UserService users() { return mock(UserService.class); }
@@ -65,6 +70,7 @@ class EndpointPermissionMatrixTest {
         @Bean PermissionAdminService permissionAdmin() { return mock(PermissionAdminService.class); }
         @Bean WorkflowActorBindingService actorBindings() { return mock(WorkflowActorBindingService.class); }
         @Bean DepartmentAdminService departmentAdmin() { return mock(DepartmentAdminService.class); }
+        @Bean DepartmentRoutingRuleAdminService departmentRoutingRuleAdmin() { return mock(DepartmentRoutingRuleAdminService.class); }
         @Bean RecordService records() { return mock(RecordService.class); }
         @Bean RecordSearchService search() { return mock(RecordSearchService.class); }
         @Bean FileService files() { return mock(FileService.class); }
@@ -81,6 +87,8 @@ class EndpointPermissionMatrixTest {
     @Autowired WorkflowActorBindingService actorBindingService;
     @Autowired DepartmentAdminController departmentAdmin;
     @Autowired DepartmentAdminService departmentAdminService;
+    @Autowired DepartmentRoutingRuleController routingRuleAdmin;
+    @Autowired DepartmentRoutingRuleAdminService routingRuleAdminService;
     @Autowired RecordController records;
     @Autowired FileController files;
     @Autowired UserAuditLogController userAudit;
@@ -93,7 +101,7 @@ class EndpointPermissionMatrixTest {
 
     @BeforeEach void prepare() {
         reset(userService, roleAdminService, permissionAdminService, actorBindingService, departmentAdminService,
-                recordService, fileService, auditService, userAuditService);
+                routingRuleAdminService, recordService, fileService, auditService, userAuditService);
         when(userService.createUser(any(), any(), any(), any())).thenReturn(new User());
         when(userService.changeRole(any(), any(Integer.class), any())).thenReturn(new User());
         when(userService.setActive(any(), anyBoolean())).thenReturn(new User());
@@ -121,6 +129,8 @@ class EndpointPermissionMatrixTest {
                 new String[]{"department-list", "DEPARTMENT_VIEW"}, new String[]{"department-create", "DEPARTMENT_MANAGE"},
                 new String[]{"department-update", "DEPARTMENT_MANAGE"}, new String[]{"department-members-list", "DEPARTMENT_VIEW"},
                 new String[]{"department-member-add", "DEPARTMENT_MANAGE"}, new String[]{"department-member-remove", "DEPARTMENT_MANAGE"},
+                new String[]{"routing-rule-list", "DEPARTMENT_VIEW"}, new String[]{"routing-rule-create", "DEPARTMENT_MANAGE"},
+                new String[]{"routing-rule-update", "DEPARTMENT_MANAGE"},
                 new String[]{"audit-list", "AUDIT_VIEW"}, new String[]{"user-history", "AUDIT_VIEW"})
                 .flatMap(row -> Stream.of(Arguments.of(row[0], row[1], true),
                         Arguments.of(row[0], "", false), Arguments.of(row[0], "ADMIN_PANEL_ACCESS", false)));
@@ -138,12 +148,14 @@ class EndpointPermissionMatrixTest {
         if (allowed) {
             assertThatCode(call::run).doesNotThrowAnyException();
             assertThat(Stream.of(userService, roleAdminService, permissionAdminService, actorBindingService,
-                            departmentAdminService, recordService, fileService, auditService, userAuditService)
+                            departmentAdminService, routingRuleAdminService, recordService, fileService, auditService,
+                            userAuditService)
                     .mapToInt(service -> mockingDetails(service).getInvocations().size()).sum()).isPositive();
         } else {
             assertThatThrownBy(call::run).isInstanceOf(AccessDeniedException.class);
             verifyNoInteractions(userService, roleAdminService, permissionAdminService, actorBindingService,
-                    departmentAdminService, recordService, fileService, auditService, userAuditService);
+                    departmentAdminService, routingRuleAdminService, recordService, fileService, auditService,
+                    userAuditService);
         }
     }
 
@@ -196,6 +208,15 @@ class EndpointPermissionMatrixTest {
                 departmentAdmin.addMember(1, request);
             }
             case "department-member-remove" -> departmentAdmin.removeMember(1, ID);
+            case "routing-rule-list" -> routingRuleAdmin.listRules(1);
+            case "routing-rule-create" -> {
+                CreateDepartmentRoutingRuleRequest request = new CreateDepartmentRoutingRuleRequest();
+                request.setFromStatusId(1);
+                request.setActionId(1);
+                request.setTargetRoleId(1);
+                routingRuleAdmin.createRule(1, request);
+            }
+            case "routing-rule-update" -> routingRuleAdmin.updateRule(1, 1, new UpdateDepartmentRoutingRuleRequest());
             case "audit-list" -> admin.listAuditLogs("USER", Pageable.unpaged());
             case "user-history" -> userAudit.getGecmis(ID);
             default -> throw new IllegalArgumentException(endpoint);
