@@ -15,6 +15,7 @@ import { CategoryProvider } from './context/CategoryContext'
 import type { AuthUser } from './types/auth'
 import { AppQueryProvider } from './query/queryClient'
 import { useUnreadNotificationCount } from './hooks/useNotificationCenter'
+import { useRealtimeNotifications } from './hooks/useRealtimeNotifications'
 import { RoutePageSkeleton } from './components/feedback/LoadingSkeleton'
 
 const DashboardPage = lazy(() => import('./pages/DashboardPage').then((module) => ({ default: module.DashboardPage })))
@@ -155,6 +156,7 @@ function ProtectedApplication({
   onLogout: () => void
 }) {
   const location = useLocation()
+  useRealtimeNotifications(Boolean(user) && !user?.mustChangePassword)
 
   if (!user) {
     const returnTo = `${location.pathname}${location.search}${location.hash}`

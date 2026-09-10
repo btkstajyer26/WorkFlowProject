@@ -1,11 +1,14 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup } from '@testing-library/react'
-import { afterAll, afterEach, beforeAll } from 'vitest'
+import { afterAll, afterEach, beforeAll, vi } from 'vitest'
 import { clearAuthSession } from '../auth/authSession'
 import { resetMockAuthState } from '../mocks/api/auth'
 import { resetMockApiDb } from '../mocks/api/db'
 import { apiMockServer } from '../mocks/api/server'
 import { resetMockAdminRoles, resetMockManagedUsers } from '../mocks/admin'
+
+// UI testleri gerçek WebSocket açmaz; realtime hook testleri callbackleri sürer.
+vi.mock('@stomp/stompjs')
 
 beforeAll(() => {
   apiMockServer.listen({ onUnhandledRequest: 'error' })
