@@ -53,6 +53,25 @@ export type UpdateAdminRoleInput = {
   active?: boolean
 }
 
+/**
+ * AP-3 kapalı capability katalogu. Admin yeni kod üretemez; bu tip yalnız
+ * backend'in Flyway seed'iyle gelen kodları taşır.
+ */
+export type AdminPermission = {
+  id: number
+  code: string
+  displayName: string
+  description: string | null
+  isActive: boolean
+}
+
+/** Bir rolün o an taşıdığı permission kodları (matrisin tek satırı). */
+export type AdminRolePermissions = {
+  roleId: number
+  roleName: string
+  permissionCodes: string[]
+}
+
 export type AdminLogType = 'USER' | 'RECORD'
 
 export type AdminAuditLog = {

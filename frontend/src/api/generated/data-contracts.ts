@@ -174,6 +174,23 @@ export interface CreateUserRequest {
   password: string;
 }
 
+export interface CurrentUserResponse {
+  active?: boolean;
+  /** @format date-time */
+  createdAt?: string;
+  email?: string;
+  firstName?: string;
+  /** @format uuid */
+  id?: string;
+  lastName?: string;
+  /** @uniqueItems true */
+  permissionCodes?: string[];
+  /** @format int32 */
+  roleId?: number;
+  roleName?: string;
+  systemKey?: string;
+}
+
 export type DeleteFileData = any;
 
 export interface DeleteFileParams {
@@ -287,6 +304,13 @@ export interface GetRecordByIdParams {
   id: string;
 }
 
+export type GetRolePermissionsData = RolePermissionsResponse;
+
+export interface GetRolePermissionsParams {
+  /** @format int32 */
+  id: number;
+}
+
 export type GetUnreadData = NotificationResponse[];
 
 export type ListAuditLogsData = PagedResponseObject;
@@ -303,6 +327,8 @@ export interface ListFilesParams {
   /** @format uuid */
   id: string;
 }
+
+export type ListPermissionsData = PermissionResponse[];
 
 export type ListRolesData = RoleResponse[];
 
@@ -367,7 +393,7 @@ export interface MarkAsReadParams {
   id: string;
 }
 
-export type MeData = UserResponse;
+export type MeData = CurrentUserResponse;
 
 export interface NotificationResponse {
   /** @format date-time */
@@ -453,6 +479,15 @@ export type PerformActionData = WorkflowActionResponse;
 export interface PerformActionParams {
   /** @format uuid */
   recordId: string;
+}
+
+export interface PermissionResponse {
+  active?: boolean;
+  code?: string;
+  description?: string;
+  displayName?: string;
+  /** @format int32 */
+  id?: number;
 }
 
 export type PreviewData = MailActionPreview;
@@ -560,6 +595,13 @@ export interface ResetPasswordRequest {
   token: string;
 }
 
+export interface RolePermissionsResponse {
+  permissionCodes?: string[];
+  /** @format int32 */
+  roleId?: number;
+  roleName?: string;
+}
+
 export interface RoleResponse {
   active?: boolean;
   description?: string;
@@ -613,6 +655,18 @@ export type UpdateRoleData = RoleResponse;
 export interface UpdateRoleParams {
   /** @format int32 */
   id: number;
+}
+
+export type UpdateRolePermissionsData = RolePermissionsResponse;
+
+export interface UpdateRolePermissionsParams {
+  /** @format int32 */
+  id: number;
+}
+
+export interface UpdateRolePermissionsRequest {
+  /** @uniqueItems true */
+  permissionCodes: string[];
 }
 
 export interface UpdateRoleRequest {

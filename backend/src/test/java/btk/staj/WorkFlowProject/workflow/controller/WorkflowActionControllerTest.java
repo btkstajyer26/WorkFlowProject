@@ -99,6 +99,7 @@ class WorkflowActionControllerTest {
     // This context excludes JPA and exercises action HTTP behavior, not WF-8 management writes.
     @MockitoBean private btk.staj.WorkFlowProject.workflow.service.WorkflowActorBindingService workflowActorBindingService;
     @MockitoBean private btk.staj.WorkFlowProject.rbac.repository.RolePermissionRepository rolePermissionRepository;
+    @MockitoBean private btk.staj.WorkFlowProject.rbac.repository.PermissionRepository permissionRepository;
 
     @TestConfiguration
     static class NoOpTransactionConfig {

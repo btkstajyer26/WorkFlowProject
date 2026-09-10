@@ -1145,6 +1145,89 @@
         }
       }
     },
+    "/api/admin/permissions" : {
+      "get" : {
+        "tags" : [ "permission-admin-controller" ],
+        "operationId" : "listPermissions",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/PermissionResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/roles/{id}/permissions" : {
+      "get" : {
+        "tags" : [ "permission-admin-controller" ],
+        "operationId" : "getRolePermissions",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RolePermissionsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put" : {
+        "tags" : [ "permission-admin-controller" ],
+        "operationId" : "updateRolePermissions",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateRolePermissionsRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RolePermissionsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/admin/audit-logs" : {
       "get" : {
         "tags" : [ "admin-controller" ],
@@ -2043,6 +2126,58 @@
           },
           "active" : {
             "type" : "boolean"
+          }
+        }
+      },
+      "UpdateRolePermissionsRequest" : {
+        "type" : "object",
+        "properties" : {
+          "permissionCodes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            },
+            "uniqueItems" : true
+          }
+        },
+        "required" : [ "permissionCodes" ]
+      },
+      "PermissionResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "code" : {
+            "type" : "string"
+          },
+          "displayName" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "active" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "RolePermissionsResponse" : {
+        "type" : "object",
+        "properties" : {
+          "roleId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "roleName" : {
+            "type" : "string"
+          },
+          "permissionCodes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
           }
         }
       },

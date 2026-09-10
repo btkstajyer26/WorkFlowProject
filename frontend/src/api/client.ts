@@ -6,6 +6,7 @@ import { CategoryController } from './generated/CategoryController'
 import { FileController } from './generated/FileController'
 import { HttpClient } from './generated/http-client'
 import { NotificationController } from './generated/NotificationController'
+import { PermissionAdminController } from './generated/PermissionAdminController'
 import { RecordController } from './generated/RecordController'
 import { RoleAdminController } from './generated/RoleAdminController'
 import { UserController } from './generated/UserController'
@@ -72,6 +73,8 @@ export const api = {
   categories: new CategoryController(apiHttpClient),
   files: new FileController(apiHttpClient),
   notifications: new NotificationController(apiHttpClient),
+  // AP-3 rol <-> permission matrisi.
+  permissions: new PermissionAdminController(apiHttpClient),
   records: new RecordController(apiHttpClient),
   roles: new RoleAdminController(apiHttpClient),
   users: new UserController(apiHttpClient),

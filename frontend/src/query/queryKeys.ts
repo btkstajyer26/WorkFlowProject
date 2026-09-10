@@ -30,6 +30,11 @@ export const queryKeys = {
     roles: {
       all: ['admin', 'roles'] as const,
       list: (includeInactive: boolean) => ['admin', 'roles', 'list', includeInactive] as const,
+      permissions: (roleId: number) => ['admin', 'roles', roleId, 'permissions'] as const,
+    },
+    permissions: {
+      all: ['admin', 'permissions'] as const,
+      list: ['admin', 'permissions', 'list'] as const,
     },
     auditLogs: {
       all: ['admin', 'audit-logs'] as const,
