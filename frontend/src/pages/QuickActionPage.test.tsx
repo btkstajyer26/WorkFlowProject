@@ -25,11 +25,12 @@ function setHash(hash: string) {
   window.history.replaceState(null, '', `/hizli-islem${hash}`)
 }
 
-function renderPage() {
+function renderPage(reactStrictMode = false) {
   return render(
     <MemoryRouter initialEntries={['/hizli-islem']}>
       <QuickActionPage />
     </MemoryRouter>,
+    { reactStrictMode },
   )
 }
 
@@ -69,6 +70,18 @@ describe('QuickActionPage', () => {
     await screen.findByRole('heading', { name: 'İşlemi onaylayın' })
     expect(window.location.hash).toBe('')
     expect(window.location.href).not.toContain('ham-anahtar')
+  })
+
+  it('StrictMode effect tekrarında temizlenen fragment yerine bellekteki anahtarı kullanır', async () => {
+    apiMockServer.use(
+      http.post(`${apiBaseUrl}/api/public/mail-actions/preview`, () => HttpResponse.json(preview())),
+    )
+
+    renderPage(true)
+
+    expect(await screen.findByRole('heading', { name: 'İşlemi onaylayın' })).toBeInTheDocument()
+    expect(window.location.hash).toBe('')
+    expect(screen.queryByText('Bağlantı eksik veya bozuk görünüyor.')).not.toBeInTheDocument()
   })
 
   it('onaylandığında anahtarı gövdede gönderir ve sonucu gösterir', async () => {

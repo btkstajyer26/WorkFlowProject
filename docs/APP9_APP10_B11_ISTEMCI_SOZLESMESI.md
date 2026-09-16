@@ -10,10 +10,10 @@ Bu belge üç kulvarı aynı anda açan tek sözleşmedir. Üçü de aynı ilkey
 > **Workflow yetkisi tek bir yerde hesaplanır.** İstemci, bildirim kanalı ve
 > görünürlük sorgusu bu hesabı tüketir; hiçbiri kendi kuralını kurmaz.
 
-Bugün bu ilke üç yerde birden çiğneniyor: web paneli düğmeleri `systemKey`
-sabitlerine bakıyor (`B10`), mobil kendi `getAvailableActions()` fonksiyonunu
-yazmış (`B09`), bildirim dinleyicisi departman kolunda boş küme dönüyor (`NT-5`).
-Sözleşme bu üçünü tek kaynağa bağlar.
+İlk incelemede bu ilke üç yerde birden çiğneniyordu. Mobil artık backend
+`available-actions`/`target-departments` yanıtını tüketir (`B09`/`MOB-1` kapalı),
+bildirim dinleyicisi ortak routing/eligibility üzerinden departman fan-out'u
+yapar (`NT-5` kapalı). Web panelinin `systemKey` sabitleri ise açık `B10` işidir.
 
 ## İçindekiler
 
@@ -255,12 +255,12 @@ Bağlayıcı invariant:
 | Kol | Koşul | Alıcı kümesi |
 |---|---|---|
 | **Kişi** | `assignedTo != null` | Yalnız o kullanıcı |
-| **Departman** | `assignedDepartmentId != null` | `DepartmentRoutingPort.resolve(departmentId, newStatus, …)` sonucundaki `Resolved.eligibleUserIds()` — yani routing kuralının işaret ettiği roldeki, `RECORD_VIEW` ve ilgili geçiş permission'ını taşıyan aktif üyeler |
+| **Departman** | `assignedDepartmentId != null` | `DepartmentRoutingResolver.eligibleAssignees(departmentId, newStatus, snapshot)` sonucu — yani routing kuralının işaret ettiği roldeki, `RECORD_VIEW` ve ilgili geçiş permission'ını taşıyan aktif üyeler |
 | **Terminal** | ikisi de `null` | Kaydı oluşturan + son ileten aktör (`last_deputy_id`) |
 
-Departman kolu bugün bilinçli olarak boş küme dönüyor; `NT-5` bu satırı yukarıdaki
-kümeyle değiştirir. Hesap **yeni bir çözümleyici yazmaz**: `DepartmentRoutingAdapter`
-ve `DepartmentVisibilityAdapter` ile aynı port ve aynı koşulları kullanır.
+Departman kolu `NT-5` ile yukarıdaki kümeyi kullanır. Hesap bağımsız bir yetki
+kuralı kurmaz; `DepartmentRoutingResolver`, mevcut adapterlar ve aynı transition
+snapshot'ı üzerinden çözülür.
 
 ### Bağlayıcı kurallar
 
@@ -302,6 +302,8 @@ ve `DepartmentVisibilityAdapter` ile aynı port ve aynı koşulları kullanır.
 
 **Mobil (`B09` / `MOB-1` — Bahadır)**
 
+Durum: **PASS**.
+
 - `roleName` Zod enum'u kaldırılır; profil şeması `roleId` + `systemKey` +
   gösterim adı modeline geçer. `systemKey` nullable'dır.
 - `RecordWorkflowActions` içindeki istemci tarafı `getAvailableActions()`
@@ -311,6 +313,8 @@ ve `DepartmentVisibilityAdapter` ile aynı port ve aynı koşulları kullanır.
   sonrası profil, liste, detay ve yetkili işlem çalışır.
 
 **Bildirim (`NT-5` — Bahadır)**
+
+Durum: **PASS**.
 
 - Departman kolu §5'teki kümeyi kullanır; dedupe ve kanal testleri eklenir.
 - Yetkisiz departman üyesinin bildirim **almadığı** negatif testle gösterilir.

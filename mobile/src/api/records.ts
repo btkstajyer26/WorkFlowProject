@@ -11,7 +11,16 @@ export const recordStatusSchema = z.enum([
   'REDDEDILDI',
 ]);
 
+export const recordAssignmentSchema = z.object({
+  departmentId: z.number().int().nullish(),
+  departmentName: z.string().nullish(),
+  kind: z.enum(['USER', 'DEPARTMENT', 'NONE']),
+  userFullName: z.string().nullish(),
+  userId: z.string().uuid().nullish(),
+});
+
 const recordDetailSchema = z.object({
+  assignment: recordAssignmentSchema.nullish(),
   categoryId: z.number().int(),
   createdAt: z.string(),
   createdBy: z.string().uuid(),
@@ -20,6 +29,7 @@ const recordDetailSchema = z.object({
   id: z.string().uuid(),
   status: recordStatusSchema,
   title: z.string(),
+  version: z.number().int(),
 });
 
 const recordListItemSchema = recordDetailSchema.extend({
@@ -36,6 +46,7 @@ const recordPageSchema = z.object({
 });
 
 export type RecordStatus = z.infer<typeof recordStatusSchema>;
+export type RecordAssignment = z.infer<typeof recordAssignmentSchema>;
 export type RecordDetail = z.infer<typeof recordDetailSchema>;
 export type RecordListItem = z.infer<typeof recordListItemSchema>;
 export type RecordPage = z.infer<typeof recordPageSchema>;

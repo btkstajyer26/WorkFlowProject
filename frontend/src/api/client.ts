@@ -29,6 +29,8 @@ type RetriableRequestConfig = InternalAxiosRequestConfig & {
 type AccessTokenRefresher = () => Promise<string>
 
 let refreshAccessToken: AccessTokenRefresher | null = null
+let currentAccessToken: string | null = null
+const accessTokenListeners = new Set<() => void>()
 
 function isAuthEndpoint(url?: string) {
   return Boolean(url?.includes('/api/auth/'))
@@ -94,12 +96,27 @@ export const api = {
 
 export function setApiAccessToken(accessToken: string) {
   apiHttpClient.setSecurityData({ accessToken })
+  currentAccessToken = accessToken
+  accessTokenListeners.forEach((listener) => listener())
 }
 
 export function clearApiAccessToken() {
   apiHttpClient.setSecurityData(null)
+  currentAccessToken = null
+  accessTokenListeners.forEach((listener) => listener())
 }
 
 export function setApiAccessTokenRefresher(refresher: AccessTokenRefresher) {
   refreshAccessToken = refresher
+}
+
+export function getApiAccessToken() {
+  return currentAccessToken
+}
+
+export function subscribeApiAccessToken(listener: () => void) {
+  accessTokenListeners.add(listener)
+  return () => {
+    accessTokenListeners.delete(listener)
+  }
 }

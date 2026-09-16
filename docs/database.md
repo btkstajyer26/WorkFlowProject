@@ -401,7 +401,7 @@ olarak mevcut test verisini kaldırmayın.
 
 Kaynak: `DB-1` §15 ve kabul edilmiş `ADR-0005`/`ADR-0006`. Departman,
 üyelik, routing ve kayıt ataması için şema, entity ve repository katmanı hazırdır.
-V23 + WF-5/WF-6 departmana gönderim, routing/eligibility ve ortak policy/SQL görünürlüğünü uygular. AP-4/AP-5 ekranları ve NT-5 fan-out ayrı teslimdir.
+V23 + WF-5/WF-6 departmana gönderim, routing/eligibility ve ortak policy/SQL görünürlüğünü uygular. NT-5 fan-out ayrı teslim olarak tamamlanmıştır; AP-4/AP-5 ekranları bu dalda açık kalır.
 
 | Migration | Teslim durumu |
 | --- | --- |
@@ -525,7 +525,7 @@ Merge edilen dosya ağacı test edilen teslimle aynıdır. Bu ayrı Git kanıtı
   yakalamak için ayrıca beklenen sürüm/ETag sözleşmesi gerekir; mevcut API'de yoktur.
 
 
-- **`B06` sıralama kapsam dışı bırakıldı.** Arama/kategori filtresi görünen içerik sürümüne göre düzeltildi (`RecordSpecifications.seesFrozenContent`), ama `title`/`description`'a göre sıralama hâlâ canlı kolonda çalışıyor. Sebep: `JpaSpecificationExecutor.findAll(spec, pageable)` sıralamayı `Specification`'dan bağımsız uyguluyor — `SimpleJpaRepository` bizim `query.orderBy(...)`'ımızı `sort.isSorted()` true olduğunda koşulsuz eziyor. Doğru çözüm `JpaSpecificationExecutor`'dan vazgeçip elle `CriteriaQuery` + ayrı `COUNT` sorgusu yazmayı gerektiriyor; kapsam `B06`'nın (P2) ötesine geçtiği için bilinçli olarak açık bırakıldı.  
+- **`B06` sıralama kapsam dışı bırakıldı.** Arama/kategori filtresi görünen içerik sürümüne göre düzeltildi (`RecordSpecifications.seesFrozenContent`), ama `title`/`description`'a göre sıralama hâlâ canlı kolonda çalışıyor. Sebep: `JpaSpecificationExecutor.findAll(spec, pageable)` sıralamayı `Specification`'dan bağımsız uyguluyor — `SimpleJpaRepository` bizim `query.orderBy(...)`'ımızı `sort.isSorted()` true olduğunda koşulsuz eziyor. Doğru çözüm `JpaSpecificationExecutor`'dan vazgeçip elle `CriteriaQuery` + ayrı `COUNT` sorgusu yazmayı gerektiriyor; kapsam `B06`'nın (P2) ötesine geçtiği için bilinçli olarak açık bırakıldı.
 
 ## Dinamik rol, yetki ve workflow veri modeli (V12–V17)
 

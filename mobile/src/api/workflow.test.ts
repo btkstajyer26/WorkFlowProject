@@ -33,8 +33,22 @@ it('backend aksiyon bayraklarını ve gösterim adını korur', async () => {
 });
 
 it('POST sözleşmesinde departman kimliğini gönderir, version eklemez', async () => {
-  request.mockResolvedValue({ action: 'DEPARTMANA_GONDER', newStatus: 'BSK_YRD_INCELEMESINDE',
-    previousStatus: 'TASLAK', recordId, performedBy: recordId, performedAt: '2026-09-08T12:00:00' });
+  request.mockResolvedValue({
+    action: 'DEPARTMANA_GONDER',
+    assignment: {
+      departmentId: 12,
+      departmentName: 'Hukuk',
+      kind: 'DEPARTMENT',
+      userFullName: null,
+      userId: null,
+    },
+    newStatus: 'BSK_YRD_INCELEMESINDE',
+    previousStatus: 'TASLAK',
+    recordId,
+    performedBy: recordId,
+    performedAt: '2026-09-08T12:00:00',
+    version: 1,
+  });
   await performWorkflowAction(recordId, { action: 'DEPARTMANA_GONDER', targetDepartmentId: 12 });
   expect(request).toHaveBeenCalledWith(`/api/records/${recordId}/workflow/actions`, {
     json: { action: 'DEPARTMANA_GONDER', targetDepartmentId: 12 }, method: 'POST',

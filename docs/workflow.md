@@ -403,6 +403,17 @@ Bildirim okuma uçları:
 
 Geçmiş listesinde istemcinin `sort` parametresi kullanılmaz; sıra daima backend tarafından en yeniden eskiye sabitlenir.
 
+Web realtime kanalı `/ws` STOMP endpoint'idir. `CONNECT` frame'i
+`Authorization: Bearer <access token>` taşır; authenticated principal kullanıcının
+e-postasıdır. İstemci yalnız `/user/queue/notifications` adresine abone olur;
+doğrudan `/queue/notifications` aboneliği reddedilir. `NotificationService.create`
+DB save sonrasında application event yayınlar; başarılı transaction commit'inden
+sonra `RealtimeNotificationEventListener`, `NotificationResponse` payload'ını
+user destination'a gönderir. Frontend notification ve ilgili record sorgularını
+invalid eder. 30 saniyelik REST polling fallback'i sürekli korunur. Transaction,
+duplicate ve bağlantı yaşam döngüsü kararı [ADR-0004](decisions/0004-bildirim-teslimi-realtime-ve-mobil-push.md),
+manuel kabul adımları [D04 rehberindedir](D04_NOTIFICATION_MOBILE_REALTIME_KABUL_REHBERI.md).
+
 ### E-posta, hızlı işlem ve push
 
 E-posta gövdesi `templates/mail/workflow-status.html` Thymeleaf şablonundan üretilir. Kullanıcıdan gelen başlık ve açıklama `th:text` ile HTML kaçışlı yazılır. Mesaj, kayıt detayına `${FRONTEND_URL}/records/{recordId}` biçiminde deep link içerir; frontend bunu kanonik `/kayitlar/{recordId}` rotasına taşır. Gönderen adresi `MAIL_FROM` ile yapılandırılır.
@@ -517,39 +528,44 @@ Mevcut otomatik testler şu katmanları kapsar:
    istemcinin hedef gönderip gönderemeyeceği `WorkflowAction` enum'unda tutulur. `workflow_actions`
    tablosunda karşılıkları seed'li ve parity testi ayrışmalarını engelliyor, ama kod henüz
    tabloyu okumuyor.
-5. **Kural kaynağının yönetilebilirliği:** WF-8 servisi sabit geçişlere dinamik aktör rolü bağlar ve kullanımda olmayan bağları pasifleştirir. AP-8 HTTP/UI entegrasyonu açıktır. Grafik topolojisi ve sabit geçiş alanları düzenlenemez. Bellekteki snapshot başarılı bağ değişikliğinde otomatik, `POST /api/workflow/rules/reload` ile de manuel yenilenir.
+5. **Kural kaynağının yönetilebilirliği:** WF-8/AP-8 mevcut geçişlere dinamik aktör rolü bağını servis ve HTTP/UI üzerinden yönetir. Grafik topolojisi ve sabit geçiş alanları düzenlenemez. Bellekteki snapshot başarılı bağ değişikliğinde otomatik, `POST /api/workflow/rules/reload` ile de manuel yenilenir.
 
 ### Doğrulanmış davranış sapmaları
 
-Aşağıdakiler eksik özellik değil, **çalıştırılarak doğrulanmış hatalı
-davranışlardır**. Bu belgenin geri kalanı düzeltilmiş hedefi anlatır; bugünkü
-kodda şu sapmalar vardır:
+Aşağıdakiler daha önce **çalıştırılarak doğrulanmış davranış sapmalarını**
+ve bunların güncel kapanış durumunu kaydeder:
 
 | No | Sapma | Öncelik |
 | --- | --- | --- |
 | B02 | ~~Dinamik departman rolü `BASKANA_ILET` yaptığında Başkan'ın geri dönüşü `WORKFLOW_TARGET_ROLE_INVALID` alıyordu.~~ **Kapandı (6 Eylül 2026):** [ADR-0008](decisions/0008-hedef-rol-semantigi-ve-onceki-aktore-donus.md) uygulandı — `V24` ile `expected_target_role_id` yalnız `ROLE` stratejisinin arama anahtarı oldu, nöbetçi `TransitionDecision.Pending`'e taşındı ve statik rol dayatmasının yerine yetenek kontrolü (`WORKFLOW_TARGET_CANNOT_ACT`) geldi. Görünürlük ayağı `B13` ile birlikte kapandı | ✅ |
-| B03 | Görev devri ve `last_deputy_id` toplu güncellemeleri `records.version` artırmadığı için, kaydı önceden yüklemiş bir workflow transaction'ı devir sonrası eski `lastDeputyId` ile çatışmasız yazabilir | P1 |
-| B01 | ~~Workflow e-postasının hızlı işlem tokenı `AFTER_COMMIT` aşamasında üretilemiyordu; dinleyici hatayı yakalıyor ve mail düğmesiz gidiyordu.~~ **Kapandı (8 Eylül 2026):** `MailActionTokenService.issue` `Propagation.REQUIRES_NEW` ile kendi transaction'ında commit eder. Dinleyicinin `catch (RuntimeException)` yedeği bilinçli korundu — token üretilemezse mail yine düğmesiz gider. `MailActionTokenIntegrationTest` gerçek commit → mail bağlantısı → preview → tek tüketim → ikinci tüketimin reddi zincirini ve iki rollback senaryosunu sabitler | ✅ |
-| B04 | `RecordLockValidator` kayıt kilidi almaz ve dosya yükleme kaydın sürümüne dokunmaz; kontrol ile dosya satırının yazılması arasında kayıt incelemeye geçse bile yükleme commit edilir | P1 |
-| B06 | Dondurulmuş içerik gösterilirken `q`/kategori filtreleri güncel kayıt kolonlarında çalışır; gösterilmeyen düzenleme arama sonucunu etkiler | P2 |
+| B03 | ~~Görev devri optimistic locking korumasını atlıyordu.~~ **Kapandı (16 Eylül 2026):** görev devri sürüm/optimistic locking sözleşmesiyle hizalandı | ✅ |
+| B01 | ~~Workflow e-postasının hızlı işlem tokenı `AFTER_COMMIT` aşamasında kalıcı üretilemiyordu.~~ **Kapandı:** `MailActionTokenService.issue` `Propagation.REQUIRES_NEW` ile kendi transaction'ında commit eder; token üretimi başarısızsa mail düğmesiz gönderilebilir. Integration testi commit → mail bağlantısı → preview → tek tüketim → ikinci tüketimin reddi zincirini sabitler; gerçek Mailpit preview/consume/audit kabulü de tamamlandı (NT-7) | ✅ |
+| B04 | ~~Dosya işlemi sırasında kayıt durumu yarışa açıktı.~~ **Kapandı:** dosya yazma yolu `findByIdForUpdate` ile kayıt kilidi alır | ✅ |
+| B06 | ~~Arama/kategori filtresi tarihsel görünümde canlı kayıt kolonlarına bağlıydı.~~ **Kapandı (16 Eylül 2026):** arama/kategori filtresi canlı kolon bağımlılığından çıkarıldı | ✅ |
 
 Başlangıç şartnamesiyle bilinçli veya fiilî uygulama farkları da korunmalıdır:
 
 - Başkan geri gönderme hedefini serbestçe seçmez; Çalışana dönüş `createdBy`, Başkan Yardımcısına dönüş `lastDeputyId` ile sabittir.
 - Şartnamedeki “tüm ilgililer” ifadesine karşılık mevcut uygulama atamalı geçişte yeni atanan kullanıcıyı; terminal geçişte kaydı oluşturan ile son Başkan Yardımcısını seçer.
 
-Yukarıdaki boşlukların bir kısmı **Workflow V1 açık işidir**, bir kısmı bilinçli olarak
-**Workflow V2'ye** bırakılmıştır:
+İlgili Workflow V1/V2 teslim sınırları aşağıda özetlenir:
 
 | Boşluk | Nereye ait |
 | --- | --- |
-| Admin'den permission, departman, üyelik ve routing yönetimi | **Workflow V1** — yönetim HTTP/UI katmanı; servis ve katalog hazır |
-| Mevcut geçişe dinamik aktör rolü bağlamanın arayüzü | **Workflow V1** — WF-8 servisi hazır, HTTP/UI ayrı teslim |
-| WebSocket bildirim kanalı | **Workflow V1** — transport var, yayınlayan ve abonelik yetkisi yok |
-| Aksiyon metadata'sının enum'dan tabloya taşınması | V1 kabulü için zorunlu değil |
+| Ortak görünürlük ve dinamik rol okuma erişimi | Departman/durum scope dahil ortak policy/SQL, JWT okuma uçları ve sayfalama davranışı uygulanmıştır |
+| Departman veri katmanı ve runtime | Şema/entity/repository, departman hedef stratejisi, routing/eligibility, görünürlük ve NT-5 fan-out uygulanmıştır; AP-4/AP-5 yönetim katmanı da mevcuttur |
+| Dinamik aktörden önceki aktöre dönüş | B02 kapandı; `TransitionDecision.Pending` ve yetenek kontrolü uygulanmıştır |
+| Departman/kişi atamasının workflow audit'i | B12 kapandı; atama kalıcı workflow audit'ine yazılır |
+| Dosya işlemlerinin kayıt kilidi ve tarihsel dosya erişimi | B04/B07 kapandı; kayıt kilidi ve tarihsel erişim aynı görünürlük zaman kesitini kullanır |
+| Silinmiş kaydın değiştirilmesi | B08 kapandı; değiştirme yolları aktif kayıt yükleyicisini kullanır |
+| İstemcinin kullanılabilir aksiyonu backend'den öğrenmesi | Backend `available-actions` ve `target-departments` uçlarını sunar; mobil bunları ve `assignment`/`version` sözleşmesini tüketir (B09/MOB-1). Web panelindeki istemci tarafı `systemKey` bağımlılığı B10 sınırıdır |
+| Mevcut geçişe dinamik aktör rolü bağlama | WF-8 ve AP-8 servis + HTTP/UI entegrasyonu uygulanmıştır |
+| Admin rol/permission yönetimi | AP-2 rol yönetimi ve AP-3 rol-permission matrisi uygulanmıştır |
+| WebSocket bildirim kanalı | `NT-2`…`NT-4` kodu tamamdır; gerçek browser reconnect kabulü PASS, izole polling fallback kabulü bekliyor |
+| Aksiyon metadata'sının enum'dan tabloya taşınması | V1 kabulü için zorunlu değildir |
 | Grafik topolojisinin arayüzden düzenlenmesi, workflow definition/versioning, draft/publish | **Workflow V2** — V1'de yasak (DB-1 §14) |
 
-Geçiş kuralları veritabanından okunur; `TransitionRules` statik tablosu test ağacındaki parity ve veritabanısız test referansıdır. Workflow rol kimliği `WF-2D2` ile tamamen `RoleId`'ye taşındı. Dinamik rol görünürlüğü mevcut şemada ortaktır; departman görünürlüğü uygulandı, WebSocket bildirim kanalı açıktır. HTTP istek audit'i `ADMIN` sistem anahtarında `audit_logs`, diğerlerinde `user_audit_logs` tablosuna gider; rolün yeniden adlandırılması bu dağılımı değiştirmez.
+Geçiş kuralları veritabanından okunur; `TransitionRules` statik tablosu test ağacındaki parity ve veritabanısız test referansıdır. Workflow rol kimliği `WF-2D2` ile tamamen `RoleId`'ye taşındı. Dinamik rol görünürlüğü mevcut şemada ortaktır; departman görünürlüğü ve WebSocket bildirim kanalı uygulanmıştır. Gerçek browser reconnect kabulü PASS durumundadır; izole polling fallback kabulü ayrıca bekler. HTTP istek audit'i `ADMIN` sistem anahtarında `audit_logs`, diğerlerinde `user_audit_logs` tablosuna gider; rolün yeniden adlandırılması bu dağılımı değiştirmez.
 
 ## Değişiklik kontrol listesi
 

@@ -17,6 +17,7 @@ function createPage(status: RecordStatus, title: string, createdAt: string): Rec
   return {
     content: [
       {
+        assignment: { kind: 'NONE' },
         assignedTo: null,
         categoryId: 1,
         createdAt,
@@ -30,6 +31,7 @@ function createPage(status: RecordStatus, title: string, createdAt: string): Rec
         status,
         title,
         updatedAt: createdAt,
+        version: 1,
       },
     ],
     page: 0,

@@ -622,7 +622,22 @@ isteğe bağlı değildir:** liste her zaman en yeniden eskiye döner ve gönder
 
 `PUT /api/notifications/read-all` ilk sürüm kapsamı dışındadır. Frontend “Tümü” ve “Okunmamış” görünümlerini sunar ancak bildirimleri yalnızca tek tek okundu yapar.
 
-Mevcut `NotificationResponse`; `id`, `recordId`, `message`, `notificationType`, `read` ve `createdAt` alanlarını taşır. Kullanıcı kimliği JWT'den belirlenir ve cevapta ayrıca gönderilmez. Mevcut sürüm REST/polling kullanır. WebSocket planlanan gelecek kanaldır; uygulanmış değildir.
+Mevcut `NotificationResponse`; `id`, `recordId`, `message`, `notificationType`,
+`read` ve `createdAt` alanlarını taşır. Kullanıcı kimliği JWT'den belirlenir ve
+cevapta ayrıca gönderilmez. REST list/count sorguları 30 saniyelik polling ile
+çalışmaya devam eder ve realtime kanalının fallback'idir.
+
+Realtime endpoint `/ws`'dir. `@stomp/stompjs`, her `CONNECT` öncesi güncel access
+tokenı okuyup `Authorization: Bearer <access token>` native header'ıyla gönderir.
+Authenticated principal kullanıcının e-postasıdır. İstemci yalnız
+`/user/queue/notifications` adresine abone olur; sunucu
+`/queue/notifications` destination'ına kullanıcıya özel `NotificationResponse`
+gönderir. Doğrudan shared `/queue/notifications` aboneliği yasaktır. Bildirim DB
+save → application event → başarılı commit → `AFTER_COMMIT` listener → realtime
+publisher sırası izlenir. Frontend payload'dan iş kuralı çıkarmaz; bildirim ve
+varsa `recordId` ile kayıt sorgularını invalid eder. Ayrıntılı karar
+[ADR-0004](decisions/0004-bildirim-teslimi-realtime-ve-mobil-push.md), manuel
+kabul [D04 rehberindedir](D04_NOTIFICATION_MOBILE_REALTIME_KABUL_REHBERI.md).
 
 Push kanalı mobil istemciye özeldir. Backend aynı alıcı matrisi için FCM HTTP v1
 gönderimi yapar; bu kanal web REST bildirim sözleşmesini değiştirmez.

@@ -24,7 +24,8 @@ bölümündedir. Belge ilerleme durumu tutmaz; belge haritası için
 flowchart TB
     U[Kullanıcı] --> UI[React 19 + TypeScript web istemcisi]
     U --> MOBILE[Expo SDK 57 mobil istemcisi]
-    UI -->|REST/JSON + JWT| API[Spring Boot 4.1 REST API]
+    UI -->|REST/JSON + JWT| API[Spring Boot 4.1 API]
+    UI -->|STOMP /ws + CONNECT Bearer| API
     MOBILE -->|REST/JSON + JWT| API
     API --> DB[(PostgreSQL 15)]
     API --> FS[(Dosya sistemi - uploads)]
@@ -157,7 +158,8 @@ Ayrıntı için [workflow.md](workflow.md).
 | Kimlik doğrulama | `auth/security/JwtAuthenticationFilter` | Pasif hesabı ve parola değişimi bekleyen kullanıcıyı zincirin başında durdurur |
 | Yetkilendirme | `@PreAuthorize("hasAuthority(...)")` + `RecordAccessPolicy` | Uç yetkileri rol adına değil **permission koduna** bağlıdır (`USER_MANAGE`, `RECORD_CREATE`, `AUDIT_VIEW`, …); authority listesi her istekte `role_permissions`'tan üretilir. Workflow ucunda kontrol bilinçli olarak controller'da değil durum makinesindedir |
 | Denetim izi | `AuditLogService`, workflow transaction'ı **içinde** | Geçiş geri alınırsa audit satırı da geri alınır |
-| Uygulama içi bildirim | `@EventListener`, transaction **içinde** | Geçişle birlikte yazılır veya hiç yazılmaz |
+| Uygulama içi bildirim | `@EventListener`, transaction **içinde** | Geçişle birlikte DB'ye yazılır veya hiç yazılmaz; save sonrası application event yayınlanır |
+| Web realtime | `@TransactionalEventListener(AFTER_COMMIT)` + `SimpMessagingTemplate` | `/ws` üzerinden e-posta principal'ının `/user/queue/notifications` adresine `NotificationResponse`; REST polling kaldırılmaz |
 | E-posta | `@TransactionalEventListener(AFTER_COMMIT)` + `@Async` | Geri alınabilir bir işlem için dışarıya e-posta çıkmasın diye commit sonrası; gönderim best-effort |
 | Push | Aynı `AFTER_COMMIT` listener içinde `PushNotificationService` | `recipientsOf` alıcı matrisi kullanılır; FCM yapılandırılmamışsa workflow push olmadan devam eder |
 | E-posta hızlı işlem | `mail_action_tokens` + `/api/public/mail-actions/preview` ve `/consume` | Anahtar süreli, tek kullanımlık ve alıcı/kayıt/aksiyona bağlıdır; preview mutasyon yapmaz |
@@ -186,6 +188,12 @@ Docker Compose varsayılan olarak üç servis başlatır:
 
 Frontend servisi `frontend` profili arkasındadır ve `docker compose --profile frontend up` ile başlatılır. Uygulama `VITE_API_BASE_URL` üzerinden gerçek backend'e bağlanır; MSW yalnızca Vitest testlerinde kullanılır.
 
+Maven backend + Vite geliştirme senaryosunda yalnız `db` ve `mailpit` Docker'da
+çalışır; Docker `backend` servisi `8080` portu çakışmaması için kapalı tutulur.
+`localhost:5173` ile `127.0.0.1:5173` farklı browser origin'leridir ve kullanılan
+değer CORS listesinde açıkça bulunmalıdır. WebSocket endpoint'i `/ws`'dir. Tam
+komutlar ve kabul adımları [D04 rehberindedir](D04_NOTIFICATION_MOBILE_REALTIME_KABUL_REHBERI.md).
+
 ## Güvenlik sınırları
 
 Aşağıdakiler uygulanmış davranışlardır:
@@ -203,7 +211,7 @@ Aşağıdakiler uygulanmış davranışlardır:
 ## Bilinen mimari boşluklar
 
 Aşağıdakiler **kalıcı mimari eksiklerdir** — bir teslimle kapanan iş kalemleri
-değil, bilinçli olarak taşınan sınırlar. Hangi işin açık olduğu ve kimde olduğu
+değil, bilinçli olarak taşınan sınırlardır. Hangi işin açık olduğu ve kimde olduğu
 bu belgede tutulmaz (bkz. [dokümantasyon dizini](README.md)).
 
 - **Son Admin'in rolü korunmuyor.** `setActive` Admin hesabının
@@ -211,22 +219,24 @@ bu belgede tutulmaz (bkz. [dokümantasyon dizini](README.md)).
   başka bir role çevirmeyi engellemez. Tekil rol kontrolü yalnız bir role
   *girerken* çalışır, *çıkarken* değil; sistem yönetimsiz kalabilir.
 - **Audit append-only kuralı veritabanında zorlanmıyor.** Uygulama güncelleme
-  veya silme ucu sunmaz (`AuditLogRepository` bilinçli olarak `JpaRepository`
-  değildir), fakat DB trigger'ı ya da rol kısıtı yoktur.
-- **E-posta teslim garantisi yok.** Gönderim asenkron ve best-effort; retry,
-  outbox veya DLQ bulunmaz.
-- **Kural önbelleği tek JVM'de yenilenir.** `ReloadableTransitionRuleSource`
-  snapshot'ı süreç içindedir; çoklu instance'a geçilirse invalidation tasarımı
-  gerekir.
-- **Geçiş grafiği arayüzden düzenlenemez.** WF-8 servisi mevcut geçişlere dinamik
-  aktör rolü bağlar; topolojiyi, routing'i, permission'ı ve aktör ilişkisini
-  değiştirmez. Grafik topolojisini düzenlemek **Workflow V2 / versioning**
-  kapsamındadır (DB-1 §14). [WF-8 sözleşmesi](WF8_AP8_AKTOR_ROL_BAGLAMA_SOZLESMESI.md)
-- **WebSocket bildirim kanalı taşımıyor.** `/ws` STOMP endpoint'i ve CONNECT JWT
-  doğrulaması mevcuttur, ancak yayınlayan yoktur (`SimpMessagingTemplate`
-  kullanımı yok), `setUserDestinationPrefix` çağrılmamıştır ve SUBSCRIBE
-  yetkilendirmesi eklenmemiştir. Bildirimler REST/polling ile taşınır.
-- **Yönetim HTTP katmanı eksiktir.** Permission matrisi, departman/üyelik ve
-  routing için controller yoktur; bu nesneler yalnız SQL ile yönetilebilir.
-  Servis ve katalog katmanı hazırdır.
+  veya silme ucu sunmaz, fakat DB trigger'ı ya da yalnız-ekleme yetkisiyle
+  zorlanan ayrı bir veritabanı rolü yoktur.
+- **E-posta teslim garantisi yok.** Gönderim asenkron ve best-effort'tur;
+  kalıcı outbox, retry kuyruğu veya DLQ bulunmaz.
+- **Workflow grafiği arayüzden düzenlenemez.** WF-8/AP-8 mevcut geçişlere
+  aktör-rol bağını servis ve HTTP/UI üzerinden yönetir; geçiş topolojisini,
+  routing modelini veya workflow versioning'i düzenleyen bir grafik editörü
+  değildir. Grafik topolojisi ve draft/publish modeli Workflow V2 kapsamındadır.
+  [WF-8 sözleşmesi](WF8_AP8_AKTOR_ROL_BAGLAMA_SOZLESMESI.md)
+- **Web istemcisi workflow yetkisini kısmen ikinci kez kuruyor.** Backend
+  `available-actions` ve `target-departments` uçlarını ortak workflow
+  doğrulaması üzerinden sunar; mobil bu uçları tüketir. Web aksiyon panelinde
+  ise hâlâ `systemKey` tabanlı istemci kararları bulunduğundan dinamik rol
+  davranışı tamamen backend sözleşmesine indirgenmiş değildir (B10).
 
+Realtime bildirim teslimi mevcut mimaride `/ws` STOMP endpoint'i, CONNECT JWT
+doğrulaması, private user destination, commit-sonrası `NotificationResponse`
+yayını ve frontend query invalidation/duplicate koruması ile çalışır. 30 saniyelik
+REST polling kesinti fallback'i olarak korunur. Operasyonel kabul durumu mimari
+belgede değil [D04 kabul rehberinde](D04_NOTIFICATION_MOBILE_REALTIME_KABUL_REHBERI.md)
+izlenir.

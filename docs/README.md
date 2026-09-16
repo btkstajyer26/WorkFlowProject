@@ -24,6 +24,8 @@ biçimde "kod mevcut", "dala birleşti" ve "ürün kabulü geçti" ayrı durumla
 | Mevcut geçişe rol bağlama ve Admin entegrasyonu | [WF-8 / AP-8](WF8_AP8_AKTOR_ROL_BAGLAMA_SOZLESMESI.md) |
 | Kullanılabilir aksiyon, hedef departman keşfi, atama DTO'su ve bildirim alıcısı | [APP-9 / APP-10 / B11](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md) |
 | Web ve mobil HTTP sözleşmeleri | [Web](FRONTEND_BACKEND_SOZLESMESI.md), [mobil](MOBIL_API_ENVANTERI.md), [OpenAPI](openapi.json) |
+| Notification/mobile/realtime yerel çalışma ve kabul | [D04 kabul rehberi](D04_NOTIFICATION_MOBILE_REALTIME_KABUL_REHBERI.md) |
+| Bahadır final görev/test/commit matrisi | [16 Eylül final handoff](reviews/2026-09-16-bahadir-final-handoff.md) |
 | TEST dağıtımı ve ortam sınırları | [TEST ortamı notu](TEST_ORTAMI_NOTU.md) |
 | Tasarım gerekçeleri ve karar durumları | [ADR dizini](decisions/README.md) |
 
@@ -54,7 +56,8 @@ Ayrıntı ve gerekçe ADR'lerdedir; aşağıdakiler değişmemesi gereken sını
    [ADR-0006](decisions/0006-departman-hedefli-target-strategy.md)
 
 Grafik tasarımcısı, workflow versioning ve draft/publish **Workflow V2**
-kapsamındadır. WF-8 servisinin hazır olması AP-8 ekranlarını kapatmaz.
+kapsamındadır. Bir backend servisinin hazır olması, ilgili HTTP/UI kabulünün
+tek başına tamamlandığı anlamına gelmez.
 
 ## Doğrulama
 

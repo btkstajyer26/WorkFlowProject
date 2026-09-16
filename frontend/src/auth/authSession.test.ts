@@ -1,6 +1,6 @@
 import { HttpResponse, http } from 'msw'
 import { describe, expect, it } from 'vitest'
-import { api } from '../api/client'
+import { api, getApiAccessToken } from '../api/client'
 import { apiBaseUrl } from '../api/config'
 import { mockApiCategories } from '../mocks/api/db'
 import { apiMockServer } from '../mocks/api/server'
@@ -25,11 +25,13 @@ describe('authSession', () => {
   })
 
   it('giriş tokenını korumalı isteklere ekler ve çıkışta temizler', async () => {
-    await startAuthSession('john.doe@kurum.gov.tr', 'demo123')
+    const session = await startAuthSession('john.doe@kurum.gov.tr', 'demo123')
+    expect(getApiAccessToken()).toBe(session.accessToken)
 
     await expect(api.categories.getAllCategories()).resolves.toHaveLength(5)
 
     await endAuthSession()
+    expect(getApiAccessToken()).toBeNull()
 
     await expect(api.categories.getAllCategories()).rejects.toMatchObject({
       code: 'UNAUTHORIZED',
@@ -40,7 +42,9 @@ describe('authSession', () => {
   it('refresh token ile erişim tokenını merkezi olarak yeniler', async () => {
     await startAuthSession('john.doe@kurum.gov.tr', 'demo123')
 
-    await expect(refreshAuthSession()).resolves.toMatchObject({
+    const refreshed = await refreshAuthSession()
+    expect(getApiAccessToken()).toBe(refreshed.accessToken)
+    expect(refreshed).toMatchObject({
       accessToken: expect.any(String),
       refreshToken: expect.any(String),
     })

@@ -41,6 +41,19 @@ Kurallar:
 
 Beklenen backend davranışları [frontend–backend sözleşmesinde](../docs/FRONTEND_BACKEND_SOZLESMESI.md) tutulur.
 
+## Realtime bildirim
+
+Authenticated uygulama `@stomp/stompjs` ile backend'in `/ws` endpoint'ine
+bağlanır. Güncel access token her STOMP `CONNECT` öncesi okunur ve istemci yalnız
+`/user/queue/notifications` adresine abone olur. Mesaj notification ve ilgili
+record sorgularını invalid eder; workflow kuralı payload'dan çıkarılmaz.
+
+30 saniyelik notification REST polling'i kaldırılmamıştır ve realtime kesintisinin
+fallback'idir. Backend kesintisi sonrası reconnect gerçek browser kabulü **PASS**
+durumundadır; WebSocket-blocked izole polling fallback kabulü ise
+**ACCEPTANCE PENDING** durumundadır. Çalıştırma/kabul adımları
+[D04 rehberindedir](../docs/D04_NOTIFICATION_MOBILE_REALTIME_KABUL_REHBERI.md#b-realtime-browser-kabulü).
+
 ## OpenAPI istemcisini güncelleme
 
 Backend `http://localhost:8080` üzerinde çalışırken:

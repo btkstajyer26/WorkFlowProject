@@ -9,6 +9,7 @@ Bu dizin, projeyi uzun vadede etkileyen kararları Architecture Decision Record 
 | [0001](0001-modul-bazli-paketleme.md) | Backend'i modül (feature) bazlı paketleme | Kabul Edildi |
 | [0002](0002-mobil-istemci-teknolojisi.md) | Mobil istemci teknolojisi — React Native + Expo | Kabul Edildi |
 | [0003](0003-veri-tanimli-akis-motoru-ve-birim-bazli-roller.md) | Veri tanımlı akış motoru ve birim bazlı roller | Yerine Geçildi (ADR-0005 · ADR-0007) |
+| [0004](0004-bildirim-teslimi-realtime-ve-mobil-push.md) | Bildirim teslimi, realtime web ve mobil push mimarisi | Kabul Edildi |
 | [0005](0005-departman-atamasi-ve-akis-kurali.md) | Departman ataması ve akış kuralı | Kabul Edildi |
 | [0006](0006-departman-hedefli-target-strategy.md) | Departman hedefli `target_strategy` ve gönderim sözleşmesi | Kabul Edildi |
 | [0007](0007-rol-kapasitesi-ve-birim-tekilligi.md) | Rol kapasitesi ve birim tekilliği | Kabul Edildi |
@@ -54,9 +55,11 @@ daraltır, statik rol dayatmasının yerini yetenek kontrolü
 (`WORKFLOW_TARGET_CANNOT_ACT`, `409`) alır. Uygulama sırasında alınan üç
 bilinçli sapma ADR'nin kendi metnindedir.
 
-ADR-0004 WebSocket kararı henüz bu dizinde yoktur. Kabul edilmiş ADR-0005/0006/0007,
-WF-5/WF-6 uygulaması ve ürün kabulü yerine geçmez. Güncel hazır/açık kapsam
-[dokümantasyon dizininde](../README.md) izlenir.
+[ADR-0004](0004-bildirim-teslimi-realtime-ve-mobil-push.md), authenticated
+STOMP user destination, commit-sonrası realtime yayın, kalıcı polling fallback'i,
+duplicate koruması ve mobil push yaşam döngüsünü karara bağlar. Reconnect/polling
+gerçek browser kabulü ile Android fiziksel cihaz kabulü kararın kendisinden ayrı
+izlenir; güncel sınır [D04 kabul rehberindedir](../D04_NOTIFICATION_MOBILE_REALTIME_KABUL_REHBERI.md).
 
 Bu dizinde her mimari karar için ADR yoktur ve olması da beklenmez. Mevcut
 mimarinin çoğu [architecture.md](../architecture.md),
