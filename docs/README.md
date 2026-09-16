@@ -1,8 +1,9 @@
 # Dokümantasyon ve teslim durumu
 
 Bu dizin çalışan kodu, kabul edilmiş tasarım kararlarını ve tarihli test kanıtlarını
-ayrı takip eder. **Kod tabanı: 7 Eylül 2026, `test` dalı; `origin/test` @ `beadcb0`
-(PR #75 ve #76 içeride) üzerine B04/B05/B07/B08/R03/R06 çalışması eklenmiştir.**
+ayrı takip eder. **Kod tabanı: 16 Eylül 2026,
+`feature/nt-realtime-notifications`; `202cbf0`, `885fbfc`, `963f0b4` korunmuş,
+Paket 1–4 değişiklikleri çalışma ağacındadır.**
 Bir ADR'nin kabul edilmesi ilgili runtime'ın uygulandığı anlamına gelmez.
 Aynı biçimde “kod mevcut”, “dala birleşti”, “CI geçti”, “TEST'e dağıtıldı” ve
 “ürün kabulü geçti” ayrı durumlardır; bu belgede karıştırılmaz.
@@ -11,14 +12,16 @@ Aynı biçimde “kod mevcut”, “dala birleşti”, “CI geçti”, “TEST'
 > ve [APP-9/APP-10/B11 sözleşmesi](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md) artık
 > **Kabul Edildi** durumundadır ve kodu `origin/test`'tedir: `V24` migration'ı,
 > yetenek kontrolü (`WORKFLOW_TARGET_CANNOT_ACT`), iki APP-9 okuma ucu ve ortak
-> `assignment`/`version` alanları uygulanmıştır. Kalan iş istemci tarafındadır —
-> Tamer (`B10`/`WEB-1`), Bahadır (`B09`/`MOB-1`/`NT-5`) ve Alperen (`B12`).
+> `assignment`/`version` alanları uygulanmıştır. Bahadır'ın `B09`/`MOB-1` ve
+> `NT-5` tüketimi tamamdır; web `B10` ve audit `B12` bu kapsamın dışındaki açık
+> işlerdir.
 
 > **Açık davranış problemleri:** 4 Eylül 2026 tarihli inceleme, çalıştırılmış
 > regresyon problarıyla sekiz backend davranış ihlali (B01–B08) ve beş istemci/sözleşme
-> boşluğu (B09–B13) doğrulamıştır. **Bugün yedisi kapalıdır** (`B02`, `B04`, `B05`,
-> `B07`, `B08`, `B11`, `B13`); **açık kalanlar `B01`, `B03`, `B06`, `B09`, `B10`,
-> `B12`'dir.** Aşağıdaki “hazır teslim” sütunu bu problemleri kapsamaz.
+> boşluğu (B09–B13) doğrulamıştır. **Bu dalda dokuzu kapalıdır** (`B01`, `B02`,
+> `B04`, `B05`, `B07`, `B08`, `B09`, `B11`, `B13`); **açık kalanlar `B03`,
+> `B06`, `B10`, `B12`'dir.** Aşağıdaki “hazır teslim” sütunu bu problemleri
+> kapsamaz.
 
 ## Hangi belge okunmalı?
 
@@ -33,6 +36,8 @@ Aynı biçimde “kod mevcut”, “dala birleşti”, “CI geçti”, “TEST'
 | Mevcut geçişe rol bağlama ve Admin entegrasyonu | [WF-8 / AP-8](WF8_AP8_AKTOR_ROL_BAGLAMA_SOZLESMESI.md) |
 | Kullanılabilir aksiyon, hedef departman keşfi, atama DTO'su ve bildirim alıcısı | [APP-9 / APP-10 / B11](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md) |
 | Web ve mobil HTTP sözleşmeleri | [Web](FRONTEND_BACKEND_SOZLESMESI.md), [mobil](MOBIL_API_ENVANTERI.md), [OpenAPI](openapi.json) |
+| Notification/mobile/realtime yerel çalışma ve kabul | [D04 kabul rehberi](D04_NOTIFICATION_MOBILE_REALTIME_KABUL_REHBERI.md) |
+| Bahadır final görev/test/commit matrisi | [16 Eylül final handoff](reviews/2026-09-16-bahadir-final-handoff.md) |
 | TEST dağıtımı ve ortam sınırları | [TEST ortamı notu](TEST_ORTAMI_NOTU.md) |
 | Tasarım gerekçeleri ve karar durumları | [ADR dizini](decisions/README.md) |
 
@@ -45,9 +50,9 @@ Aynı biçimde “kod mevcut”, “dala birleşti”, “CI geçti”, “TEST'
 | Aktör rolü bağlama (`WF-8`) | `WorkflowActorBindingService.listTransitions/bind/unbind`, permission/koruma, audit ve commit sonrası snapshot | `AP-8` HTTP adapter ve yönetim ekranı. `workflow` altındaki tek yönetim ucu `POST /api/workflow/rules/reload`'dur; bu tek başına AP-8 değildir |
 | Departman veri katmanı (`DB-11/12`) | V18–V22 tablo/entity/repository; ad 150, self-parent CHECK, RESTRICT FK, çoklu üyelik ve routing tekilliği | Yönetim servis/API/UI (`AP-4/5`): departman ve routing için controller yoktur; parent döngüsü ve açık kuyruk koruması karara bağlanmalıdır |
 | Atama (`DB-13/WF-5`) | V23, snapshot/update/event departman alanları, karşılıklı dışlama ve gönderim | Yönetim ve gönderim ekranı kabulü |
-| Departman runtime (`WF-6`) | Routing/eligibility resolver, gönderim, ortak görünürlük, event ve yarış testleri; dinamik aktörden Başkana iletilen kaydın önceki aktöre dönüşü (B02 ✅, `V24`) | AP-4/AP-5 ekranları; NT-5 fan-out (listener departman için bilinçli olarak boş alıcı döner) |
-| İstemci workflow kabulü | Web dinamik rolü okuyabilir ve departman isteği taşıyabilir; atama (`assignment.kind`) ve `version` üç yanıt tipinde de taşınır ve üretilmiş istemcide açıktır (B11 ✅) | Web aksiyon paneli `systemKey` sabitlerine bağlıdır; dinamik rol düğme göremez ve üretilmiş `WorkflowQueryController.ts` hiçbir bileşen tarafından tüketilmez (B10). Mobil `roleName` Zod enum'u dinamik rolü reddeder (B09) |
-| Bildirim ve istemci kabulü | Mevcut REST/polling, uygulama içi bildirim, mail-action altyapısı, FCM desteği ve token temizliği | WebSocket, departman fan-out (`NT-5`), mail E2E (B01 düzeltmesine bağlı) ve gerçek cihaz push kabulü |
+| Departman runtime (`WF-6`) | Routing/eligibility resolver, gönderim, ortak görünürlük, event ve yarış testleri; dinamik aktörden Başkana iletilen kaydın önceki aktöre dönüşü (B02 ✅, `V24`); NT-5 uygun alıcı fan-out'u ve `user_id` tekilleştirmesi | AP-4/AP-5 ekranları |
+| İstemci workflow kabulü | Web dinamik rolü okuyabilir ve departman isteği taşıyabilir; atama (`assignment.kind`) ve `version` üç yanıt tipinde taşınır (B11 ✅). Mobil rolü açık string/`roleId`/`systemKey` ile okur, backend available-actions/target-departments yanıtını tüketir ve atamayı detayda gösterir (B09/MOB-1 ✅) | Web aksiyon paneli `systemKey` sabitlerine bağlıdır; dinamik rol düğme göremez ve üretilmiş `WorkflowQueryController.ts` hiçbir bileşen tarafından tüketilmez (B10) |
+| Bildirim ve istemci kabulü | REST + 30 saniye polling, `/ws` authenticated STOMP user destination, commit-sonrası realtime yayın, frontend query invalidation/duplicate koruması, NT-5 fan-out, B01/NT-7 mail quick action, FCM backend ve mobil push lifecycle kodu | Reconnect gerçek browser kabulü PASS; izole polling fallback ve Firebase bağlı fiziksel Android kabulü bekliyor |
 
 ## WF-5/WF-6 entegrasyon sınırı
 

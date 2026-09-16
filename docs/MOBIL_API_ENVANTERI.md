@@ -4,32 +4,21 @@ Mobil istemcinin kullandığı REST uçlarını, istek/yanıt biçimlerini ve ha
 davranışlarını tanımlar. Uç değiştiğinde bu belge aynı değişiklik kapsamında
 güncellenir.
 
-4 Eylül 2026, `codex/ap-2-frontend-uyum` @ `c9b0297` tabanı ile hizalanmıştır.
+16 Eylül 2026, `feature/nt-realtime-notifications` çalışma ağacıyla hizalanmıştır.
 `DEPARTMANA_GONDER` aksiyonu ve `targetDepartmentId` alanı backend'de mevcuttur;
 mobil istemci MOB-1 ile kayıt kapsamlı departman seçimi için bunları kullanır. AP-3/AP-4/AP-5/AP-8 yönetim uçları hâlâ
 yoktur. Mobilin tüketeceği yeni uçlar ve ortak `assignment` nesnesi
 [APP-9 / APP-10 / B11 sözleşmesinde](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md)
 tanımlıdır. [Güncel teslim sınırları](README.md) ayrı izlenir.
 
-> **Açık kırılma — B09 (P1).** `mobile/src/api/users.ts` içindeki `roleName`
-> yalnız `CALISAN`, `BASKAN_YARDIMCISI`, `BASKAN`, `ADMIN` değerlerini kabul eden
-> bir Zod enum'uyla ayrıştırılır; `roleId` ve `systemKey` hiç kullanılmaz. Admin'in
-> oluşturduğu **dinamik rol** veya **yeniden adlandırılmış yerleşik rol** için
-> geçerli bir `GET /api/users/me` cevabı istemcide reddedilir. Login token
-> verebilir; kırılma profil okunurken ve ona bağlı ekranlarda oluşur.
-> `RecordWorkflowActions` ve dashboard da aynı sabit rol adlarına bağlıdır.
-> Web AP-2 düzeltmesinin mobil karşılığı eksiktir: profil şeması, etiketler,
-> dashboard, oluşturma yetkisi ve workflow aksiyon seçimi **birlikte**
-> dönüştürülmelidir. Kabul: yeni dinamik rol ve yeniden adlandırılmış yerleşik
-> rolle giriş sonrası liste, detay ve yetkili işlem çalışmalıdır.
->
-> **Hedef model karara bağlanmıştır** (4 Eylül 2026,
-> [APP-9 / APP-10 / B11 sözleşmesi](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md)):
-> profil `roleId` + nullable `systemKey` + gösterim adı taşır; workflow düğmeleri
-> istemcide hesaplanmaz, `GET /api/records/{id}/workflow/available-actions`
-> yanıtından üretilir. `RecordWorkflowActions` içindeki istemci tarafı
-> `getAvailableActions()` kaldırılır. Sözleşme **Önerildi** durumundadır; uçlar
-> henüz uygulanmamıştır.
+> **B09/MOB-1 kapandı.** `mobile/src/api/users.ts`, değiştirilebilir `roleName`
+> için açık string; ayrıca `roleId`, nullable `systemKey` ve `permissionCodes`
+> tüketir. Dinamik ve yeniden adlandırılmış yerleşik rol geçerli yanıttır.
+> Workflow düğmeleri istemcide rol/durum tablosuyla hesaplanmaz; `GET
+> /api/records/{id}/workflow/available-actions` yanıtından üretilir. Departman
+> hedefi gerektiğinde `target-departments` kullanılır. `assignment.kind` ve
+> `version` detay/liste/workflow yanıtlarında korunur, kayıt detayında atama
+> gösterilir. Backend mutasyonu yine kendi kurallarıyla doğrular.
 
 Kanonik kaynaklar: [FRONTEND_BACKEND_SOZLESMESI.md](FRONTEND_BACKEND_SOZLESMESI.md)
 (alan sözleşmesi) · [workflow.md](workflow.md) (durum geçişleri ve görünürlük) ·
@@ -49,8 +38,8 @@ JWT'den okunur. Gövdeye kullanıcı kimliği koymak sessizce yok sayılır.
 
 **Mobilin başlangıç rol senaryoları:** `CALISAN`, `BASKAN_YARDIMCISI`, `BASKAN`.
 Backend kataloğu bunlarla sınırlı değildir; dinamik rol gerekli permission/ilişkiyle
-okuyabilir ve tanımlı geçişi uygulayabilir. Bu backend desteği mobilin dinamik rol
-ekran kabulünün tamamlandığı anlamına gelmez.
+okuyabilir ve tanımlı geçişi uygulayabilir. Mobil profil ve workflow tüketimi bu
+dinamik kimlikle uyumludur; business rule istemciye kopyalanmaz.
 `ADMIN` mobil kapsamında değil — evrak göremez, `/api/admin/**` uçları mobile
 dahil edilmedi.
 
@@ -294,8 +283,13 @@ Cevap:
 {
   "recordId": "uuid", "action": "BASKANA_ILET",
   "previousStatus": "BSK_YRD_INCELEMESINDE", "newStatus": "BASKAN_INCELEMESINDE",
-  "assignedTo": "uuid", "performedBy": "uuid",
-  "performedAt": "2026-08-20T14:05:00Z"
+  "assignedTo": "uuid",
+  "assignment": {
+    "kind": "USER", "userId": "uuid", "userFullName": "Ayşe Demir",
+    "departmentId": null, "departmentName": null
+  },
+  "performedBy": "uuid", "performedAt": "2026-08-20T14:05:00Z",
+  "version": 8
 }
 ```
 
@@ -564,8 +558,13 @@ ve geçiş sonrasında mevcut alıcı matrisi için push göndermeyi dener. FCM
 yapılandırılmamış ortamda workflow push olmadan çalışmaya devam eder.
 
 Mobil istemci `expo-notifications` ile native cihaz tokenını alıp bu uca kaydeder.
-Eksikler token yenileme dinleyicisi, soğuk açılış yönlendirmesi ve gerçek cihaz
-uçtan uca push kanıtıdır.
+`addPushTokenListener` yenilenen tokenı yeniden kaydeder. Foreground handler
+bildirimi gösterir; background/warm tap listener'ı ve cold-start last-response
+yolu payload'daki doğrulanmış `recordId` ile kayıt detayına gider. Aynı response
+identifier tekrar yönlendirme üretmez. Kod ve testler tamamdır; Firebase bağlı
+fiziksel Android uçtan uca kanıtı **MANUAL DEVICE ACCEPTANCE PENDING** durumundadır.
+Kurulum ve lifecycle kontrol listesi
+[D04 rehberindedir](D04_NOTIFICATION_MOBILE_REALTIME_KABUL_REHBERI.md#e-nt-89-android-push-kabulü).
 
 ---
 

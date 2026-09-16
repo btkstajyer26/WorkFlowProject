@@ -2,7 +2,7 @@
 
 Bu belge İş Akışı ve Onay Yönetim Sistemi'nin **çalışan mimarisini** tanımlar. Hedef durumu değil, koda bakılarak doğrulanmış mevcut yapıyı anlatır. Modül sınırları, katmanlama veya bağımlılık yönü değiştiğinde belge aynı değişiklik kapsamında güncellenir.
 
-7 Eylül 2026, `test` @ `origin/test` (`beadcb0` üzerine B04/B05/B07/B08 çalışması) tabanı incelenmiştir. Hazır
+16 Eylül 2026, `feature/nt-realtime-notifications` çalışma ağacı incelenmiştir. Hazır
 teslimler ve açık bağlantılar [dokümantasyon dizininde](README.md) özetlenir.
 Doğrulanmış davranış problemleri aşağıdaki
 [Bilinen mimari boşluklar](#bilinen-mimari-boşluklar) bölümünde `B`-kimlikleriyle
@@ -26,7 +26,8 @@ işaretlidir.
 flowchart TB
     U[Kullanıcı] --> UI[React 19 + TypeScript web istemcisi]
     U --> MOBILE[Expo SDK 57 mobil istemcisi]
-    UI -->|REST/JSON + JWT| API[Spring Boot 4.1 REST API]
+    UI -->|REST/JSON + JWT| API[Spring Boot 4.1 API]
+    UI -->|STOMP /ws + CONNECT Bearer| API
     MOBILE -->|REST/JSON + JWT| API
     API --> DB[(PostgreSQL 15)]
     API --> FS[(Dosya sistemi - uploads)]
@@ -159,7 +160,8 @@ Ayrıntı için [workflow.md](workflow.md).
 | Kimlik doğrulama | `auth/security/JwtAuthenticationFilter` | Pasif hesabı ve parola değişimi bekleyen kullanıcıyı zincirin başında durdurur |
 | Yetkilendirme | `@PreAuthorize("hasAuthority(...)")` + `RecordAccessPolicy` | Uç yetkileri rol adına değil **permission koduna** bağlıdır (`USER_MANAGE`, `RECORD_CREATE`, `AUDIT_VIEW`, …); authority listesi her istekte `role_permissions`'tan üretilir. Workflow ucunda kontrol bilinçli olarak controller'da değil durum makinesindedir |
 | Denetim izi | `AuditLogService`, workflow transaction'ı **içinde** | Geçiş geri alınırsa audit satırı da geri alınır |
-| Uygulama içi bildirim | `@EventListener`, transaction **içinde** | Geçişle birlikte yazılır veya hiç yazılmaz |
+| Uygulama içi bildirim | `@EventListener`, transaction **içinde** | Geçişle birlikte DB'ye yazılır veya hiç yazılmaz; save sonrası application event yayınlanır |
+| Web realtime | `@TransactionalEventListener(AFTER_COMMIT)` + `SimpMessagingTemplate` | `/ws` üzerinden e-posta principal'ının `/user/queue/notifications` adresine `NotificationResponse`; REST polling kaldırılmaz |
 | E-posta | `@TransactionalEventListener(AFTER_COMMIT)` + `@Async` | Geri alınabilir bir işlem için dışarıya e-posta çıkmasın diye commit sonrası; gönderim best-effort |
 | Push | Aynı `AFTER_COMMIT` listener içinde `PushNotificationService` | `recipientsOf` alıcı matrisi kullanılır; FCM yapılandırılmamışsa workflow push olmadan devam eder |
 | E-posta hızlı işlem | `mail_action_tokens` + `/api/public/mail-actions/preview` ve `/consume` | Anahtar süreli, tek kullanımlık ve alıcı/kayıt/aksiyona bağlıdır; preview mutasyon yapmaz |
@@ -188,6 +190,12 @@ Docker Compose varsayılan olarak üç servis başlatır:
 
 Frontend servisi `frontend` profili arkasındadır ve `docker compose --profile frontend up` ile başlatılır. Uygulama `VITE_API_BASE_URL` üzerinden gerçek backend'e bağlanır; MSW yalnızca Vitest testlerinde kullanılır.
 
+Maven backend + Vite geliştirme senaryosunda yalnız `db` ve `mailpit` Docker'da
+çalışır; Docker `backend` servisi `8080` portu çakışmaması için kapalı tutulur.
+`localhost:5173` ile `127.0.0.1:5173` farklı browser origin'leridir ve kullanılan
+değer CORS listesinde açıkça bulunmalıdır. WebSocket endpoint'i `/ws`'dir. Tam
+komutlar ve kabul adımları [D04 rehberindedir](D04_NOTIFICATION_MOBILE_REALTIME_KABUL_REHBERI.md).
+
 ## Güvenlik sınırları
 
 Aşağıdakiler uygulanmış davranışlardır:
@@ -207,13 +215,13 @@ Aşağıdakiler uygulanmış davranışlardır:
 - **Son Admin'in rolü korunmuyor.** `setActive` Admin hesabının pasifleştirilmesini engelliyor, ancak `changeRole` sistemdeki tek Admin'in rolünü başka bir role çevirmeyi engellemiyor. Tekil rol kontrolü yalnız bir role *girerken* çalışıyor, *çıkarken* değil. Sistem yönetimsiz kalabilir.
 - **Audit append-only kuralı veritabanında zorlanmıyor.** Uygulama güncelleme veya silme ucu sunmuyor, fakat DB trigger'ı ya da rol kısıtı yok.
 - **E-posta teslim garantisi yok.** Gönderim asenkron ve best-effort; retry, outbox veya DLQ bulunmuyor.
-- **ADR kapsamı seçicidir.** Dizinde altı ADR bulunur; rol kapasitesi ve tekillik ADR-0007'de karara bağlanmıştır. Port/adapter sınırı bu belgede gerekçelendirilir. ADR-0003'ün rol kapsamı/tekillik önerisinin yerine ADR-0005/0007 geçmiştir; dizindeki her kabul edilmiş kararın runtime'ı tamamlanmış değildir.
+- **ADR kapsamı seçicidir.** Dizinde sekiz ADR bulunur; bildirim/realtime/push sınırı ADR-0004'te, rol kapasitesi ve tekillik ADR-0007'de karara bağlanmıştır. Port/adapter sınırı bu belgede gerekçelendirilir. ADR-0003'ün rol kapsamı/tekillik önerisinin yerine ADR-0005/0007 geçmiştir; dizindeki her kabul edilmiş kararın runtime'ı tamamlanmış değildir.
 
-- **Departman runtime'ı bağlıdır; yönetim ve istemci katmanı değildir.** Görünürlük ortak `RecordVisibilityScope` üzerinden tekil policy ve SQL predicate üretir. Şema/entity/repository V18–V22, gönderim stratejisi/aksiyonu/seed'leri V23 ile hazırdır. `DepartmentRoutingResolver`, `DepartmentRoutingAdapter` (`DepartmentRoutingPort`) ve `DepartmentVisibilityAdapter` (`DepartmentVisibilityPort`) runtime'ı bağlar; validator DB bağımlılığı almaz. Açık kalanlar: departman/üyelik/routing yönetim uçları (`AP-4`/`AP-5`), NT-5 alıcı fan-out'u ve istemci departman seçicisi. Sınırlar ve DB-8 entegrasyonu: [WF-2C2 sözleşmesi](WF2C2_DB8_GORUNURLUK_SOZLESMESI.md).
+- **Departman runtime'ı ve mobil tüketimi bağlıdır; yönetim HTTP/UI katmanı değildir.** Görünürlük ortak `RecordVisibilityScope` üzerinden tekil policy ve SQL predicate üretir. Şema/entity/repository V18–V22, gönderim stratejisi/aksiyonu/seed'leri V23 ile hazırdır. `DepartmentRoutingResolver`, `DepartmentRoutingAdapter` (`DepartmentRoutingPort`) ve `DepartmentVisibilityAdapter` (`DepartmentVisibilityPort`) runtime'ı bağlar; validator DB bağımlılığı almaz. NT-5 aynı eligibility çözümüyle departman alıcılarını bulur ve mobil MOB-1 backend'in hedef listesini tüketir. Açık kalanlar departman/üyelik/routing yönetim uçlarıdır (`AP-4`/`AP-5`). Sınırlar ve DB-8 entegrasyonu: [WF-2C2 sözleşmesi](WF2C2_DB8_GORUNURLUK_SOZLESMESI.md).
 - **Geçiş grafiği arayüzden düzenlenemiyor.** WF-8'in Spring yönetim servisi mevcut geçişlere dinamik aktör rolü bağlar; topoloji, routing, permission ve aktör ilişkisini değiştirmez. AP-8 HTTP/UI entegrasyonu açıktır. Bağ yazımı ve audit tek transaction'dadır; reload ile ortak koordinatör doğrulanmış snapshot'ı commit sonrası yayınlar. Saf workflow çekirdeği işlem başına bir snapshot kullanır. Grafik topolojisini düzenlemek Workflow V2/versioning kapsamındadır (DB-1 §14). [WF-8 sözleşmesi](WF8_AP8_AKTOR_ROL_BAGLAMA_SOZLESMESI.md).
 - **Atama hedefi kalıcı audit'e yazılmıyor.** Yanıt tarafı kapandı: ortak `AssignmentView` (`kind` = `USER`/`DEPARTMENT`/`NONE`) ve `version`, `RecordResponse` · `RecordSearchResponse` · `WorkflowActionResponse` üçünde de taşınır (B11 ✅). Kalan boşluk audit tarafındadır: `WorkflowTransitionAudit` departman hedefini taşımaz ve `AuditLogService` modeldeki kişi atamasını da kaydetmez, bu yüzden bir kaydın hangi departmana gönderildiği kalıcı geçmişten okunamaz (B12).
-- **İstemci workflow yetkisi ikinci kez istemcide kuruluyor.** Backend tarafı kapandı: `WorkflowQueryController` `available-actions` ve `target-departments` uçlarını sunar, hesap `AvailableActionResolver`'da `performAction` ile aynı validator ve aynı kural snapshot'ı üzerinden yapılır (APP-9 ✅). Boşluk istemcidedir: web aksiyon paneli düğmeleri hâlâ `systemKey` sabitlerine bağlıdır ve `systemKey=null` olan dinamik rol için panel tamamen kapanır; üretilmiş `WorkflowQueryController.ts` istemcisi kayıtlı olmasına rağmen hiçbir bileşen tüketmez (B10). Mobil aynı hesabı `getAvailableActions()` ile kendi kurar (B09).
+- **Web istemcisi workflow yetkisini ikinci kez kuruyor; mobil boşluk kapandı.** Backend `WorkflowQueryController` ile `available-actions` ve `target-departments` uçlarını sunar; hesap `AvailableActionResolver`'da `performAction` ile aynı validator ve snapshot üzerinden yapılır (APP-9 ✅). Mobil bu uçları tüketir, dinamik rolü açık kimlikle kabul eder ve iş kuralını kopyalamaz (B09/MOB-1 ✅). Web aksiyon paneli hâlâ `systemKey` sabitlerine bağlıdır ve dinamik rol düğme göremez (B10).
 - **Eşzamanlılık koruması görev devrinde hâlâ eksiktir.** Görev devri ve `last_deputy_id` toplu JPQL güncellemeleri `records.version` değerini artırmaz (B03). Dosya yolu ve oturum yolu kapandı: `RecordLockValidator` artık `RecordRepository.findByIdForUpdate` ile satır kilidi alır ve kilitli kaydı döndürür, böylece kontrol ile dosya satırının yazılması arasına giren workflow geçişi araya giremez (B04 ✅); refresh token koşullu `UPDATE ... WHERE revoked = false` ile tek seferde tüketilir (B05 ✅).
-- **WebSocket bildirim kanalı yoktur.** Bildirimler REST/polling ile taşınır. `/ws` STOMP endpoint'i ve CONNECT JWT doğrulaması girmiştir; ancak repoda `SimpMessagingTemplate`/`convertAndSend` kullanımı yoktur (yayınlayan yok), `setUserDestinationPrefix` çağrılmamıştır ve SUBSCRIBE yetkilendirmesi eklenmemiştir (NT-2/3/4).
+- **Realtime operasyon kabulü kısmidir.** `/ws`, CONNECT Bearer doğrulaması, e-posta principal'ı, user destination, `convertAndSendToUser`, AFTER_COMMIT yayın, frontend reconnect ve query invalidation uygulanmıştır (NT-2/3/4). 30 saniyelik REST polling fallback'i korunur. Gerçek browser backend-kesinti/reconnect turu **PASS** durumundadır; WebSocket-blocked izole polling fallback kabulü ise **ACCEPTANCE PENDING** durumundadır. Ayrıntı [D04 rehberindedir](D04_NOTIFICATION_MOBILE_REALTIME_KABUL_REHBERI.md).
 - **Dosya geri alımında disk temizliği ve tarihsel erişim kapandı.** Yükleme, aynı transaction'da diske yazdığı dosyaları `TransactionSynchronization.afterCompletion` ile geri alma durumunda siler (R06 ✅). İndirme/önizleme dosyayı `deleted_at` üzerinden erken elemez; görünürlük çözüldükten sonra dondurulmuş görünümde `existedAt`, güncel görünümde `deletedAt == null` kuralı uygulanır, yani liste ile indirme aynı zaman kesitine bağlıdır (B07 ✅).
 - **Silinmiş kayıt artık değiştirilemez.** `RecordServiceImpl.findRecordOrThrow` aktif kayıt yükleyicisine (`findByIdAndDeletedAtIsNull`) taşındı; aynı yükleyici okuma, dosya ve audit yollarında ortaklaştırıldı. Tekrar `DELETE` idempotent değildir, `404` döner (B08 ✅).

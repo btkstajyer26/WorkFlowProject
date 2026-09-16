@@ -397,7 +397,7 @@ olarak mevcut test verisini kaldırmayın.
 
 Kaynak: `DB-1` §15 ve kabul edilmiş `ADR-0005`/`ADR-0006`. Departman,
 üyelik, routing ve kayıt ataması için şema, entity ve repository katmanı hazırdır.
-V23 + WF-5/WF-6 departmana gönderim, routing/eligibility ve ortak policy/SQL görünürlüğünü uygular. AP-4/AP-5 ekranları ve NT-5 fan-out ayrı teslimdir.
+V23 + WF-5/WF-6 departmana gönderim, routing/eligibility ve ortak policy/SQL görünürlüğünü uygular. NT-5 fan-out ayrı teslim olarak tamamlanmıştır; AP-4/AP-5 ekranları bu dalda açık kalır.
 
 | Migration | Teslim durumu |
 | --- | --- |

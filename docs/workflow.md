@@ -391,7 +391,7 @@ Okuma öncesinde `RecordAccessPolicy.assertCanView` çalışır. `AuditLogRespon
 | Geçiş sonucu | Uygulama içi bildirim, e-posta ve push alıcısı |
 | --- | --- |
 | Bir kullanıcıya atanan kayıt | Yeni `assignedTo` kullanıcısı |
-| Departmana atanan kayıt | Event `assignedDepartmentId` taşır; NT-5 tamamlanana kadar alıcı kümesi boştur, oluşturan/yardımcı fallback'ine düşmez |
+| Departmana atanan kayıt | Event `assignedDepartmentId` taşır; ortak routing/eligibility çözümünün bulduğu aktif ve yetkili departman üyeleri alıcıdır. İşlemi yapan aktör çıkarılır, kullanıcı kimliğiyle tekilleştirilir; uygun alıcı yoksa oluşturan/yardımcı fallback'ine düşmez (NT-5) |
 | `ONAYLANDI` veya `REDDEDILDI` | Kaydı oluşturan kullanıcı ve kaydı Başkana ileten son Başkan Yardımcısı; aynı kullanıcıysa tekilleştirilir |
 
 Uygulama içi mesaj 500 karaktere sığacak şekilde kısaltılır. Bildirim türü aksiyondan `RECORD_SUBMITTED`, `RECORD_FORWARDED`, `RECORD_RETURNED`, `RECORD_APPROVED` veya `RECORD_REJECTED` olarak türetilir.
@@ -406,6 +406,17 @@ Bildirim okuma uçları:
 | `PUT /api/notifications/{id}/read` | Yalnız bildirimin sahibi için okundu işareti |
 
 Geçmiş listesinde istemcinin `sort` parametresi kullanılmaz; sıra daima backend tarafından en yeniden eskiye sabitlenir.
+
+Web realtime kanalı `/ws` STOMP endpoint'idir. `CONNECT` frame'i
+`Authorization: Bearer <access token>` taşır; authenticated principal kullanıcının
+e-postasıdır. İstemci yalnız `/user/queue/notifications` adresine abone olur;
+doğrudan `/queue/notifications` aboneliği reddedilir. `NotificationService.create`
+DB save sonrasında application event yayınlar; başarılı transaction commit'inden
+sonra `RealtimeNotificationEventListener`, `NotificationResponse` payload'ını
+user destination'a gönderir. Frontend notification ve ilgili record sorgularını
+invalid eder. 30 saniyelik REST polling fallback'i sürekli korunur. Transaction,
+duplicate ve bağlantı yaşam döngüsü kararı [ADR-0004](decisions/0004-bildirim-teslimi-realtime-ve-mobil-push.md),
+manuel kabul adımları [D04 rehberindedir](D04_NOTIFICATION_MOBILE_REALTIME_KABUL_REHBERI.md).
 
 ### E-posta, hızlı işlem ve push
 
@@ -533,7 +544,7 @@ kodda şu sapmalar vardır:
 | --- | --- | --- |
 | B02 | ~~Dinamik departman rolü `BASKANA_ILET` yaptığında Başkan'ın geri dönüşü `WORKFLOW_TARGET_ROLE_INVALID` alıyordu.~~ **Kapandı (6 Eylül 2026):** [ADR-0008](decisions/0008-hedef-rol-semantigi-ve-onceki-aktore-donus.md) uygulandı — `V24` ile `expected_target_role_id` yalnız `ROLE` stratejisinin arama anahtarı oldu, nöbetçi `TransitionDecision.Pending`'e taşındı ve statik rol dayatmasının yerine yetenek kontrolü (`WORKFLOW_TARGET_CANNOT_ACT`) geldi. Görünürlük ayağı `B13` ile birlikte kapandı | ✅ |
 | B03 | Görev devri ve `last_deputy_id` toplu güncellemeleri `records.version` artırmadığı için, kaydı önceden yüklemiş bir workflow transaction'ı devir sonrası eski `lastDeputyId` ile çatışmasız yazabilir | P1 |
-| B01 | Workflow e-postasının hızlı işlem tokenı `AFTER_COMMIT` aşamasında üretilemez; dinleyici hatayı yakalar ve mail düğmesiz gider (NT-7 mail üzerinden işlem kabulü sağlanmaz) | P1 |
+| B01 | ~~Workflow e-postasının hızlı işlem tokenı `AFTER_COMMIT` aşamasında kalıcı olmuyordu.~~ **Kapandı:** `issue` kendi `REQUIRES_NEW` transaction'ında eski açık tokenları kapatıp yenisini yazar. Commit → mail → preview → consume → audit → ikinci kullanım reddi integration ve gerçek Mailpit kabulüyle doğrulandı (NT-7) | ✅ |
 | B04 | `RecordLockValidator` kayıt kilidi almaz ve dosya yükleme kaydın sürümüne dokunmaz; kontrol ile dosya satırının yazılması arasında kayıt incelemeye geçse bile yükleme commit edilir | P1 |
 | B06 | Dondurulmuş içerik gösterilirken `q`/kategori filtreleri güncel kayıt kolonlarında çalışır; gösterilmeyen düzenleme arama sonucunu etkiler | P2 |
 
@@ -549,19 +560,19 @@ Yukarıdaki boşlukların bir kısmı **Workflow V1 açık işidir**, bir kısm�
 | --- | --- |
 | Ortak görünürlük ve dinamik rol okuma erişimi | Departman/durum çiftleri dahil ortak policy/SQL, JWT okuma uçları ve sayfalama testleri uygulandı |
 | Departman, üyelik, routing ve atama veri katmanı | V18–V22 ile şema/entity/repository hazır; V22 ad uzunluğu, self-parent ve silme korumalarını DB-1 ile hizalar |
-| Departman runtime ve görünürlük | V23 + WF-5/WF-6 ve policy/SQL departman kolu uygulandı; yönetim ekranları (`AP-4`/`AP-5`) ve NT-5 ayrı teslim. Bildirim dinleyicisi departmana atanan kayıtta bilinçli olarak boş alıcı kümesi döner |
+| Departman runtime ve görünürlük | V23 + WF-5/WF-6 ve policy/SQL departman kolu uygulandı; NT-5 aynı routing/eligibility üzerinden departman alıcılarına fan-out yapar ve kullanıcı kimliğiyle tekilleştirir. Yönetim ekranları (`AP-4`/`AP-5`) ayrı teslimdir |
 | Dinamik aktörden Başkana iletilen kaydın geri dönüşü | Workflow V1 açık işi — B02; karar [ADR-0008](decisions/0008-hedef-rol-semantigi-ve-onceki-aktore-donus.md) ile verildi, uygulama açık |
 | Departman hedefinin kalıcı workflow audit'ine yazılması | Workflow V1 açık işi — B12; `WorkflowTransitionAudit` departman alanı taşımaz, `AuditLogService` modeldeki kişi atamasını da kaydetmez |
 | Dosya işlemlerinin kayıt kilidi ve tarihsel dosya erişimi | Uygulandı: dosya ekleme/silme `findByIdForUpdate` ile kaydı kilitler (B04), geri alınan yüklemede disk temizlenir (R06), indirme listeyle aynı zaman kesitini kullanır (B07) |
 | Silinmiş kaydın değiştirilmesi | Uygulandı: değiştirme yolları aktif kayıt yükleyicisini kullanır; tekrar `DELETE` `404` döner (B08) |
-| İstemcinin kullanılabilir aksiyonu backend'den öğrenmesi | Backend tamam: `available-actions` ve `target-departments` uçları uygulandı ve üretilmiş istemcide açık. Kalan iş istemci tarafında — web paneli hâlâ `systemKey` sabitleriyle çalışır (B10), mobil kendi hesabını kurar (B09) |
+| İstemcinin kullanılabilir aksiyonu backend'den öğrenmesi | Backend tamam: `available-actions` ve `target-departments` uçları uygulanmıştır. Mobil bunları doğrudan tüketir; dinamik rol, departman seçimi ve assignment/version gösterimi tamamdır (B09/MOB-1). Web paneli hâlâ `systemKey` sabitleriyle çalışır (B10) |
 | Mevcut geçişe dinamik aktör rolü bağlama | WF-8 servis ve sözleşmesi uygulandı; AP-8 HTTP/UI açık |
 | Admin'den rol/permission yönetimi | Workflow V1 — `AP-2`/`AP-3` |
-| WebSocket bildirim kanalı | Workflow V1 — `NT-2`…`NT-4` |
+| WebSocket bildirim kanalı | Kod tamam — `NT-2`…`NT-4`; gerçek browser reconnect kabulü PASS, izole polling fallback kabulü bekliyor |
 | Aksiyon metadata'sının enum'dan tabloya taşınması | V1 acceptance'ı için zorunlu değil |
 | Grafik topolojisinin arayüzden düzenlenmesi, workflow definition/versioning, draft/publish | **Workflow V2** — V1'de yasak (DB-1 §14) |
 
-Geçiş kuralları veritabanından okunur; `TransitionRules` statik tablosu test ağacındaki parity ve veritabanısız test referansıdır. Workflow rol kimliği `WF-2D2` ile tamamen `RoleId`'ye taşındı. Dinamik rol görünürlüğü mevcut şemada ortaktır; departman görünürlüğü uygulandı, WebSocket bildirim kanalı açıktır. HTTP istek audit'i `ADMIN` sistem anahtarında `audit_logs`, diğerlerinde `user_audit_logs` tablosuna gider; rolün yeniden adlandırılması bu dağılımı değiştirmez.
+Geçiş kuralları veritabanından okunur; `TransitionRules` statik tablosu test ağacındaki parity ve veritabanısız test referansıdır. Workflow rol kimliği `WF-2D2` ile tamamen `RoleId`'ye taşındı. Dinamik rol görünürlüğü mevcut şemada ortaktır; departman görünürlüğü ve WebSocket bildirim kanalı uygulanmıştır. Gerçek browser reconnect kabulü PASS durumundadır; izole polling fallback kabulü ayrıca bekler. HTTP istek audit'i `ADMIN` sistem anahtarında `audit_logs`, diğerlerinde `user_audit_logs` tablosuna gider; rolün yeniden adlandırılması bu dağılımı değiştirmez.
 
 ## Değişiklik kontrol listesi
 
