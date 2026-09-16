@@ -98,7 +98,7 @@ describe('useRealtimeNotifications', () => {
     const receive = vi.mocked(client.subscribe).mock.calls[0][1]
     queryClient.setQueryData(queryKeys.notifications.unreadCount, 1)
     act(() => clearApiAccessToken())
-    expect(client.deactivate).toHaveBeenCalledWith({ force: true })
+    expect(client.deactivate).toHaveBeenCalledWith()
     await client.beforeConnect(client)
     expect(client.connectHeaders).toEqual({})
     act(() => receive({ body: '{}' } as IMessage))
@@ -109,12 +109,12 @@ describe('useRealtimeNotifications', () => {
     setApiAccessToken('access-token')
     const { unmount } = mount(true, true)
     const [oldClient, client] = vi.mocked(Client).mock.instances
-    expect(oldClient.deactivate).toHaveBeenCalledWith({ force: true })
+    expect(oldClient.deactivate).toHaveBeenCalledWith()
     await oldClient.beforeConnect(oldClient)
     expect(oldClient.connectHeaders).toEqual({})
     await connect(client)
     unmount()
-    expect(client.deactivate).toHaveBeenCalledWith({ force: true })
+    expect(client.deactivate).toHaveBeenCalledWith()
     const activationCount = vi.mocked(client.activate).mock.calls.length
     act(() => setApiAccessToken('later-token'))
     expect(client.activate).toHaveBeenCalledTimes(activationCount)

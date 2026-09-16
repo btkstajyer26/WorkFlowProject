@@ -41,7 +41,7 @@ describe('App authorization boundaries', () => {
     await user.click(screen.getByRole('button', { name: 'Çıkış Yap' }))
 
     expect(await screen.findByRole('heading', { name: 'Hesabınıza giriş yapın' })).toBeInTheDocument()
-    expect(realtimeClient.deactivate).toHaveBeenCalledWith({ force: true })
+    expect(realtimeClient.deactivate).toHaveBeenCalledWith()
   })
 
   it('oturumsuz kullanıcıyı giriş ekranına yönlendirir', async () => {
