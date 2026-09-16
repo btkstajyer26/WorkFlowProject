@@ -10,13 +10,14 @@
  * ---------------------------------------------------------------
  */
 
-import {
+import type {
   DeviceTokenDeleteRequest,
   DeviceTokenRequest,
   RegisterTokenData,
   RemoveTokenData,
 } from "./data-contracts";
-import { HttpClient, RequestParams } from "./http-client";
+import { HttpClient } from "./http-client";
+import type { RequestParams } from "./http-client";
 
 export class DeviceTokens<SecurityDataType = unknown> {
   http: HttpClient<SecurityDataType>;

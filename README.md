@@ -21,47 +21,6 @@ Expo mobil ───── REST ─────────┘       ├── d
 
 Workflow geçişleri `workflow_transitions` tablosundan okunur. `ReloadableTransitionRuleSource`, doğrulanmış kuralları `TransitionRuleSource` sınırının arkasında sunar. Her workflow işlemi başlangıçta tek snapshot alır. Kurallar `POST /api/workflow/rules/reload` ile veya WF-8 rol bağlama servisi üzerinden başarılı değişiklik sonrasında yeniden başlatmadan yenilenir. İstemciler hedef durumu hesaplamaz.
 
-## Mevcut teslim durumu
-
-16 Eylül 2026, `feature/nt-realtime-notifications` dalında üç realtime commit'i
-(`202cbf0`, `885fbfc`, `963f0b4`) ve korunmuş Paket 1–4 çalışma ağacı
-incelenmiştir; uzak CI ve `main` durumu ayrıca doğrulanmalıdır:
-
-- Dinamik roller tanımlı geçiş, permission ve kayıt ilişkisiyle workflow aksiyonu alabilir. `RECORD_VIEW` ile oluşturdukları veya doğrudan atandıkları kayıtları okuyabilir.
-- **Departman runtime'ı V23 ile uygulanmıştır:** `DEPARTMANA_GONDER` aksiyonu, `DEPARTMENT` hedef stratejisi, `DepartmentRoutingResolver`/`DepartmentRoutingAdapter` ve `DepartmentVisibilityAdapter` çalışır durumdadır. Şema `V1`–`V24`'tür.
-- **AP-2 rol yönetim ekranı bu dalda mevcuttur** (`frontend/src/pages/admin/RolesPage.tsx`). Rol CRUD backend uçları ve kullanımdaki rolün korunması hazırdır.
-- **WF-8 backend servisi hazırdır** fakat HTTP adapter'ı yoktur: `workflow` altındaki tek yönetim ucu `POST /api/workflow/rules/reload`'dur. `AP-8` açıktır.
-- **Yönetim HTTP katmanı eksiktir:** `AP-3` (permission matrisi), `AP-4` (departman/üyelik) ve `AP-5` (routing) için controller bulunmaz; Admin bu nesneleri panelden yönetemez.
-- **NT-5 departman fan-out'u hazırdır:** uygun departman üyeleri ortak routing/eligibility çözümüyle bulunur, aktör çıkarılır ve alıcı kimlikleri tekilleştirilir.
-- **Web realtime kanalı hazırdır:** `/ws`, STOMP CONNECT Bearer doğrulaması,
-  `/user/queue/notifications`, commit-sonrası `NotificationResponse` yayını,
-  `@stomp/stompjs` reconnect ve query invalidation uygulanmıştır. 30 saniyelik
-  REST polling fallback'i korunur.
-- **Mobil B09/MOB-1 hazırdır:** dinamik rol kimliği, backend kaynaklı
-  available-actions/target-departments, `assignment.kind`/`version` tüketimi ve
-  kayıt detayında atama gösterimi uygulanmıştır.
-- **Android push lifecycle kodu hazırdır:** registration, token renewal,
-  foreground/background/cold-start ve notification tap → `recordId` yolları
-  testlidir; fiziksel cihaz kabulü bekler.
-- Grafik düzenleme, workflow definition/versioning ve draft/publish Workflow V2 kapsamındadır; V1 eksiği sayılmaz.
-
-**Davranış problemleri:** 4 Eylül 2026 tarihli inceleme, çalıştırılmış
-regresyon problarıyla sekiz backend davranış ihlali (B01–B08) ve beş istemci /
-sözleşme boşluğu (B09–B13) doğrulamıştır. Bu dalda **dokuzu kapanmıştır** — `B01`,
-`B02`, `B04`, `B05`, `B07`, `B08`, `B09`, `B11`, `B13` — ve kod/test kanıtıyla
-sabitlenmiştir. **Açık kalan dört bulgu:** `B03` (görev devrinde sürüm artışı),
-`B06` (görünür içerikle arama), `B10` (web aksiyon paneli), `B12` (atama audit'i).
-10 Eylül Workflow V1
-teslim tanımı bugün hâlâ karşılanmamaktadır. Sekiz backend probunun koşum sonuçları
-ve tekrar üretim adımları [kanıt klasöründedir](docs/reviews/2026-09-04/TEKRAR_URETIM.md).
-
-Son kayıtlı backend `verify`: **831 test, 0 failure/error/skipped; JAR üretildi**
-(7 Eylül 2026, yerel, ayrı `b04_b08_test` veritabanına karşı). Bu sayı rev.4'teki
-816 testin üzerine bu turda eklenen 15 regresyon testini içerir. Frontend, mobil ve
-Playwright **bu turda çalıştırılmadı**; 126/126, 64/64 ve 15/15 önceki turların
-tarihli sonuçlarıdır. Yeşil sonuç açık kalan dört bulguyu kapatmaz; CI, TEST deploy
-veya ürün kabulü bu sonuçtan çıkarılmaz. Kaynaklar ve devam bağımlılıkları
-[dokümantasyon dizinindedir](docs/README.md).
 
 Paket 5 dar doğrulamasında (16 Eylül 2026) notification/realtime, STOMP
 güvenliği, departman alıcısı, mail-action servisleri ve push servisi için **57
@@ -159,7 +118,7 @@ npx expo export --platform web
 
 | Belge | Kapsam |
 | --- | --- |
-| [Dokümantasyon dizini ve teslim sınırları](docs/README.md) | Güncel kanıt, hazır/açık işler ve WF-5/WF-6 öncesi bağımlılıklar |
+| [Dokümantasyon dizini](docs/README.md) | Belge haritası, kalıcı departman sınırları ve doğrulama tuzakları |
 | [Sistem mimarisi](docs/architecture.md) | Modül sınırları, port/adapter yapısı ve topoloji |
 | [Workflow](docs/workflow.md) | Durumlar, geçişler, yetki, audit ve bildirim davranışı |
 | [Veritabanı](docs/database.md) | Şema ve Flyway yönetimi |
@@ -174,10 +133,6 @@ npx expo export --platform web
 | [Bahadır final handoff](docs/reviews/2026-09-16-bahadir-final-handoff.md) | B01/B09/MOB-1/NT/ADR/D04 kanıt matrisi ve kalan manuel kabuller |
 | [Mimari kararlar](docs/decisions/README.md) | ADR dizini |
 
-Tarihsel belgeler aktif gereksinim kaynağı değildir:
-
-- [Backend açık işler ve görev dağılımı](docs/archive/BACKEND_ACIK_ISLER_VE_GOREV_DAGILIMI.md)
-- [Eksik controllerlar ve kararlar](docs/archive/EKSIK_CONTROLLERLAR_VE_KARARLAR.md)
-- [Eksik sınıflar ve öncelik](docs/archive/EKSIK_SINIFLAR_VE_ONCELIK.md)
-- [Mobil entegrasyon görev dağılımı](docs/archive/MOBIL_ENTEGRASYON_GOREV_DAGILIMI.md)
-- [M9 TEST kabul kanıtı](docs/archive/M9_TEST_KABUL_KANITI.md)
+Tarihsel belgeler [`docs/archive/`](docs/archive/) altındadır ve aktif gereksinim
+kaynağı değildir: kapatılmış görev dağılımları, aşamalı dönüşüm kayıtları
+(WF-2A envanteri, WF-2D2 rollout) ve ortam kabul kanıtları.

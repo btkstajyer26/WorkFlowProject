@@ -1,27 +1,15 @@
-# Dokümantasyon ve teslim durumu
+# Dokümantasyon
 
-Bu dizin çalışan kodu, kabul edilmiş tasarım kararlarını ve tarihli test kanıtlarını
-ayrı takip eder. **Kod tabanı: 16 Eylül 2026,
-`feature/nt-realtime-notifications`; `202cbf0`, `885fbfc`, `963f0b4` korunmuş,
-Paket 1–4 değişiklikleri çalışma ağacındadır.**
-Bir ADR'nin kabul edilmesi ilgili runtime'ın uygulandığı anlamına gelmez.
-Aynı biçimde “kod mevcut”, “dala birleşti”, “CI geçti”, “TEST'e dağıtıldı” ve
-“ürün kabulü geçti” ayrı durumlardır; bu belgede karıştırılmaz.
+Bu dizin **sözleşmeleri ve tasarım kararlarını** tutar: neyin nasıl çalıştığı,
+hangi kuralın neden konduğu, hangi invariant'ın korunması gerektiği.
 
-> **Karar paketi — uygulandı.** [ADR-0008](decisions/0008-hedef-rol-semantigi-ve-onceki-aktore-donus.md)
-> ve [APP-9/APP-10/B11 sözleşmesi](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md) artık
-> **Kabul Edildi** durumundadır ve kodu `origin/test`'tedir: `V24` migration'ı,
-> yetenek kontrolü (`WORKFLOW_TARGET_CANNOT_ACT`), iki APP-9 okuma ucu ve ortak
-> `assignment`/`version` alanları uygulanmıştır. Bahadır'ın `B09`/`MOB-1` ve
-> `NT-5` tüketimi tamamdır; web `B10` ve audit `B12` bu kapsamın dışındaki açık
-> işlerdir.
+**Durum takibi burada değildir.** Neyin bittiği, neyin açık olduğu, açık bulgular,
+sahiplik ve teslim koşulu tek bir yerde izlenir: **görev dağılımı ve yol haritası
+belgesi** (repo dışında, `plan/` dizininde). Bu ayrım bilinçlidir — ilerleme
+yüzdesi, test sayısı ve commit kaydı yazıldığı gün eskir; sözleşme eskimez.
 
-> **Açık davranış problemleri:** 4 Eylül 2026 tarihli inceleme, çalıştırılmış
-> regresyon problarıyla sekiz backend davranış ihlali (B01–B08) ve beş istemci/sözleşme
-> boşluğu (B09–B13) doğrulamıştır. **Bu dalda dokuzu kapalıdır** (`B01`, `B02`,
-> `B04`, `B05`, `B07`, `B08`, `B09`, `B11`, `B13`); **açık kalanlar `B03`,
-> `B06`, `B10`, `B12`'dir.** Aşağıdaki “hazır teslim” sütunu bu problemleri
-> kapsamaz.
+Bir ADR'nin kabul edilmesi ilgili runtime'ın uygulandığı anlamına gelmez. Aynı
+biçimde "kod mevcut", "dala birleşti" ve "ürün kabulü geçti" ayrı durumlardır.
 
 ## Hangi belge okunmalı?
 
@@ -41,106 +29,65 @@ Aynı biçimde “kod mevcut”, “dala birleşti”, “CI geçti”, “TEST'
 | TEST dağıtımı ve ortam sınırları | [TEST ortamı notu](TEST_ORTAMI_NOTU.md) |
 | Tasarım gerekçeleri ve karar durumları | [ADR dizini](decisions/README.md) |
 
-## Hazır olanlar ve kalan kapsam
+## Departman kuralları — kalıcı sınırlar
 
-| Alan | Hazır teslim | Kalan iş |
-| --- | --- | --- |
-| Rol/yetki ve workflow kimliği | RoleId, permission authority, kapasite kontrolü, DB kural kaynağı ve canlı reload; `AP-2` rol CRUD backend uçları, kullanımdaki rolün korunması ve `RolesPage` yönetim ekranı | Permission matrisi (`AP-3`): yönetim servisi, HTTP ucu ve ekran yoktur; permission kaldırmanın açık işlere etkisi kararlaştırılmalıdır |
-| Ortak görünürlük (`WF-2C2/DB-8`) | Creator/direct/system ve departman/durum scope; dinamik rol liste/detay/geçmiş/dosya, JWT ve policy–SQL parity | TEST/ürün kabulü |
-| Aktör rolü bağlama (`WF-8`) | `WorkflowActorBindingService.listTransitions/bind/unbind`, permission/koruma, audit ve commit sonrası snapshot | `AP-8` HTTP adapter ve yönetim ekranı. `workflow` altındaki tek yönetim ucu `POST /api/workflow/rules/reload`'dur; bu tek başına AP-8 değildir |
-| Departman veri katmanı (`DB-11/12`) | V18–V22 tablo/entity/repository; ad 150, self-parent CHECK, RESTRICT FK, çoklu üyelik ve routing tekilliği | Yönetim servis/API/UI (`AP-4/5`): departman ve routing için controller yoktur; parent döngüsü ve açık kuyruk koruması karara bağlanmalıdır |
-| Atama (`DB-13/WF-5`) | V23, snapshot/update/event departman alanları, karşılıklı dışlama ve gönderim | Yönetim ve gönderim ekranı kabulü |
-| Departman runtime (`WF-6`) | Routing/eligibility resolver, gönderim, ortak görünürlük, event ve yarış testleri; dinamik aktörden Başkana iletilen kaydın önceki aktöre dönüşü (B02 ✅, `V24`); NT-5 uygun alıcı fan-out'u ve `user_id` tekilleştirmesi | AP-4/AP-5 ekranları |
-| İstemci workflow kabulü | Web dinamik rolü okuyabilir ve departman isteği taşıyabilir; atama (`assignment.kind`) ve `version` üç yanıt tipinde taşınır (B11 ✅). Mobil rolü açık string/`roleId`/`systemKey` ile okur, backend available-actions/target-departments yanıtını tüketir ve atamayı detayda gösterir (B09/MOB-1 ✅) | Web aksiyon paneli `systemKey` sabitlerine bağlıdır; dinamik rol düğme göremez ve üretilmiş `WorkflowQueryController.ts` hiçbir bileşen tarafından tüketilmez (B10) |
-| Bildirim ve istemci kabulü | REST + 30 saniye polling, `/ws` authenticated STOMP user destination, commit-sonrası realtime yayın, frontend query invalidation/duplicate koruması, NT-5 fan-out, B01/NT-7 mail quick action, FCM backend ve mobil push lifecycle kodu | Reconnect gerçek browser kabulü PASS; izole polling fallback ve Firebase bağlı fiziksel Android kabulü bekliyor |
+Ayrıntı ve gerekçe ADR'lerdedir; aşağıdakiler değişmemesi gereken sınırlardır.
 
-## WF-5/WF-6 entegrasyon sınırı
+1. **Atama kişi veya departmandır.** İkisi birden dolamaz, ikisi de boş olabilir
+   (`chk_records_assignment_exclusive`). Geçişin gerektirdiği atama uygulama
+   transaction'ında doğrulanır; snapshot, update, event ve audit aynı bilgiyi
+   taşır. [ADR-0005](decisions/0005-departman-atamasi-ve-akis-kurali.md) ·
+   [ADR-0009](decisions/0009-audit-atama-sozlesmesi.md)
+2. **Eligibility tek ortak kuraldan çözülür.** Güncel üyelik, aktif
+   kullanıcı/departman/rol, uygun aktif transition/routing, permission ve
+   aktör–kayıt ilişkisi **birlikte** aranır. Liste, detay, dosya, geçmiş ve
+   bildirim alıcısı bağımsız yetki kuralı üretmemelidir.
+   **Uyarı:** `findActiveUsersByDepartmentId` yalnız kullanıcı aktifliğini
+   filtreler; tek başına eligibility çözümü **değildir**.
+   [WF-2C2 / DB-8](WF2C2_DB8_GORUNURLUK_SOZLESMESI.md)
+3. **Kapasite ve hiyerarşi sınırı.** Yerleşik rollerin kapasitesi gevşetilmez;
+   departman routing hedefleri sınırsız kapasiteli uygun workflow rolleridir.
+   Çoklu üyelik vardır; parent departmandan yetki devralma, otomatik eskalasyon
+   ve claim mekanizması **yoktur**.
+   [ADR-0007](decisions/0007-rol-kapasitesi-ve-birim-tekilligi.md)
+4. **Migration ile kod aynı teslimde gider.** `DEPARTMENT` stratejisi,
+   `DEPARTMANA_GONDER` ve geçiş seed'leri `V23` ile birlikte uygulanmıştır; bu
+   tür bir migration tek başına eski backend üzerine dağıtılmaz.
+   [ADR-0006](decisions/0006-departman-hedefli-target-strategy.md)
 
-Burak runtime ve ortak policy'yi, Alperen persistence/query ve ileri migration'ı
-birlikte tamamlar. Tamer yönetim HTTP/UI'sini, Bahadır workflow olayının bildirim
-kanallarını geliştirir. Temel departman şeması ve ADR kararı beklenmez.
+Grafik tasarımcısı, workflow versioning ve draft/publish **Workflow V2**
+kapsamındadır. Bir backend servisinin hazır olması, ilgili HTTP/UI kabulünün
+tek başına tamamlandığı anlamına gelmez.
 
-1. **Gönderim aynı teslimde açılır.** [ADR-0006](decisions/0006-departman-hedefli-target-strategy.md)
-   uyarınca `DEPARTMENT`, `DEPARTMANA_GONDER`, `targetDepartmentId`, geçiş
-   constraint/seed'leri ve resolver desteği V23 ile birlikte uygulanmıştır. V23 tek başına eski backend üzerine dağıtılmaz.
-2. **Atama kişi veya departmandır.** Her ikisi birden dolamaz; ikisi de boş
-   olabilir. Geçişin gerektirdiği atama, uygulama transaction'ında doğrulanır.
-   Snapshot, update ve event departman bilgisini taşır. Mevcut iki aşamalı
-   doğrulama, işlem başına tek snapshot, audit ve mail transaction bütünlüğü korunur.
-3. **Eligibility ortak kurala dayanır.** Güncel üyelik, aktif kullanıcı/departman/rol,
-   uygun aktif transition/routing, permission ve aktör-kayıt ilişkisi birlikte
-   aranır. Mevcut `findActiveUsersByDepartmentId` yalnız kullanıcı aktifliğini
-   filtreler; tam eligibility çözümü değildir. Liste/detail/file/history ve
-   notification alıcı çözümü bağımsız yetki kuralları üretmemelidir.
-4. **V1 kapasite ve hiyerarşi sınırı korunur.** [ADR-0007](decisions/0007-rol-kapasitesi-ve-birim-tekilligi.md)
-   gereği yerleşik rollerin kapasitesi gevşetilmez; departman routing hedefleri
-   sınırsız kapasiteli uygun workflow rolleridir. Çoklu üyelik vardır; parent
-   departmandan yetki devralma, otomatik eskalasyon ve claim mekanizması yoktur.
-5. **Kabul departman davranışını kanıtlar.** Gönderim/geri dönüş, yetkili-yetkisiz
-   üye, üyelik/permission/rol/routing kaybı, policy–SQL ID eşitliği ve sayfalama,
-   eşzamanlı first-action-wins ile rollback testleri eklendi. Mevcut snapshot,
-   geçmiş kesimi, dosya ve mail testleri korunur. WF-8 ve AP-2 kullanım koruması departman kuyruklarını da kapsar; uygunluk/routing pasifleştirilerek aşılamaz.
+## Doğrulama
 
-Grafik tasarımcısı, workflow versioning ve draft/publish Workflow V2 kapsamındadır.
-WF-8 servisinin hazır olması AP-8 ekranlarını, şemanın hazır olması da WF-2C2
-departman kabulünü kapatmaz.
+Kurulum ve kalite komutları [kök README'dedir](../README.md#kalite-komutları).
+Backend suite'i çalışan bir PostgreSQL ister ve **geliştirme veritabanına karşı
+koşturulmaz** — ayrı bir test veritabanı açın.
 
-## Doğrulama kanıtı
+İki tuzak ölçülerek doğrulanmıştır:
 
-**Güncel tur — 7 Eylül 2026, `origin/test` @ `beadcb0` + B04/B05/B07/B08 çalışması:**
-Backend `./mvnw clean verify` **831 test / 0 failure / 0 error / 0 skipped**, JAR
-üretildi. Koşum, geliştirme veritabanına dokunmamak için aynı PostgreSQL
-sunucusunda açılan ayrı bir `b04_b08_test` veritabanına karşı yapıldı; `V22`–`V24`
-dahil bütün migration'lar ilk koşumda uygulandı. **831 = rev.4'teki 816 + bu turda
-eklenen 15 regresyon testi.**
+- **DB adresini ortam değişkeniyle verin.** `MailActionTokenIntegrationTest`
+  adresi `System.getenv()` ile okur; `-DDB_NAME=...` o sınıfta çalışmaz ve
+  geliştirme veritabanına şema açar.
+- **Bağlantı havuzunu sınırlayın.** Her Spring test context'i kendi havuzunu
+  açar; çok sayıda `@SpringBootTest` sınıfı PostgreSQL'in `max_connections`
+  sınırını aşıp suite'i *"too many clients"* ile düşürür.
+  `SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE` ile sınırlayın.
 
-**Bu turda frontend, mobil ve Playwright çalıştırılmadı** — bu turun değişiklikleri
-yalnız backend'dedir. 126/126, 64/64 ve 15/15 sayıları önceki turlara aittir ve
-burada tekrar edilmemiştir.
-
-> **Test izolasyonu bulgusu (yeni).** `PreviousActorReturnIntegrationTest` yalnızca
-> aktif bir `BASKAN` kullanıcısı bulunmayan bir veritabanında geçer: kendi `BASKAN`
-> kullanıcısını eklediği için, seed edilmiş bir `BASKAN` zaten varsa `ROLE` hedef
-> stratejisi tekil kullanıcı çözemez ve `BASKANA_ILET` `409` döner. Geliştirme
-> veritabanına karşı koşulduğunda yedi testin yedisi bu nedenle düşer. Bu, bu turun
-> değişiklikleriyle ilgisizdir — değişiklikler rafa kaldırılarak doğrulanmıştır —
-> fakat suite'in "temiz DB" varsayımını görünür kılar.
-
-Bu sayılar **proje testlerinin** sonucudur. İnceleme turunda ayrıca çalıştırılan
-sekiz regresyon probu bu suite'in dışındadır ve hepsi başarısız olmuştur; yeşil
-suite B01–B12'yi kapatmaz. Koşum ayrıntısı, prob başına gözlenen sonuç ve tekrar
-üretim adımları [kanıt klasöründedir](reviews/2026-09-04/TEKRAR_URETIM.md). Bu yerel
-doğrulamadır; CI, TEST deploy ve AP-3/AP-4/AP-5/AP-8/NT-5 ürün kabulü değildir.
-
-**Önceki tur — WF-5/WF-6 birleşik teslim — 4 Eylül 2026, 15:21 TRT:** Alperen V23 + AP-2
-hizalaması + departman runtime/görünürlük üzerinde `mvn -o test`: **772 test,
-0 failure, 0 error, 0 skipped**. Frontend `npm run lint`, `npm test`
-(**117 test / 0 failure**) ve `npm run build` başarılıdır. Dinamik/yeniden
-adlandırılmış rolle login ve departman isteğinin istemciden taşınması ayrıca testlidir.
-Docker Compose ve konteynerler önceden incelendi; testler yalnız
-`wf-scratch` / `127.0.0.1:5434` / `workflowdb` üzerinde çalıştı. Geliştirme
-veritabanı `5433` ve çalışan backend `8080` korundu. İstemci, aynı üretim
-seçenekleriyle geçici `8099/v3/api-docs` şemasından yenilendi; geçici backend
-kapatıldı, ortama bağlı baseURL farkı alınmadı. `docs/openapi.json` yalnız ilgili
-alanlarda güncellendi ve dört değişen DTO'nun alan kümeleri canlı şemayla karşılaştırıldı.
-Bu yerel doğrulamadır; CI/TEST deploy ve AP-4/AP-5/NT-5 ürün kabulü değildir.
-
-Son kayıtlı tam backend `verify`: **4 Eylül 2026, 12:37 TRT — 712 test,
-0 failure, 0 error, 0 skipped; JAR üretildi.** 703 mevcut teste 9 departman
-şema senaryosu eklendi. Test edilen teslim ve `test` @ `3eb3691` aynı Git dosya
-ağacını taşır. PostgreSQL 15.18 ve `127.0.0.1:5433 → 5432` önceden doğrulandı;
-izole test şemaları temizlendi, mevcut `public` şema V17'de korundu. Ayrıntı
-[V22 kabul kaydındadır](database.md#v22-yükseltme-ve-geri-alma-davranışı).
-
-Bu kayıt önceki V22 teslimine aittir; güncel WF-5/WF-6 doğrulaması aşağıya ayrıca kaydedilir. 712 sonucu
-güncel CI, TEST deploy, frontend/mobile veya departman ürün kabulünün kanıtı değildir.
-WF-2C2'nin 667 ve WF-8'in 703 testlik kayıtları kendi teslim tarihlerine aittir.
+Ayrıca `PreviousActorReturnIntegrationTest` yalnız **temiz** bir veritabanında
+geçer: `ROLE` stratejisi tam bir aktif kullanıcı arar, seed'li bir DB'de aktif
+`BASKAN` sayısı ikiye çıkar ve testler düşer. Migration'lar kullanıcı seed'i
+yapmaz; boş DB doğru başlangıçtır.
 
 ## Tarihsel belgeler
 
-[WF-2A envanteri](WF2A_ROLE_NAME_ENVANTERI.md) ve
-[WF-2D2 rollout](WF2D2_ROLE_ID_ROLLOUT.md) aşamalı dönüşümün gerekçe ve kanıtlarını
-saklar; eski gate/sınıf/rol red davranışları güncel talimat değildir.
-`archive/` altındaki kapatılmış görev ve ortam kabul kayıtları tarihsel kalır.
-ADR-0003'ün rol kapsamı/tekillik önerisinin yerine ADR-0005/0007 geçmiştir;
-ADR-0005/0006/0007 kabul edilmiş kararlardır, runtime teslim durumları yukarıdadır.
+`archive/` altındaki belgeler **güncel talimat değildir**; kapatılmış görev
+dağılımlarını, aşamalı dönüşüm kayıtlarını ve ortam kabul kanıtlarını saklar —
+aralarında [WF-2A RoleName envanteri](archive/WF2A_ROLE_NAME_ENVANTERI.md) ve
+[WF-2D2 RoleId rollout'u](archive/WF2D2_ROLE_ID_ROLLOUT.md) da vardır. WF-2A,
+`RoleName`'in bütünüyle kaldırılması (`WF-2E`, V1 sonrası) gündeme geldiğinde
+bağımlılık haritası olarak işe yarar.
+
+ADR-0003'ün rol kapsamı/tekillik önerisinin yerine ADR-0005 ve ADR-0007
+geçmiştir.

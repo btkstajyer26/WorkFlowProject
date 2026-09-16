@@ -122,6 +122,52 @@ class DepartmentSchemaMigrationIntegrationTest {
     }
 
     /**
+     * V25 (B12 / ADR-0009) audit'e atamanin iki yanini ekler. Migration'in
+     * tasimasi gereken uc sey burada sinanir: mevcut satirlarin bozulmamasi,
+     * her iki yanin karsilikli dislama CHECK'i ve "ikisi de NULL" halinin
+     * serbest kalmasi.
+     */
+    @Test
+    @DisplayName("V25 audit'e onceki/yeni atama kolonlarini ekler ve iki yani da dislar")
+    void addsAssignmentColumnsToTheAuditTrailInV25() {
+        migrate("24");
+        Fixture fixture = seedDepartmentData();
+        // V25 oncesi yazilmis bir denetim satiri: migration sonrasi dort kolonda da
+        // NULL kalmali (ADR-0009 K3 - geriye donuk deger uretilmez).
+        jdbc.update("INSERT INTO audit_logs(record_id, user_id, action, new_status, created_at) "
+                + "VALUES (?, ?, 'GONDER', 'BSK_YRD_INCELEMESINDE', CURRENT_TIMESTAMP)",
+                fixture.record(), fixture.user());
+
+        Flyway flyway = migrate("25");
+        flyway.validate();
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("25");
+        assertFinalSchema();
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE previous_assigned_to IS NULL "
+                + "AND previous_assigned_department_id IS NULL AND new_assigned_to IS NULL "
+                + "AND new_assigned_department_id IS NULL", Integer.class)).isOne();
+
+        // Her iki yan da kisiye VEYA departmana isaret edebilir, ikisine birden degil.
+        assertThatThrownBy(() -> jdbc.update("UPDATE audit_logs SET previous_assigned_to = ?, "
+                + "previous_assigned_department_id = ?", fixture.user(), fixture.department()))
+                .isInstanceOf(DataIntegrityViolationException.class)
+                .hasMessageContaining("chk_audit_previous_assignment_exclusive");
+        assertThatThrownBy(() -> jdbc.update("UPDATE audit_logs SET new_assigned_to = ?, "
+                + "new_assigned_department_id = ?", fixture.user(), fixture.department()))
+                .isInstanceOf(DataIntegrityViolationException.class)
+                .hasMessageContaining("chk_audit_new_assignment_exclusive");
+
+        // Karsilikli yanlarda farkli turler serbesttir: kisiden departmana gonderim.
+        jdbc.update("UPDATE audit_logs SET previous_assigned_to = ?, new_assigned_department_id = ?",
+                fixture.user(), fixture.department());
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE previous_assigned_to = ? "
+                + "AND new_assigned_department_id = ?", Integer.class,
+                fixture.user(), fixture.department())).isOne();
+
+        entityManagerFactory();
+    }
+
+    /**
      * The widened CHECKs must stay closed: a DEPARTMENT row may not carry a target
      * role, and the strategies DB-1 SS7.2 keeps frozen are still rejected.
      */

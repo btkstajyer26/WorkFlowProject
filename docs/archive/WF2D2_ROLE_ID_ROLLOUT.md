@@ -4,8 +4,8 @@
 > anlatımı ve 614/626/639 test sayıları o aşamaların kanıtıdır. WF-2C2 ile
 > görünürlük daha sonra RoleId/ortak scope'a taşındı; dinamik roller artık
 > RECORD_VIEW ve creator/direct assignee ilişkisiyle okuyabilir.
-> [Güncel görünürlük sözleşmesi](WF2C2_DB8_GORUNURLUK_SOZLESMESI.md) ve
-> [teslim durumu](README.md) esas alınmalıdır.
+> [Güncel görünürlük sözleşmesi](../WF2C2_DB8_GORUNURLUK_SOZLESMESI.md) ve
+> [teslim durumu](../README.md) esas alınmalıdır.
 
 ## PR 1: okuma yolu
 

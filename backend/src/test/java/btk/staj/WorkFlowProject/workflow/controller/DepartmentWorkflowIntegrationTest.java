@@ -20,6 +20,7 @@ import btk.staj.WorkFlowProject.workflow.model.WorkflowRecordUpdate;
 import btk.staj.WorkFlowProject.workflow.repository.WorkflowTransitionRepository;
 import jakarta.persistence.EntityManager;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Executors;
@@ -162,11 +163,40 @@ class DepartmentWorkflowIntegrationTest {
         assertThat(sent.getAssignedTo()).isNull();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE record_id = ? AND action = 'DEPARTMANA_GONDER'",
                 Integer.class, id)).isOne();
+        // B12: gonderimin HANGI departmana yapildigi kalici gecmiste durmali.
+        // Onceki yan senaryoya gore degisir: TASLAK'ta atama yoktur (NONE),
+        // DUZENLEME_BEKLIYOR'da kayit olusturanda durur (USER).
+        Map<String, Object> sendRow = auditRow(id, "DEPARTMANA_GONDER");
+        assertThat(sendRow.get("new_assigned_department_id")).isEqualTo(department);
+        assertThat(sendRow.get("new_assigned_to")).isNull();
+        assertThat(sendRow.get("previous_assigned_department_id")).isNull();
+        assertThat(sendRow.get("previous_assigned_to"))
+                .isEqualTo(statusName.equals("TASLAK") ? null : creator);
+        // Ayni bilgi uctan uca da gorulmeli: ortak AssignmentView sozlesmesiyle,
+        // departman adi cozulmus halde. Ham kimlik alanlari acilmaz (B11 SS3.1).
+        read(first, "/api/audit-logs/record/" + id).andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].newAssignment.kind").value("DEPARTMENT"))
+                .andExpect(jsonPath("$[0].newAssignment.departmentId").value(department))
+                .andExpect(jsonPath("$[0].newAssignment.departmentName").value(prefix));
+
         act(id, first).andExpect(status().isOk()).andExpect(jsonPath("$.assignedTo").value(creator.toString()));
         em.flush();
         em.clear();
         assertThat(records.findById(id).orElseThrow().getAssignedDepartmentId()).isNull();
         assertThat(records.findById(id).orElseThrow().getAssignedTo()).isEqualTo(creator);
+        // DEPARTMENT -> USER: donusun onceki yani departmani, yeni yani kisiyi tasir.
+        Map<String, Object> returnRow = auditRow(id, "CALISANA_GERI_GONDER");
+        assertThat(returnRow.get("previous_assigned_department_id")).isEqualTo(department);
+        assertThat(returnRow.get("previous_assigned_to")).isNull();
+        assertThat(returnRow.get("new_assigned_to")).isEqualTo(creator);
+        assertThat(returnRow.get("new_assigned_department_id")).isNull();
+    }
+
+    private Map<String, Object> auditRow(UUID recordId, String action) {
+        return jdbc.queryForMap(
+                "SELECT previous_assigned_to, previous_assigned_department_id, "
+                        + "new_assigned_to, new_assigned_department_id "
+                        + "FROM audit_logs WHERE record_id = ? AND action = ?", recordId, action);
     }
 
     @Test

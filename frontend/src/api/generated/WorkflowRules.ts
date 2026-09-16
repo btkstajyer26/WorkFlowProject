@@ -10,8 +10,9 @@
  * ---------------------------------------------------------------
  */
 
-import { ReloadData } from "./data-contracts";
-import { HttpClient, RequestParams } from "./http-client";
+import type { ReloadData } from "./data-contracts";
+import { HttpClient } from "./http-client";
+import type { RequestParams } from "./http-client";
 
 export class WorkflowRules<SecurityDataType = unknown> {
   http: HttpClient<SecurityDataType>;

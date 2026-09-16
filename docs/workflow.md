@@ -2,12 +2,8 @@
 
 Bu belge, İş Akışı ve Onay Yönetim Sistemi'nin çalışan backend kodundaki workflow davranışını tanımlar. Ürün hedefinden çok **mevcut uygulamayı** esas alır; planlanan ancak henüz uygulanmayan davranışlar ile uygulanmış olup beklenen sonucu vermeyen davranışlar “Bilinen boşluklar” bölümünde ayrıca belirtilir. Durum makinesi, API veya hata eşlemesi değiştirildiğinde belge aynı değişiklik kapsamında güncellenir.
 
-4 Eylül 2026 — `codex/ap-2-frontend-uyum` @ `c9b0297`: AP-2 hizalaması, V23,
-WF-5/WF-6 ve departman görünürlüğü birlikte uygulanmıştır (PR #69 ve #70 yerel
-geçmişte birleşmiştir). Uzak `test`/CI/ortam kabulü ayrıca doğrulanmalıdır.
-Bu belgenin anlattığı davranışın **doğrulanmış istisnaları** aşağıdaki “Bilinen
-boşluklar” bölümündedir; sekiz backend probunun tekrar üretim adımları
-[kanıt klasöründedir](reviews/2026-09-04/TEKRAR_URETIM.md).
+Bu belgenin anlattığı davranışın bilinçli sınırları aşağıdaki “Bilinen boşluklar”
+bölümündedir.
 
 ## İçindekiler
 
@@ -391,7 +387,7 @@ Okuma öncesinde `RecordAccessPolicy.assertCanView` çalışır. `AuditLogRespon
 | Geçiş sonucu | Uygulama içi bildirim, e-posta ve push alıcısı |
 | --- | --- |
 | Bir kullanıcıya atanan kayıt | Yeni `assignedTo` kullanıcısı |
-| Departmana atanan kayıt | Event `assignedDepartmentId` taşır; ortak routing/eligibility çözümünün bulduğu aktif ve yetkili departman üyeleri alıcıdır. İşlemi yapan aktör çıkarılır, kullanıcı kimliğiyle tekilleştirilir; uygun alıcı yoksa oluşturan/yardımcı fallback'ine düşmez (NT-5) |
+| Departmana atanan kayıt | Event `assignedDepartmentId` taşır; alıcılar o departmanın workflow routing'ine göre uygun üyeleridir (`DepartmentRoutingResolver.eligibleAssignees`: `ASSIGNEE` gereksinimli kural, routing hedef rolü, `RECORD_VIEW` + kuralın permission'ı). İşlemi yapan aktör kümeden çıkarılır; uygun alıcı yoksa küme boş kalır ve uyarı log'lanır — oluşturan/yardımcı fallback'ine **düşmez** (NT-5) |
 | `ONAYLANDI` veya `REDDEDILDI` | Kaydı oluşturan kullanıcı ve kaydı Başkana ileten son Başkan Yardımcısı; aynı kullanıcıysa tekilleştirilir |
 
 Uygulama içi mesaj 500 karaktere sığacak şekilde kısaltılır. Bildirim türü aksiyondan `RECORD_SUBMITTED`, `RECORD_FORWARDED`, `RECORD_RETURNED`, `RECORD_APPROVED` veya `RECORD_REJECTED` olarak türetilir.
@@ -532,44 +528,41 @@ Mevcut otomatik testler şu katmanları kapsar:
    istemcinin hedef gönderip gönderemeyeceği `WorkflowAction` enum'unda tutulur. `workflow_actions`
    tablosunda karşılıkları seed'li ve parity testi ayrışmalarını engelliyor, ama kod henüz
    tabloyu okumuyor.
-5. **Kural kaynağının yönetilebilirliği:** WF-8 servisi sabit geçişlere dinamik aktör rolü bağlar ve kullanımda olmayan bağları pasifleştirir. AP-8 HTTP/UI entegrasyonu açıktır. Grafik topolojisi ve sabit geçiş alanları düzenlenemez. Bellekteki snapshot başarılı bağ değişikliğinde otomatik, `POST /api/workflow/rules/reload` ile de manuel yenilenir.
+5. **Kural kaynağının yönetilebilirliği:** WF-8/AP-8 mevcut geçişlere dinamik aktör rolü bağını servis ve HTTP/UI üzerinden yönetir. Grafik topolojisi ve sabit geçiş alanları düzenlenemez. Bellekteki snapshot başarılı bağ değişikliğinde otomatik, `POST /api/workflow/rules/reload` ile de manuel yenilenir.
 
 ### Doğrulanmış davranış sapmaları
 
-Aşağıdakiler eksik özellik değil, **çalıştırılarak doğrulanmış hatalı
-davranışlardır**. Bu belgenin geri kalanı düzeltilmiş hedefi anlatır; bugünkü
-kodda şu sapmalar vardır:
+Aşağıdakiler daha önce **çalıştırılarak doğrulanmış davranış sapmalarını**
+ve bunların güncel kapanış durumunu kaydeder:
 
 | No | Sapma | Öncelik |
 | --- | --- | --- |
 | B02 | ~~Dinamik departman rolü `BASKANA_ILET` yaptığında Başkan'ın geri dönüşü `WORKFLOW_TARGET_ROLE_INVALID` alıyordu.~~ **Kapandı (6 Eylül 2026):** [ADR-0008](decisions/0008-hedef-rol-semantigi-ve-onceki-aktore-donus.md) uygulandı — `V24` ile `expected_target_role_id` yalnız `ROLE` stratejisinin arama anahtarı oldu, nöbetçi `TransitionDecision.Pending`'e taşındı ve statik rol dayatmasının yerine yetenek kontrolü (`WORKFLOW_TARGET_CANNOT_ACT`) geldi. Görünürlük ayağı `B13` ile birlikte kapandı | ✅ |
-| B03 | Görev devri ve `last_deputy_id` toplu güncellemeleri `records.version` artırmadığı için, kaydı önceden yüklemiş bir workflow transaction'ı devir sonrası eski `lastDeputyId` ile çatışmasız yazabilir | P1 |
-| B01 | ~~Workflow e-postasının hızlı işlem tokenı `AFTER_COMMIT` aşamasında kalıcı olmuyordu.~~ **Kapandı:** `issue` kendi `REQUIRES_NEW` transaction'ında eski açık tokenları kapatıp yenisini yazar. Commit → mail → preview → consume → audit → ikinci kullanım reddi integration ve gerçek Mailpit kabulüyle doğrulandı (NT-7) | ✅ |
-| B04 | `RecordLockValidator` kayıt kilidi almaz ve dosya yükleme kaydın sürümüne dokunmaz; kontrol ile dosya satırının yazılması arasında kayıt incelemeye geçse bile yükleme commit edilir | P1 |
-| B06 | Dondurulmuş içerik gösterilirken `q`/kategori filtreleri güncel kayıt kolonlarında çalışır; gösterilmeyen düzenleme arama sonucunu etkiler | P2 |
+| B03 | ~~Görev devri optimistic locking korumasını atlıyordu.~~ **Kapandı (16 Eylül 2026):** görev devri sürüm/optimistic locking sözleşmesiyle hizalandı | ✅ |
+| B01 | ~~Workflow e-postasının hızlı işlem tokenı `AFTER_COMMIT` aşamasında kalıcı üretilemiyordu.~~ **Kapandı:** `MailActionTokenService.issue` `Propagation.REQUIRES_NEW` ile kendi transaction'ında commit eder; token üretimi başarısızsa mail düğmesiz gönderilebilir. Integration testi commit → mail bağlantısı → preview → tek tüketim → ikinci tüketimin reddi zincirini sabitler; gerçek Mailpit preview/consume/audit kabulü de tamamlandı (NT-7) | ✅ |
+| B04 | ~~Dosya işlemi sırasında kayıt durumu yarışa açıktı.~~ **Kapandı:** dosya yazma yolu `findByIdForUpdate` ile kayıt kilidi alır | ✅ |
+| B06 | ~~Arama/kategori filtresi tarihsel görünümde canlı kayıt kolonlarına bağlıydı.~~ **Kapandı (16 Eylül 2026):** arama/kategori filtresi canlı kolon bağımlılığından çıkarıldı | ✅ |
 
 Başlangıç şartnamesiyle bilinçli veya fiilî uygulama farkları da korunmalıdır:
 
 - Başkan geri gönderme hedefini serbestçe seçmez; Çalışana dönüş `createdBy`, Başkan Yardımcısına dönüş `lastDeputyId` ile sabittir.
 - Şartnamedeki “tüm ilgililer” ifadesine karşılık mevcut uygulama atamalı geçişte yeni atanan kullanıcıyı; terminal geçişte kaydı oluşturan ile son Başkan Yardımcısını seçer.
 
-Yukarıdaki boşlukların bir kısmı **Workflow V1 açık işidir**, bir kısmı bilinçli olarak
-**Workflow V2'ye** bırakılmıştır:
+İlgili Workflow V1/V2 teslim sınırları aşağıda özetlenir:
 
 | Boşluk | Nereye ait |
 | --- | --- |
-| Ortak görünürlük ve dinamik rol okuma erişimi | Departman/durum çiftleri dahil ortak policy/SQL, JWT okuma uçları ve sayfalama testleri uygulandı |
-| Departman, üyelik, routing ve atama veri katmanı | V18–V22 ile şema/entity/repository hazır; V22 ad uzunluğu, self-parent ve silme korumalarını DB-1 ile hizalar |
-| Departman runtime ve görünürlük | V23 + WF-5/WF-6 ve policy/SQL departman kolu uygulandı; NT-5 aynı routing/eligibility üzerinden departman alıcılarına fan-out yapar ve kullanıcı kimliğiyle tekilleştirir. Yönetim ekranları (`AP-4`/`AP-5`) ayrı teslimdir |
-| Dinamik aktörden Başkana iletilen kaydın geri dönüşü | Workflow V1 açık işi — B02; karar [ADR-0008](decisions/0008-hedef-rol-semantigi-ve-onceki-aktore-donus.md) ile verildi, uygulama açık |
-| Departman hedefinin kalıcı workflow audit'ine yazılması | Workflow V1 açık işi — B12; `WorkflowTransitionAudit` departman alanı taşımaz, `AuditLogService` modeldeki kişi atamasını da kaydetmez |
-| Dosya işlemlerinin kayıt kilidi ve tarihsel dosya erişimi | Uygulandı: dosya ekleme/silme `findByIdForUpdate` ile kaydı kilitler (B04), geri alınan yüklemede disk temizlenir (R06), indirme listeyle aynı zaman kesitini kullanır (B07) |
-| Silinmiş kaydın değiştirilmesi | Uygulandı: değiştirme yolları aktif kayıt yükleyicisini kullanır; tekrar `DELETE` `404` döner (B08) |
-| İstemcinin kullanılabilir aksiyonu backend'den öğrenmesi | Backend tamam: `available-actions` ve `target-departments` uçları uygulanmıştır. Mobil bunları doğrudan tüketir; dinamik rol, departman seçimi ve assignment/version gösterimi tamamdır (B09/MOB-1). Web paneli hâlâ `systemKey` sabitleriyle çalışır (B10) |
-| Mevcut geçişe dinamik aktör rolü bağlama | WF-8 servis ve sözleşmesi uygulandı; AP-8 HTTP/UI açık |
-| Admin'den rol/permission yönetimi | Workflow V1 — `AP-2`/`AP-3` |
-| WebSocket bildirim kanalı | Kod tamam — `NT-2`…`NT-4`; gerçek browser reconnect kabulü PASS, izole polling fallback kabulü bekliyor |
-| Aksiyon metadata'sının enum'dan tabloya taşınması | V1 acceptance'ı için zorunlu değil |
+| Ortak görünürlük ve dinamik rol okuma erişimi | Departman/durum scope dahil ortak policy/SQL, JWT okuma uçları ve sayfalama davranışı uygulanmıştır |
+| Departman veri katmanı ve runtime | Şema/entity/repository, departman hedef stratejisi, routing/eligibility, görünürlük ve NT-5 fan-out uygulanmıştır; AP-4/AP-5 yönetim katmanı da mevcuttur |
+| Dinamik aktörden önceki aktöre dönüş | B02 kapandı; `TransitionDecision.Pending` ve yetenek kontrolü uygulanmıştır |
+| Departman/kişi atamasının workflow audit'i | B12 kapandı; atama kalıcı workflow audit'ine yazılır |
+| Dosya işlemlerinin kayıt kilidi ve tarihsel dosya erişimi | B04/B07 kapandı; kayıt kilidi ve tarihsel erişim aynı görünürlük zaman kesitini kullanır |
+| Silinmiş kaydın değiştirilmesi | B08 kapandı; değiştirme yolları aktif kayıt yükleyicisini kullanır |
+| İstemcinin kullanılabilir aksiyonu backend'den öğrenmesi | Backend `available-actions` ve `target-departments` uçlarını sunar; mobil bunları ve `assignment`/`version` sözleşmesini tüketir (B09/MOB-1). Web panelindeki istemci tarafı `systemKey` bağımlılığı B10 sınırıdır |
+| Mevcut geçişe dinamik aktör rolü bağlama | WF-8 ve AP-8 servis + HTTP/UI entegrasyonu uygulanmıştır |
+| Admin rol/permission yönetimi | AP-2 rol yönetimi ve AP-3 rol-permission matrisi uygulanmıştır |
+| WebSocket bildirim kanalı | `NT-2`…`NT-4` kodu tamamdır; gerçek browser reconnect kabulü PASS, izole polling fallback kabulü bekliyor |
+| Aksiyon metadata'sının enum'dan tabloya taşınması | V1 kabulü için zorunlu değildir |
 | Grafik topolojisinin arayüzden düzenlenmesi, workflow definition/versioning, draft/publish | **Workflow V2** — V1'de yasak (DB-1 §14) |
 
 Geçiş kuralları veritabanından okunur; `TransitionRules` statik tablosu test ağacındaki parity ve veritabanısız test referansıdır. Workflow rol kimliği `WF-2D2` ile tamamen `RoleId`'ye taşındı. Dinamik rol görünürlüğü mevcut şemada ortaktır; departman görünürlüğü ve WebSocket bildirim kanalı uygulanmıştır. Gerçek browser reconnect kabulü PASS durumundadır; izole polling fallback kabulü ayrıca bekler. HTTP istek audit'i `ADMIN` sistem anahtarında `audit_logs`, diğerlerinde `user_audit_logs` tablosuna gider; rolün yeniden adlandırılması bu dağılımı değiştirmez.

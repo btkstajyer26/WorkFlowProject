@@ -4,21 +4,25 @@ Mobil istemcinin kullandığı REST uçlarını, istek/yanıt biçimlerini ve ha
 davranışlarını tanımlar. Uç değiştiğinde bu belge aynı değişiklik kapsamında
 güncellenir.
 
-16 Eylül 2026, `feature/nt-realtime-notifications` çalışma ağacıyla hizalanmıştır.
 `DEPARTMANA_GONDER` aksiyonu ve `targetDepartmentId` alanı backend'de mevcuttur;
-mobil istemci MOB-1 ile kayıt kapsamlı departman seçimi için bunları kullanır. AP-3/AP-4/AP-5/AP-8 yönetim uçları hâlâ
-yoktur. Mobilin tüketeceği yeni uçlar ve ortak `assignment` nesnesi
+mobil istemci MOB-1 ile kayıt kapsamlı departman seçimi için bunları kullanır. Mobilin tükettiği workflow uçları ve ortak `assignment` nesnesi
 [APP-9 / APP-10 / B11 sözleşmesinde](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md)
 tanımlıdır. [Güncel teslim sınırları](README.md) ayrı izlenir.
 
 > **B09/MOB-1 kapandı.** `mobile/src/api/users.ts`, değiştirilebilir `roleName`
 > için açık string; ayrıca `roleId`, nullable `systemKey` ve `permissionCodes`
 > tüketir. Dinamik ve yeniden adlandırılmış yerleşik rol geçerli yanıttır.
-> Workflow düğmeleri istemcide rol/durum tablosuyla hesaplanmaz; `GET
-> /api/records/{id}/workflow/available-actions` yanıtından üretilir. Departman
-> hedefi gerektiğinde `target-departments` kullanılır. `assignment.kind` ve
-> `version` detay/liste/workflow yanıtlarında korunur, kayıt detayında atama
-> gösterilir. Backend mutasyonu yine kendi kurallarıyla doğrular.
+> Kayıt oluşturma/düzenleme/silme yetkisi rol adına değil `permissionCodes`
+> değerlerine göre kontrol edilir (`RECORD_CREATE`, `RECORD_EDIT`,
+> `RECORD_DELETE`). Workflow düğmeleri istemcide rol/durum tablosuyla
+> hesaplanmaz; `GET /api/records/{id}/workflow/available-actions` yanıtından
+> üretilir. Departman hedefi gerektiğinde `target-departments` kullanılır.
+> `assignment.kind` ve `version` detay/liste/workflow yanıtlarında korunur;
+> kayıt detayında mevcut atama gösterilir. Backend mutasyonu kendi workflow
+> kurallarıyla doğrulamaya devam eder.
+>
+> **Ayrı istemci sınırı:** Dashboard kısayol kartları `systemKey` ile
+> eşlenmektedir; bu davranış MOB-1 atama/version sözleşmesinden ayrıdır.
 
 Kanonik kaynaklar: [FRONTEND_BACKEND_SOZLESMESI.md](FRONTEND_BACKEND_SOZLESMESI.md)
 (alan sözleşmesi) · [workflow.md](workflow.md) (durum geçişleri ve görünürlük) ·
@@ -157,13 +161,24 @@ değil `JwtAuthenticationFilter`'da zorlanır, mobil UI gizlemesine güvenilmez.
 ```json
 {
   "id": "uuid", "firstName": "Ahmet", "lastName": "Yılmaz",
-  "email": "a@ornek.local", "roleName": "CALISAN",
+  "email": "a@ornek.local",
+  "roleId": 1, "systemKey": "CALISAN", "roleName": "Çalışan",
+  "permissionCodes": ["RECORD_VIEW", "RECORD_CREATE", "RECORD_EDIT"],
   "active": true, "createdAt": "2026-08-01T09:00:00"
 }
 ```
 
-`roleName` mobilin rol bazlı ekran seçimini besler. **Nihai yetki yine
-backend'de** — rol bilgisi sadece görünüm içindir.
+Yanıt `CurrentUserResponse`'tur ve `/api/admin/users` cevaplarındaki
+`UserResponse`'un üstüne `permissionCodes` ekler. Alanların işi ayrıdır:
+`roleId` ilişkisel kimliktir, `systemKey` yerleşik rolün değişmez anahtarıdır ve
+**dinamik rolde `null` gelir**, `roleName` yalnız gösterim adıdır (AP-2 ile
+değişebilir, kapalı bir listeye karşı doğrulanmaz), `permissionCodes` ise
+backend'in hesapladığı aktif yetkilerdir.
+
+İstemci **yetki kararlarını `permissionCodes` ile**, yerleşik role özgü görünüm
+seçimlerini `systemKey` ile yapar; `roleName` yalnız ekranda gösterilir. Workflow
+düğmeleri bunların hiçbirinden türetilmez — `available-actions` ucundan gelir.
+**Nihai yetki yine backend'dedir.**
 
 ---
 
@@ -361,10 +376,20 @@ Yetki: kaydı görebilen herkes. Sayfalama **yok**, tüm satırlar tek listede
   "action": "BASKANA_ILET",
   "previousStatus": "BSK_YRD_INCELEMESINDE", "newStatus": "BASKAN_INCELEMESINDE",
   "comment": "Uygun bulunmuştur.",
+  "previousAssignment": { "kind": "USER", "userId": "uuid", "userFullName": "Ayşe Kaya", "departmentId": null, "departmentName": null },
+  "newAssignment": { "kind": "DEPARTMENT", "userId": null, "userFullName": null, "departmentId": 4, "departmentName": "Hukuk" },
   "httpMethod": null, "requestPath": null, "httpStatus": null, "errorCode": null,
   "createdAt": "2026-08-20T14:05:00"
 }]
 ```
+
+**`previousAssignment` / `newAssignment` (B12, 8 Eylül).** Geçişin atamayı
+nereden nereye taşıdığını ortak `AssignmentView` şekliyle taşır; `kind` =
+`USER` / `DEPARTMENT` / `NONE`. Mobil şema bu iki alanı **opsiyonel nesne**
+olarak okumalı ve türü `kind`'dan almalıdır — iki nullable kimliği
+karşılaştırarak çıkarsamamalıdır. Geçiş olmayan satırlarda ikisi de `NONE`
+gelir. Aynı `AssignmentView` şekli kayıt yanıtlarında da vardır (`MOB-1`'in
+kalan atama gösterimi ayağı).
 
 `httpMethod` / `requestPath` / `httpStatus` / `errorCode` kayıt geçmişinde
 **her zaman `null`** — o alanlar Admin HTTP denetim satırları içindir. Mobil
