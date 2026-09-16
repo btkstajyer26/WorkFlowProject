@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { apiRequest } from './client';
-import { recordStatusSchema } from './records';
+import { recordAssignmentSchema, recordStatusSchema } from './records';
 
 export const workflowActionSchema = z.enum([
   'GONDER',
@@ -39,11 +39,13 @@ const targetDepartmentsResponseSchema = z.object({
 const workflowActionResponseSchema = z.object({
   action: workflowActionSchema,
   assignedTo: z.string().uuid().nullish(),
+  assignment: recordAssignmentSchema.nullish(),
   newStatus: recordStatusSchema,
   performedAt: z.string(),
   performedBy: z.string().uuid(),
   previousStatus: recordStatusSchema,
   recordId: z.string().uuid(),
+  version: z.number().int(),
 });
 
 export type WorkflowAction = z.infer<typeof workflowActionSchema>;

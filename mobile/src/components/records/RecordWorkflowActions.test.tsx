@@ -16,6 +16,7 @@ jest.mock('@/query/workflow', () => ({
 }));
 
 const mockRecord: RecordDetail = {
+  assignment: { kind: 'NONE' },
   categoryId: 1,
   createdAt: '2026-08-27T10:00:00Z',
   createdBy: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
@@ -24,6 +25,7 @@ const mockRecord: RecordDetail = {
   id: 'd3b07384-d113-4632-8fe2-51a6597a7a58',
   status: 'TASLAK',
   title: 'Test Evrak Başlığı',
+  version: 1,
 };
 
 const baseAvailableActionsResponse = {

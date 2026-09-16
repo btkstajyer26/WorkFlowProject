@@ -15,6 +15,7 @@ import { ApiClientError } from '@/api/errors';
 import { RecordFilesIntegrationSlot } from '@/components/records/RecordFilesIntegrationSlot';
 import { RecordForm } from '@/components/records/RecordForm';
 import { RecordHistory } from '@/components/records/RecordHistory';
+import { RecordAssignment } from '@/components/records/RecordAssignment';
 import { RecordStatusBadge } from '@/components/records/RecordStatusBadge';
 import { RecordWorkflowActions } from '@/components/records/RecordWorkflowActions';
 import { AppButton } from '@/components/ui/AppButton';
@@ -207,6 +208,7 @@ export default function RecordDetailScreen() {
                 </AppText>
                 <AppText>{record.createdByFullName ?? record.createdBy}</AppText>
               </View>
+              <RecordAssignment assignment={record.assignment} />
               <View className="gap-1">
                 <AppText tone="muted" variant="caption">
                   İlk oluşturulma
