@@ -15,6 +15,7 @@ Bu dizin, projeyi uzun vadede etkileyen kararları Architecture Decision Record 
 | [0007](0007-rol-kapasitesi-ve-birim-tekilligi.md) | Rol kapasitesi ve birim tekilliği | Kabul Edildi |
 | [0008](0008-hedef-rol-semantigi-ve-onceki-aktore-donus.md) | Hedef rol semantiği ve önceki aktöre dönüş (`B02`) | Kabul Edildi |
 | [0009](0009-audit-atama-sozlesmesi.md) | Workflow audit'inde atama sözleşmesi (`B12`) | Kabul Edildi |
+| [0010](0010-parent-subtask-alt-akis.md) | Parent kayıt için dinamik subtask alt akışı | Önerildi |
 
 > **ADR-0003 tarihsel öneridir; yerini yeni kararlar aldı.** ADR, rolün **daire başına**
 > tekil olmasını öneriyor: `roles.scope` (`GLOBAL`/`UNIT`/`MULTI`),
