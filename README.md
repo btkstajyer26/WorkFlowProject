@@ -5,11 +5,11 @@ Kurum içi kayıtların oluşturulması, rol bazlı inceleme/onay akışından g
 ## Mimari görünüm
 
 ```text
-React web ─┐
-           ├── REST / OpenAPI ── Spring Boot ── PostgreSQL
-Expo mobil ┘                         ├── dosya deposu
-                                    ├── SMTP / Mailpit
-                                    └── FCM push
+React web ─┬── REST / OpenAPI ─┐
+           └── STOMP /ws ──────┼── Spring Boot ── PostgreSQL
+Expo mobil ───── REST ─────────┘       ├── dosya deposu
+                                      ├── SMTP / Mailpit
+                                      └── FCM push
 ```
 
 | Katman | Teknoloji |
@@ -21,6 +21,13 @@ Expo mobil ┘                         ├── dosya deposu
 
 Workflow geçişleri `workflow_transitions` tablosundan okunur. `ReloadableTransitionRuleSource`, doğrulanmış kuralları `TransitionRuleSource` sınırının arkasında sunar. Her workflow işlemi başlangıçta tek snapshot alır. Kurallar `POST /api/workflow/rules/reload` ile veya WF-8 rol bağlama servisi üzerinden başarılı değişiklik sonrasında yeniden başlatmadan yenilenir. İstemciler hedef durumu hesaplamaz.
 
+
+Paket 5 dar doğrulamasında (16 Eylül 2026) notification/realtime, STOMP
+güvenliği, departman alıcısı, mail-action servisleri ve push servisi için **57
+backend testi** geçti. Reconnect gerçek browser kabulü PASS durumundadır; izole
+polling fallback ve Android fiziksel cihaz kabulü otomatik test sonucu sayılmaz; güncel ayrım
+[D04 rehberinde](docs/D04_NOTIFICATION_MOBILE_REALTIME_KABUL_REHBERI.md) ve
+[final handoff'ta](docs/reviews/2026-09-16-bahadir-final-handoff.md) kayıtlıdır.
 
 ## Hızlı başlangıç
 
@@ -122,6 +129,8 @@ npx expo export --platform web
 | [Mobil API envanteri](docs/MOBIL_API_ENVANTERI.md) | Mobil istemcinin kullandığı güncel REST sözleşmesi |
 | [OpenAPI anlık görüntüsü](docs/openapi.json) | Kod incelemesi için sürümlenmiş API şeması. **Elle bakımlıdır:** canlı şema `localhost:8080/v3/api-docs` adresinde; uç eklendiğinde ilgili bölüm bu dosyaya mevcut biçim korunarak işlenir. Dosyayı toptan yeniden üretmeyin — biçimlendirme ve `servers.url` ortama göre değişip gereksiz diff üretir. Frontend istemcisi ayrı üretilir (`cd frontend && npm run api:generate`) |
 | [TEST ortamı notu](docs/TEST_ORTAMI_NOTU.md) | Güncel topoloji, dağıtım ve operasyon yönergeleri |
+| [D04 notification/mobile/realtime kabul rehberi](docs/D04_NOTIFICATION_MOBILE_REALTIME_KABUL_REHBERI.md) | Yerel çalışma, browser, Mailpit, MOB-1 ve fiziksel Android kabul adımları |
+| [Bahadır final handoff](docs/reviews/2026-09-16-bahadir-final-handoff.md) | B01/B09/MOB-1/NT/ADR/D04 kanıt matrisi ve kalan manuel kabuller |
 | [Mimari kararlar](docs/decisions/README.md) | ADR dizini |
 
 Tarihsel belgeler [`docs/archive/`](docs/archive/) altındadır ve aktif gereksinim

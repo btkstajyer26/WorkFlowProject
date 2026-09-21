@@ -18,6 +18,7 @@ import { QueryProvider, useNetworkStatus } from '@/query/QueryProvider';
 import {
   registerPushTokenWithBackend,
   subscribeToNotificationResponses,
+  subscribeToPushTokenChanges,
 } from '@/services/notifications/pushNotificationManager';
 import { ThemeProvider, useAppTheme } from '@/theme/ThemeProvider';
 
@@ -58,15 +59,21 @@ function RootNavigator() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
+
+    const unsubscribe = subscribeToPushTokenChanges();
     void registerPushTokenWithBackend();
+
+    return unsubscribe;
   }, [isAuthenticated]);
 
   useEffect(() => {
+    if (!isAuthenticated) return;
+
     const unsubscribe = subscribeToNotificationResponses((recordId) => {
       router.push(`/(app)/kayitlar/${recordId}`);
     });
     return unsubscribe;
-  }, [router]);
+  }, [isAuthenticated, router]);
 
   if (!isReady || !isAuthReady) return null;
 

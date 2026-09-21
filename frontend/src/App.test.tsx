@@ -1,8 +1,9 @@
+import { Client } from '@stomp/stompjs'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { HttpResponse, http } from 'msw'
 import { MemoryRouter } from 'react-router'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { requestPasswordReset } from './api/auth'
 import { MOCK_PASSWORD_RESET_CODE, getMockUserByRole, verifyMockPasswordResetCode } from './mocks/api/auth'
@@ -19,19 +20,28 @@ function renderApp(path: string) {
 }
 
 describe('App authorization boundaries', () => {
+  beforeEach(() => { vi.mocked(Client).mockClear() })
+
   it('MSW ile açılan oturumu çıkış butonundan kapatır', async () => {
     const user = userEvent.setup()
     renderApp('/giris')
 
-    await user.type(await screen.findByLabelText('E-posta adresi'), 'john.doe@kurum.gov.tr')
+    const emailInput = await screen.findByLabelText('E-posta adresi')
+    expect(Client).not.toHaveBeenCalled()
+    await user.type(emailInput, 'john.doe@kurum.gov.tr')
     await user.type(screen.getByLabelText('Şifre'), 'demo123')
     await user.click(await screen.findByRole('button', { name: 'Giriş Yap' }))
     expect(await screen.findByRole('heading', { name: /Hoş geldiniz/ })).toBeInTheDocument()
+
+    expect(Client).toHaveBeenCalledOnce()
+    const realtimeClient = vi.mocked(Client).mock.instances[0]
+    expect(realtimeClient.activate).toHaveBeenCalledOnce()
 
     await user.click(screen.getByRole('button', { name: 'Çıkış' }))
     await user.click(screen.getByRole('button', { name: 'Çıkış Yap' }))
 
     expect(await screen.findByRole('heading', { name: 'Hesabınıza giriş yapın' })).toBeInTheDocument()
+    expect(realtimeClient.deactivate).toHaveBeenCalledWith()
   })
 
   it('oturumsuz kullanıcıyı giriş ekranına yönlendirir', async () => {
@@ -104,6 +114,7 @@ describe('App authorization boundaries', () => {
 
     expect(await screen.findByRole('heading', { name: 'Şifrenizi değiştirin' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Tüm Kayıtlarım' })).not.toBeInTheDocument()
+    expect(Client).not.toHaveBeenCalled()
   })
 
   it('zorunlu şifre değişikliğinden sonra oturumu kapatıp yeniden giriş ister', async () => {

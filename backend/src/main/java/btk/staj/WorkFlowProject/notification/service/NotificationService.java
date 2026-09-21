@@ -7,6 +7,7 @@ import btk.staj.WorkFlowProject.notification.dto.NotificationResponse;
 import btk.staj.WorkFlowProject.notification.entity.Notification;
 import btk.staj.WorkFlowProject.notification.entity.NotificationType;
 import btk.staj.WorkFlowProject.notification.repository.NotificationRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -25,13 +26,22 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
 
-    public NotificationService(NotificationRepository notificationRepository) {
+    private final ApplicationEventPublisher applicationEventPublisher;
+
+    public NotificationService(NotificationRepository notificationRepository,
+                               ApplicationEventPublisher applicationEventPublisher) {
         this.notificationRepository = Objects.requireNonNull(
                 notificationRepository, "notificationRepository");
+        this.applicationEventPublisher = Objects.requireNonNull(
+                applicationEventPublisher, "applicationEventPublisher");
     }
 
+    @Transactional
     public Notification create(UUID userId, UUID recordId, String message, NotificationType type) {
-        return notificationRepository.save(new Notification(userId, recordId, message, type));
+        Notification savedNotification =
+                notificationRepository.save(new Notification(userId, recordId, message, type));
+        applicationEventPublisher.publishEvent(new RealtimeNotificationCreatedEvent(savedNotification));
+        return savedNotification;
     }
 
     public List<NotificationResponse> getUnread(UUID userId) {

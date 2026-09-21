@@ -9,6 +9,7 @@ import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -26,7 +27,25 @@ public class StompJwtChannelInterceptor implements ChannelInterceptor {
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
-        if (accessor == null || accessor.getCommand() != StompCommand.CONNECT) {
+        if (accessor == null) {
+            return message;
+        }
+
+        if (accessor.getCommand() == StompCommand.SUBSCRIBE
+                && "/queue/notifications".equals(accessor.getDestination())) {
+            throw new BadCredentialsException("Direct STOMP SUBSCRIBE to the private notification queue is forbidden");
+        }
+
+        if (accessor.getCommand() == StompCommand.SUBSCRIBE
+                && "/user/queue/notifications".equals(accessor.getDestination())) {
+            var user = accessor.getUser();
+            if (user == null || (user instanceof Authentication authentication && !authentication.isAuthenticated())) {
+                throw new BadCredentialsException("STOMP SUBSCRIBE requires an authenticated user");
+            }
+            return message;
+        }
+
+        if (accessor.getCommand() != StompCommand.CONNECT) {
             return message;
         }
 

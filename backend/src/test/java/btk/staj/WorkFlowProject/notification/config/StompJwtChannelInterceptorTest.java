@@ -80,6 +80,55 @@ class StompJwtChannelInterceptorTest {
         verify(authenticationService, never()).authenticate(org.mockito.ArgumentMatchers.anyString());
     }
 
+    @Test
+    void authenticatedUserCanSubscribeToPrivateNotificationQueue() {
+        var authentication = UsernamePasswordAuthenticationToken.authenticated(
+                "principal", null, java.util.List.of());
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        accessor.setDestination("/user/queue/notifications");
+        accessor.setUser(authentication);
+        accessor.setLeaveMutable(true);
+        Message<byte[]> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+
+        assertSame(message, interceptor().preSend(message, channel));
+        verify(authenticationService, never()).authenticate(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void unauthenticatedUserCannotSubscribeToPrivateNotificationQueue() {
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        accessor.setDestination("/user/queue/notifications");
+        accessor.setLeaveMutable(true);
+        Message<byte[]> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+
+        assertThrows(BadCredentialsException.class, () -> interceptor().preSend(message, channel));
+    }
+
+    @Test
+    void unauthenticatedPrincipalCannotSubscribeToPrivateNotificationQueue() {
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        accessor.setDestination("/user/queue/notifications");
+        accessor.setUser(UsernamePasswordAuthenticationToken.unauthenticated("principal", null));
+        accessor.setLeaveMutable(true);
+        Message<byte[]> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+
+        assertThrows(BadCredentialsException.class, () -> interceptor().preSend(message, channel));
+        verify(authenticationService, never()).authenticate(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void directNotificationQueueSubscriptionIsRejected() {
+        var authentication = UsernamePasswordAuthenticationToken.authenticated(
+                "principal", null, java.util.List.of());
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        accessor.setDestination("/queue/notifications");
+        accessor.setUser(authentication);
+        accessor.setLeaveMutable(true);
+        Message<byte[]> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+
+        assertThrows(BadCredentialsException.class, () -> interceptor().preSend(message, channel));
+    }
+
     private StompJwtChannelInterceptor interceptor() {
         return new StompJwtChannelInterceptor(authenticationService);
     }
