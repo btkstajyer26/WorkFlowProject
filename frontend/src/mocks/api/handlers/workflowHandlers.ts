@@ -110,6 +110,22 @@ export const workflowHandlers = [
           targetUserRequired: false,
         }))
 
+    // Parent/Subtask (docs/PARENT_SUBTASK_GOREV_DAGILIMI.md): ALT_GOREVLERE_AYIR
+    // henuz gercek workflow_transitions/RecordStatus setinde degil (backend'de
+    // hazirlaniyor), bu yuzden `transitionRules`'a eklenemiyor - burada ayrica
+    // ekleniyor. Zaten bolunmus bir Parent'ta tekrar gosterilmez.
+    const alreadySplit = mockApiDb.subtasks.some((subtask) => subtask.parentRecordId === record.id)
+    if (record.status === 'BSK_YRD_INCELEMESINDE' && actor.role === 'BASKAN_YARDIMCISI' &&
+      actorMatches(record, actor.id, 'ASSIGNEE') && !alreadySplit) {
+      actions.push({
+        action: 'ALT_GOREVLERE_AYIR' as AvailableActionView['action'],
+        displayName: 'Alt Görevlere Ayır',
+        commentRequired: false,
+        targetDepartmentRequired: false,
+        targetUserRequired: false,
+      })
+    }
+
     return HttpResponse.json({
       recordId: record.id,
       status: record.status,

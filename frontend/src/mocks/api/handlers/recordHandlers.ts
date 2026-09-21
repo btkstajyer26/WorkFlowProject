@@ -98,6 +98,8 @@ export const recordHandlers = [
       createdBy: user.id,
       assignedTo: null,
       lastDeputyId: null,
+      subtaskApprovalPolicy: null,
+      subtaskRequiredApprovals: null,
     }
     mockApiDb.records = [record, ...mockApiDb.records]
     return HttpResponse.json(toRecordResponse(record), { status: 201 })

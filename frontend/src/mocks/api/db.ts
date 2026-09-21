@@ -14,6 +14,22 @@ export type StoredMockRecord = Required<Pick<
   createdBy: string
   assignedTo: string | null
   lastDeputyId: string | null
+  // Parent/Subtask (bkz. docs/PARENT_SUBTASK_GOREV_DAGILIMI.md) - yalnız
+  // bölünmüş bir Parent'ta dolu olur.
+  subtaskApprovalPolicy: 'UNANIMOUS' | 'MAJORITY' | null
+  subtaskRequiredApprovals: number | null
+}
+
+export type StoredMockSubtask = {
+  id: string
+  parentRecordId: string
+  title: string
+  description: string
+  assignedTo: string
+  status: 'DEGERLENDIRME' | 'ISLEM' | 'ONAY' | 'TAMAMLANDI' | 'REDDEDILDI'
+  resolutionComment: string | null
+  createdAt: string
+  completedAt: string | null
 }
 
 export type StoredMockNotification = Required<Pick<
@@ -48,6 +64,8 @@ function initialRecords(): StoredMockRecord[] {
       createdBy: employee.id,
       assignedTo: null,
       lastDeputyId: null,
+      subtaskApprovalPolicy: null,
+      subtaskRequiredApprovals: null,
     },
     {
       id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2',
@@ -60,6 +78,8 @@ function initialRecords(): StoredMockRecord[] {
       createdBy: employee.id,
       assignedTo: deputy.id,
       lastDeputyId: deputy.id,
+      subtaskApprovalPolicy: null,
+      subtaskRequiredApprovals: null,
     },
     {
       id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa3',
@@ -72,6 +92,8 @@ function initialRecords(): StoredMockRecord[] {
       createdBy: employee.id,
       assignedTo: chair.id,
       lastDeputyId: deputy.id,
+      subtaskApprovalPolicy: null,
+      subtaskRequiredApprovals: null,
     },
   ]
 }
@@ -137,6 +159,7 @@ type MockApiState = {
   notifications: StoredMockNotification[]
   createdUsers: MockApiUser[]
   files: StoredMockFile[]
+  subtasks: StoredMockSubtask[]
 }
 
 const state: MockApiState = {
@@ -145,6 +168,7 @@ const state: MockApiState = {
   notifications: [],
   createdUsers: [],
   files: [],
+  subtasks: [],
 }
 
 export function resetMockApiDb() {
@@ -153,6 +177,7 @@ export function resetMockApiDb() {
   state.notifications = initialNotifications()
   state.createdUsers = []
   state.files = []
+  state.subtasks = []
 }
 
 resetMockApiDb()
@@ -184,6 +209,12 @@ export const mockApiDb = {
   },
   set files(files: StoredMockFile[]) {
     state.files = files
+  },
+  get subtasks() {
+    return state.subtasks
+  },
+  set subtasks(subtasks: StoredMockSubtask[]) {
+    state.subtasks = subtasks
   },
 }
 

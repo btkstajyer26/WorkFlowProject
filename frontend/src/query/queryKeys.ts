@@ -18,6 +18,11 @@ export const queryKeys = {
     availableActions: (recordId: string) => ['workflow', 'available-actions', recordId] as const,
     targetDepartments: (recordId: string) => ['workflow', 'target-departments', recordId] as const,
   },
+  subtasks: {
+    all: ['subtasks'] as const,
+    list: (recordId: string) => ['subtasks', 'list', recordId] as const,
+    assignableUsers: (recordId: string) => ['subtasks', 'assignable-users', recordId] as const,
+  },
   notifications: {
     all: ['notifications'] as const,
     lists: () => ['notifications', 'list'] as const,
