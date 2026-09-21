@@ -180,6 +180,31 @@ export function resetMockApiDb() {
   state.subtasks = []
 }
 
+/**
+ * Tarayıcı mock modu (browser.ts) sayfa yenilemeleri arasında `state`'i
+ * localStorage'a kaydedip geri yükleyebilsin diye - Vitest (msw/node) bu
+ * fonksiyonları hiç çağırmaz, `resetMockApiDb` ile test izolasyonu bozulmaz.
+ */
+export function snapshotMockApiDb(): MockApiState {
+  return {
+    records: state.records,
+    auditLogs: state.auditLogs,
+    notifications: state.notifications,
+    createdUsers: state.createdUsers,
+    files: state.files,
+    subtasks: state.subtasks,
+  }
+}
+
+export function restoreMockApiDb(snapshot: Partial<MockApiState>) {
+  if (snapshot.records) state.records = snapshot.records
+  if (snapshot.auditLogs) state.auditLogs = snapshot.auditLogs
+  if (snapshot.notifications) state.notifications = snapshot.notifications
+  if (snapshot.createdUsers) state.createdUsers = snapshot.createdUsers
+  if (snapshot.files) state.files = snapshot.files
+  if (snapshot.subtasks) state.subtasks = snapshot.subtasks
+}
+
 resetMockApiDb()
 
 export const mockApiDb = {
@@ -203,6 +228,9 @@ export const mockApiDb = {
   },
   get createdUsers() {
     return state.createdUsers
+  },
+  set createdUsers(createdUsers: MockApiUser[]) {
+    state.createdUsers = createdUsers
   },
   get files() {
     return state.files
