@@ -57,39 +57,36 @@ async function createSubmittedRecord(page: Page, title: string, description: str
   return record.id
 }
 
+/**
+ * B10/WEB-1 sonrası panel, her workflow aksiyonunu `available-actions`'tan gelen
+ * `displayName`'iyle ayrı bir düğme olarak gösteriyor (aynı düğme altında hedef
+ * seçici yok) ve onay penceresinin başlığı da aynı `displayName`. Onay düğmesi
+ * artık aksiyona bakmaksızın hep "İşlemi Onayla" metnini taşıyor.
+ */
 async function performReviewAction({
   page,
   recordId,
   title,
-  button,
-  dialog,
-  confirm,
+  action,
   comment,
-  returnTarget,
 }: {
   page: Page
   recordId: string
   title: string
-  button: 'Başkana İlet' | 'Geri Gönder' | 'Onayla' | 'Reddet'
-  dialog: 'Başkana ilet' | 'Kaydı geri gönder' | 'Kaydı onayla' | 'Kaydı reddet'
-  confirm: 'Başkana İlet' | 'Geri Gönder' | 'Onayla' | 'Reddet'
+  action: 'Başkana İlet' | 'Çalışana Geri Gönder' | 'Başkan Yardımcısına Geri Gönder' | 'Onayla' | 'Reddet'
   comment?: string
-  returnTarget?: 'Çalışan' | 'Başkan Yardımcısı'
 }) {
   await page.goto(`/kayitlar/${recordId}`)
   await expect(page.getByRole('heading', { name: title })).toBeVisible()
-  await page.getByRole('button', { name: button }).click()
-  const actionDialog = page.getByRole('dialog', { name: dialog })
-  if (returnTarget) {
-    await actionDialog.getByLabel('Geri gönderilecek kişi').selectOption({ label: returnTarget })
-  }
+  await page.getByRole('button', { name: action }).click()
+  const actionDialog = page.getByRole('dialog', { name: action })
   if (comment !== undefined) {
     await actionDialog.getByRole('textbox').fill(comment)
   }
   const responsePromise = page.waitForResponse((response) =>
     response.request().method() === 'POST' && response.url().includes(`/api/records/${recordId}/workflow/actions`),
   )
-  await actionDialog.getByRole('button', { name: confirm }).click()
+  await actionDialog.getByRole('button', { name: 'İşlemi Onayla' }).click()
   expect((await responsePromise).ok()).toBe(true)
 }
 
@@ -259,27 +256,21 @@ test('üç kayıt bildirim, filtre, düzeltme, not ve karar dallarında tutarlı
       page: deputy.page,
       recordId: approvedId,
       title: titles.approved,
-      button: 'Başkana İlet',
-      dialog: 'Başkana ilet',
-      confirm: 'Başkana İlet',
+      action: 'Başkana İlet',
       comment: notes.deputyForward,
     })
     await performReviewAction({
       page: deputy.page,
       recordId: rejectedId,
       title: titles.rejected,
-      button: 'Başkana İlet',
-      dialog: 'Başkana ilet',
-      confirm: 'Başkana İlet',
+      action: 'Başkana İlet',
       comment: notes.deputyForward,
     })
     await performReviewAction({
       page: deputy.page,
       recordId: revisionId,
       title: titles.revision,
-      button: 'Geri Gönder',
-      dialog: 'Kaydı geri gönder',
-      confirm: 'Geri Gönder',
+      action: 'Çalışana Geri Gönder',
       comment: notes.deputyReturn,
     })
 
@@ -310,9 +301,7 @@ test('üç kayıt bildirim, filtre, düzeltme, not ve karar dallarında tutarlı
       page: deputy.page,
       recordId: revisionId,
       title: titles.revision,
-      button: 'Başkana İlet',
-      dialog: 'Başkana ilet',
-      confirm: 'Başkana İlet',
+      action: 'Başkana İlet',
       comment: notes.deputyForward,
     })
 
@@ -327,28 +316,21 @@ test('üç kayıt bildirim, filtre, düzeltme, not ve karar dallarında tutarlı
       page: president.page,
       recordId: approvedId,
       title: titles.approved,
-      button: 'Onayla',
-      dialog: 'Kaydı onayla',
-      confirm: 'Onayla',
+      action: 'Onayla',
     })
     await performReviewAction({
       page: president.page,
       recordId: rejectedId,
       title: titles.rejected,
-      button: 'Reddet',
-      dialog: 'Kaydı reddet',
-      confirm: 'Reddet',
+      action: 'Reddet',
       comment: notes.presidentReject,
     })
     await performReviewAction({
       page: president.page,
       recordId: revisionId,
       title: titles.revision,
-      button: 'Geri Gönder',
-      dialog: 'Kaydı geri gönder',
-      confirm: 'Geri Gönder',
+      action: 'Başkan Yardımcısına Geri Gönder',
       comment: notes.presidentReturn,
-      returnTarget: 'Başkan Yardımcısı',
     })
 
     await deputy.page.goto(`/kayitlar/${revisionId}`)
@@ -357,9 +339,7 @@ test('üç kayıt bildirim, filtre, düzeltme, not ve karar dallarında tutarlı
       page: deputy.page,
       recordId: revisionId,
       title: titles.revision,
-      button: 'Geri Gönder',
-      dialog: 'Kaydı geri gönder',
-      confirm: 'Geri Gönder',
+      action: 'Çalışana Geri Gönder',
       comment: notes.finalReturn,
     })
 

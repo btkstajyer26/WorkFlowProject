@@ -35,12 +35,12 @@ test('kayıt Çalışandan Başkan Yardımcısına, Başkana ve onaya ilerler', 
   await expect(deputy.page.getByRole('button', { name: 'Başkana İlet' })).toBeVisible()
   await expect(deputy.page.getByRole('button', { name: 'Onayla' })).toHaveCount(0)
   await deputy.page.getByRole('button', { name: 'Başkana İlet' }).click()
-  const forwardDialog = deputy.page.getByRole('dialog', { name: 'Başkana ilet' })
-  await forwardDialog.getByLabel(/İletme açıklaması/).fill('E2E yardımcı değerlendirmesi.')
+  const forwardDialog = deputy.page.getByRole('dialog', { name: 'Başkana İlet' })
+  await forwardDialog.getByRole('textbox').fill('E2E yardımcı değerlendirmesi.')
   const forwardResponsePromise = deputy.page.waitForResponse((response) =>
     response.request().method() === 'POST' && response.url().includes(`/api/records/${createdRecord.id}/workflow/actions`),
   )
-  await forwardDialog.getByRole('button', { name: 'Başkana İlet' }).click()
+  await forwardDialog.getByRole('button', { name: 'İşlemi Onayla' }).click()
   expect((await forwardResponsePromise).ok()).toBe(true)
   await deputy.context.close()
 
@@ -50,11 +50,11 @@ test('kayıt Çalışandan Başkan Yardımcısına, Başkana ve onaya ilerler', 
   await expect(president.page.getByRole('button', { name: 'Onayla' })).toBeVisible()
   await expect(president.page.getByRole('button', { name: 'Başkana İlet' })).toHaveCount(0)
   await president.page.getByRole('button', { name: 'Onayla' }).click()
-  const approveDialog = president.page.getByRole('dialog', { name: 'Kaydı onayla' })
+  const approveDialog = president.page.getByRole('dialog', { name: 'Onayla' })
   const approveResponsePromise = president.page.waitForResponse((response) =>
     response.request().method() === 'POST' && response.url().includes(`/api/records/${createdRecord.id}/workflow/actions`),
   )
-  await approveDialog.getByRole('button', { name: 'Onayla' }).click()
+  await approveDialog.getByRole('button', { name: 'İşlemi Onayla' }).click()
   expect((await approveResponsePromise).ok()).toBe(true)
 
   await president.page.goto(`/kayitlar/${createdRecord.id}`)
