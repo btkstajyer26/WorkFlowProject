@@ -13,6 +13,11 @@ export const queryKeys = {
     ),
     files: (recordId: string) => ['records', 'files', recordId] as const,
   },
+  workflow: {
+    all: ['workflow'] as const,
+    availableActions: (recordId: string) => ['workflow', 'available-actions', recordId] as const,
+    targetDepartments: (recordId: string) => ['workflow', 'target-departments', recordId] as const,
+  },
   notifications: {
     all: ['notifications'] as const,
     lists: () => ['notifications', 'list'] as const,

@@ -1,5 +1,9 @@
 import { http, HttpResponse } from 'msw'
-import type { WorkflowActionRequest, WorkflowActionResponse } from '../../../api/generated/data-contracts'
+import type {
+  AvailableActionView,
+  WorkflowActionRequest,
+  WorkflowActionResponse,
+} from '../../../api/generated/data-contracts'
 import { apiBaseUrl } from '../../../api/config'
 import {
   getAuthenticatedMockUser,
@@ -52,6 +56,18 @@ function requiresComment(action: WorkflowAction) {
   return ['CALISANA_GERI_GONDER', 'BASKAN_YARDIMCISINA_GERI_GONDER', 'REDDET'].includes(action)
 }
 
+/** B10/WEB-1: gerçek backend'in available-actions ucunun taşıdığı gösterim adlarıyla aynı fikirde. */
+const actionDisplayNames: Record<NonNullable<WorkflowAction>, string> = {
+  GONDER: 'İncelemeye Gönder',
+  TEKRAR_GONDER: 'Yeniden Gönder',
+  BASKANA_ILET: 'Başkana İlet',
+  CALISANA_GERI_GONDER: 'Çalışana Geri Gönder',
+  BASKAN_YARDIMCISINA_GERI_GONDER: 'Başkan Yardımcısına Geri Gönder',
+  ONAYLA: 'Onayla',
+  REDDET: 'Reddet',
+  DEPARTMANA_GONDER: 'Departmana Gönder',
+}
+
 function resolveTarget(record: StoredMockRecord, request: WorkflowActionRequest) {
   if (request.action === 'GONDER' || request.action === 'TEKRAR_GONDER') {
     return getMockUserByRole('BASKAN_YARDIMCISI')
@@ -65,6 +81,54 @@ function resolveTarget(record: StoredMockRecord, request: WorkflowActionRequest)
 }
 
 export const workflowHandlers = [
+  // B10/WEB-1: RecordActionPanel'in düğmelerini buradan türetir - artık
+  // rol/systemKey'e göre sabit dallanan bir liste yoktur, gerçek backend'in
+  // AvailableActionResolver'ıyla aynı girdiyi (durum + rol + aktör ilişkisi)
+  // kullanan bu mock'tan gelir.
+  http.get(`${apiBaseUrl}/api/records/:recordId/workflow/available-actions`, ({ params, request }) => {
+    const actor = getAuthenticatedMockUser(request)
+    if (!actor) return unauthorizedResponse()
+
+    const record = mockApiDb.records.find((item) => item.id === params.recordId)
+    if (!record) {
+      return apiErrorResponse(404, 'RESOURCE_NOT_FOUND', `Kayıt bulunamadı: ${params.recordId}`)
+    }
+
+    const actions: AvailableActionView[] = ['ONAYLANDI', 'REDDEDILDI'].includes(record.status)
+      ? []
+      : transitionRules
+        .filter((rule) => (
+          rule.from === record.status &&
+          rule.role === actor.role &&
+          actorMatches(record, actor.id, rule.actor)
+        ))
+        .map((rule) => ({
+          action: rule.action,
+          displayName: actionDisplayNames[rule.action!],
+          commentRequired: requiresComment(rule.action),
+          targetDepartmentRequired: false,
+          targetUserRequired: false,
+        }))
+
+    return HttpResponse.json({
+      recordId: record.id,
+      status: record.status,
+      version: 0,
+      actions,
+    })
+  }),
+
+  http.get(`${apiBaseUrl}/api/records/:recordId/workflow/target-departments`, ({ params, request }) => {
+    const actor = getAuthenticatedMockUser(request)
+    if (!actor) return unauthorizedResponse()
+    if (!mockApiDb.records.some((item) => item.id === params.recordId)) {
+      return apiErrorResponse(404, 'RESOURCE_NOT_FOUND', `Kayıt bulunamadı: ${params.recordId}`)
+    }
+    // V1'de sabit sekiz gecişte departman hedefi yoktur; bu mock departman
+    // yönetimi kurulana kadar bilerek boş liste döner.
+    return HttpResponse.json({ departments: [] })
+  }),
+
   http.post(`${apiBaseUrl}/api/records/:recordId/workflow/actions`, async ({ params, request }) => {
     const actor = getAuthenticatedMockUser(request)
     if (!actor) return unauthorizedResponse()

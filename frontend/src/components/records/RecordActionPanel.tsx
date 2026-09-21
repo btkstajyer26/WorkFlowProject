@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import type { LucideIcon } from 'lucide-react'
 import {
   ArrowLeftRight,
   CheckCircle2,
@@ -8,63 +9,47 @@ import {
   XCircle,
 } from 'lucide-react'
 import { Link, useNavigate } from 'react-router'
-import type { WorkflowActionRequest } from '../../api/generated/data-contracts'
 import { useToast } from '../../context/toastState'
 import { useModalDialog } from '../../hooks/useModalDialog'
 import { useSingleFlight } from '../../hooks/useSingleFlight'
-import { useRecordWorkflowAction } from '../../hooks/useRecordWorkflowAction'
-import type { AuthUser, UserRole } from '../../types/auth'
+import {
+  useAvailableWorkflowActions,
+  useRecordWorkflowAction,
+  useWorkflowTargetDepartments,
+} from '../../hooks/useRecordWorkflowAction'
+import type { AvailableWorkflowAction } from '../../api/workflow'
+import type { AuthUser } from '../../types/auth'
 import type { WorkflowRecord } from '../../types/record'
 
-type ReviewAction = 'submit' | 'forward' | 'return' | 'approve' | 'reject'
+type ActionTone = 'primary' | 'success' | 'danger' | 'secondary'
 
-const actionCopy: Record<ReviewAction, { title: string; description: string; confirmLabel: string }> = {
-  submit: {
-    title: 'Başkan Yardımcısına gönder',
-    description: 'Kayıt inceleme akışına alınacak ve gönderildikten sonra düzenlenemeyecek.',
-    confirmLabel: 'İncelemeye Gönder',
-  },
-  forward: {
-    title: 'Başkana ilet',
-    description: 'Kayıt Başkanın nihai inceleme kuyruğuna gönderilecek.',
-    confirmLabel: 'Başkana İlet',
-  },
-  return: {
-    title: 'Kaydı geri gönder',
-    description: 'Kaydın yeniden düzenlenebilmesi için geri gönderme açıklaması zorunludur.',
-    confirmLabel: 'Geri Gönder',
-  },
-  approve: {
-    title: 'Kaydı onayla',
-    description: 'Onay sonrasında süreç tamamlanacak ve kayıt kilitlenecek.',
-    confirmLabel: 'Onayla',
-  },
-  reject: {
-    title: 'Kaydı reddet',
-    description: 'Ret açıklaması zorunludur. İşlem sonrasında süreç sonlanacak ve kayıt kilitlenecek.',
-    confirmLabel: 'Reddet',
-  },
+const actionPresentation: Record<string, { icon: LucideIcon; tone: ActionTone }> = {
+  GONDER: { icon: Send, tone: 'primary' },
+  TEKRAR_GONDER: { icon: Send, tone: 'primary' },
+  BASKANA_ILET: { icon: Send, tone: 'primary' },
+  DEPARTMANA_GONDER: { icon: Send, tone: 'primary' },
+  CALISANA_GERI_GONDER: { icon: ArrowLeftRight, tone: 'secondary' },
+  BASKAN_YARDIMCISINA_GERI_GONDER: { icon: ArrowLeftRight, tone: 'secondary' },
+  ONAYLA: { icon: CheckCircle2, tone: 'success' },
+  REDDET: { icon: XCircle, tone: 'danger' },
+}
+const defaultPresentation: { icon: LucideIcon; tone: ActionTone } = { icon: Send, tone: 'secondary' }
+
+const buttonToneClasses: Record<ActionTone, string> = {
+  primary: 'bg-brand-700 text-white hover:bg-brand-800 focus-visible:outline-brand-500',
+  success: 'bg-emerald-600 text-white hover:bg-emerald-700 focus-visible:outline-emerald-500',
+  danger: 'border border-rose-300 text-rose-700 hover:bg-rose-50 focus-visible:outline-rose-500 dark:border-rose-800 dark:text-rose-300 dark:hover:bg-rose-950/40',
+  secondary: 'border border-app-border text-app-text-secondary hover:bg-app-surface-muted hover:text-app-text-strong focus-visible:outline-brand-500',
 }
 
-const commentCopy: Record<Exclude<ReviewAction, 'submit'>, { label: string; placeholder: string }> = {
-  forward: {
-    label: 'İletme açıklaması (isteğe bağlı)',
-    placeholder: 'Başkana iletmek istediğiniz değerlendirmeyi yazın…',
-  },
-  return: {
-    label: 'Geri gönderme açıklaması *',
-    placeholder: 'Eksik veya düzeltilmesi gereken alanları açıklayın…',
-  },
-  approve: {
-    label: 'Onay açıklaması (isteğe bağlı)',
-    placeholder: 'Onaya ilişkin kısa bir açıklama ekleyin…',
-  },
-  reject: {
-    label: 'Ret açıklaması *',
-    placeholder: 'Kaydın neden reddedildiğini açıklayın…',
-  },
-}
-
+/**
+ * B10/WEB-1: hangi düğmelerin gösterileceğine sunucu karar verir
+ * (`available-actions`, APP-9). Burada rol adına veya `systemKey`'e bağlı
+ * hiçbir koşul yoktur; dinamik rol de kendi yetkili aksiyonlarını aynı
+ * yoldan görür. Bu liste yalnız görünürlük içindir - `performWorkflowAction`
+ * yetkiyi sunucuda ayrıca doğrular, düğmenin gizlenmesi tek başına
+ * yetkilendirme sayılmaz.
+ */
 export function RecordActionPanel({
   record,
   user,
@@ -72,60 +57,77 @@ export function RecordActionPanel({
   record: WorkflowRecord
   user: AuthUser
 }) {
-  const systemKey = user.systemKey
   const { showToast } = useToast()
   const navigate = useNavigate()
   const workflowMutation = useRecordWorkflowAction(record.id, user)
+  const availableActionsQuery = useAvailableWorkflowActions(record.id)
+  const [selectedAction, setSelectedAction] = useState<AvailableWorkflowAction | null>(null)
   const [comment, setComment] = useState('')
-  const [returnTarget, setReturnTarget] = useState<'CALISAN' | 'BASKAN_YARDIMCISI'>('CALISAN')
-  const [activeAction, setActiveAction] = useState<ReviewAction | null>(null)
+  const [targetDepartmentId, setTargetDepartmentId] = useState<number | null>(null)
   const { busy: mutationBusy, run: runMutation } = useSingleFlight()
 
-  const employeeCanEdit = systemKey === 'CALISAN' && (record.status === 'TASLAK' || record.status === 'DUZENLEME_BEKLIYOR')
-  const viceChairCanReview = systemKey === 'BASKAN_YARDIMCISI' && record.status === 'BSK_YRD_INCELEMESINDE'
-  const chairCanReview = systemKey === 'BASKAN' && record.status === 'BASKAN_INCELEMESINDE'
+  const targetDepartmentsQuery = useWorkflowTargetDepartments(
+    record.id,
+    Boolean(selectedAction?.targetDepartmentRequired && !selectedAction.targetUserRequired),
+  )
+  const departments = targetDepartmentsQuery.data ?? []
+  const targetUnavailable = Boolean(selectedAction?.targetUserRequired) || Boolean(
+    selectedAction?.targetDepartmentRequired && (
+      targetDepartmentsQuery.isPending || targetDepartmentsQuery.isFetching ||
+      targetDepartmentsQuery.isError || departments.length === 0
+    ),
+  )
 
-  const openAction = (action: ReviewAction) => {
+  // Kayıt düzenleme bir workflow aksiyonu değildir (available-actions'ta yer almaz);
+  // ayrı, izin tabanlı bir kontroldür - mobil B09/kayitlar/[id]'deki ile aynı desen.
+  const canEdit = Boolean(
+    user.permissionCodes.includes('RECORD_EDIT') &&
+    record.createdById === user.id &&
+    (record.status === 'TASLAK' || record.status === 'DUZENLEME_BEKLIYOR'),
+  )
+
+  const openAction = (action: AvailableWorkflowAction) => {
     setComment('')
-    setActiveAction(action)
+    setTargetDepartmentId(null)
+    setSelectedAction(action)
   }
 
-  if (!employeeCanEdit && !viceChairCanReview && !chairCanReview) return null
+  const closeActionDialog = () => {
+    setSelectedAction(null)
+    setComment('')
+    setTargetDepartmentId(null)
+  }
+
+  const actions = availableActionsQuery.data?.actions ?? []
+
+  if (availableActionsQuery.isPending) return null
+  if (!canEdit && (availableActionsQuery.isError || actions.length === 0)) return null
 
   const completeAction = () => runMutation(async () => {
-    if (!activeAction) return
-    const keepReturnedRecordOpen = activeAction === 'return' && returnTarget === 'CALISAN'
+    if (!selectedAction || targetUnavailable) return
+    if (selectedAction.targetDepartmentRequired && targetDepartmentId === null) {
+      showToast({ title: 'Hedef departman seçin', tone: 'error' })
+      return
+    }
+
+    const normalizedComment = comment.trim()
+    if (selectedAction.commentRequired && !normalizedComment) {
+      showToast({ title: 'Bu işlem için açıklama zorunludur', tone: 'error' })
+      return
+    }
 
     try {
-      const normalizedComment = comment.trim()
-      const request: WorkflowActionRequest = {
-        action: activeAction === 'submit'
-          ? record.status === 'TASLAK' ? 'GONDER' : 'TEKRAR_GONDER'
-          : activeAction === 'forward'
-            ? 'BASKANA_ILET'
-            : activeAction === 'return'
-              ? returnTarget === 'CALISAN'
-                ? 'CALISANA_GERI_GONDER'
-                : 'BASKAN_YARDIMCISINA_GERI_GONDER'
-              : activeAction === 'approve'
-                ? 'ONAYLA'
-                : 'REDDET',
+      await workflowMutation.mutateAsync({
+        action: selectedAction.action,
+        ...(selectedAction.targetDepartmentRequired && targetDepartmentId !== null
+          ? { targetDepartmentId } : {}),
         ...(normalizedComment ? { comment: normalizedComment } : {}),
-      }
-      await workflowMutation.mutateAsync(request)
-      const successCopy: Record<ReviewAction, string> = {
-        submit: record.status === 'TASLAK' ? 'Kayıt incelemeye gönderildi' : 'Kayıt yeniden incelemeye gönderildi',
-        forward: 'Kayıt Başkana iletildi',
-        return: returnTarget === 'CALISAN'
-          ? 'Kayıt Çalışana geri gönderildi'
-          : 'Kayıt Başkan Yardımcısına geri gönderildi',
-        approve: 'Kayıt onaylandı',
-        reject: 'Kayıt reddedildi',
-      }
-      showToast({ title: successCopy[activeAction], tone: 'success' })
-      setActiveAction(null)
-      setComment('')
-      if (!keepReturnedRecordOpen) navigate('/kayitlar')
+      })
+      showToast({ title: 'İşlem tamamlandı', description: selectedAction.displayName, tone: 'success' })
+      closeActionDialog()
+      // Kayıt kendisine geri gönderilmediyse (ör. CALISANA_GERI_GONDER, kaydın
+      // kendisine değil başka birine döndüğü durumlar hariç) listeye dön.
+      navigate('/kayitlar')
     } catch (caughtError) {
       showToast({
         title: 'İşlem tamamlanamadı',
@@ -135,24 +137,19 @@ export function RecordActionPanel({
     }
   })
 
-  const closeActionDialog = () => {
-    setActiveAction(null)
-    setComment('')
-  }
+  return (
+    <section aria-labelledby="record-actions-title" className="rounded-xl border border-app-border bg-app-surface px-4 py-4 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:px-5">
+      <div className="min-w-0">
+        <h2 id="record-actions-title" className="text-base font-bold text-app-text">{canEdit ? 'Kayıt İşlemleri' : 'Karar'}</h2>
+        <p className="mt-1 text-sm leading-5 text-app-text-muted">
+          {canEdit
+            ? 'Taslağınıza devam edin veya kaydı incelemeye gönderin.'
+            : 'Kaydı inceleyip uygun süreç işlemini seçin.'}
+        </p>
+      </div>
 
-  if (employeeCanEdit) {
-    return (
-      <section aria-labelledby="record-actions-title" className="rounded-xl border border-app-border bg-app-surface px-4 py-4 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:px-5">
-        <div className="min-w-0">
-          <h2 id="record-actions-title" className="text-base font-bold text-app-text">Kayıt İşlemleri</h2>
-          <p className="mt-1 text-sm leading-5 text-app-text-muted">
-            {record.status === 'TASLAK'
-              ? 'Taslağınıza devam edin veya kaydı incelemeye gönderin.'
-              : 'İstenen düzenlemeleri tamamlayarak kaydı yeniden gönderin.'}
-          </p>
-        </div>
-
-        <div className="mt-4 flex flex-col gap-2 sm:mt-0 sm:shrink-0 sm:flex-row sm:justify-end">
+      <div className="mt-4 flex flex-col gap-2 sm:mt-0 sm:shrink-0 sm:flex-row sm:flex-wrap sm:justify-end">
+        {canEdit ? (
           <Link
             to={`/kayitlar/${record.id}/duzenle`}
             className="flex min-h-10 items-center justify-center gap-2 rounded-lg border border-app-border px-4 text-[15px] font-bold text-app-text-secondary transition hover:bg-app-surface-muted hover:text-app-text-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
@@ -160,91 +157,38 @@ export function RecordActionPanel({
             <FilePenLine className="size-4" aria-hidden="true" />
             Düzenlemeye Devam Et
           </Link>
-          <button
-            type="button"
-            onClick={() => openAction('submit')}
-            className="flex min-h-10 items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 text-[15px] font-bold text-white transition hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
-          >
-            <Send className="size-4" aria-hidden="true" />
-            {record.status === 'TASLAK' ? 'İncelemeye Gönder' : 'Yeniden Gönder'}
-          </button>
-        </div>
-
-        <ActionDialog
-          action={activeAction}
-          comment={comment}
-          returnTarget={returnTarget}
-          role={systemKey}
-          onCommentChange={setComment}
-          onTargetChange={setReturnTarget}
-          onClose={closeActionDialog}
-          onConfirm={completeAction}
-          busy={mutationBusy}
-        />
-      </section>
-    )
-  }
-
-  return (
-    <section aria-labelledby="record-decision-title" className="rounded-xl border border-app-border bg-app-surface px-4 py-4 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:px-5">
-      <div className="min-w-0">
-        <h2 id="record-decision-title" className="text-base font-bold text-app-text">Karar</h2>
-        <p className="mt-1 text-sm leading-5 text-app-text-muted">Kaydı inceleyip uygun süreç işlemini seçin.</p>
-      </div>
-
-      <div className="mt-4 flex flex-col gap-2 sm:mt-0 sm:shrink-0 sm:flex-row sm:flex-wrap sm:justify-end">
-        <button
-          type="button"
-          onClick={() => openAction('return')}
-          className="flex min-h-10 items-center justify-center gap-2 rounded-lg border border-app-border px-4 text-[15px] font-bold text-app-text-secondary transition hover:bg-app-surface-muted hover:text-app-text-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
-        >
-          <ArrowLeftRight className="size-4" aria-hidden="true" />
-          Geri Gönder
-        </button>
-
-        {viceChairCanReview ? (
-          <button
-            type="button"
-            onClick={() => openAction('forward')}
-            className="flex min-h-10 items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 text-[15px] font-bold text-white transition hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
-          >
-            <Send className="size-4" aria-hidden="true" />
-            Başkana İlet
-          </button>
         ) : null}
 
-        {chairCanReview ? (
-          <>
+        {actions.map((action) => {
+          const { icon: Icon, tone } = actionPresentation[action.action] ?? defaultPresentation
+          return (
             <button
+              key={action.action}
               type="button"
-              onClick={() => openAction('reject')}
-              className="flex min-h-10 items-center justify-center gap-2 rounded-lg border border-rose-300 px-4 text-[15px] font-bold text-rose-700 transition hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500 dark:border-rose-800 dark:text-rose-300 dark:hover:bg-rose-950/40"
+              onClick={() => openAction(action)}
+              className={`flex min-h-10 items-center justify-center gap-2 rounded-lg px-4 text-[15px] font-bold transition focus-visible:outline-2 focus-visible:outline-offset-2 ${buttonToneClasses[tone]}`}
             >
-              <XCircle className="size-4" aria-hidden="true" />
-              Reddet
+              <Icon className="size-4" aria-hidden="true" />
+              {action.displayName}
             </button>
-            <button
-              type="button"
-              onClick={() => openAction('approve')}
-              className="flex min-h-10 items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 text-[15px] font-bold text-white transition hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
-            >
-              <CheckCircle2 className="size-4" aria-hidden="true" />
-              Onayla
-            </button>
-          </>
-        ) : null}
+          )
+        })}
       </div>
 
       <ActionDialog
-        action={activeAction}
+        action={selectedAction}
         comment={comment}
-        returnTarget={returnTarget}
-        role={systemKey}
+        targetDepartmentId={targetDepartmentId}
+        departments={departments}
+        departmentsLoading={targetDepartmentsQuery.isPending || targetDepartmentsQuery.isFetching}
+        departmentsError={targetDepartmentsQuery.isError}
+        onRetryDepartments={() => void targetDepartmentsQuery.refetch()}
         onCommentChange={setComment}
-        onTargetChange={setReturnTarget}
+        onTargetDepartmentChange={setTargetDepartmentId}
         onClose={closeActionDialog}
         onConfirm={completeAction}
         busy={mutationBusy}
+        disabled={targetUnavailable}
       />
     </section>
   )
@@ -253,39 +197,55 @@ export function RecordActionPanel({
 function ActionDialog({
   action,
   comment,
-  returnTarget,
-  role,
+  targetDepartmentId,
+  departments,
+  departmentsLoading,
+  departmentsError,
+  onRetryDepartments,
   onCommentChange,
-  onTargetChange,
+  onTargetDepartmentChange,
   onClose,
   onConfirm,
   busy,
+  disabled,
 }: {
-  action: ReviewAction | null
+  action: AvailableWorkflowAction | null
   comment: string
-  returnTarget: 'CALISAN' | 'BASKAN_YARDIMCISI'
-  role: UserRole
+  targetDepartmentId: number | null
+  departments: { id: number; name: string }[]
+  departmentsLoading: boolean
+  departmentsError: boolean
+  onRetryDepartments: () => void
   onCommentChange: (value: string) => void
-  onTargetChange: (value: 'CALISAN' | 'BASKAN_YARDIMCISI') => void
+  onTargetDepartmentChange: (id: number) => void
   onClose: () => void
   onConfirm: () => void | Promise<unknown>
   busy: boolean
+  disabled: boolean
 }) {
   const dialogRef = useRef<HTMLElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const commentRef = useRef<HTMLTextAreaElement>(null)
+  const willShowCommentField = Boolean(action) && (
+    action!.commentRequired || (action!.action !== 'GONDER' && action!.action !== 'TEKRAR_GONDER')
+  )
   useModalDialog({
     open: Boolean(action),
     onClose,
     dialogRef,
-    initialFocusRef: action && action !== 'submit' ? commentRef : closeButtonRef,
+    initialFocusRef: willShowCommentField ? commentRef : closeButtonRef,
   })
 
   if (!action) return null
-  const copy = actionCopy[action]
-  const isReturn = action === 'return'
-  const commentRequired = isReturn || action === 'reject'
-  const commentFieldCopy = action === 'submit' ? null : commentCopy[action]
+  const { tone } = actionPresentation[action.action] ?? defaultPresentation
+  const commentRequired = action.commentRequired
+  const showCommentField = willShowCommentField
+
+  const confirmToneClass = tone === 'success'
+    ? 'bg-emerald-600 hover:bg-emerald-700 focus-visible:outline-emerald-500'
+    : tone === 'danger'
+      ? 'bg-rose-600 hover:bg-rose-700 focus-visible:outline-rose-500'
+      : 'bg-brand-700 hover:bg-brand-800 focus-visible:outline-brand-500'
 
   return (
     <div className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-950/35 p-0 backdrop-blur-[2px] sm:items-center sm:p-4" role="presentation">
@@ -299,8 +259,10 @@ function ActionDialog({
       >
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
-            <h2 id="record-action-title" className="text-lg font-bold text-app-text">{copy.title}</h2>
-            <p className="mt-2 text-sm leading-6 text-app-text-muted">{copy.description}</p>
+            <h2 id="record-action-title" className="text-lg font-bold text-app-text">{action.displayName}</h2>
+            <p className="mt-2 text-sm leading-6 text-app-text-muted">
+              {commentRequired ? 'Devam etmek için bir açıklama yazın.' : 'İsterseniz işlem notu ekleyebilirsiniz.'}
+            </p>
           </div>
           <button
             ref={closeButtonRef}
@@ -314,24 +276,54 @@ function ActionDialog({
         </div>
 
         <div className="mt-5 space-y-4">
-          {isReturn && role === 'BASKAN' ? (
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-bold text-app-text-secondary">Geri gönderilecek kişi</span>
-                <select
-                  value={returnTarget}
-                  onChange={(event) => onTargetChange(event.target.value as 'CALISAN' | 'BASKAN_YARDIMCISI')}
-                  className="h-11 w-full rounded-xl border border-app-border bg-app-surface px-3 text-sm text-app-text-strong outline-none focus:border-brand-500"
-                >
-                  <option value="CALISAN">Çalışan</option>
-                  <option value="BASKAN_YARDIMCISI">Başkan Yardımcısı</option>
-                </select>
-              </label>
+          {action.targetUserRequired ? (
+            <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 dark:border-rose-800/70 dark:bg-rose-950/40 dark:text-rose-300" role="alert">
+              Bu işlem için kullanıcı seçimi şu anda desteklenmiyor.
+            </p>
+          ) : action.targetDepartmentRequired ? (
+            <div>
+              <span className="mb-1.5 block text-xs font-bold text-app-text-secondary">Hedef departman</span>
+              {departmentsLoading ? (
+                <p className="text-sm text-app-text-subtle">Departmanlar yükleniyor…</p>
+              ) : departmentsError ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-rose-700 dark:text-rose-300">Departmanlar yüklenemedi.</p>
+                  <button
+                    type="button"
+                    onClick={onRetryDepartments}
+                    className="min-h-9 rounded-lg border border-app-border px-3 text-xs font-bold text-app-text-secondary hover:bg-app-surface-muted"
+                  >
+                    Tekrar dene
+                  </button>
+                </div>
+              ) : departments.length === 0 ? (
+                <p className="text-sm text-app-text-subtle">Gönderilebilecek departman yok.</p>
+              ) : (
+                <div className="max-h-44 space-y-2 overflow-y-auto">
+                  {departments.map((department) => (
+                    <button
+                      key={department.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={targetDepartmentId === department.id}
+                      onClick={() => onTargetDepartmentChange(department.id)}
+                      className={`flex min-h-11 w-full items-center rounded-xl border px-4 text-sm font-semibold transition ${targetDepartmentId === department.id
+                        ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300'
+                        : 'border-app-border bg-app-surface text-app-text-secondary hover:bg-app-surface-muted'}`}
+                    >
+                      {department.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           ) : null}
-          {commentFieldCopy ? (
+
+          {showCommentField ? (
             <>
               <label className="block">
                 <span className="mb-1.5 block text-xs font-bold text-app-text-secondary">
-                  {commentFieldCopy.label}
+                  {commentRequired ? 'Açıklama *' : 'İşlem notu (isteğe bağlı)'}
                 </span>
                 <textarea
                   ref={commentRef}
@@ -340,7 +332,7 @@ function ActionDialog({
                   required={commentRequired}
                   rows={4}
                   maxLength={2000}
-                  placeholder={commentFieldCopy.placeholder}
+                  placeholder="Açıklamanızı yazın…"
                   className={`w-full resize-y rounded-xl border border-app-border bg-app-surface px-3.5 py-3 text-sm leading-6 text-app-text-strong outline-none placeholder:text-app-text-faint ${commentRequired ? 'focus:border-rose-500' : 'focus:border-brand-500'}`}
                 />
               </label>
@@ -359,17 +351,11 @@ function ActionDialog({
           </button>
           <button
             type="button"
-            disabled={busy || (commentRequired && !comment.trim())}
+            disabled={busy || disabled || (commentRequired && !comment.trim())}
             onClick={onConfirm}
-            className={`min-h-11 rounded-xl px-4 text-sm font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 ${
-              action === 'approve'
-                ? 'bg-emerald-600 hover:bg-emerald-700 focus-visible:outline-emerald-500'
-                : action === 'return' || action === 'reject'
-                  ? 'bg-rose-600 hover:bg-rose-700 focus-visible:outline-rose-500'
-                  : 'bg-brand-700 hover:bg-brand-800 focus-visible:outline-brand-500'
-            }`}
+            className={`min-h-11 rounded-xl px-4 text-sm font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 ${confirmToneClass}`}
           >
-            {copy.confirmLabel}
+            İşlemi Onayla
           </button>
         </div>
       </section>

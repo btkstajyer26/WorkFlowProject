@@ -15,6 +15,7 @@ const firstLoginUser: AuthUser = {
   systemKey: 'CALISAN',
   roleName: 'CALISAN',
   mustChangePassword: true,
+  permissionCodes: ['RECORD_CREATE', 'RECORD_VIEW', 'RECORD_EDIT', 'RECORD_FORWARD'],
 }
 
 function LocationProbe() {
