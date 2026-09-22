@@ -13,6 +13,8 @@ public enum RecordStatus {
 
     TASLAK(false, true),
     BSK_YRD_INCELEMESINDE(false, false),
+    ALT_GOREV_BEKLIYOR(false, false),
+    KONTROL(false, false),
     BASKAN_INCELEMESINDE(false, false),
     DUZENLEME_BEKLIYOR(false, true),
     ONAYLANDI(true, false),

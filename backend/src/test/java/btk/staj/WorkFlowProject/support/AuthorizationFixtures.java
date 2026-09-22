@@ -19,6 +19,7 @@ public final class AuthorizationFixtures {
             case "CALISAN" -> Set.of("RECORD_CREATE", "RECORD_VIEW", "RECORD_EDIT", "RECORD_FORWARD", "FILE_MANAGE", "RECORD_DELETE");
             case "BASKAN_YARDIMCISI" -> Set.of("RECORD_VIEW", "RECORD_FORWARD", "RECORD_RETURN");
             case "BASKAN" -> Set.of("RECORD_VIEW", "RECORD_APPROVE", "RECORD_REJECT", "RECORD_RETURN");
+            case "SISTEM" -> Set.of();
             case "ADMIN" -> Set.of("USER_VIEW", "USER_MANAGE", "ROLE_VIEW", "ROLE_MANAGE", "DEPARTMENT_VIEW",
                     "DEPARTMENT_MANAGE", "WORKFLOW_VIEW", "WORKFLOW_MANAGE", "ADMIN_PANEL_ACCESS", "AUDIT_VIEW");
             default -> Set.of();
@@ -27,7 +28,8 @@ public final class AuthorizationFixtures {
 
     public static boolean workflowActor(RoleName role) { return role != null && role.isWorkflowActor(); }
     public static boolean workflowActor(String role) {
-        return "CALISAN".equals(role) || "BASKAN".equals(role) || "BASKAN_YARDIMCISI".equals(role);
+        return "CALISAN".equals(role) || "BASKAN".equals(role)
+                || "BASKAN_YARDIMCISI".equals(role) || "SISTEM".equals(role);
     }
 
     public static String requiredPermission(Object action) {

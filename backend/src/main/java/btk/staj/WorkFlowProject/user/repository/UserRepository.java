@@ -2,6 +2,7 @@ package btk.staj.WorkFlowProject.user.repository;
 
 import btk.staj.WorkFlowProject.user.entity.User;
 import jakarta.persistence.LockModeType;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -15,6 +16,10 @@ import org.springframework.data.repository.query.Param;
 public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificationExecutor<User> {
     @EntityGraph(attributePaths = "role")
     Optional<User> findByEmail(String email);
+    @EntityGraph(attributePaths = "role")
+    List<User> findAllByRole_SystemKey(String systemKey);
+    @EntityGraph(attributePaths = "role")
+    List<User> findAllByIdIn(Collection<UUID> ids);
     List<User> findByRole_SystemKeyAndRole_ActiveTrueAndActiveTrue(String systemKey);
     List<User> findByRole_IdAndRole_ActiveTrueAndActiveTrue(Integer roleId);
     long countByRole_IdAndActiveTrue(Integer roleId);

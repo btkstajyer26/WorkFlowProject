@@ -103,6 +103,54 @@ class WorkflowApplicationServiceTest {
                 FIXED_CLOCK);
     }
 
+    @Test
+    @DisplayName("mevcut public giris aktoru CurrentActorProvider'dan alir")
+    void defaultEntryPointStillUsesCurrentActorProvider() {
+        WorkflowRecordSnapshot record = activeRecord(
+                RecordStatus.BASKAN_INCELEMESINDE, CREATOR_ID, ACTOR_ID, LAST_DEPUTY_ID);
+        arrange(record, RoleName.BASKAN);
+        when(targetUserResolver.resolve(TargetStrategy.NONE, null, null, record))
+                .thenReturn(new TargetResolution.NotProvided());
+
+        service.performAction(
+                RECORD_ID,
+                new WorkflowActionRequest(WorkflowAction.ONAYLA, null, null));
+
+        verify(currentActorProvider).currentActor();
+    }
+
+    @Test
+    @DisplayName("explicit aktor overload'u provider kullanmadan ayni workflow yolunu calistirir")
+    void explicitActorEntryPointDoesNotUseCurrentActorProvider() {
+        WorkflowRecordSnapshot record = activeRecord(
+                RecordStatus.ALT_GOREV_BEKLIYOR, CREATOR_ID, null, LAST_DEPUTY_ID);
+        when(recordPort.findById(RECORD_ID)).thenReturn(Optional.of(record));
+        when(recordPort.update(any())).thenReturn(record.version() + 1);
+        when(targetUserResolver.resolve(TargetStrategy.NONE, null, null, record))
+                .thenReturn(new TargetResolution.NotProvided());
+        CurrentActor systemActor = new CurrentActor(
+                ACTOR_ID,
+                WorkflowRoleFixtures.id(RoleName.SISTEM),
+                true,
+                java.util.Set.of());
+
+        WorkflowActionResponse response = service.performAction(
+                RECORD_ID,
+                new WorkflowActionRequest(WorkflowAction.ALT_GOREVLER_SONUCLANDI, null, null),
+                systemActor);
+
+        assertThat(response.newStatus()).isEqualTo(RecordStatus.KONTROL);
+        assertThat(response.performedBy()).isEqualTo(ACTOR_ID);
+        verifyNoInteractions(currentActorProvider);
+        verify(recordPort).update(new WorkflowRecordUpdate(
+                RECORD_ID,
+                RecordStatus.KONTROL,
+                null,
+                LAST_DEPUTY_ID,
+                record.version(),
+                PERFORMED_AT));
+    }
+
     @ParameterizedTest(name = "{0}")
     @MethodSource("allowedTransitions")
     @DisplayName("merkezi tablodaki sekiz gecisi dogru uygulama komutlarina donusturur")

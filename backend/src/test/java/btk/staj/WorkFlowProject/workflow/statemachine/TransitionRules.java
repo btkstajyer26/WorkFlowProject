@@ -7,15 +7,21 @@ import java.util.Objects;
 import static btk.staj.WorkFlowProject.workflow.statemachine.ActorRequirement.ASSIGNEE;
 import static btk.staj.WorkFlowProject.workflow.statemachine.ActorRequirement.CREATOR;
 import static btk.staj.WorkFlowProject.workflow.statemachine.ActorRequirement.CREATOR_AND_ASSIGNEE;
+import static btk.staj.WorkFlowProject.workflow.statemachine.ActorRequirement.SYSTEM;
+import static btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus.ALT_GOREV_BEKLIYOR;
 import static btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus.BASKAN_INCELEMESINDE;
 import static btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus.BSK_YRD_INCELEMESINDE;
 import static btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus.DUZENLEME_BEKLIYOR;
 import static btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus.ONAYLANDI;
 import static btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus.REDDEDILDI;
 import static btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus.TASLAK;
+import static btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus.KONTROL;
 import static btk.staj.WorkFlowProject.workflow.statemachine.RoleName.BASKAN;
 import static btk.staj.WorkFlowProject.workflow.statemachine.RoleName.BASKAN_YARDIMCISI;
 import static btk.staj.WorkFlowProject.workflow.statemachine.RoleName.CALISAN;
+import static btk.staj.WorkFlowProject.workflow.statemachine.RoleName.SISTEM;
+import static btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction.ALT_GOREVLERE_AYIR;
+import static btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction.ALT_GOREVLER_SONUCLANDI;
 import static btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction.BASKANA_ILET;
 import static btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction.BASKAN_YARDIMCISINA_GERI_GONDER;
 import static btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction.CALISANA_GERI_GONDER;
@@ -26,7 +32,7 @@ import static btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction.REDD
 import static btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction.TEKRAR_GONDER;
 
 /**
- * Eight seeded transition templates, kept in the test tree as the parity reference (TZ-1).
+ * Seeded transition templates, kept in the test tree as the parity reference (TZ-1).
  * Production reads the same rows from {@code workflow_transitions}; this table exists only
  * so the parity test has an independent second source.
  * Role IDs must be supplied by the caller: production IDs are environment-specific.
@@ -46,7 +52,11 @@ public final class TransitionRules {
             // ADR-0006 / V23: departmana gonderim. Hedef rol tasimazlar; departman icinde
             // kimin yetkili oldugu department_routing_rules'tan calisma zamaninda cozulur.
             new RuleTemplate(TASLAK,                DEPARTMANA_GONDER,               CALISAN,            CREATOR,               BSK_YRD_INCELEMESINDE, TargetStrategy.DEPARTMENT,     null, "RECORD_FORWARD"),
-            new RuleTemplate(DUZENLEME_BEKLIYOR,    DEPARTMANA_GONDER,               CALISAN,            CREATOR_AND_ASSIGNEE,  BSK_YRD_INCELEMESINDE, TargetStrategy.DEPARTMENT,     null, "RECORD_FORWARD")
+            new RuleTemplate(DUZENLEME_BEKLIYOR,    DEPARTMANA_GONDER,               CALISAN,            CREATOR_AND_ASSIGNEE,  BSK_YRD_INCELEMESINDE, TargetStrategy.DEPARTMENT,     null, "RECORD_FORWARD"),
+            // ADR-0010 / V26: Parent fan-out insan aktorle, join ise yalniz SISTEM
+            // roluyle ve ek capability permission olmadan calisir.
+            new RuleTemplate(BSK_YRD_INCELEMESINDE, ALT_GOREVLERE_AYIR,              BASKAN_YARDIMCISI,  ASSIGNEE,              ALT_GOREV_BEKLIYOR,    TargetStrategy.NONE,           null, "RECORD_FORWARD"),
+            new RuleTemplate(ALT_GOREV_BEKLIYOR,    ALT_GOREVLER_SONUCLANDI,         SISTEM,             SYSTEM,                KONTROL,                TargetStrategy.NONE,           null, null)
     );
 
     private TransitionRules() { }

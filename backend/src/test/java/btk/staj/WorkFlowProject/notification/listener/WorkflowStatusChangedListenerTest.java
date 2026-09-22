@@ -179,15 +179,57 @@ class WorkflowStatusChangedListenerTest {
     @CsvSource({
             "GONDER,RECORD_SUBMITTED",
             "TEKRAR_GONDER,RECORD_SUBMITTED",
+            "DEPARTMANA_GONDER,RECORD_SUBMITTED",
             "BASKANA_ILET,RECORD_FORWARDED",
             "ONAYLA,RECORD_APPROVED",
             "REDDET,RECORD_REJECTED",
             "CALISANA_GERI_GONDER,RECORD_RETURNED",
-            "BASKAN_YARDIMCISINA_GERI_GONDER,RECORD_RETURNED"
+            "BASKAN_YARDIMCISINA_GERI_GONDER,RECORD_RETURNED",
+            "ALT_GOREVLERE_AYIR,RECORD_SPLIT",
+            "ALT_GOREVLER_SONUCLANDI,SUBTASKS_COMPLETED"
     })
     @DisplayName("her aksiyon dogru bildirim turune eslenir")
     void mapsEveryActionToItsNotificationType(WorkflowAction action, NotificationType expected) {
         assertThat(NotificationType.of(action)).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "ALT_GOREVLERE_AYIR,ALT_GOREV_BEKLIYOR,RECORD_SPLIT",
+            "ALT_GOREVLER_SONUCLANDI,KONTROL,SUBTASKS_COMPLETED"
+    })
+    @DisplayName("Parent alt akis aksiyonlari yalniz kayit sahibine tum kanallardan bildirilir")
+    void notifiesTheRecordCreatorForParentSubtaskActions(
+            WorkflowAction action,
+            RecordStatus newStatus,
+            NotificationType expectedType) {
+        Record record = new Record();
+        record.setId(RECORD_ID);
+        record.setTitle("Bütçe talebi");
+        record.setCreatedBy(CREATOR_ID);
+        record.setLastDeputyId(ASSIGNEE_ID);
+        when(recordRepository.findById(RECORD_ID)).thenReturn(Optional.of(record));
+        when(userRepository.findById(CREATOR_ID)).thenReturn(Optional.of(
+                user(CREATOR_ID, "Ayse", "Yilmaz", "ayse@ornek.test")));
+
+        var event = event(
+                action,
+                newStatus,
+                null,
+                null);
+
+        listener.createInAppNotification(event);
+        listener.sendMail(event);
+
+        verify(notificationService).create(
+                eq(CREATOR_ID), eq(RECORD_ID), any(), eq(expectedType));
+        verify(pushNotificationService).sendPushNotification(
+                eq(CREATOR_ID), eq("Bütçe talebi"), any(), eq(RECORD_ID),
+                eq(expectedType));
+        verify(mailService).sendStatusChangeMail(
+                eq("ayse@ornek.test"), eq("Ayse Yilmaz"), eq(RECORD_ID),
+                eq("Bütçe talebi"), eq(newStatus.name()), isNull(), isNull());
+        verify(notificationService, never()).create(eq(ASSIGNEE_ID), any(), any(), any());
     }
 
     @Test

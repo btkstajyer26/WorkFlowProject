@@ -114,6 +114,18 @@ Workflow uygulama servisi açıkça verilen bir `CurrentActor` ile
 çalıştırılabilen overload sunar. Normal HTTP akışı mevcut aktör sağlayıcısını
 kullanmaya devam eder; yalnız otomatik join yolu sistem aktörünü geçirir.
 
+`SYSTEM` actor requirement bir insan ilişkisi kontrolü değildir; creator veya
+assignee ilişkisi aramaz. Yetkilendirme yine transition'ın `actor_role_id`
+alanıyla yapılır ve bu alan `SISTEM` rolünü zorunlu tutar.
+
+Yalnız `actor_requirement = SYSTEM` transition'larında
+`required_permission_id = NULL` kullanılabilir. Bu değer “ek capability
+permission gerekmiyor” anlamına gelir; rol ve workflow aktörü kontrollerini
+atlamaz. `CREATOR`, `ASSIGNEE`, `CREATOR_AND_ASSIGNEE` ve diğer insan
+transition'larında required permission zorunluluğu aynen korunur. Dolayısıyla
+bu istisna global bir “permission gerekmiyor” davranışı değildir ve SISTEM
+transition'ına `RECORD_FORWARD` gibi bir insan permission'ı verilmez.
+
 ### Split kuralları
 
 Parent yalnız `BSK_YRD_INCELEMESINDE` durumundayken bölünebilir.

@@ -83,9 +83,11 @@ class MailActionTokenServiceTest {
     }
 
     @Test
-    @DisplayName("terminal ve taslak durumlarda hizli aksiyon onerilmez")
+    @DisplayName("terminal, taslak ve Parent alt akis durumlarinda hizli aksiyon onerilmez")
     void primaryActionFor_aksiyonsuzDurumlar() {
         assertThat(MailActionTokenService.primaryActionFor(RecordStatus.TASLAK)).isEmpty();
+        assertThat(MailActionTokenService.primaryActionFor(RecordStatus.ALT_GOREV_BEKLIYOR)).isEmpty();
+        assertThat(MailActionTokenService.primaryActionFor(RecordStatus.KONTROL)).isEmpty();
         assertThat(MailActionTokenService.primaryActionFor(RecordStatus.ONAYLANDI)).isEmpty();
         assertThat(MailActionTokenService.primaryActionFor(RecordStatus.REDDEDILDI)).isEmpty();
         assertThat(MailActionTokenService.primaryActionFor(null)).isEmpty();

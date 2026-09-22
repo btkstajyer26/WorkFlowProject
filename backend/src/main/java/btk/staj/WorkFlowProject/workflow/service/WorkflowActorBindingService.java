@@ -20,6 +20,7 @@ import btk.staj.WorkFlowProject.workflow.repository.WorkflowActionRepository;
 import btk.staj.WorkFlowProject.workflow.repository.WorkflowStatusRepository;
 import btk.staj.WorkFlowProject.workflow.repository.WorkflowTransitionRepository;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
+import btk.staj.WorkFlowProject.workflow.statemachine.ActorRequirement;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleId;
 import btk.staj.WorkFlowProject.workflow.statemachine.TargetStrategy;
 import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRule;
@@ -100,8 +101,11 @@ public class WorkflowActorBindingService {
                     : List.of(templateTransitionId, existing.getId()).stream().distinct().sorted().toList();
             transitions.findAllForUpdate(ids);
             TransitionRule rule = validateTemplate(template);
+            if (rule.actorRequirement() == ActorRequirement.SYSTEM) {
+                throw failure(INVALID_TEMPLATE, "SYSTEM geçişi dinamik insan rolüne bağlanamaz");
+            }
             Set<String> codes = Set.copyOf(rolePermissions.findActiveCodesByRoleId(actorRoleId));
-            if (!codes.contains("RECORD_VIEW") || !codes.contains(rule.requiredPermissionCode())) {
+            if (!codes.contains("RECORD_VIEW") || !rule.hasRequiredPermission(codes)) {
                 throw failure(MISSING_ROLE_PERMISSION, "Rol RECORD_VIEW ve geçiş permission'ına sahip olmalı");
             }
             if (existing != null && existing.isActive()) {
@@ -167,13 +171,13 @@ public class WorkflowActorBindingService {
                     || from.isTerminal() || fromStatus.isTerminal()
                     || to.isTerminal() != toStatus.isTerminal()
                     || action.isCommentRequired() != workflowAction.isCommentRequired()
-                    || permission == null || !permission.isActive()) {
+                    || (permission != null && !permission.isActive())) {
                 throw failure(INVALID_TEMPLATE, "Kaynak geçiş aktif ve desteklenen katalog değerleri kullanmalı");
             }
             return new TransitionRule(fromStatus, workflowAction, new RoleId(template.getActorRoleId()),
                     template.getActorRequirement(), toStatus, TargetStrategy.valueOf(template.getTargetStrategy()),
                     template.getExpectedTargetRoleId() == null ? null : new RoleId(template.getExpectedTargetRoleId()),
-                    permission.getCode());
+                    permission == null ? null : permission.getCode());
         } catch (IllegalArgumentException | java.util.NoSuchElementException | NullPointerException ex) {
             throw failure(INVALID_TEMPLATE, "Kaynak geçişin yapısal alanları geçersiz");
         }

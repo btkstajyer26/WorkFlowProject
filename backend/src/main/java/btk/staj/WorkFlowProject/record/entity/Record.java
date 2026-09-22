@@ -5,6 +5,7 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
+import btk.staj.WorkFlowProject.subtask.model.SubtaskApprovalPolicy;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -65,6 +66,13 @@ public class Record {
     // istemciden hem gecmisten okunabilir.
     @Column(name = "assigned_department_id")
     private Integer assignedDepartmentId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "subtask_approval_policy", length = 20)
+    private SubtaskApprovalPolicy subtaskApprovalPolicy;
+
+    @Column(name = "subtask_required_approvals")
+    private Integer subtaskRequiredApprovals;
 
     // Kayit Calisana geri gonderildigi anda icerigin dondurulmus kopyasi.
     // Baskan Yardimcisi, evrak duzeltmedeyken canli icerigi degil bunu gorur

@@ -6,6 +6,7 @@ import btk.staj.WorkFlowProject.workflow.model.DepartmentRoutingResolution;
 import btk.staj.WorkFlowProject.workflow.model.WorkflowRecordSnapshot;
 import btk.staj.WorkFlowProject.workflow.port.DepartmentRoutingPort;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
+import btk.staj.WorkFlowProject.workflow.statemachine.ActorRequirement;
 import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRuleSource;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowErrorCode;
@@ -70,7 +71,11 @@ public final class DepartmentRoutingResolver {
         // Ayni (departman, durum, aksiyon) uclusu birden fazla aktor rolunun kuralinda
         // tekrar edebilir. Cozum bu cagri boyunca deterministiktir, bir kez hesaplanir.
         Map<WorkflowAction, DepartmentRoutingResolution> resolutions = new HashMap<>();
-        return snapshot.all().stream().filter(rule -> rule.from() == status).anyMatch(rule ->
+        return snapshot.all().stream()
+                .filter(rule -> rule.from() == status)
+                // SYSTEM kurali bir departmanda insan aktor bulunabildigini gostermez.
+                .filter(rule -> rule.actorRequirement() != ActorRequirement.SYSTEM)
+                .anyMatch(rule ->
                 resolutions.computeIfAbsent(rule.action(), action -> routing.resolve(departmentId, status, action))
                         instanceof DepartmentRoutingResolution.Resolved resolved
                         && resolved.targetRoleId().equals(rule.actorRoleId())
@@ -89,8 +94,7 @@ public final class DepartmentRoutingResolver {
 
         snapshot.all().stream()
                 .filter(rule -> rule.from() == status)
-                .filter(rule -> rule.actorRequirement()
-                        == btk.staj.WorkFlowProject.workflow.statemachine.ActorRequirement.ASSIGNEE)
+                .filter(rule -> rule.actorRequirement() == ActorRequirement.ASSIGNEE)
                 .forEach(rule -> {
                     DepartmentRoutingResolution resolution = resolutions.computeIfAbsent(
                             rule.action(),
