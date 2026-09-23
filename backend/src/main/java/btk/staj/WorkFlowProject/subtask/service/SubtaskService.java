@@ -115,13 +115,19 @@ public class SubtaskService {
                     .completedAt(null)
                     .build());
         }
-        subtasks.saveAll(created);
+        // Subtask'in @Version alani builder'da 0'a varsayilir, bu yuzden Spring Data JPA'nin
+        // versiyon-tabanli isNew() sezgisi bu entity'leri "yeni degil" sanip persist() yerine
+        // merge()'e yonlendirebilir - merge() FARKLI bir yonetilen kopya dondurur, orijinal
+        // `created` referanslari hic mutasyona ugramaz. Bu yuzden id/createdAt'i asla
+        // `created`'tan degil, saveAllAndFlush'in donus degerinden okuyoruz (AndFlush,
+        // @CreationTimestamp'in de flush sirasinda dolmasini saglar).
+        List<Subtask> saved = subtasks.saveAllAndFlush(created);
 
         workflowActionService.performAction(
                 requiredParentId,
                 new WorkflowActionRequest(WorkflowAction.ALT_GOREVLERE_AYIR, null, null));
 
-        for (Subtask subtask : created) {
+        for (Subtask subtask : saved) {
             notificationService.create(
                     subtask.getAssignedTo().getId(),
                     requiredParentId,
@@ -133,7 +139,7 @@ public class SubtaskService {
                 requiredParentId,
                 requiredRequest.approvalPolicy(),
                 requiredApprovals,
-                created.stream().map(mapper::toView).toList());
+                saved.stream().map(mapper::toView).toList());
     }
 
     private void assertNotPreviouslySplit(Record parent) {
