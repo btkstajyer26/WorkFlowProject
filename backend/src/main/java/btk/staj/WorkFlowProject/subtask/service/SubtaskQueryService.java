@@ -1,6 +1,7 @@
 package btk.staj.WorkFlowProject.subtask.service;
 
 import btk.staj.WorkFlowProject.auth.security.CurrentVisibilityActorProvider;
+import btk.staj.WorkFlowProject.auth.security.VisibilityActor;
 import btk.staj.WorkFlowProject.rbac.SystemRoleKey;
 import btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy;
 import btk.staj.WorkFlowProject.record.entity.Record;
@@ -8,6 +9,7 @@ import btk.staj.WorkFlowProject.record.repository.RecordRepository;
 import btk.staj.WorkFlowProject.subtask.dto.SubtaskAssignableUserView;
 import btk.staj.WorkFlowProject.subtask.dto.SubtaskAssignableUsersResponse;
 import btk.staj.WorkFlowProject.subtask.dto.SubtaskListResponse;
+import btk.staj.WorkFlowProject.subtask.dto.SubtaskView;
 import btk.staj.WorkFlowProject.subtask.exception.SubtaskException;
 import btk.staj.WorkFlowProject.subtask.mapper.SubtaskViewMapper;
 import btk.staj.WorkFlowProject.subtask.repository.SubtaskRepository;
@@ -54,22 +56,36 @@ public class SubtaskQueryService {
                         SubtaskException.Reason.PARENT_NOT_FOUND,
                         "Parent kayıt bulunamadı: " + requiredParentId));
 
-        recordAccessPolicy.assertCanView(
-                visibilityActorProvider.currentVisibilityActor(),
-                parent);
+        VisibilityActor actor = visibilityActorProvider.currentVisibilityActor();
+        recordAccessPolicy.assertCanView(actor, parent);
 
         if (parent.getSubtaskApprovalPolicy() == null
                 && parent.getSubtaskRequiredApprovals() == null) {
             return SubtaskListResponse.unsplit();
         }
 
+        List<SubtaskView> views = subtasks.findAllByParentRecord_IdOrderByCreatedAtAscIdAsc(requiredParentId)
+                .stream()
+                .map(mapper::toView)
+                .toList();
+
+        // Bir alt goreve atanan kisi, Parent'i yalniz o iliski uzerinden gorebiliyorsa
+        // (yani ust duzey bir iliski - olusturan, rol-geneli kuyruk, departman - yoksa)
+        // digerlerinin kim oldugunu, ka� oldugunu ve hangi asamada olduklarini gormemeli;
+        // yalniz kendi alt gorevini gorur ve politika/gerekli onay sayisi da saklanir.
+        if (!recordAccessPolicy.scopeFor(actor).allows(
+                parent.getCreatedBy(), parent.getAssignedTo(), parent.getLastDeputyId(),
+                parent.getStatus(), parent.getDeletedAt(), parent.getAssignedDepartmentId())) {
+            List<SubtaskView> ownOnly = views.stream()
+                    .filter(view -> actor.id().equals(view.assignedTo()))
+                    .toList();
+            return new SubtaskListResponse(null, null, ownOnly);
+        }
+
         return new SubtaskListResponse(
                 parent.getSubtaskApprovalPolicy(),
                 parent.getSubtaskRequiredApprovals(),
-                subtasks.findAllByParentRecord_IdOrderByCreatedAtAscIdAsc(requiredParentId)
-                        .stream()
-                        .map(mapper::toView)
-                        .toList());
+                views);
     }
 
     /**

@@ -4,6 +4,7 @@ import btk.staj.WorkFlowProject.auth.security.CurrentVisibilityActorProvider;
 import btk.staj.WorkFlowProject.auth.security.VisibilityActor;
 import btk.staj.WorkFlowProject.rbac.Role;
 import btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy;
+import btk.staj.WorkFlowProject.rbac.visibility.RecordVisibilityScope;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
 import btk.staj.WorkFlowProject.subtask.dto.SubtaskAssignableUsersResponse;
@@ -66,6 +67,8 @@ class SubtaskQueryServiceTest {
     @Test
     void listsSplitParentWithPolicyAtTheTopLevel() {
         Record parent = parent(SubtaskApprovalPolicy.MAJORITY, 2);
+        parent.setCreatedBy(ACTOR.id());
+        parent.setStatus(btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus.ALT_GOREV_BEKLIYOR);
         Subtask subtask = new Subtask();
         SubtaskView view = new SubtaskView(
                 UUID.randomUUID(), PARENT_ID, "Alt görev", null, UUID.randomUUID(),
@@ -74,6 +77,10 @@ class SubtaskQueryServiceTest {
         when(subtasks.findAllByParentRecord_IdOrderByCreatedAtAscIdAsc(PARENT_ID))
                 .thenReturn(List.of(subtask));
         when(mapper.toView(subtask)).thenReturn(view);
+        // Aktor Parent'i CREATOR iliskisiyle gorebiliyor - subtask-atamasindan bagimsiz,
+        // tam listeye erisimi olmali.
+        when(recordAccessPolicy.scopeFor(ACTOR)).thenReturn(new RecordVisibilityScope(
+                ACTOR.id(), Set.of(RecordVisibilityScope.Relation.CREATOR), Set.of(), Set.of()));
 
         SubtaskListResponse response = service.list(PARENT_ID);
 
@@ -81,6 +88,36 @@ class SubtaskQueryServiceTest {
         assertThat(response.requiredApprovals()).isEqualTo(2);
         assertThat(response.subtasks()).containsExactly(view);
         verify(recordAccessPolicy).assertCanView(ACTOR, parent);
+    }
+
+    @Test
+    void listRestrictsToOwnSubtaskWhenActorOnlyHasSubtaskAssignment() {
+        Record parent = parent(SubtaskApprovalPolicy.UNANIMOUS, 2);
+        parent.setCreatedBy(UUID.randomUUID());
+        parent.setStatus(btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus.ALT_GOREV_BEKLIYOR);
+        Subtask own = new Subtask();
+        Subtask sibling = new Subtask();
+        SubtaskView ownView = new SubtaskView(
+                UUID.randomUUID(), PARENT_ID, "Kendi görevim", null, ACTOR.id(),
+                "Aktör Kullanıcı", SubtaskStatus.ISLEM, null, null, null);
+        SubtaskView siblingView = new SubtaskView(
+                UUID.randomUUID(), PARENT_ID, "Başkasının görevi", null, UUID.randomUUID(),
+                "Diğer Kullanıcı", SubtaskStatus.DEGERLENDIRME, null, null, null);
+        when(records.findByIdAndDeletedAtIsNull(PARENT_ID)).thenReturn(Optional.of(parent));
+        when(subtasks.findAllByParentRecord_IdOrderByCreatedAtAscIdAsc(PARENT_ID))
+                .thenReturn(List.of(own, sibling));
+        when(mapper.toView(own)).thenReturn(ownView);
+        when(mapper.toView(sibling)).thenReturn(siblingView);
+        // Aktorun Parent'la creator/assignee/departman/rol-kuyrugu iliskisi yok -
+        // yalniz kendi alt gorevine atanmis olmasi Parent'i gormesini sagliyor.
+        when(recordAccessPolicy.scopeFor(ACTOR)).thenReturn(new RecordVisibilityScope(
+                ACTOR.id(), Set.of(), Set.of(), Set.of()));
+
+        SubtaskListResponse response = service.list(PARENT_ID);
+
+        assertThat(response.subtasks()).containsExactly(ownView);
+        assertThat(response.approvalPolicy()).isNull();
+        assertThat(response.requiredApprovals()).isNull();
     }
 
     @Test
