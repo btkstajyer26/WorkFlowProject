@@ -25,7 +25,17 @@ public enum ActorRequirement {
      * <p>Bu deger rol kontrolunu atlamaz: gecis yine kendi {@code actor_role_id}
      * degeriyle eslesen bir aktor tarafindan calistirilmalidir.
      */
-    SYSTEM;
+    SYSTEM,
+
+    /**
+     * {@link #SYSTEM} ile ayni sekilde kayit iliskisi aramaz, ama SISTEM aktoru icin
+     * degil <strong>insan</strong> aktorler icin kullanilir (ADR-0010): rolu tutan
+     * herhangi bir kullanici gecisi yapabilir, tipki DUZENLEME_BEKLIYOR kuyrugundaki
+     * rol-geneli gorunurlukle ayni mantikta. Parent/Subtask alt akisinda bolme sonrasi
+     * {@code assigned_to} bos kaldigi icin ASSIGNEE/CREATOR kurallari hic kimseyi
+     * eslestiremez; KONTROL'den Baskana iletme burada bu degeri kullanir.
+     */
+    ROLE_ONLY;
 
     /**
      * Verilen iliskilerin bu gereksinimi karsilayip karsilamadigini doner.
@@ -39,7 +49,7 @@ public enum ActorRequirement {
             case CREATOR -> actorIsCreator;
             case ASSIGNEE -> actorHoldsAssignment;
             case CREATOR_AND_ASSIGNEE -> actorIsCreator && actorHoldsAssignment;
-            case SYSTEM -> true;
+            case SYSTEM, ROLE_ONLY -> true;
         };
     }
 }

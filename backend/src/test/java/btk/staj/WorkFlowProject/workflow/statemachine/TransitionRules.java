@@ -7,6 +7,7 @@ import java.util.Objects;
 import static btk.staj.WorkFlowProject.workflow.statemachine.ActorRequirement.ASSIGNEE;
 import static btk.staj.WorkFlowProject.workflow.statemachine.ActorRequirement.CREATOR;
 import static btk.staj.WorkFlowProject.workflow.statemachine.ActorRequirement.CREATOR_AND_ASSIGNEE;
+import static btk.staj.WorkFlowProject.workflow.statemachine.ActorRequirement.ROLE_ONLY;
 import static btk.staj.WorkFlowProject.workflow.statemachine.ActorRequirement.SYSTEM;
 import static btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus.ALT_GOREV_BEKLIYOR;
 import static btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus.BASKAN_INCELEMESINDE;
@@ -56,7 +57,11 @@ public final class TransitionRules {
             // ADR-0010 / V26: Parent fan-out insan aktorle, join ise yalniz SISTEM
             // roluyle ve ek capability permission olmadan calisir.
             new RuleTemplate(BSK_YRD_INCELEMESINDE, ALT_GOREVLERE_AYIR,              BASKAN_YARDIMCISI,  ASSIGNEE,              ALT_GOREV_BEKLIYOR,    TargetStrategy.NONE,           null, "RECORD_FORWARD"),
-            new RuleTemplate(ALT_GOREV_BEKLIYOR,    ALT_GOREVLER_SONUCLANDI,         SISTEM,             SYSTEM,                KONTROL,                TargetStrategy.NONE,           null, null)
+            new RuleTemplate(ALT_GOREV_BEKLIYOR,    ALT_GOREVLER_SONUCLANDI,         SISTEM,             SYSTEM,                KONTROL,                TargetStrategy.NONE,           null, null),
+            // V27: KONTROL bir olu uc olmasin diye eklendi. Bolme sonrasi assigned_to bos
+            // oldugu icin ASSIGNEE degil ROLE_ONLY kullanir - rolu tutan herhangi bir
+            // Baskan Yardimcisi iletebilir.
+            new RuleTemplate(KONTROL,               BASKANA_ILET,                    BASKAN_YARDIMCISI,  ROLE_ONLY,             BASKAN_INCELEMESINDE,  TargetStrategy.ROLE,           BASKAN, "RECORD_FORWARD")
     );
 
     private TransitionRules() { }

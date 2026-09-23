@@ -555,7 +555,7 @@ class WorkflowTransitionValidatorTest {
         }
 
         @Test
-        @DisplayName("izinli gecis sayisi Parent/Subtask gecisleriyle on ikidir")
+        @DisplayName("izinli gecis sayisi Parent/Subtask gecisleriyle on uctur")
         void izinliGecisSayisiDegismedi() {
             long izinliBirlesimSayisi = 0;
 
@@ -569,8 +569,9 @@ class WorkflowTransitionValidatorTest {
                 }
             }
 
-            // 8 yerlesik + 2 departman + ADR-0010 ile 2 Parent/Subtask gecisi.
-        assertThat(izinliBirlesimSayisi).isEqualTo(12);
+            // 8 yerlesik + 2 departman + ADR-0010 ile 3 Parent/Subtask gecisi (ayirma,
+            // sistem join'i, V27'deki Kontrol'den Baskana iletme).
+        assertThat(izinliBirlesimSayisi).isEqualTo(13);
         }
 
         private List<WorkflowErrorCode> tumBirlesimlerinRetKodlari() {
