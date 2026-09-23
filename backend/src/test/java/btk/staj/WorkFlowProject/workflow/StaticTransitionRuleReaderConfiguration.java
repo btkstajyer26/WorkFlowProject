@@ -18,7 +18,7 @@ import org.springframework.context.annotation.Primary;
  * gecis tablosuyla besler.
  *
  * <p>Bunun davranisi degistirmedigi varsayim degil, testli bir gercektir:
- * {@code TransitionRuleSourceParityTest} iki kaynagin ayni sekiz kurali
+ * {@code TransitionRuleSourceParityTest} iki kaynagin ayni seed kurallarini
  * urettigini her CI kosusunda dogrular. Parity dustugu anda bu yapilandirmayi
  * kullanan testler de yanlis zeminde calisiyor demektir.
  *

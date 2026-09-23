@@ -13,6 +13,7 @@ import btk.staj.WorkFlowProject.rbac.Role;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.repository.CategoryRepository;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
+import btk.staj.WorkFlowProject.subtask.repository.SubtaskRepository;
 import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
 import btk.staj.WorkFlowProject.support.WorkflowRoleFixtures;
 import btk.staj.WorkFlowProject.user.entity.User;
@@ -92,6 +93,7 @@ class WorkflowActionControllerTest {
     @MockitoBean private TokenRepository tokenRepository;
     @MockitoBean private PasswordResetCodeRepository passwordResetCodeRepository;
     @MockitoBean private RecordRepository recordRepository;
+    @MockitoBean private SubtaskRepository subtaskRepository;
     @MockitoBean private CategoryRepository categoryRepository;
     @MockitoBean private AuditLogRepository auditLogRepository;
     @MockitoBean private UserAuditLogRepository userAuditLogRepository;

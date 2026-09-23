@@ -1,0 +1,101 @@
+package btk.staj.WorkFlowProject.subtask.service;
+
+import btk.staj.WorkFlowProject.auth.security.CurrentVisibilityActorProvider;
+import btk.staj.WorkFlowProject.auth.security.VisibilityActor;
+import btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy;
+import btk.staj.WorkFlowProject.record.entity.Record;
+import btk.staj.WorkFlowProject.record.repository.RecordRepository;
+import btk.staj.WorkFlowProject.subtask.dto.SubtaskListResponse;
+import btk.staj.WorkFlowProject.subtask.dto.SubtaskView;
+import btk.staj.WorkFlowProject.subtask.entity.Subtask;
+import btk.staj.WorkFlowProject.subtask.mapper.SubtaskViewMapper;
+import btk.staj.WorkFlowProject.subtask.model.SubtaskApprovalPolicy;
+import btk.staj.WorkFlowProject.subtask.model.SubtaskStatus;
+import btk.staj.WorkFlowProject.subtask.repository.SubtaskRepository;
+import btk.staj.WorkFlowProject.workflow.statemachine.RoleId;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class SubtaskQueryServiceTest {
+
+    private static final UUID PARENT_ID = UUID.fromString("20000000-0000-0000-0000-000000000002");
+    private static final VisibilityActor ACTOR = new VisibilityActor(
+            UUID.fromString("30000000-0000-0000-0000-000000000003"),
+            new RoleId(22),
+            Optional.empty(),
+            Set.of());
+
+    @Mock private RecordRepository records;
+    @Mock private SubtaskRepository subtasks;
+    @Mock private SubtaskViewMapper mapper;
+    @Mock private RecordAccessPolicy recordAccessPolicy;
+    @Mock private CurrentVisibilityActorProvider visibilityActorProvider;
+
+    private SubtaskQueryService service;
+
+    @BeforeEach
+    void setUp() {
+        service = new SubtaskQueryService(
+                records,
+                subtasks,
+                mapper,
+                recordAccessPolicy,
+                visibilityActorProvider);
+        when(visibilityActorProvider.currentVisibilityActor()).thenReturn(ACTOR);
+    }
+
+    @Test
+    void listsSplitParentWithPolicyAtTheTopLevel() {
+        Record parent = parent(SubtaskApprovalPolicy.MAJORITY, 2);
+        Subtask subtask = new Subtask();
+        SubtaskView view = new SubtaskView(
+                UUID.randomUUID(), PARENT_ID, "Alt görev", null, UUID.randomUUID(),
+                "Ada Lovelace", SubtaskStatus.ISLEM, null, null, null);
+        when(records.findByIdAndDeletedAtIsNull(PARENT_ID)).thenReturn(Optional.of(parent));
+        when(subtasks.findAllByParentRecord_IdOrderByCreatedAtAscIdAsc(PARENT_ID))
+                .thenReturn(List.of(subtask));
+        when(mapper.toView(subtask)).thenReturn(view);
+
+        SubtaskListResponse response = service.list(PARENT_ID);
+
+        assertThat(response.approvalPolicy()).isEqualTo(SubtaskApprovalPolicy.MAJORITY);
+        assertThat(response.requiredApprovals()).isEqualTo(2);
+        assertThat(response.subtasks()).containsExactly(view);
+        verify(recordAccessPolicy).assertCanView(ACTOR, parent);
+    }
+
+    @Test
+    void returnsTheUnsplitContractWithoutLoadingChildren() {
+        Record parent = parent(null, null);
+        when(records.findByIdAndDeletedAtIsNull(PARENT_ID)).thenReturn(Optional.of(parent));
+
+        SubtaskListResponse response = service.list(PARENT_ID);
+
+        assertThat(response.approvalPolicy()).isNull();
+        assertThat(response.requiredApprovals()).isNull();
+        assertThat(response.subtasks()).isEmpty();
+        verify(recordAccessPolicy).assertCanView(ACTOR, parent);
+        verify(subtasks, never()).findAllByParentRecord_IdOrderByCreatedAtAscIdAsc(PARENT_ID);
+    }
+
+    private static Record parent(SubtaskApprovalPolicy policy, Integer requiredApprovals) {
+        Record parent = new Record();
+        parent.setId(PARENT_ID);
+        parent.setSubtaskApprovalPolicy(policy);
+        parent.setSubtaskRequiredApprovals(requiredApprovals);
+        return parent;
+    }
+}

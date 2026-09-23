@@ -7,6 +7,7 @@ import btk.staj.WorkFlowProject.department.exception.DepartmentInUseException;
 import btk.staj.WorkFlowProject.department.exception.DepartmentNotFoundException;
 import btk.staj.WorkFlowProject.department.exception.DepartmentRoutingRuleNotFoundException;
 import btk.staj.WorkFlowProject.notification.exception.InvalidMailActionTokenException;
+import btk.staj.WorkFlowProject.subtask.exception.SubtaskException;
 import btk.staj.WorkFlowProject.user.service.AdminLimitExceededException;
 import btk.staj.WorkFlowProject.user.service.RoleNotFoundException;
 import btk.staj.WorkFlowProject.workflow.exception.WorkflowApplicationException;
@@ -42,6 +43,17 @@ public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     // ---------- Uygulama hatalari ----------
+
+    @ExceptionHandler(SubtaskException.class)
+    public ResponseEntity<ApiError> handleSubtask(SubtaskException ex) {
+        HttpStatus status = switch (ex.reason()) {
+            case PARENT_NOT_FOUND, ASSIGNEE_NOT_FOUND, NOT_FOUND -> HttpStatus.NOT_FOUND;
+            case ACTION_FORBIDDEN -> HttpStatus.FORBIDDEN;
+            case PARENT_STATUS_INVALID, ALREADY_SPLIT, TERMINAL -> HttpStatus.CONFLICT;
+            default -> HttpStatus.BAD_REQUEST;
+        };
+        return build(ex.code(), ex.getMessage(), status);
+    }
 
     @ExceptionHandler(WorkflowBindingException.class)
     public ResponseEntity<ApiError> handleWorkflowBinding(WorkflowBindingException ex) {

@@ -3,8 +3,10 @@ package btk.staj.WorkFlowProject.workflow.statemachine;
 /**
  * Bir gecisi yapabilmek icin aktorun kayitla kurmasi gereken iliski.
  *
- * <p>Rol sahibi olmak tek basina yeterli degildir; aktor ayrica kaydin sahibi
- * veya guncel atanmis kullanicisi olmalidir.
+ * <p>Insan gecislerinde rol sahibi olmak tek basina yeterli degildir; aktor
+ * ayrica kaydin sahibi veya guncel atanmis kullanicisi olmalidir. Otomatik
+ * {@link #SYSTEM} gecisi bu insan iliskilerini aramaz, fakat gecisin rol
+ * eslesmesi ayrica korunur.
  */
 public enum ActorRequirement {
 
@@ -15,7 +17,15 @@ public enum ActorRequirement {
     ASSIGNEE,
 
     /** Aktor hem {@code created_by} hem {@code assigned_to} olmalidir. */
-    CREATOR_AND_ASSIGNEE;
+    CREATOR_AND_ASSIGNEE,
+
+    /**
+     * Aktor icin kayit sahipligi veya atama iliskisi aranmaz.
+     *
+     * <p>Bu deger rol kontrolunu atlamaz: gecis yine kendi {@code actor_role_id}
+     * degeriyle eslesen bir aktor tarafindan calistirilmalidir.
+     */
+    SYSTEM;
 
     /**
      * Verilen iliskilerin bu gereksinimi karsilayip karsilamadigini doner.
@@ -29,6 +39,7 @@ public enum ActorRequirement {
             case CREATOR -> actorIsCreator;
             case ASSIGNEE -> actorHoldsAssignment;
             case CREATOR_AND_ASSIGNEE -> actorIsCreator && actorHoldsAssignment;
+            case SYSTEM -> true;
         };
     }
 }

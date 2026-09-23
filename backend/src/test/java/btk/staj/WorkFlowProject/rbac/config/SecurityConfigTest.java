@@ -9,6 +9,7 @@ import btk.staj.WorkFlowProject.notification.repository.NotificationRepository;
 import btk.staj.WorkFlowProject.audit.repository.UserAuditLogRepository;
 import btk.staj.WorkFlowProject.record.repository.CategoryRepository;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
+import btk.staj.WorkFlowProject.subtask.repository.SubtaskRepository;
 import btk.staj.WorkFlowProject.user.repository.RoleRepository;
 import btk.staj.WorkFlowProject.user.repository.TokenRepository;
 import btk.staj.WorkFlowProject.user.repository.UserRepository;
@@ -67,6 +68,9 @@ class SecurityConfigTest {
 
     @MockitoBean
     private RecordRepository recordRepository;
+
+    @MockitoBean
+    private SubtaskRepository subtaskRepository;
 
     @MockitoBean
     private CategoryRepository categoryRepository;

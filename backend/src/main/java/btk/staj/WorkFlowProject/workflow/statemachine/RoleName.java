@@ -13,6 +13,9 @@ public enum RoleName {
     BASKAN_YARDIMCISI(true),
     BASKAN(true),
 
+    /** Yalniz uygulama ici otomatik workflow gecislerini calistiran servis rolu. */
+    SISTEM(true),
+
     /** Kullanici ve rol yonetiminden sorumlu yonetim rolu; workflow aktoru degildir. */
     ADMIN(false);
 

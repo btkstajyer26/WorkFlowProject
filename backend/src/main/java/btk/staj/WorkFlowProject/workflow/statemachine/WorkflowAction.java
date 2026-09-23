@@ -28,6 +28,12 @@ public enum WorkflowAction {
     /** Baskan Yardimcisinin kaydi Baskana iletmesi. */
     BASKANA_ILET(false, false),
 
+    /** Baskan Yardimcisinin Parent kaydi alt gorevlere ayirmasi. */
+    ALT_GOREVLERE_AYIR(false, false),
+
+    /** Butun alt gorevler terminal oldugunda sistem aktorunun Parent'i ilerletmesi. */
+    ALT_GOREVLER_SONUCLANDI(false, false),
+
     /** Kaydin duzeltilmek uzere Calisana geri gonderilmesi. */
     CALISANA_GERI_GONDER(false, true),
 

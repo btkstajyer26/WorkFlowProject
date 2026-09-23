@@ -15,6 +15,8 @@ import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 class DepartmentRoutingResolverTest {
 
@@ -49,6 +51,20 @@ class DepartmentRoutingResolverTest {
                 RecordStatus.BSK_YRD_INCELEMESINDE,
                 rules))
                 .isEmpty();
+    }
+
+    @Test
+    void systemTransitionsNeverBecomeHumanDepartmentRoutingCandidates() {
+        DepartmentRoutingPort routing = mock(DepartmentRoutingPort.class);
+        DepartmentRoutingResolver resolver = new DepartmentRoutingResolver(routing);
+
+        assertThat(resolver.hasUsableRoutingInto(
+                DEPARTMENT,
+                RecordStatus.ALT_GOREV_BEKLIYOR,
+                CREATOR,
+                rules)).isFalse();
+
+        verifyNoInteractions(routing);
     }
 
     private static final class StubRouting implements DepartmentRoutingPort {

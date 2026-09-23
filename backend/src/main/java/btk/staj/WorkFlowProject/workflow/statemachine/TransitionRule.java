@@ -1,6 +1,7 @@
 package btk.staj.WorkFlowProject.workflow.statemachine;
 
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Tek bir durum gecisi kurali.
@@ -17,6 +18,8 @@ import java.util.Objects;
  * @param targetStrategy     hedef kullanicinin nasil cozulecegi
  * @param expectedTargetRoleId ROLE stratejisinde hedefin aranacagi rol; diger butun
  *                             stratejilerde {@code null}
+ * @param requiredPermissionCode ek capability permission; yalniz SYSTEM aktor
+ *                               gereksiniminde {@code null} olabilir
  */
 public record TransitionRule(
         RecordStatus from,
@@ -35,8 +38,12 @@ public record TransitionRule(
         Objects.requireNonNull(actorRequirement, "actorRequirement");
         Objects.requireNonNull(to, "to");
         Objects.requireNonNull(targetStrategy, "targetStrategy");
-        if (requiredPermissionCode == null || requiredPermissionCode.isBlank()) {
+        if (requiredPermissionCode != null && requiredPermissionCode.isBlank()) {
             throw new IllegalArgumentException("requiredPermissionCode must not be blank");
+        }
+        if (actorRequirement != ActorRequirement.SYSTEM && requiredPermissionCode == null) {
+            throw new IllegalArgumentException(
+                    "requiredPermissionCode must not be null for human actor requirements");
         }
 
         // expected_target_role_id YALNIZ ROLE stratejisinin arama anahtaridir (ADR-0008 K2).
@@ -59,5 +66,15 @@ public record TransitionRule(
                             + " must not carry expectedTargetRoleId but was "
                             + expectedTargetRoleId);
         }
+    }
+
+    /**
+     * Gecisin ek capability kosulunu aktor permission'lariyla karsilastirir.
+     * Yalniz {@link ActorRequirement#SYSTEM} kurali permission tasimayabilir;
+     * bu durumda rol eslesmesi ve workflow aktorlugu validator'da korunur.
+     */
+    public boolean hasRequiredPermission(Set<String> permissionCodes) {
+        Objects.requireNonNull(permissionCodes, "permissionCodes");
+        return requiredPermissionCode == null || permissionCodes.contains(requiredPermissionCode);
     }
 }

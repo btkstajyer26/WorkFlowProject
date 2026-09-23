@@ -84,12 +84,26 @@ public final class WorkflowApplicationService {
     public WorkflowActionResponse performAction(UUID recordId, WorkflowActionRequest request) {
         Objects.requireNonNull(recordId, "recordId");
         Objects.requireNonNull(request, "request");
-        WorkflowAction action = Objects.requireNonNull(request.action(), "request.action");
-        TransitionRuleSource snapshot = ruleSource.snapshot();
-
         CurrentActor actor = Objects.requireNonNull(
                 currentActorProvider.currentActor(),
                 "currentActorProvider.currentActor()");
+        return performAction(recordId, request, actor);
+    }
+
+    /**
+     * Aksiyonu cagiranin acikca verdigi aktorle ayni workflow yolundan calistirir.
+     * Otomatik sistem gecisleri SecurityContext taklit etmeden bu girisi kullanir.
+     */
+    public WorkflowActionResponse performAction(
+            UUID recordId,
+            WorkflowActionRequest request,
+            CurrentActor actor) {
+        Objects.requireNonNull(recordId, "recordId");
+        Objects.requireNonNull(request, "request");
+        Objects.requireNonNull(actor, "actor");
+        WorkflowAction action = Objects.requireNonNull(request.action(), "request.action");
+        TransitionRuleSource snapshot = ruleSource.snapshot();
+
         WorkflowRecordSnapshot record = findActiveRecord(recordId);
 
         boolean targetProvidedInRequest = request.targetUserId() != null;
