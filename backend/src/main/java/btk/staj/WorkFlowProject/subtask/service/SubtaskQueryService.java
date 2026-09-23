@@ -69,13 +69,11 @@ public class SubtaskQueryService {
                 .map(mapper::toView)
                 .toList();
 
-        // Bir alt goreve atanan kisi, Parent'i yalniz o iliski uzerinden gorebiliyorsa
-        // (yani ust duzey bir iliski - olusturan, rol-geneli kuyruk, departman - yoksa)
-        // digerlerinin kim oldugunu, ka� oldugunu ve hangi asamada olduklarini gormemeli;
-        // yalniz kendi alt gorevini gorur ve politika/gerekli onay sayisi da saklanir.
-        if (!recordAccessPolicy.scopeFor(actor).allows(
-                parent.getCreatedBy(), parent.getAssignedTo(), parent.getLastDeputyId(),
-                parent.getStatus(), parent.getDeletedAt(), parent.getAssignedDepartmentId())) {
+        // Tam liste yalniz Baskan Yardimcisi rolune aciktir - Parent'i olusturmus olmak
+        // dahil hicbir baska iliski bunu degistirmez. Herkes digerlerinin kim oldugunu,
+        // kaca bolundugunu ve hangi asamada olduklarini gormemeli; yalniz kendi alt
+        // gorevini gorur ve politika/gerekli onay sayisi da saklanir.
+        if (!actor.hasSystemRole(SystemRoleKey.BASKAN_YARDIMCISI)) {
             List<SubtaskView> ownOnly = views.stream()
                     .filter(view -> actor.id().equals(view.assignedTo()))
                     .toList();

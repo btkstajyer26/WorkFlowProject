@@ -3,8 +3,8 @@ package btk.staj.WorkFlowProject.subtask.service;
 import btk.staj.WorkFlowProject.auth.security.CurrentVisibilityActorProvider;
 import btk.staj.WorkFlowProject.auth.security.VisibilityActor;
 import btk.staj.WorkFlowProject.rbac.Role;
+import btk.staj.WorkFlowProject.rbac.SystemRoleKey;
 import btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy;
-import btk.staj.WorkFlowProject.rbac.visibility.RecordVisibilityScope;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
 import btk.staj.WorkFlowProject.subtask.dto.SubtaskAssignableUsersResponse;
@@ -42,6 +42,11 @@ class SubtaskQueryServiceTest {
             new RoleId(22),
             Optional.empty(),
             Set.of());
+    private static final VisibilityActor DEPUTY_ACTOR = new VisibilityActor(
+            UUID.fromString("30000000-0000-0000-0000-000000000004"),
+            new RoleId(23),
+            Optional.of(SystemRoleKey.BASKAN_YARDIMCISI),
+            Set.of());
 
     @Mock private RecordRepository records;
     @Mock private SubtaskRepository subtasks;
@@ -65,10 +70,9 @@ class SubtaskQueryServiceTest {
     }
 
     @Test
-    void listsSplitParentWithPolicyAtTheTopLevel() {
+    void listShowsEverythingOnlyToBaskanYardimcisi() {
         Record parent = parent(SubtaskApprovalPolicy.MAJORITY, 2);
-        parent.setCreatedBy(ACTOR.id());
-        parent.setStatus(btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus.ALT_GOREV_BEKLIYOR);
+        org.mockito.Mockito.lenient().when(visibilityActorProvider.currentVisibilityActor()).thenReturn(DEPUTY_ACTOR);
         Subtask subtask = new Subtask();
         SubtaskView view = new SubtaskView(
                 UUID.randomUUID(), PARENT_ID, "Alt görev", null, UUID.randomUUID(),
@@ -77,24 +81,21 @@ class SubtaskQueryServiceTest {
         when(subtasks.findAllByParentRecord_IdOrderByCreatedAtAscIdAsc(PARENT_ID))
                 .thenReturn(List.of(subtask));
         when(mapper.toView(subtask)).thenReturn(view);
-        // Aktor Parent'i CREATOR iliskisiyle gorebiliyor - subtask-atamasindan bagimsiz,
-        // tam listeye erisimi olmali.
-        when(recordAccessPolicy.scopeFor(ACTOR)).thenReturn(new RecordVisibilityScope(
-                ACTOR.id(), Set.of(RecordVisibilityScope.Relation.CREATOR), Set.of(), Set.of()));
 
         SubtaskListResponse response = service.list(PARENT_ID);
 
         assertThat(response.approvalPolicy()).isEqualTo(SubtaskApprovalPolicy.MAJORITY);
         assertThat(response.requiredApprovals()).isEqualTo(2);
         assertThat(response.subtasks()).containsExactly(view);
-        verify(recordAccessPolicy).assertCanView(ACTOR, parent);
+        verify(recordAccessPolicy).assertCanView(DEPUTY_ACTOR, parent);
     }
 
     @Test
-    void listRestrictsToOwnSubtaskWhenActorOnlyHasSubtaskAssignment() {
+    void listRestrictsToOwnSubtaskForAnyoneOtherThanBaskanYardimcisi() {
+        // Parent'i olusturmus olmak dahil - yalnizca rol Baskan Yardimcisi degilse
+        // tam liste hic gosterilmez, olsa dahi kendi disindaki hicbir iliski yetmez.
         Record parent = parent(SubtaskApprovalPolicy.UNANIMOUS, 2);
-        parent.setCreatedBy(UUID.randomUUID());
-        parent.setStatus(btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus.ALT_GOREV_BEKLIYOR);
+        parent.setCreatedBy(ACTOR.id());
         Subtask own = new Subtask();
         Subtask sibling = new Subtask();
         SubtaskView ownView = new SubtaskView(
@@ -108,10 +109,6 @@ class SubtaskQueryServiceTest {
                 .thenReturn(List.of(own, sibling));
         when(mapper.toView(own)).thenReturn(ownView);
         when(mapper.toView(sibling)).thenReturn(siblingView);
-        // Aktorun Parent'la creator/assignee/departman/rol-kuyrugu iliskisi yok -
-        // yalniz kendi alt gorevine atanmis olmasi Parent'i gormesini sagliyor.
-        when(recordAccessPolicy.scopeFor(ACTOR)).thenReturn(new RecordVisibilityScope(
-                ACTOR.id(), Set.of(), Set.of(), Set.of()));
 
         SubtaskListResponse response = service.list(PARENT_ID);
 
