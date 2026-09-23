@@ -58,7 +58,7 @@ class FileServiceAuthorizationTest {
      * kuralin dogru uygulandigini degil, yalnizca cagrildigini gosterirdi.
      */
     @Spy
-    private RecordContentView recordContentView = new RecordContentView(new RecordAccessPolicy(actor -> java.util.Set.of()));
+    private RecordContentView recordContentView = new RecordContentView(new RecordAccessPolicy(actor -> java.util.Set.of(), (recordId, actorId) -> false));
 
     @InjectMocks
     private FileService fileService;

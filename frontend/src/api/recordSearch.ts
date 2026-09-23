@@ -11,6 +11,9 @@ const recordStatuses: RecordStatus[] = [
   'DUZENLEME_BEKLIYOR',
   'ONAYLANDI',
   'REDDEDILDI',
+  // Parent/Subtask alt akışı (docs/PARENT_SUBTASK_GOREV_DAGILIMI.md).
+  'ALT_GOREV_BEKLIYOR',
+  'KONTROL',
 ]
 
 export type RecordSearchQuery = {

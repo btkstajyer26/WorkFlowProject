@@ -48,7 +48,7 @@ class RecordSearchServiceImplTest {
     private final UserRepository userRepository = mock(UserRepository.class);
     private final RecordSearchServiceImpl service =
             new RecordSearchServiceImpl(recordRepository, currentVisibilityActorProvider,
-                    new RecordContentView(new RecordAccessPolicy(actor -> java.util.Set.of())), userRepository, new RecordAccessPolicy(actor -> java.util.Set.of()),
+                    new RecordContentView(new RecordAccessPolicy(actor -> java.util.Set.of(), (recordId, actorId) -> false)), userRepository, new RecordAccessPolicy(actor -> java.util.Set.of(), (recordId, actorId) -> false),
                     new AssignmentViewResolver(userRepository, mock(DepartmentRepository.class)));
 
     @Test

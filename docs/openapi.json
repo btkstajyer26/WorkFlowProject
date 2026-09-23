@@ -422,6 +422,33 @@
         }
       }
     },
+    "/api/records/{recordId}/subtasks/assignable-users" : {
+      "get" : {
+        "tags" : [ "subtask-controller" ],
+        "operationId" : "assignableUsers",
+        "parameters" : [ {
+          "name" : "recordId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SubtaskAssignableUsersResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/subtasks/{subtaskId}/actions" : {
       "post" : {
         "tags" : [ "subtask-controller" ],
@@ -1984,6 +2011,31 @@
           }
         },
         "required" : [ "approvalPolicy", "requiredApprovals", "subtasks" ]
+      },
+      "SubtaskAssignableUserView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "fullName" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "fullName" ]
+      },
+      "SubtaskAssignableUsersResponse" : {
+        "type" : "object",
+        "properties" : {
+          "users" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SubtaskAssignableUserView"
+            }
+          }
+        },
+        "required" : [ "users" ]
       },
       "WorkflowActionRequest" : {
         "type" : "object",

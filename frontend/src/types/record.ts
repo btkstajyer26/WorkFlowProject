@@ -5,6 +5,10 @@ export type RecordStatus =
   | 'DUZENLEME_BEKLIYOR'
   | 'ONAYLANDI'
   | 'REDDEDILDI'
+  // Parent/Subtask alt akışı (docs/PARENT_SUBTASK_GOREV_DAGILIMI.md) - yalnız
+  // bölünmüş bir Parent bu iki duruma girer.
+  | 'ALT_GOREV_BEKLIYOR'
+  | 'KONTROL'
 
 export type RecordHistoryItem = {
   id: string

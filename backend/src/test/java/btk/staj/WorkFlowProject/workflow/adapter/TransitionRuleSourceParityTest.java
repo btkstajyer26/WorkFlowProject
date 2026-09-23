@@ -28,7 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * SM-9 &mdash; statik gecis tablosu ile veritabani kaynagi ayni on iki kurali
+ * SM-9 &mdash; statik gecis tablosu ile veritabani kaynagi ayni on uc kurali
  * uretmelidir.
  *
  * <p>Bu test refactor'un dogru yapildiginin tek kaniti. DB-1 SS17: "Eksik,
@@ -55,7 +55,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("Static-DB gecis kurali paritesi")
 class TransitionRuleSourceParityTest extends AbstractTransitionRuleInvariants {
 
-    private static final int EXPECTED_RULE_COUNT = 12;
+    private static final int EXPECTED_RULE_COUNT = 13;
 
     @Autowired
     private TransitionRuleRecordReader reader;
@@ -87,7 +87,7 @@ class TransitionRuleSourceParityTest extends AbstractTransitionRuleInvariants {
     }
 
     @Test
-    @DisplayName("veritabani on iki aktif kural uretir")
+    @DisplayName("veritabani on uc aktif kural uretir")
     void databaseProducesExpectedRules() {
         assertThat(databaseSource().all())
                 .as("workflow_transitions icindeki aktif kural sayisi")

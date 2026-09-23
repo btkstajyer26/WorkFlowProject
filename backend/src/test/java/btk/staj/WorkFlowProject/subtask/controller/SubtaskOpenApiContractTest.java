@@ -17,12 +17,20 @@ class SubtaskOpenApiContractTest {
     private final JsonNode document = readOpenApi();
 
     @Test
-    void documentsAllThreeControllerEndpoints() {
+    void documentsAllFourControllerEndpoints() {
         JsonNode paths = document.path("paths");
 
         assertThat(paths.path("/api/records/{recordId}/subtasks/split").has("post")).isTrue();
         assertThat(paths.path("/api/records/{recordId}/subtasks").has("get")).isTrue();
+        assertThat(paths.path("/api/records/{recordId}/subtasks/assignable-users").has("get")).isTrue();
         assertThat(paths.path("/api/subtasks/{subtaskId}/actions").has("post")).isTrue();
+    }
+
+    @Test
+    void assignableUsersViewContainsExactlyTheExpectedFields() {
+        JsonNode properties = schema("SubtaskAssignableUserView").path("properties");
+
+        assertThat(fieldNames(properties)).containsExactlyInAnyOrder("id", "fullName");
     }
 
     @Test

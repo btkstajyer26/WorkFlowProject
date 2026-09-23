@@ -19,6 +19,10 @@ const actionLabels: Record<NonNullable<WorkflowActionRequest['action']>, string>
   BASKAN_YARDIMCISINA_GERI_GONDER: 'Başkan Yardımcısına geri gönderildi',
   ONAYLA: 'Kayıt onaylandı',
   REDDET: 'Kayıt reddedildi',
+  // Parent/Subtask alt akışı - ALT_GOREVLER_SONUCLANDI sistem aktörüyle
+  // çalışır, bu panelden hiç tetiklenmez ama union tam olmalı.
+  ALT_GOREVLERE_AYIR: 'Alt görevlere ayrıldı',
+  ALT_GOREVLER_SONUCLANDI: 'Alt görevler sonuçlandı, Kontrol adımına ilerledi',
 }
 
 /** B10/WEB-1: kaydın şu anki durumu için hangi aksiyon düğmelerinin gösterileceği - sunucu hesaplar. */

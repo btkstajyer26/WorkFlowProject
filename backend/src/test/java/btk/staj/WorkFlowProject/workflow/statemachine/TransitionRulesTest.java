@@ -30,9 +30,9 @@ class TransitionRulesTest extends AbstractTransitionRuleInvariants {
     }
 
     @Test
-    @DisplayName("gecis matrisindeki on iki kural tanimlidir")
+    @DisplayName("gecis matrisindeki on uc kural tanimlidir")
     void kuralSayisi() {
-        assertThat(WorkflowRoleFixtures.rules().all()).hasSize(12);
+        assertThat(WorkflowRoleFixtures.rules().all()).hasSize(13);
     }
 
     @Test

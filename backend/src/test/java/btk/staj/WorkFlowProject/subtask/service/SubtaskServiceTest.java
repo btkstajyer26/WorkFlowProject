@@ -168,7 +168,7 @@ class SubtaskServiceTest {
                 SubtaskException.Reason.PARENT_STATUS_INVALID);
 
         verifyNoInteractions(users, currentActorProvider, workflowActionService);
-        verify(subtasks, never()).saveAll(any());
+        verify(subtasks, never()).saveAllAndFlush(any());
     }
 
     @Test
@@ -182,7 +182,7 @@ class SubtaskServiceTest {
                 SubtaskException.Reason.ALREADY_SPLIT);
 
         verifyNoInteractions(users, currentActorProvider, workflowActionService);
-        verify(subtasks, never()).saveAll(any());
+        verify(subtasks, never()).saveAllAndFlush(any());
     }
 
     @Test
@@ -194,7 +194,7 @@ class SubtaskServiceTest {
                 SubtaskException.Reason.COUNT_TOO_LOW);
 
         verifyNoInteractions(users, currentActorProvider, workflowActionService);
-        verify(subtasks, never()).saveAll(any());
+        verify(subtasks, never()).saveAllAndFlush(any());
     }
 
     @Test
@@ -210,7 +210,7 @@ class SubtaskServiceTest {
                 SubtaskException.Reason.DUPLICATE_ASSIGNEE);
 
         verifyNoInteractions(users, currentActorProvider, workflowActionService);
-        verify(subtasks, never()).saveAll(any());
+        verify(subtasks, never()).saveAllAndFlush(any());
     }
 
     @Test
@@ -226,7 +226,7 @@ class SubtaskServiceTest {
                 SubtaskException.Reason.ASSIGNEE_NOT_FOUND);
 
         verifyNoInteractions(currentActorProvider, workflowActionService);
-        verify(subtasks, never()).saveAll(any());
+        verify(subtasks, never()).saveAllAndFlush(any());
     }
 
     @Test
@@ -243,7 +243,7 @@ class SubtaskServiceTest {
                 SubtaskException.Reason.ASSIGNEE_INACTIVE);
 
         verifyNoInteractions(currentActorProvider, workflowActionService);
-        verify(subtasks, never()).saveAll(any());
+        verify(subtasks, never()).saveAllAndFlush(any());
     }
 
     @Test
@@ -260,7 +260,7 @@ class SubtaskServiceTest {
                 SubtaskException.Reason.ASSIGNEE_SYSTEM);
 
         verifyNoInteractions(currentActorProvider, workflowActionService);
-        verify(subtasks, never()).saveAll(any());
+        verify(subtasks, never()).saveAllAndFlush(any());
     }
 
     @Test
@@ -272,7 +272,7 @@ class SubtaskServiceTest {
                 SubtaskException.Reason.INVALID_APPROVAL_POLICY);
 
         verifyNoInteractions(users, currentActorProvider, workflowActionService);
-        verify(subtasks, never()).saveAll(any());
+        verify(subtasks, never()).saveAllAndFlush(any());
     }
 
     @Test
@@ -291,7 +291,7 @@ class SubtaskServiceTest {
         verifyNoInteractions(notificationService);
 
         InOrder order = inOrder(subtasks, workflowActionService);
-        order.verify(subtasks).saveAll(any());
+        order.verify(subtasks).saveAllAndFlush(any());
         order.verify(workflowActionService).performAction(
                 org.mockito.ArgumentMatchers.eq(PARENT_ID), any());
     }
@@ -312,6 +312,12 @@ class SubtaskServiceTest {
                 .toList());
         when(currentActorProvider.currentActor()).thenReturn(ACTOR);
         when(users.findById(ACTOR_ID)).thenReturn(Optional.of(actorUser()));
+        // saveAllAndFlush normalde Hibernate'in yonettigi (id/createdAt dolu) kopyalari
+        // dondurur; mock'ta bunu taklit etmek icin girdi listesini oldugu gibi geri veriyoruz.
+        when(subtasks.saveAllAndFlush(any())).thenAnswer(invocation -> {
+            Iterable<Subtask> argument = invocation.getArgument(0);
+            return StreamSupport.stream(argument.spliterator(), false).toList();
+        });
         return parent;
     }
 
@@ -325,7 +331,7 @@ class SubtaskServiceTest {
     @SuppressWarnings("unchecked")
     private List<Subtask> capturedSubtasks() {
         ArgumentCaptor<Iterable<Subtask>> captor = ArgumentCaptor.forClass(Iterable.class);
-        verify(subtasks).saveAll(captor.capture());
+        verify(subtasks).saveAllAndFlush(captor.capture());
         return StreamSupport.stream(captor.getValue().spliterator(), false).toList();
     }
 

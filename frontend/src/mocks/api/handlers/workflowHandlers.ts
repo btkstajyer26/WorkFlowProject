@@ -66,6 +66,8 @@ const actionDisplayNames: Record<NonNullable<WorkflowAction>, string> = {
   ONAYLA: 'Onayla',
   REDDET: 'Reddet',
   DEPARTMANA_GONDER: 'Departmana Gönder',
+  ALT_GOREVLERE_AYIR: 'Alt Görevlere Ayır',
+  ALT_GOREVLER_SONUCLANDI: 'Alt Görevler Sonuçlandı',
 }
 
 function resolveTarget(record: StoredMockRecord, request: WorkflowActionRequest) {
@@ -94,7 +96,17 @@ export const workflowHandlers = [
       return apiErrorResponse(404, 'RESOURCE_NOT_FOUND', `Kayıt bulunamadı: ${params.recordId}`)
     }
 
-    const actions: AvailableActionView[] = ['ONAYLANDI', 'REDDEDILDI'].includes(record.status)
+    // Parent/Subtask (docs/PARENT_SUBTASK_GOREV_DAGILIMI.md): gercek backend'de
+    // bolunmus bir Parent, ALT_GOREV_BEKLIYOR'a gecer ve o durumdan hicbir
+    // kullanici-tetikli gecis yoktur - Parent kesinlikle ilerlemez. Bu mock
+    // Parent'in status'unu gercekten degistirmiyor (RecordStatus tipi henuz
+    // bu degeri tanimiyor), o yuzden "bolunmus mu" kontrolunu burada elle
+    // yapip normal transitionRules'u TAMAMEN bastiriyoruz - aksi halde
+    // Baskana Ilet/Calisana Geri Gonder gibi butonlar bolunduktan sonra da
+    // gorunmeye devam ederdi (yasanan hata buydu).
+    const alreadySplit = mockApiDb.subtasks.some((subtask) => subtask.parentRecordId === record.id)
+
+    const actions: AvailableActionView[] = (['ONAYLANDI', 'REDDEDILDI'].includes(record.status) || alreadySplit)
       ? []
       : transitionRules
         .filter((rule) => (
@@ -109,6 +121,17 @@ export const workflowHandlers = [
           targetDepartmentRequired: false,
           targetUserRequired: false,
         }))
+
+    if (record.status === 'BSK_YRD_INCELEMESINDE' && actor.role === 'BASKAN_YARDIMCISI' &&
+      actorMatches(record, actor.id, 'ASSIGNEE') && !alreadySplit) {
+      actions.push({
+        action: 'ALT_GOREVLERE_AYIR',
+        displayName: actionDisplayNames.ALT_GOREVLERE_AYIR,
+        commentRequired: false,
+        targetDepartmentRequired: false,
+        targetUserRequired: false,
+      })
+    }
 
     return HttpResponse.json({
       recordId: record.id,
@@ -144,6 +167,13 @@ export const workflowHandlers = [
     const body = await request.json() as WorkflowActionRequest
     if (['ONAYLANDI', 'REDDEDILDI'].includes(record.status)) {
       return apiErrorResponse(409, 'WORKFLOW_RECORD_LOCKED', 'Kayıt kilitli, üzerinde işlem yapılamaz')
+    }
+    // Bolunmus bir Parent, tum alt gorevler sonuclanana kadar hicbir
+    // kullanici-tetikli gecisi kabul etmemeli (bkz. available-actions'taki
+    // ayni kontrol - bu ikinci savunma katmani, ekrandaki buton gizlenmis
+    // olsa bile dogrudan istekle bypass edilemesin diye).
+    if (mockApiDb.subtasks.some((subtask) => subtask.parentRecordId === record.id)) {
+      return apiErrorResponse(409, 'WORKFLOW_RECORD_LOCKED', 'Kayıt alt görevlerin sonuçlanmasını bekliyor')
     }
     if (requiresComment(body.action) && !body.comment?.trim()) {
       return apiErrorResponse(400, 'WORKFLOW_COMMENT_REQUIRED', 'Bu işlem için açıklama zorunludur')

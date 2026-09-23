@@ -2,6 +2,8 @@ package btk.staj.WorkFlowProject.subtask.controller;
 
 import btk.staj.WorkFlowProject.common.exception.GlobalExceptionHandler;
 import btk.staj.WorkFlowProject.subtask.dto.SubtaskActionRequest;
+import btk.staj.WorkFlowProject.subtask.dto.SubtaskAssignableUserView;
+import btk.staj.WorkFlowProject.subtask.dto.SubtaskAssignableUsersResponse;
 import btk.staj.WorkFlowProject.subtask.dto.SubtaskListResponse;
 import btk.staj.WorkFlowProject.subtask.dto.SubtaskSplitRequest;
 import btk.staj.WorkFlowProject.subtask.dto.SubtaskSplitResponse;
@@ -101,6 +103,17 @@ class SubtaskControllerTest {
                 .andExpect(jsonPath("$.approvalPolicy").isEmpty())
                 .andExpect(jsonPath("$.requiredApprovals").isEmpty())
                 .andExpect(jsonPath("$.subtasks").isEmpty());
+    }
+
+    @Test
+    void assignableUsersEndpointReturnsTheServiceResponse() throws Exception {
+        when(queryService.assignableUsers(PARENT_ID)).thenReturn(new SubtaskAssignableUsersResponse(
+                List.of(new SubtaskAssignableUserView(ASSIGNEE_ID, "Ada Lovelace"))));
+
+        mockMvc.perform(get("/api/records/{recordId}/subtasks/assignable-users", PARENT_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.users[0].id").value(ASSIGNEE_ID.toString()))
+                .andExpect(jsonPath("$.users[0].fullName").value("Ada Lovelace"));
     }
 
     @Test

@@ -11,6 +11,7 @@ import { NotificationController } from './generated/NotificationController'
 import { PermissionAdminController } from './generated/PermissionAdminController'
 import { RecordController } from './generated/RecordController'
 import { RoleAdminController } from './generated/RoleAdminController'
+import { SubtaskController } from './generated/SubtaskController'
 import { UserController } from './generated/UserController'
 import { WorkflowActionController } from './generated/WorkflowActionController'
 import { WorkflowActorBindings } from './generated/WorkflowActorBindings'
@@ -86,6 +87,8 @@ export const api = {
   permissions: new PermissionAdminController(apiHttpClient),
   records: new RecordController(apiHttpClient),
   roles: new RoleAdminController(apiHttpClient),
+  // Parent/Subtask alt akışı.
+  subtasks: new SubtaskController(apiHttpClient),
   users: new UserController(apiHttpClient),
   workflow: new WorkflowActionController(apiHttpClient),
   // AP-8 aktor-rol baglama yonetimi.

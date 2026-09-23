@@ -17,7 +17,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class RecordAccessPolicyTest {
     private final UUID viewer = UUID.randomUUID();
     private final UUID other = UUID.randomUUID();
-    private final RecordAccessPolicy policy = new RecordAccessPolicy(actor -> java.util.Set.of());
+    private final UUID recordId = UUID.randomUUID();
+    private final RecordAccessPolicy policy = new RecordAccessPolicy(actor -> java.util.Set.of(), (recordId, actorId) -> false);
 
     private VisibilityActor actor(SystemRoleKey key, boolean permission) {
         return new VisibilityActor(viewer, new RoleId(101), Optional.ofNullable(key),
@@ -25,7 +26,24 @@ class RecordAccessPolicyTest {
     }
 
     private Record record(UUID creator, UUID assignee, UUID deputy, RecordStatus status) {
-        return Record.builder().createdBy(creator).assignedTo(assignee).lastDeputyId(deputy).status(status).build();
+        return Record.builder().id(recordId).createdBy(creator).assignedTo(assignee).lastDeputyId(deputy).status(status).build();
+    }
+
+    @Test
+    void subtaskAssigneeSeesTheParentEvenWithoutAnyOtherRelation() {
+        var noRelation = actor(SystemRoleKey.CALISAN, true);
+        var unrelated = record(other, other, null, RecordStatus.ALT_GOREV_BEKLIYOR);
+        assertThat(policy.canView(noRelation, unrelated)).isFalse();
+
+        var withSubtaskGrant = new RecordAccessPolicy(
+                actorArg -> java.util.Set.of(),
+                (candidateRecordId, actorId) -> candidateRecordId.equals(recordId) && actorId.equals(viewer));
+        assertThat(withSubtaskGrant.canView(noRelation, unrelated)).isTrue();
+
+        // Silinmis kayit, alt gorev atamasi olsa bile kimseye gorunmez.
+        var deleted = record(other, other, null, RecordStatus.ALT_GOREV_BEKLIYOR);
+        deleted.setDeletedAt(LocalDateTime.now());
+        assertThat(withSubtaskGrant.canView(noRelation, deleted)).isFalse();
     }
 
     @ParameterizedTest

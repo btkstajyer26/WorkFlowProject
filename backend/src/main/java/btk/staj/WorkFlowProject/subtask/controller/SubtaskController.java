@@ -1,6 +1,7 @@
 package btk.staj.WorkFlowProject.subtask.controller;
 
 import btk.staj.WorkFlowProject.subtask.dto.SubtaskActionRequest;
+import btk.staj.WorkFlowProject.subtask.dto.SubtaskAssignableUsersResponse;
 import btk.staj.WorkFlowProject.subtask.dto.SubtaskListResponse;
 import btk.staj.WorkFlowProject.subtask.dto.SubtaskSplitRequest;
 import btk.staj.WorkFlowProject.subtask.dto.SubtaskSplitResponse;
@@ -45,6 +46,11 @@ public final class SubtaskController {
     @GetMapping("/records/{recordId}/subtasks")
     public SubtaskListResponse list(@PathVariable UUID recordId) {
         return queryService.list(recordId);
+    }
+
+    @GetMapping("/records/{recordId}/subtasks/assignable-users")
+    public SubtaskAssignableUsersResponse assignableUsers(@PathVariable UUID recordId) {
+        return queryService.assignableUsers(recordId);
     }
 
     @PostMapping("/subtasks/{subtaskId}/actions")

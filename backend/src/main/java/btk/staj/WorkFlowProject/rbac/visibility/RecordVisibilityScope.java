@@ -45,6 +45,12 @@ public record RecordVisibilityScope(UUID actorId, Set<Relation> relations, Set<R
             // duzeltmedeki HER kaydi gorur, ilettigi kayitlari degil. Tek bir yerlesik
             // koltuga ozgudur ve her dinamik role dagitilmaz.
             statuses.add(RecordStatus.DUZENLEME_BEKLIYOR);
+            // ALT_GOREVLERE_AYIR gecisinde assignedTo bosalir (target_strategy=NONE),
+            // bu yuzden boleni ASSIGNEE iliskisi artik yakalamaz. Parent/Subtask alt
+            // akisinda (docs/PARENT_SUBTASK_GOREV_DAGILIMI.md) bolunmus kayit da ayni
+            // rol-geneli kuyu ayricaligina giriyor: DUZENLEME_BEKLIYOR ile ayni desen.
+            statuses.add(RecordStatus.ALT_GOREV_BEKLIYOR);
+            statuses.add(RecordStatus.KONTROL);
         }
         if (actor.hasSystemRole(SystemRoleKey.BASKAN)) {
             statuses.addAll(EnumSet.of(RecordStatus.BASKAN_INCELEMESINDE,

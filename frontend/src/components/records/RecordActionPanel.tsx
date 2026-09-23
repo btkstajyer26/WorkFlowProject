@@ -4,6 +4,7 @@ import {
   ArrowLeftRight,
   CheckCircle2,
   FilePenLine,
+  GitFork,
   Send,
   X,
   XCircle,
@@ -20,6 +21,7 @@ import {
 import type { AvailableWorkflowAction } from '../../api/workflow'
 import type { AuthUser } from '../../types/auth'
 import type { WorkflowRecord } from '../../types/record'
+import { SplitIntoSubtasksDialog } from './SplitIntoSubtasksDialog'
 
 type ActionTone = 'primary' | 'success' | 'danger' | 'secondary'
 
@@ -28,6 +30,7 @@ const actionPresentation: Record<string, { icon: LucideIcon; tone: ActionTone }>
   TEKRAR_GONDER: { icon: Send, tone: 'primary' },
   BASKANA_ILET: { icon: Send, tone: 'primary' },
   DEPARTMANA_GONDER: { icon: Send, tone: 'primary' },
+  ALT_GOREVLERE_AYIR: { icon: GitFork, tone: 'primary' },
   CALISANA_GERI_GONDER: { icon: ArrowLeftRight, tone: 'secondary' },
   BASKAN_YARDIMCISINA_GERI_GONDER: { icon: ArrowLeftRight, tone: 'secondary' },
   ONAYLA: { icon: CheckCircle2, tone: 'success' },
@@ -64,6 +67,7 @@ export function RecordActionPanel({
   const [selectedAction, setSelectedAction] = useState<AvailableWorkflowAction | null>(null)
   const [comment, setComment] = useState('')
   const [targetDepartmentId, setTargetDepartmentId] = useState<number | null>(null)
+  const [splitDialogOpen, setSplitDialogOpen] = useState(false)
   const { busy: mutationBusy, run: runMutation } = useSingleFlight()
 
   const targetDepartmentsQuery = useWorkflowTargetDepartments(
@@ -87,6 +91,14 @@ export function RecordActionPanel({
   )
 
   const openAction = (action: AvailableWorkflowAction) => {
+    // ALT_GOREVLERE_AYIR henuz uretilen (generated/) istemcinin action
+    // birlesimine eklenmedi (backend'de subtask'lar tamamlanana kadar) - bu
+    // yuzden string karsilastirmasi kullaniliyor; backend mergelenip
+    // `npm run api:generate` calistirildiginda bu tip zaten genisleyecek.
+    if ((action.action as string) === 'ALT_GOREVLERE_AYIR') {
+      setSplitDialogOpen(true)
+      return
+    }
     setComment('')
     setTargetDepartmentId(null)
     setSelectedAction(action)
@@ -189,6 +201,12 @@ export function RecordActionPanel({
         onConfirm={completeAction}
         busy={mutationBusy}
         disabled={targetUnavailable}
+      />
+
+      <SplitIntoSubtasksDialog
+        recordId={record.id}
+        open={splitDialogOpen}
+        onClose={() => setSplitDialogOpen(false)}
       />
     </section>
   )

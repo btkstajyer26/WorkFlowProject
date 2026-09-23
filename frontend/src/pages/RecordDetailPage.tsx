@@ -12,6 +12,7 @@ import { RecordActionPanel } from '../components/records/RecordActionPanel'
 import { RecordFilesPanel } from '../components/records/RecordFilesPanel'
 import { RecordHistoryDisclosure, RecordNoteDisclosure } from '../components/records/RecordDetailDisclosures'
 import { RecordStatusBadge } from '../components/records/RecordStatusBadge'
+import { RecordSubtasksPanel } from '../components/records/RecordSubtasksPanel'
 import { useCategories } from '../context/categoryState'
 import { queryKeys } from '../query/queryKeys'
 import type { AuthUser } from '../types/auth'
@@ -138,6 +139,8 @@ function RecordDetailContent({
       </header>
 
       <RecordActionPanel record={record} user={user} />
+
+      <RecordSubtasksPanel recordId={record.id} currentUserId={user.id} parentStatus={record.status} />
 
       <section className="rounded-xl border border-app-border bg-app-surface px-5 py-5 sm:px-6 sm:py-6">
         <div>

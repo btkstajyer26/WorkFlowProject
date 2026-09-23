@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { http, HttpResponse } from 'msw'
@@ -31,9 +31,13 @@ function mockAvailableActions(recordId: string, status: WorkflowRecord['status']
   )
 }
 
-function renderActionPanel(role: 'CALISAN' | 'BASKAN', recordId: string, actions: AvailableActionView[]) {
+function renderActionPanel(role: 'CALISAN' | 'BASKAN' | 'BASKAN_YARDIMCISI', recordId: string, actions: AvailableActionView[]) {
   const user = getDemoUserByRole(role)
-  const status: WorkflowRecord['status'] = role === 'BASKAN' ? 'BASKAN_INCELEMESINDE' : 'TASLAK'
+  const status: WorkflowRecord['status'] = role === 'BASKAN'
+    ? 'BASKAN_INCELEMESINDE'
+    : role === 'BASKAN_YARDIMCISI'
+      ? 'BSK_YRD_INCELEMESINDE'
+      : 'TASLAK'
   mockAvailableActions(recordId, status, actions)
   const record: WorkflowRecord = {
     id: recordId,
@@ -244,5 +248,29 @@ describe('RecordActionPanel', () => {
 
     await user.click(screen.getByRole('radio', { name: 'Hukuk' }))
     expect(screen.getByRole('radio', { name: 'Hukuk' })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('ALT_GOREVLERE_AYIR aksiyonu genel diyalog yerine bölme diyaloğunu açar', async () => {
+    const user = userEvent.setup()
+    apiMockServer.use(
+      http.get(`${apiBaseUrl}/api/records/:recordId/subtasks/assignable-users`, () => HttpResponse.json({
+        users: [
+          { id: 'user-a', fullName: 'Ayşe Yılmaz' },
+          { id: 'user-b', fullName: 'Burak Demir' },
+        ],
+      })),
+    )
+    renderActionPanel('BASKAN_YARDIMCISI', 'rec-subtask', [
+      { action: 'ALT_GOREVLERE_AYIR' as AvailableActionView['action'], displayName: 'Alt Görevlere Ayır', commentRequired: false, targetDepartmentRequired: false, targetUserRequired: false },
+    ])
+
+    await user.click(await screen.findByRole('button', { name: 'Alt Görevlere Ayır' }))
+
+    const dialog = screen.getByRole('dialog', { name: 'Alt Görevlere Ayır' })
+    expect(await within(dialog).findByText('Alt Görev 1')).toBeInTheDocument()
+    expect(within(dialog).getByText('Alt Görev 2')).toBeInTheDocument()
+    expect(within(dialog).getByRole('radio', { name: /Tümü onaylanmalı/ })).toBeChecked()
+    // Genel ActionDialog değil, özel bölme diyaloğu açılmalı - onay düğmesi "İşlemi Onayla" değil "Alt Görevlere Ayır".
+    expect(within(dialog).getByRole('button', { name: 'Alt Görevlere Ayır' })).toBeInTheDocument()
   })
 })

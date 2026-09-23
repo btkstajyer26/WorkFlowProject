@@ -27,4 +27,21 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT u FROM User u WHERE u.id = :id")
     Optional<User> findByIdForUpdate(@Param("id") UUID id);
+
+    /**
+     * Active users eligible to be assigned a Subtask - every active role except
+     * the non-human SISTEM role. {@code Role.systemKey} is null for dynamic
+     * roles, so the exclusion is spelled out explicitly rather than relying on
+     * a derived "Not" query, which would silently drop null-systemKey rows
+     * under SQL's three-valued logic.
+     */
+    @EntityGraph(attributePaths = "role")
+    @Query("""
+            SELECT u FROM User u
+            WHERE u.active = true
+              AND u.role.active = true
+              AND (u.role.systemKey IS NULL OR u.role.systemKey <> :excludedSystemKey)
+            ORDER BY u.firstName ASC, u.lastName ASC
+            """)
+    List<User> findAssignableSubtaskCandidates(@Param("excludedSystemKey") String excludedSystemKey);
 }
