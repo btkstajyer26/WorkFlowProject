@@ -77,7 +77,7 @@ class FileServiceTest {
                 recordLockValidator,
                 recordRepository,
                 recordAccessPolicy,
-                new RecordContentView(new RecordAccessPolicy(actor -> java.util.Set.of()))
+                new RecordContentView(new RecordAccessPolicy(actor -> java.util.Set.of(), (recordId, actorId) -> false))
         );
     }
 

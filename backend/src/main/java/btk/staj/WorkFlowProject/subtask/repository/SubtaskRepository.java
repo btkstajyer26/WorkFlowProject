@@ -35,6 +35,9 @@ public interface SubtaskRepository extends JpaRepository<Subtask, UUID> {
     /** Total count supports split-state checks without loading the parent's children. */
     long countByParentRecord_Id(UUID parentRecordId);
 
+    /** Grants a Subtask assignee view access to the Parent their Subtask belongs to. */
+    boolean existsByParentRecord_IdAndAssignedTo_Id(UUID parentRecordId, UUID assignedToId);
+
     /** One aggregate query supplies approval, rejection, and remaining-status counts. */
     @Query("""
             SELECT new btk.staj.WorkFlowProject.subtask.repository.SubtaskStatusCount(
