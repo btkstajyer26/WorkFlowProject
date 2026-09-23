@@ -1,5 +1,6 @@
-import { apiHttpClient } from './client'
+import { api } from './client'
 import { ApiClientError } from './errors'
+import type { SubtaskView } from './generated/data-contracts'
 import type {
   AssignableUser,
   PerformSubtaskActionRequest,
@@ -9,14 +10,6 @@ import type {
   SplitIntoSubtasksResponse,
 } from '../types/subtask'
 
-/**
- * Backend'de SubtaskController hazır olana kadar üretilen (`generated/`)
- * istemci yerine `apiHttpClient.request` doğrudan kullanılıyor -
- * docs/PARENT_SUBTASK_GOREV_DAGILIMI.md §2.2'deki sözleşmenin birebir
- * karşılığı. Backend mergelendiğinde `npm run api:generate` ile üretilen
- * `SubtaskController` sınıfına geçilip bu dosya kaldırılabilir.
- */
-
 function invalidSubtaskResponse(): never {
   throw new ApiClientError({
     code: 'INVALID_SUBTASK_RESPONSE',
@@ -25,17 +18,33 @@ function invalidSubtaskResponse(): never {
   })
 }
 
+/** Üretilen `SubtaskView` her alanı isteğe bağlı taşır; burada zorunlu alanlar doğrulanıp daraltılır. */
+function toSubtask(view: SubtaskView): Subtask {
+  if (
+    !view.id || !view.parentRecordId || !view.title || !view.assignedTo ||
+    !view.assignedToName || !view.status || !view.createdAt
+  ) {
+    return invalidSubtaskResponse()
+  }
+  return {
+    id: view.id,
+    parentRecordId: view.parentRecordId,
+    title: view.title,
+    description: view.description ?? '',
+    assignedTo: view.assignedTo,
+    assignedToName: view.assignedToName,
+    status: view.status,
+    resolutionComment: view.resolutionComment ?? null,
+    createdAt: view.createdAt,
+    completedAt: view.completedAt ?? null,
+  }
+}
+
 export async function splitIntoSubtasks(
   recordId: string,
   request: SplitIntoSubtasksRequest,
 ): Promise<SplitIntoSubtasksResponse> {
-  const response = await apiHttpClient.request<SplitIntoSubtasksResponse>({
-    path: `/api/records/${recordId}/subtasks/split`,
-    method: 'POST',
-    body: request,
-    secure: true,
-    type: 'application/json',
-  })
+  const response = await api.subtasks.split({ recordId }, request)
   if (
     response.parentRecordId !== recordId ||
     !response.approvalPolicy ||
@@ -44,43 +53,37 @@ export async function splitIntoSubtasks(
   ) {
     return invalidSubtaskResponse()
   }
-  return response
+  return {
+    parentRecordId: response.parentRecordId,
+    approvalPolicy: response.approvalPolicy,
+    requiredApprovals: response.requiredApprovals,
+    subtasks: response.subtasks.map(toSubtask),
+  }
 }
 
 export async function getSubtasks(recordId: string): Promise<SubtaskListResponse> {
-  const response = await apiHttpClient.request<SubtaskListResponse>({
-    path: `/api/records/${recordId}/subtasks`,
-    method: 'GET',
-    secure: true,
-  })
+  const response = await api.subtasks.list1({ recordId })
   if (!Array.isArray(response.subtasks)) {
     return invalidSubtaskResponse()
   }
-  return response
+  return {
+    approvalPolicy: response.approvalPolicy ?? null,
+    requiredApprovals: response.requiredApprovals ?? null,
+    subtasks: response.subtasks.map(toSubtask),
+  }
 }
 
 export async function getAssignableUsers(recordId: string): Promise<AssignableUser[]> {
-  const response = await apiHttpClient.request<{ users: AssignableUser[] }>({
-    path: `/api/records/${recordId}/subtasks/assignable-users`,
-    method: 'GET',
-    secure: true,
-  })
-  return (response.users ?? []).filter((user) => Boolean(user.id && user.fullName?.trim()))
+  const response = await api.subtasks.assignableUsers({ recordId })
+  return (response.users ?? [])
+    .filter((user): user is Required<typeof user> => Boolean(user.id && user.fullName?.trim()))
+    .map((user) => ({ id: user.id, fullName: user.fullName }))
 }
 
 export async function performSubtaskAction(
   subtaskId: string,
   request: PerformSubtaskActionRequest,
 ): Promise<Subtask> {
-  const response = await apiHttpClient.request<Subtask>({
-    path: `/api/subtasks/${subtaskId}/actions`,
-    method: 'POST',
-    body: request,
-    secure: true,
-    type: 'application/json',
-  })
-  if (!response.id || !response.status) {
-    return invalidSubtaskResponse()
-  }
-  return response
+  const response = await api.subtasks.performAction({ subtaskId }, request)
+  return toSubtask(response)
 }

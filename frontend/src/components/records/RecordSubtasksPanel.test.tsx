@@ -7,6 +7,7 @@ import { apiBaseUrl } from '../../api/config'
 import { ToastProvider } from '../../context/ToastContext'
 import { apiMockServer } from '../../mocks/api/server'
 import type { Subtask, SubtaskListResponse } from '../../types/subtask'
+import type { WorkflowRecord } from '../../types/record'
 import { RecordSubtasksPanel } from './RecordSubtasksPanel'
 
 function subtask(overrides: Partial<Subtask>): Subtask {
@@ -33,12 +34,12 @@ function mockSubtasks(recordId: string, response: SubtaskListResponse) {
   )
 }
 
-function renderPanel(recordId: string, currentUserId: string) {
+function renderPanel(recordId: string, currentUserId: string, parentStatus: WorkflowRecord['status'] = 'ALT_GOREV_BEKLIYOR') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-        <RecordSubtasksPanel recordId={recordId} currentUserId={currentUserId} />
+        <RecordSubtasksPanel recordId={recordId} currentUserId={currentUserId} parentStatus={parentStatus} />
       </ToastProvider>
     </QueryClientProvider>,
   )
@@ -99,6 +100,20 @@ describe('RecordSubtasksPanel', () => {
     await user.click(screen.getByRole('button', { name: 'İşlemi Onayla' }))
 
     await waitFor(() => expect(receivedBody).toEqual({ action: 'DEGERLENDIRMEYI_TAMAMLA' }))
+  })
+
+  it('kısıtlı görünümde yalnız kendi alt görevini, sayı/politika olmadan gösterir', async () => {
+    mockSubtasks('rec-parent', {
+      approvalPolicy: null,
+      requiredApprovals: null,
+      subtasks: [subtask({ id: 's1', title: 'Bana atanan', assignedTo: 'user-a', status: 'TAMAMLANDI', completedAt: '2026-09-21T11:00:00Z' })],
+    })
+    renderPanel('rec-parent', 'user-a')
+
+    await screen.findByText('Bana atanan')
+    expect(screen.queryByText(/alt görevden/, { exact: false })).not.toBeInTheDocument()
+    expect(screen.queryByText(/Çoğunluk|Tümü onaylanmalı/)).not.toBeInTheDocument()
+    expect(screen.getByText('İşleminiz Başkan Yardımcısının incelemesine sunuldu.')).toBeInTheDocument()
   })
 
   it('reddetme açıklaması boşken gönderimi engeller', async () => {

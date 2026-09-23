@@ -185,7 +185,7 @@ describe('OpenAPI istemcisi ve MSW sözleşmesi', () => {
     const deputyId = 'user-demo-002'
 
     await loginAs(employeeCredentials.email)
-    const submitted = await api.workflow.performAction({ recordId }, {
+    const submitted = await api.workflow.performAction1({ recordId }, {
       action: 'GONDER',
     })
     expect(submitted).toMatchObject({
@@ -195,14 +195,14 @@ describe('OpenAPI istemcisi ve MSW sözleşmesi', () => {
     })
 
     await loginAs('ayse.kaya@kurum.gov.tr')
-    const forwarded = await api.workflow.performAction({ recordId }, {
+    const forwarded = await api.workflow.performAction1({ recordId }, {
       action: 'BASKANA_ILET',
       comment: 'Başkan değerlendirmesine uygundur.',
     })
     expect(forwarded.newStatus).toBe('BASKAN_INCELEMESINDE')
 
     await loginAs('mehmet.demir@kurum.gov.tr')
-    const approved = await api.workflow.performAction({ recordId }, {
+    const approved = await api.workflow.performAction1({ recordId }, {
       action: 'ONAYLA',
       comment: 'Uygundur.',
     })

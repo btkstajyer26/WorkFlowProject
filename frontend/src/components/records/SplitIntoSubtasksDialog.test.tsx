@@ -107,8 +107,8 @@ describe('SplitIntoSubtasksDialog', () => {
     await waitFor(() => expect(receivedBody).toEqual({
       approvalPolicy: 'MAJORITY',
       subtasks: [
-        { title: 'Birinci inceleme', description: '', assigneeUserId: 'user-a' },
-        { title: 'İkinci inceleme', description: '', assigneeUserId: 'user-b' },
+        { title: 'Birinci inceleme', description: '', assignedTo: 'user-a' },
+        { title: 'İkinci inceleme', description: '', assignedTo: 'user-b' },
       ],
     }))
   })

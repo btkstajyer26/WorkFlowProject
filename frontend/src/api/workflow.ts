@@ -36,6 +36,9 @@ const recordStatuses: RecordStatus[] = [
   'DUZENLEME_BEKLIYOR',
   'ONAYLANDI',
   'REDDEDILDI',
+  // Parent/Subtask alt akışı (docs/PARENT_SUBTASK_GOREV_DAGILIMI.md).
+  'ALT_GOREV_BEKLIYOR',
+  'KONTROL',
 ]
 
 function invalidWorkflowResponse(): never {
@@ -47,7 +50,9 @@ function invalidWorkflowResponse(): never {
 }
 
 export async function performWorkflowAction(recordId: string, request: WorkflowActionRequest) {
-  const response = await api.workflow.performAction({ recordId }, request)
+  // `performAction1`: kod üretici, SubtaskController'ın kendi `performAction`
+  // metodundan ayırmak için otomatik böyle adlandırdı.
+  const response = await api.workflow.performAction1({ recordId }, request)
   if (
     response.recordId !== recordId ||
     response.action !== request.action ||

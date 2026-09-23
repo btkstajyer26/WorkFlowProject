@@ -11,8 +11,8 @@
  */
 
 import type {
-  PerformActionData,
-  PerformActionParams,
+  PerformAction1Data,
+  PerformAction1Params,
   WorkflowActionRequest,
 } from "./data-contracts";
 import { HttpClient } from "./http-client";
@@ -29,16 +29,16 @@ export class WorkflowActionController<SecurityDataType = unknown> {
    * No description
    *
    * @tags workflow-action-controller
-   * @name PerformAction
+   * @name PerformAction1
    * @request POST:/api/records/{recordId}/workflow/actions
    * @secure
    */
-  performAction = (
-    { recordId }: PerformActionParams,
+  performAction1 = (
+    { recordId }: PerformAction1Params,
     data: WorkflowActionRequest,
     params: RequestParams = {},
   ) =>
-    this.http.request<PerformActionData, any>({
+    this.http.request<PerformAction1Data, any>({
       path: `/api/records/${recordId}/workflow/actions`,
       method: "POST",
       body: data,

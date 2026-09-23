@@ -6,7 +6,7 @@ import { apiErrorResponse, unauthorizedResponse } from '../responses'
 
 type SplitRequestBody = {
   approvalPolicy?: 'UNANIMOUS' | 'MAJORITY'
-  subtasks?: { title?: string; description?: string; assigneeUserId?: string }[]
+  subtasks?: { title?: string; description?: string; assignedTo?: string }[]
 }
 
 function requiredApprovalsFor(policy: 'UNANIMOUS' | 'MAJORITY', count: number) {
@@ -70,10 +70,10 @@ export const subtaskHandlers = [
     if (!body.approvalPolicy || items.length < 2) {
       return apiErrorResponse(400, 'VALIDATION_ERROR', 'En az iki alt görev ve bir onay politikası gerekir')
     }
-    if (items.some((item) => !item.title?.trim() || !item.assigneeUserId)) {
+    if (items.some((item) => !item.title?.trim() || !item.assignedTo)) {
       return apiErrorResponse(400, 'VALIDATION_ERROR', 'Her alt görev için başlık ve atanan kişi zorunludur')
     }
-    const assigneeIds = items.map((item) => item.assigneeUserId)
+    const assigneeIds = items.map((item) => item.assignedTo)
     if (new Set(assigneeIds).size !== assigneeIds.length) {
       return apiErrorResponse(400, 'VALIDATION_ERROR', 'Aynı kişi birden fazla alt göreve atanamaz')
     }
@@ -84,7 +84,7 @@ export const subtaskHandlers = [
       parentRecordId: record.id,
       title: item.title!.trim(),
       description: item.description?.trim() ?? '',
-      assignedTo: item.assigneeUserId!,
+      assignedTo: item.assignedTo!,
       status: 'DEGERLENDIRME',
       resolutionComment: null,
       createdAt: now,

@@ -28,6 +28,13 @@ export interface AdminUserSearchCriteria {
   role?: string;
 }
 
+export type AssignableUsersData = SubtaskAssignableUsersResponse;
+
+export interface AssignableUsersParams {
+  /** @format uuid */
+  recordId: string;
+}
+
 export interface AssignmentView {
   /** @format int32 */
   departmentId?: number;
@@ -69,6 +76,8 @@ export interface AvailableActionView {
     | "GONDER"
     | "TEKRAR_GONDER"
     | "BASKANA_ILET"
+    | "ALT_GOREVLERE_AYIR"
+    | "ALT_GOREVLER_SONUCLANDI"
     | "CALISANA_GERI_GONDER"
     | "BASKAN_YARDIMCISINA_GERI_GONDER"
     | "ONAYLA"
@@ -94,6 +103,8 @@ export interface AvailableActionsResponse {
   status?:
     | "TASLAK"
     | "BSK_YRD_INCELEMESINDE"
+    | "ALT_GOREV_BEKLIYOR"
+    | "KONTROL"
     | "BASKAN_INCELEMESINDE"
     | "DUZENLEME_BEKLIYOR"
     | "ONAYLANDI"
@@ -374,6 +385,8 @@ export interface GetAllRecordsParams {
   status?:
     | "TASLAK"
     | "BSK_YRD_INCELEMESINDE"
+    | "ALT_GOREV_BEKLIYOR"
+    | "KONTROL"
     | "BASKAN_INCELEMESINDE"
     | "DUZENLEME_BEKLIYOR"
     | "ONAYLANDI"
@@ -411,6 +424,13 @@ export interface GetRolePermissionsParams {
 }
 
 export type GetUnreadData = NotificationResponse[];
+
+export type List1Data = SubtaskListResponse;
+
+export interface List1Params {
+  /** @format uuid */
+  recordId: string;
+}
 
 export type ListAuditLogsData = PagedResponseObject;
 
@@ -528,7 +548,13 @@ export interface NotificationResponse {
     | "RECORD_FORWARDED"
     | "RECORD_APPROVED"
     | "RECORD_REJECTED"
-    | "RECORD_RETURNED";
+    | "RECORD_RETURNED"
+    | "RECORD_SPLIT"
+    | "SUBTASKS_COMPLETED"
+    | "SUBTASK_ASSIGNED"
+    | "SUBTASK_UPDATED"
+    | "SUBTASK_COMPLETED"
+    | "SUBTASK_REJECTED";
   read?: boolean;
   /** @format uuid */
   recordId?: string;
@@ -596,11 +622,18 @@ export interface PagedResponseUserResponse {
   totalPages?: number;
 }
 
-export type PerformActionData = WorkflowActionResponse;
+export type PerformAction1Data = WorkflowActionResponse;
+
+export interface PerformAction1Params {
+  /** @format uuid */
+  recordId: string;
+}
+
+export type PerformActionData = SubtaskView;
 
 export interface PerformActionParams {
   /** @format uuid */
-  recordId: string;
+  subtaskId: string;
 }
 
 export interface PermissionResponse {
@@ -646,6 +679,8 @@ export interface RecordResponse {
   status?:
     | "TASLAK"
     | "BSK_YRD_INCELEMESINDE"
+    | "ALT_GOREV_BEKLIYOR"
+    | "KONTROL"
     | "BASKAN_INCELEMESINDE"
     | "DUZENLEME_BEKLIYOR"
     | "ONAYLANDI"
@@ -672,6 +707,8 @@ export interface RecordSearchResponse {
   status?:
     | "TASLAK"
     | "BSK_YRD_INCELEMESINDE"
+    | "ALT_GOREV_BEKLIYOR"
+    | "KONTROL"
     | "BASKAN_INCELEMESINDE"
     | "DUZENLEME_BEKLIYOR"
     | "ONAYLANDI"
@@ -755,6 +792,86 @@ export interface SetActiveParams {
 
 export interface SetActiveRequest {
   active: boolean;
+}
+
+export type SplitData = SubtaskSplitResponse;
+
+export interface SplitParams {
+  /** @format uuid */
+  recordId: string;
+}
+
+export interface SubtaskActionRequest {
+  action: "DEGERLENDIRMEYI_TAMAMLA" | "ISLEMI_TAMAMLA" | "ONAYLA" | "REDDET";
+  /**
+   * @minLength 0
+   * @maxLength 2000
+   */
+  comment?: string;
+}
+
+export interface SubtaskAssignableUserView {
+  fullName?: string;
+  /** @format uuid */
+  id?: string;
+}
+
+export interface SubtaskAssignableUsersResponse {
+  users?: SubtaskAssignableUserView[];
+}
+
+export interface SubtaskCreateItem {
+  /** @format uuid */
+  assignedTo: string;
+  description?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  title: string;
+}
+
+export interface SubtaskListResponse {
+  approvalPolicy?: "UNANIMOUS" | "MAJORITY";
+  /** @format int32 */
+  requiredApprovals?: number;
+  subtasks?: SubtaskView[];
+}
+
+export interface SubtaskSplitRequest {
+  approvalPolicy: "UNANIMOUS" | "MAJORITY";
+  /**
+   * @maxItems 2147483647
+   * @minItems 2
+   */
+  subtasks: SubtaskCreateItem[];
+}
+
+export interface SubtaskSplitResponse {
+  approvalPolicy?: "UNANIMOUS" | "MAJORITY";
+  /** @format uuid */
+  parentRecordId?: string;
+  /** @format int32 */
+  requiredApprovals?: number;
+  subtasks?: SubtaskView[];
+}
+
+export interface SubtaskView {
+  /** @format uuid */
+  assignedTo?: string;
+  assignedToName?: string;
+  /** @format date-time */
+  completedAt?: string;
+  /** @format date-time */
+  createdAt?: string;
+  description?: string;
+  /** @format uuid */
+  id?: string;
+  /** @format uuid */
+  parentRecordId?: string;
+  resolutionComment?: string;
+  status?: "DEGERLENDIRME" | "ISLEM" | "ONAY" | "TAMAMLANDI" | "REDDEDILDI";
+  title?: string;
 }
 
 export interface TargetDepartmentView {
@@ -939,6 +1056,8 @@ export interface WorkflowActionRequest {
     | "GONDER"
     | "TEKRAR_GONDER"
     | "BASKANA_ILET"
+    | "ALT_GOREVLERE_AYIR"
+    | "ALT_GOREVLER_SONUCLANDI"
     | "CALISANA_GERI_GONDER"
     | "BASKAN_YARDIMCISINA_GERI_GONDER"
     | "ONAYLA"
@@ -960,6 +1079,8 @@ export interface WorkflowActionResponse {
     | "GONDER"
     | "TEKRAR_GONDER"
     | "BASKANA_ILET"
+    | "ALT_GOREVLERE_AYIR"
+    | "ALT_GOREVLER_SONUCLANDI"
     | "CALISANA_GERI_GONDER"
     | "BASKAN_YARDIMCISINA_GERI_GONDER"
     | "ONAYLA"
@@ -971,6 +1092,8 @@ export interface WorkflowActionResponse {
   newStatus?:
     | "TASLAK"
     | "BSK_YRD_INCELEMESINDE"
+    | "ALT_GOREV_BEKLIYOR"
+    | "KONTROL"
     | "BASKAN_INCELEMESINDE"
     | "DUZENLEME_BEKLIYOR"
     | "ONAYLANDI"
@@ -982,6 +1105,8 @@ export interface WorkflowActionResponse {
   previousStatus?:
     | "TASLAK"
     | "BSK_YRD_INCELEMESINDE"
+    | "ALT_GOREV_BEKLIYOR"
+    | "KONTROL"
     | "BASKAN_INCELEMESINDE"
     | "DUZENLEME_BEKLIYOR"
     | "ONAYLANDI"
@@ -998,7 +1123,7 @@ export interface WorkflowActorBindingView {
   /** @format int32 */
   actionId?: number;
   active?: boolean;
-  actorRequirement?: "CREATOR" | "ASSIGNEE" | "CREATOR_AND_ASSIGNEE";
+  actorRequirement?: "CREATOR" | "ASSIGNEE" | "CREATOR_AND_ASSIGNEE" | "SYSTEM";
   /** @format int32 */
   actorRoleId?: number;
   actorRoleName?: string;

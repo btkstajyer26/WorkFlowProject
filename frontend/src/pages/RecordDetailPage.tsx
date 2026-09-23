@@ -140,7 +140,7 @@ function RecordDetailContent({
 
       <RecordActionPanel record={record} user={user} />
 
-      <RecordSubtasksPanel recordId={record.id} currentUserId={user.id} />
+      <RecordSubtasksPanel recordId={record.id} currentUserId={user.id} parentStatus={record.status} />
 
       <section className="rounded-xl border border-app-border bg-app-surface px-5 py-5 sm:px-6 sm:py-6">
         <div>

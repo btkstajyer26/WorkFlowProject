@@ -1,4 +1,4 @@
-import { CheckCircle2, CircleX, Clock3, FilePenLine, Send, type LucideIcon } from 'lucide-react'
+import { CheckCircle2, CircleX, Clock3, FilePenLine, Hourglass, Send, ShieldCheck, type LucideIcon } from 'lucide-react'
 import type { RecordStatus } from '../../types/record'
 
 type StatusMeta = {
@@ -37,5 +37,16 @@ export const recordStatusMeta: Record<RecordStatus, StatusMeta> = {
     label: 'Reddedildi',
     className: 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300',
     icon: CircleX,
+  },
+  // Parent/Subtask alt akışı (docs/PARENT_SUBTASK_GOREV_DAGILIMI.md).
+  ALT_GOREV_BEKLIYOR: {
+    label: 'Alt Görevler Bekleniyor',
+    className: 'bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300',
+    icon: Hourglass,
+  },
+  KONTROL: {
+    label: 'Kontrol',
+    className: 'bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300',
+    icon: ShieldCheck,
   },
 }

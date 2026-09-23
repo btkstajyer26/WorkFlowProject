@@ -5,6 +5,7 @@ import { useSingleFlight } from '../../hooks/useSingleFlight'
 import { usePerformSubtaskAction, useSubtasks } from '../../hooks/useSubtasks'
 import { useToast } from '../../context/toastState'
 import type { Subtask, SubtaskActionCode } from '../../types/subtask'
+import type { WorkflowRecord } from '../../types/record'
 import { isSubtaskResolved } from './subtaskStatus'
 import { SubtaskStatusBadge } from './SubtaskStatusBadge'
 
@@ -42,7 +43,15 @@ function actionsFor(status: Subtask['status']): RowAction[] {
  * gizlenmiyor - "Parent'ın hangi alt görevleri beklediği görülebilmeli"
  * kabul kriterine göre her zaman açık.
  */
-export function RecordSubtasksPanel({ recordId, currentUserId }: { recordId: string; currentUserId: string }) {
+export function RecordSubtasksPanel({
+  recordId,
+  currentUserId,
+  parentStatus,
+}: {
+  recordId: string
+  currentUserId: string
+  parentStatus: WorkflowRecord['status']
+}) {
   const subtasksQuery = useSubtasks(recordId)
   const performAction = usePerformSubtaskAction(recordId)
   const { showToast } = useToast()
@@ -56,6 +65,11 @@ export function RecordSubtasksPanel({ recordId, currentUserId }: { recordId: str
   const requiredApprovals = subtasksQuery.data?.requiredApprovals ?? null
   const approvalPolicy = subtasksQuery.data?.approvalPolicy ?? null
   const resolvedCount = subtasks.filter((item) => isSubtaskResolved(item.status)).length
+  // Backend, Parent'la yalniz alt-gorev-atamasi uzerinden iliskisi olan bir aktore
+  // (ornegin bir Calisan'a) sadece kendi alt gorevini ve politika alanlarini null
+  // dondurur (bkz. SubtaskQueryService.list). Diger alt gorevlerin sayisini,
+  // atandigi kisileri veya durumlarini bu aktore hic gostermiyoruz.
+  const isRestrictedToOwnSubtask = approvalPolicy === null
 
   const openRowAction = (subtask: Subtask, rowAction: RowAction) => {
     setComment('')
@@ -100,10 +114,12 @@ export function RecordSubtasksPanel({ recordId, currentUserId }: { recordId: str
             <ListTodo className="size-4.5 shrink-0" aria-hidden="true" />
             Alt Görevler
           </h2>
-          <p className="mt-1 text-sm leading-5 text-app-text-muted">
-            {subtasks.length} alt görevden {resolvedCount} tanesi sonuçlandı.
-            {approvalPolicy ? ` Politika: ${approvalPolicyLabel[approvalPolicy]}${requiredApprovals ? ` (en az ${requiredApprovals} onay)` : ''}.` : ''}
-          </p>
+          {!isRestrictedToOwnSubtask ? (
+            <p className="mt-1 text-sm leading-5 text-app-text-muted">
+              {subtasks.length} alt görevden {resolvedCount} tanesi sonuçlandı.
+              {approvalPolicy ? ` Politika: ${approvalPolicyLabel[approvalPolicy]}${requiredApprovals ? ` (en az ${requiredApprovals} onay)` : ''}.` : ''}
+            </p>
+          ) : null}
         </div>
       </div>
 
@@ -138,10 +154,17 @@ export function RecordSubtasksPanel({ recordId, currentUserId }: { recordId: str
         <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-200" role="status">
           <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           <p>
-            Tüm alt görevler sonuçlandı ({subtasks.filter((item) => item.status === 'TAMAMLANDI').length} onaylandı,{' '}
-            {subtasks.filter((item) => item.status === 'REDDEDILDI').length} reddedildi). Kayıt normalde şimdi
-            otomatik olarak bir sonraki adıma (KONTROL) ilerler; bu otomatik ilerleme backend'de henüz
-            kurulmadığı için ekranda bir değişiklik görmeyeceksin.
+            {isRestrictedToOwnSubtask
+              ? 'İşleminiz Başkan Yardımcısının incelemesine sunuldu.'
+              : (
+                <>
+                  Tüm alt görevler sonuçlandı ({subtasks.filter((item) => item.status === 'TAMAMLANDI').length} onaylandı,{' '}
+                  {subtasks.filter((item) => item.status === 'REDDEDILDI').length} reddedildi).{' '}
+                  {parentStatus === 'KONTROL'
+                    ? 'Kayıt Kontrol aşamasında; yukarıdaki işlem panelinden Başkana iletebilirsin.'
+                    : 'Kayıt bir sonraki adıma (Kontrol) ilerliyor.'}
+                </>
+              )}
           </p>
         </div>
       ) : null}

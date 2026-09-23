@@ -31,7 +31,7 @@ export type SubtaskListResponse = {
 export type SplitIntoSubtasksItem = {
   title: string
   description: string
-  assigneeUserId: string
+  assignedTo: string
 }
 
 export type SplitIntoSubtasksRequest = {

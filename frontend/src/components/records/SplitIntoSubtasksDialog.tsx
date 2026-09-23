@@ -94,7 +94,7 @@ export function SplitIntoSubtasksDialog({
         subtasks: trimmed.map((draft) => ({
           title: draft.title,
           description: draft.description,
-          assigneeUserId: draft.assigneeUserId,
+          assignedTo: draft.assigneeUserId,
         })),
       })
       showToast({ title: 'Kayıt alt görevlere bölündü', description: `${trimmed.length} alt görev oluşturuldu.`, tone: 'success' })

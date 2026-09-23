@@ -66,6 +66,8 @@ const actionDisplayNames: Record<NonNullable<WorkflowAction>, string> = {
   ONAYLA: 'Onayla',
   REDDET: 'Reddet',
   DEPARTMANA_GONDER: 'Departmana Gönder',
+  ALT_GOREVLERE_AYIR: 'Alt Görevlere Ayır',
+  ALT_GOREVLER_SONUCLANDI: 'Alt Görevler Sonuçlandı',
 }
 
 function resolveTarget(record: StoredMockRecord, request: WorkflowActionRequest) {
@@ -123,8 +125,8 @@ export const workflowHandlers = [
     if (record.status === 'BSK_YRD_INCELEMESINDE' && actor.role === 'BASKAN_YARDIMCISI' &&
       actorMatches(record, actor.id, 'ASSIGNEE') && !alreadySplit) {
       actions.push({
-        action: 'ALT_GOREVLERE_AYIR' as AvailableActionView['action'],
-        displayName: 'Alt Görevlere Ayır',
+        action: 'ALT_GOREVLERE_AYIR',
+        displayName: actionDisplayNames.ALT_GOREVLERE_AYIR,
         commentRequired: false,
         targetDepartmentRequired: false,
         targetUserRequired: false,
