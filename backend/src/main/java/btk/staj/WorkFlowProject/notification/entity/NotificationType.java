@@ -18,7 +18,37 @@ public enum NotificationType {
     RECORD_REJECTED,
 
     /** Evrak duzeltme icin geri gonderildi. */
-    RECORD_RETURNED;
+    RECORD_RETURNED,
+
+    /** Parent kayit alt gorevlere ayrildi. */
+    RECORD_SPLIT,
+
+    /** Parent kaydin butun alt gorevleri sonuclandi. */
+    SUBTASKS_COMPLETED,
+
+    /** Kullaniciya yeni bir alt gorev atandi. */
+    SUBTASK_ASSIGNED,
+
+    /** Alt gorev ara durumda ilerledi. */
+    SUBTASK_UPDATED,
+
+    /** Alt gorev onaylanarak tamamlandi. */
+    SUBTASK_COMPLETED,
+
+    /** Alt gorev reddedilerek sonuclandi. */
+    SUBTASK_REJECTED;
+
+    /**
+     * Her workflow aksiyonu icin bildirim davranisi tanimlidir.
+     */
+    public static boolean supports(WorkflowAction action) {
+        return switch (action) {
+            case ALT_GOREVLERE_AYIR, ALT_GOREVLER_SONUCLANDI,
+                    GONDER, TEKRAR_GONDER, DEPARTMANA_GONDER, BASKANA_ILET,
+                    ONAYLA, REDDET, CALISANA_GERI_GONDER,
+                    BASKAN_YARDIMCISINA_GERI_GONDER -> true;
+        };
+    }
 
     public static NotificationType of(WorkflowAction action) {
         return switch (action) {
@@ -27,6 +57,8 @@ public enum NotificationType {
             case ONAYLA -> RECORD_APPROVED;
             case REDDET -> RECORD_REJECTED;
             case CALISANA_GERI_GONDER, BASKAN_YARDIMCISINA_GERI_GONDER -> RECORD_RETURNED;
+            case ALT_GOREVLERE_AYIR -> RECORD_SPLIT;
+            case ALT_GOREVLER_SONUCLANDI -> SUBTASKS_COMPLETED;
         };
     }
 }

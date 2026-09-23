@@ -111,7 +111,7 @@ public class MailActionTokenService {
             case BSK_YRD_INCELEMESINDE -> Optional.of(WorkflowAction.BASKANA_ILET);
             case BASKAN_INCELEMESINDE -> Optional.of(WorkflowAction.ONAYLA);
             case DUZENLEME_BEKLIYOR -> Optional.of(WorkflowAction.TEKRAR_GONDER);
-            case TASLAK, ONAYLANDI, REDDEDILDI -> Optional.empty();
+            case TASLAK, ALT_GOREV_BEKLIYOR, KONTROL, ONAYLANDI, REDDEDILDI -> Optional.empty();
         };
     }
 

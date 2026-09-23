@@ -5,7 +5,7 @@ import java.util.Optional;
 
 /** Built-in behavior keys only; dynamic roles are identified by roles.id. */
 public enum SystemRoleKey {
-    CALISAN, BASKAN_YARDIMCISI, BASKAN, ADMIN;
+    CALISAN, BASKAN_YARDIMCISI, BASKAN, SISTEM, ADMIN;
 
     public boolean matches(Role role) {
         return role != null && name().equals(role.getSystemKey());

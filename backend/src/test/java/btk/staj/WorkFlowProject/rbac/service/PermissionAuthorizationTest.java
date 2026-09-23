@@ -52,7 +52,7 @@ class PermissionAuthorizationTest {
                 .isEqualTo(TransitionDecision.rejected(WorkflowErrorCode.WORKFLOW_INVALID_TRANSITION));
     }
 
-    @Test void activeRuleCannotOmitPermissionMetadata() {
+    @Test void activeHumanRuleCannotOmitPermissionMetadata() {
         for (String code : Arrays.asList(null, "", " ")) {
             assertThatThrownBy(() -> new DbTransitionRuleSource(() -> List.of(new TransitionRuleRecord(
                     "BASKAN_INCELEMESINDE",
@@ -66,6 +66,92 @@ class PermissionAuthorizationTest {
                     .isInstanceOf(TransitionRuleConfigurationException.class)
                     .hasMessageContaining("requiredPermissionCode");
         }
+    }
+
+    @Test void systemRuleMayOmitPermissionButStillRejectsBlankMetadata() {
+        assertThatCode(() -> new TransitionRule(
+                RecordStatus.ALT_GOREV_BEKLIYOR,
+                WorkflowAction.ALT_GOREVLER_SONUCLANDI,
+                WorkflowRoleFixtures.id(RoleName.SISTEM),
+                ActorRequirement.SYSTEM,
+                RecordStatus.KONTROL,
+                TargetStrategy.NONE,
+                null,
+                null)).doesNotThrowAnyException();
+
+        assertThatCode(() -> new TransitionRule(
+                RecordStatus.ALT_GOREV_BEKLIYOR,
+                WorkflowAction.ALT_GOREVLER_SONUCLANDI,
+                WorkflowRoleFixtures.id(RoleName.SISTEM),
+                ActorRequirement.SYSTEM,
+                RecordStatus.KONTROL,
+                TargetStrategy.NONE,
+                null,
+                "SYSTEM_EXECUTE")).doesNotThrowAnyException();
+
+        assertThatThrownBy(() -> new TransitionRule(
+                RecordStatus.ALT_GOREV_BEKLIYOR,
+                WorkflowAction.ALT_GOREVLER_SONUCLANDI,
+                WorkflowRoleFixtures.id(RoleName.SISTEM),
+                ActorRequirement.SYSTEM,
+                RecordStatus.KONTROL,
+                TargetStrategy.NONE,
+                null,
+                " ")).isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("requiredPermissionCode");
+    }
+
+    @Test void systemRuleWithPermissionStillRequiresThatPermission() {
+        TransitionRuleSource source = new DbTransitionRuleSource(() -> List.of(new TransitionRuleRecord(
+                "ALT_GOREV_BEKLIYOR",
+                "ALT_GOREVLER_SONUCLANDI",
+                WorkflowRoleFixtures.value(RoleName.SISTEM),
+                "SYSTEM",
+                "KONTROL",
+                "NONE",
+                null,
+                "SYSTEM_EXECUTE")));
+        WorkflowTransitionValidator systemValidator = new WorkflowTransitionValidator(source);
+
+        TransitionContext withoutPermission = new TransitionContext(
+                RecordStatus.ALT_GOREV_BEKLIYOR,
+                WorkflowAction.ALT_GOREVLER_SONUCLANDI,
+                WorkflowRoleFixtures.id(RoleName.SISTEM),
+                false,
+                false,
+                null,
+                false,
+                false,
+                null,
+                false,
+                true,
+                Set.of(),
+                false,
+                false,
+                false,
+                Set.of());
+        TransitionContext withPermission = new TransitionContext(
+                RecordStatus.ALT_GOREV_BEKLIYOR,
+                WorkflowAction.ALT_GOREVLER_SONUCLANDI,
+                WorkflowRoleFixtures.id(RoleName.SISTEM),
+                false,
+                false,
+                null,
+                false,
+                false,
+                null,
+                false,
+                true,
+                Set.of("SYSTEM_EXECUTE"),
+                false,
+                false,
+                false,
+                Set.of());
+
+        assertThat(systemValidator.validate(withoutPermission))
+                .isEqualTo(TransitionDecision.rejected(WorkflowErrorCode.WORKFLOW_FORBIDDEN));
+        assertThat(systemValidator.validate(withPermission))
+                .isEqualTo(TransitionDecision.allowed(RecordStatus.KONTROL));
     }
 
     @Test void createEditDeleteAreIndependentCapabilities() {

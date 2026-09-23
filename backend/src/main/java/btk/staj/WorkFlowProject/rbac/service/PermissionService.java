@@ -137,12 +137,12 @@ public class PermissionService {
 
     private boolean isTransitionDefined(RecordStatus from, WorkflowAction action, RoleId roleId, Set<String> permissions) {
         return ruleSource.find(from, action, roleId)
-                .filter(rule -> permissions.contains(rule.requiredPermissionCode())).isPresent();
+                .filter(rule -> rule.hasRequiredPermission(permissions)).isPresent();
     }
 
     private boolean hasAnyTransition(WorkflowAction action, RoleId roleId, Set<String> permissions) {
         return ruleSource.all().stream()
                 .anyMatch(rule -> rule.action() == action && rule.actorRoleId().equals(roleId)
-                        && permissions.contains(rule.requiredPermissionCode()));
+                        && rule.hasRequiredPermission(permissions));
     }
 }

@@ -34,7 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class WorkflowRuleReloadIntegrationTest {
 
     private static final String RELOAD_URL = "/api/workflow/rules/reload";
-    private static final int SEEDED_RULE_COUNT = 10;
+    private static final int SEEDED_RULE_COUNT = 13;
 
     @Autowired
     private MockMvc mockMvc;
@@ -127,6 +127,24 @@ class WorkflowRuleReloadIntegrationTest {
                     + " AND t.target_strategy = 'CREATOR' AND t.required_permission_id IS NULL");
             reloadDirectly();
         }
+    }
+
+    @Test
+    @DisplayName("SYSTEM gecisi null permission ile snapshot'a yuklenir")
+    void systemRuleWithoutPermissionIsLoaded() {
+        assertThat(((ReloadableTransitionRuleSource) ruleSource).reload())
+                .isEqualTo(SEEDED_RULE_COUNT);
+        assertThat(ruleSource.find(
+                btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus.ALT_GOREV_BEKLIYOR,
+                btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction.ALT_GOREVLER_SONUCLANDI,
+                new btk.staj.WorkFlowProject.workflow.statemachine.RoleId(jdbc.queryForObject(
+                        "SELECT id FROM roles WHERE system_key = 'SISTEM'", Integer.class))))
+                .get()
+                .satisfies(rule -> {
+                    assertThat(rule.actorRequirement())
+                            .isEqualTo(btk.staj.WorkFlowProject.workflow.statemachine.ActorRequirement.SYSTEM);
+                    assertThat(rule.requiredPermissionCode()).isNull();
+                });
     }
 
     /** Paylasilan bean'i temiz birakmak icin; HTTP katmanindan gecmeye gerek yok. */

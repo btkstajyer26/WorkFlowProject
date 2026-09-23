@@ -28,7 +28,8 @@ class WorkflowTransitionValidatorTest {
     @Test
     void equalRoleIdsInDifferentObjectsMatchActorAndTarget() {
         var ids = java.util.Map.of(RoleName.CALISAN, new RoleId(1001),
-                RoleName.BASKAN_YARDIMCISI, new RoleId(2002), RoleName.BASKAN, new RoleId(3003));
+                RoleName.BASKAN_YARDIMCISI, new RoleId(2002), RoleName.BASKAN, new RoleId(3003),
+                RoleName.SISTEM, new RoleId(5005), RoleName.ADMIN, new RoleId(4004));
         var source = new StaticTransitionRuleSource(ids);
         var context = new TransitionContext(RecordStatus.TASLAK, WorkflowAction.GONDER,
                 new RoleId(1001), true, false, null, false, false, new RoleId(2002), true,
@@ -42,12 +43,45 @@ class WorkflowTransitionValidatorTest {
     }
 
     // ------------------------------------------------------------------
-    // Pozitif gecisler - gecis matrisindeki sekiz satir
+    // Pozitif gecis ornekleri
     // ------------------------------------------------------------------
 
     @Nested
     @DisplayName("izinli gecisler")
     class AllowedTransitions {
+
+        @Test
+        @DisplayName("Atanmis Baskan Yardimcisi Parent kaydi alt gorevlere ayirabilir")
+        void deputyMaySplitParentRecord() {
+            TransitionContext context = Ctx.of(
+                    RecordStatus.BSK_YRD_INCELEMESINDE,
+                    WorkflowAction.ALT_GOREVLERE_AYIR,
+                    RoleName.BASKAN_YARDIMCISI).assignee().build();
+
+            assertAllowed(context, RecordStatus.ALT_GOREV_BEKLIYOR);
+        }
+
+        @Test
+        @DisplayName("SISTEM aktoru ek capability olmadan Parent join gecisini yapabilir")
+        void systemActorCompletesParentJoinWithoutCapabilityPermission() {
+            TransitionContext context = Ctx.of(
+                    RecordStatus.ALT_GOREV_BEKLIYOR,
+                    WorkflowAction.ALT_GOREVLER_SONUCLANDI,
+                    RoleName.SISTEM).build();
+
+            assertAllowed(context, RecordStatus.KONTROL);
+        }
+
+        @Test
+        @DisplayName("normal insan rolu SYSTEM gecisini yapamaz")
+        void humanRoleCannotUseSystemTransition() {
+            TransitionContext context = Ctx.of(
+                    RecordStatus.ALT_GOREV_BEKLIYOR,
+                    WorkflowAction.ALT_GOREVLER_SONUCLANDI,
+                    RoleName.BASKAN_YARDIMCISI).assignee().build();
+
+            assertRejected(context, WorkflowErrorCode.WORKFLOW_INVALID_TRANSITION);
+        }
 
         @Test
         @DisplayName("Calisan kendi taslagini Baskan Yardimcisina gonderebilir")
@@ -506,7 +540,8 @@ class WorkflowTransitionValidatorTest {
         private final List<Boolean> bayraklar = List.of(true, false);
         private final List<String> aciklamalar = Arrays.asList(null, "", "   ", "aciklama");
         private final List<RoleName> hedefRolleri = Arrays.asList(
-                null, RoleName.CALISAN, RoleName.BASKAN_YARDIMCISI, RoleName.BASKAN, RoleName.ADMIN);
+                null, RoleName.CALISAN, RoleName.BASKAN_YARDIMCISI, RoleName.BASKAN,
+                RoleName.SISTEM, RoleName.ADMIN);
 
         @Test
         @DisplayName("hicbir girdi birlesimi WORKFLOW_VERSION_CONFLICT uretmez")
@@ -520,7 +555,7 @@ class WorkflowTransitionValidatorTest {
         }
 
         @Test
-        @DisplayName("izinli gecis sayisi departman gonderimi eklendikten sonra ondur")
+        @DisplayName("izinli gecis sayisi Parent/Subtask gecisleriyle on uctur")
         void izinliGecisSayisiDegismedi() {
             long izinliBirlesimSayisi = 0;
 
@@ -534,8 +569,9 @@ class WorkflowTransitionValidatorTest {
                 }
             }
 
-            // 8 yerlesik gecis + ADR-0006 ile eklenen iki DEPARTMANA_GONDER satiri.
-        assertThat(izinliBirlesimSayisi).isEqualTo(10);
+            // 8 yerlesik + 2 departman + ADR-0010 ile 3 Parent/Subtask gecisi (ayirma,
+            // sistem join'i, V27'deki Kontrol'den Baskana iletme).
+        assertThat(izinliBirlesimSayisi).isEqualTo(13);
         }
 
         private List<WorkflowErrorCode> tumBirlesimlerinRetKodlari() {

@@ -81,6 +81,9 @@ public class WorkflowStatusChangedListener {
 
     @EventListener
     public void createInAppNotification(WorkflowStatusChangedEvent event) {
+        if (!NotificationType.supports(event.action())) {
+            return;
+        }
         Set<UUID> recipients = recipientsOf(event);
         if (recipients.isEmpty()) {
             return;
@@ -100,6 +103,9 @@ public class WorkflowStatusChangedListener {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void sendMail(WorkflowStatusChangedEvent event) {
+        if (!NotificationType.supports(event.action())) {
+            return;
+        }
         Set<UUID> recipients = recipientsOf(event);
         if (recipients.isEmpty()) {
             return;
@@ -220,6 +226,11 @@ public class WorkflowStatusChangedListener {
             recipients.add(record.getCreatedBy());
         }
 
+        if (event.action() == WorkflowAction.ALT_GOREVLERE_AYIR
+                || event.action() == WorkflowAction.ALT_GOREVLER_SONUCLANDI) {
+            return recipients;
+        }
+
         if (record.getLastDeputyId() != null) {
             recipients.add(record.getLastDeputyId());
         }
@@ -244,6 +255,10 @@ public class WorkflowStatusChangedListener {
             case RECORD_APPROVED -> "Evrağınız onaylandı";
             case RECORD_REJECTED -> "Evrağınız reddedildi";
             case RECORD_RETURNED -> "Evrağınız düzeltme için geri gönderildi";
+            case RECORD_SPLIT -> "Evrağınız alt görevlere ayrıldı";
+            case SUBTASKS_COMPLETED -> "Evrağınızın alt görevleri sonuçlandı";
+            case SUBTASK_ASSIGNED, SUBTASK_UPDATED, SUBTASK_COMPLETED, SUBTASK_REJECTED ->
+                    throw new IllegalArgumentException("Subtask notification type is not a workflow action");
         };
 
         if (event.comment() == null || event.comment().isBlank()) {

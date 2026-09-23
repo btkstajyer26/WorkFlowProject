@@ -358,6 +358,134 @@
         }
       }
     },
+    "/api/records/{recordId}/subtasks/split" : {
+      "post" : {
+        "tags" : [ "subtask-controller" ],
+        "operationId" : "split",
+        "parameters" : [ {
+          "name" : "recordId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SubtaskSplitRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SubtaskSplitResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/records/{recordId}/subtasks" : {
+      "get" : {
+        "tags" : [ "subtask-controller" ],
+        "operationId" : "listSubtasks",
+        "parameters" : [ {
+          "name" : "recordId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SubtaskListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/records/{recordId}/subtasks/assignable-users" : {
+      "get" : {
+        "tags" : [ "subtask-controller" ],
+        "operationId" : "assignableUsers",
+        "parameters" : [ {
+          "name" : "recordId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SubtaskAssignableUsersResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/subtasks/{subtaskId}/actions" : {
+      "post" : {
+        "tags" : [ "subtask-controller" ],
+        "operationId" : "performSubtaskAction",
+        "parameters" : [ {
+          "name" : "subtaskId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SubtaskActionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SubtaskView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/records/{recordId}/workflow/available-actions" : {
       "get" : {
         "tags" : [ "workflow-query-controller" ],
@@ -1739,6 +1867,176 @@
         },
         "required" : [ "categoryId", "description", "title" ]
       },
+      "SubtaskCreateItem" : {
+        "type" : "object",
+        "properties" : {
+          "title" : {
+            "type" : "string",
+            "maxLength" : 255,
+            "minLength" : 1
+          },
+          "description" : {
+            "type" : [ "string", "null" ]
+          },
+          "assignedTo" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "title", "assignedTo" ]
+      },
+      "SubtaskSplitRequest" : {
+        "type" : "object",
+        "properties" : {
+          "approvalPolicy" : {
+            "type" : "string",
+            "enum" : [ "UNANIMOUS", "MAJORITY" ]
+          },
+          "subtasks" : {
+            "type" : "array",
+            "minItems" : 2,
+            "items" : {
+              "$ref" : "#/components/schemas/SubtaskCreateItem"
+            }
+          }
+        },
+        "required" : [ "approvalPolicy", "subtasks" ]
+      },
+      "SubtaskActionRequest" : {
+        "type" : "object",
+        "properties" : {
+          "action" : {
+            "type" : "string",
+            "enum" : [ "DEGERLENDIRMEYI_TAMAMLA", "ISLEMI_TAMAMLA", "ONAYLA", "REDDET" ]
+          },
+          "comment" : {
+            "type" : [ "string", "null" ],
+            "maxLength" : 2000
+          }
+        },
+        "required" : [ "action" ]
+      },
+      "SubtaskView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "parentRecordId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : [ "string", "null" ]
+          },
+          "assignedTo" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "assignedToName" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "DEGERLENDIRME", "ISLEM", "ONAY", "TAMAMLANDI", "REDDEDILDI" ]
+          },
+          "resolutionComment" : {
+            "type" : [ "string", "null" ]
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "completedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "id", "parentRecordId", "title", "description", "assignedTo", "assignedToName", "status", "resolutionComment", "createdAt", "completedAt" ]
+      },
+      "SubtaskSplitResponse" : {
+        "type" : "object",
+        "properties" : {
+          "parentRecordId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "approvalPolicy" : {
+            "type" : "string",
+            "enum" : [ "UNANIMOUS", "MAJORITY" ]
+          },
+          "requiredApprovals" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 1
+          },
+          "subtasks" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SubtaskView"
+            }
+          }
+        },
+        "required" : [ "parentRecordId", "approvalPolicy", "requiredApprovals", "subtasks" ]
+      },
+      "SubtaskListResponse" : {
+        "type" : "object",
+        "properties" : {
+          "approvalPolicy" : {
+            "oneOf" : [ {
+              "type" : "string",
+              "enum" : [ "UNANIMOUS", "MAJORITY" ]
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "requiredApprovals" : {
+            "oneOf" : [ {
+              "type" : "integer",
+              "format" : "int32",
+              "minimum" : 1
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "subtasks" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SubtaskView"
+            }
+          }
+        },
+        "required" : [ "approvalPolicy", "requiredApprovals", "subtasks" ]
+      },
+      "SubtaskAssignableUserView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "fullName" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "fullName" ]
+      },
+      "SubtaskAssignableUsersResponse" : {
+        "type" : "object",
+        "properties" : {
+          "users" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SubtaskAssignableUserView"
+            }
+          }
+        },
+        "required" : [ "users" ]
+      },
       "WorkflowActionRequest" : {
         "type" : "object",
         "properties" : {
@@ -2316,7 +2614,7 @@
           },
           "notificationType" : {
             "type" : "string",
-            "enum" : [ "RECORD_SUBMITTED", "RECORD_FORWARDED", "RECORD_APPROVED", "RECORD_REJECTED", "RECORD_RETURNED" ]
+            "enum" : [ "RECORD_SUBMITTED", "RECORD_FORWARDED", "RECORD_APPROVED", "RECORD_REJECTED", "RECORD_RETURNED", "RECORD_SPLIT", "SUBTASKS_COMPLETED", "SUBTASK_ASSIGNED", "SUBTASK_UPDATED", "SUBTASK_COMPLETED", "SUBTASK_REJECTED" ]
           },
           "read" : {
             "type" : "boolean"

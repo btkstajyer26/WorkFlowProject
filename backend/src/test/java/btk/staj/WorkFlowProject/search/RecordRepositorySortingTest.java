@@ -94,7 +94,7 @@ class RecordRepositorySortingTest {
         Page<Record> result = recordRepository.findAll(
                 RecordSpecifications.withFilters(
                         criteria,
-                        new btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy(actor -> java.util.Set.of()).scopeFor(visibility(RoleName.CALISAN, userId))),
+                        new btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy(actor -> java.util.Set.of(), (recordId, actorId) -> false).scopeFor(visibility(RoleName.CALISAN, userId))),
                 pageable);
 
         // Assert

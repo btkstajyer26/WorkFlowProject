@@ -14,7 +14,8 @@ public final class WorkflowRoleFixtures {
             RoleName.CALISAN, new RoleId(1),
             RoleName.BASKAN_YARDIMCISI, new RoleId(2),
             RoleName.BASKAN, new RoleId(3),
-            RoleName.ADMIN, new RoleId(4));
+            RoleName.ADMIN, new RoleId(4),
+            RoleName.SISTEM, new RoleId(5));
 
     private WorkflowRoleFixtures() { }
 

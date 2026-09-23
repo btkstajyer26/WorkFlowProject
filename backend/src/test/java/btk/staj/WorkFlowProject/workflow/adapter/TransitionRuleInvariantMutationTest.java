@@ -43,7 +43,7 @@ class TransitionRuleInvariantMutationTest {
         TransitionRuleInvariants.assertNoRuleAssignedTo(source, WorkflowRoleFixtures.id(RoleName.ADMIN));
         TransitionRuleInvariants.assertTargetStrategyAndExpectedRoleAgree(source);
 
-        assertThat(source.all()).hasSize(10);
+        assertThat(source.all()).hasSize(13);
     }
 
     @Test

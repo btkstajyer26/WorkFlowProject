@@ -59,7 +59,7 @@ public class WorkflowTransitionValidator {
 
         // 4. Aktor iliskisi ve gecisin gerekli permission'i birlikte saglanmali.
         if (!rule.get().actorRequirement().isSatisfiedBy(context.actorIsCreator(), context.actorHoldsAssignment())
-                || !context.actorPermissionCodes().contains(rule.get().requiredPermissionCode())) {
+                || !rule.get().hasRequiredPermission(context.actorPermissionCodes())) {
             return TransitionDecision.rejected(WorkflowErrorCode.WORKFLOW_FORBIDDEN);
         }
 
@@ -142,9 +142,11 @@ public class WorkflowTransitionValidator {
         return snapshot.all().stream()
                 .filter(candidate -> candidate.from() == rule.to())
                 .filter(candidate -> candidate.actorRoleId().equals(context.targetRoleId()))
+                // SYSTEM gecisleri insan hedef/atama uygunlugunun kaniti degildir.
+                .filter(candidate -> candidate.actorRequirement() != ActorRequirement.SYSTEM)
                 .anyMatch(candidate ->
                         context.targetPermissionCodes().contains("RECORD_VIEW")
-                                && context.targetPermissionCodes().contains(candidate.requiredPermissionCode())
+                                && candidate.hasRequiredPermission(context.targetPermissionCodes())
                                 // Gecisin yaratacagi atama hedefin uzerindedir, bu yuzden
                                 // assignment kosulu tanim geregi saglanir.
                                 && candidate.actorRequirement()

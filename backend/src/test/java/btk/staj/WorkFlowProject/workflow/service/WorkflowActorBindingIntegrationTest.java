@@ -191,6 +191,16 @@ class WorkflowActorBindingIntegrationTest {
         assertReason(() -> bindings.unbind(Integer.MAX_VALUE), BINDING_NOT_FOUND);
     }
 
+    @Test
+    void systemRequirementCannotBeCopiedToADynamicHumanRole() {
+        int systemTemplate = template("ALT_GOREV_BEKLIYOR", "ALT_GOREVLER_SONUCLANDI");
+
+        assertReason(() -> bindings.bind(systemTemplate, roleId), INVALID_TEMPLATE);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM workflow_transitions "
+                + "WHERE actor_role_id = ? AND actor_requirement = 'SYSTEM'", Integer.class, roleId))
+                .isZero();
+    }
+
     @ParameterizedTest
     @NullSource
     @ValueSource(ints = {0, -1})
