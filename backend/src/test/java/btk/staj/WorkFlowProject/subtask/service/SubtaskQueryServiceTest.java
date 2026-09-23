@@ -2,9 +2,11 @@ package btk.staj.WorkFlowProject.subtask.service;
 
 import btk.staj.WorkFlowProject.auth.security.CurrentVisibilityActorProvider;
 import btk.staj.WorkFlowProject.auth.security.VisibilityActor;
+import btk.staj.WorkFlowProject.rbac.Role;
 import btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
+import btk.staj.WorkFlowProject.subtask.dto.SubtaskAssignableUsersResponse;
 import btk.staj.WorkFlowProject.subtask.dto.SubtaskListResponse;
 import btk.staj.WorkFlowProject.subtask.dto.SubtaskView;
 import btk.staj.WorkFlowProject.subtask.entity.Subtask;
@@ -12,6 +14,8 @@ import btk.staj.WorkFlowProject.subtask.mapper.SubtaskViewMapper;
 import btk.staj.WorkFlowProject.subtask.model.SubtaskApprovalPolicy;
 import btk.staj.WorkFlowProject.subtask.model.SubtaskStatus;
 import btk.staj.WorkFlowProject.subtask.repository.SubtaskRepository;
+import btk.staj.WorkFlowProject.user.entity.User;
+import btk.staj.WorkFlowProject.user.repository.UserRepository;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleId;
 import java.util.List;
 import java.util.Optional;
@@ -40,6 +44,7 @@ class SubtaskQueryServiceTest {
 
     @Mock private RecordRepository records;
     @Mock private SubtaskRepository subtasks;
+    @Mock private UserRepository users;
     @Mock private SubtaskViewMapper mapper;
     @Mock private RecordAccessPolicy recordAccessPolicy;
     @Mock private CurrentVisibilityActorProvider visibilityActorProvider;
@@ -51,10 +56,11 @@ class SubtaskQueryServiceTest {
         service = new SubtaskQueryService(
                 records,
                 subtasks,
+                users,
                 mapper,
                 recordAccessPolicy,
                 visibilityActorProvider);
-        when(visibilityActorProvider.currentVisibilityActor()).thenReturn(ACTOR);
+        org.mockito.Mockito.lenient().when(visibilityActorProvider.currentVisibilityActor()).thenReturn(ACTOR);
     }
 
     @Test
@@ -89,6 +95,47 @@ class SubtaskQueryServiceTest {
         assertThat(response.subtasks()).isEmpty();
         verify(recordAccessPolicy).assertCanView(ACTOR, parent);
         verify(subtasks, never()).findAllByParentRecord_IdOrderByCreatedAtAscIdAsc(PARENT_ID);
+    }
+
+    @Test
+    void assignableUsersChecksParentVisibilityAndMapsFullNames() {
+        Record parent = parent(null, null);
+        when(records.findByIdAndDeletedAtIsNull(PARENT_ID)).thenReturn(Optional.of(parent));
+        User first = user("Ada", "Lovelace");
+        User second = user("Grace", "Hopper");
+        when(users.findAssignableSubtaskCandidates("SISTEM")).thenReturn(List.of(first, second));
+
+        SubtaskAssignableUsersResponse response = service.assignableUsers(PARENT_ID);
+
+        assertThat(response.users()).hasSize(2);
+        assertThat(response.users().get(0).id()).isEqualTo(first.getId());
+        assertThat(response.users().get(0).fullName()).isEqualTo("Ada Lovelace");
+        assertThat(response.users().get(1).fullName()).isEqualTo("Grace Hopper");
+        verify(recordAccessPolicy).assertCanView(ACTOR, parent);
+    }
+
+    @Test
+    void assignableUsersFailsWhenParentIsMissing() {
+        when(records.findByIdAndDeletedAtIsNull(PARENT_ID)).thenReturn(Optional.empty());
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                btk.staj.WorkFlowProject.subtask.exception.SubtaskException.class,
+                () -> service.assignableUsers(PARENT_ID));
+    }
+
+    private static User user(String firstName, String lastName) {
+        Role role = new Role();
+        role.setId(1);
+        role.setSystemKey("BASKAN_YARDIMCISI");
+        role.setActive(true);
+
+        User user = new User();
+        user.setId(UUID.randomUUID());
+        user.setFirstName(firstName);
+        user.setLastName(lastName);
+        user.setActive(true);
+        user.setRole(role);
+        return user;
     }
 
     private static Record parent(SubtaskApprovalPolicy policy, Integer requiredApprovals) {
