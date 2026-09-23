@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { CheckCircle2, ListTodo, Wrench, X, XCircle } from 'lucide-react'
+import { CheckCircle2, Info, ListTodo, Wrench, X, XCircle } from 'lucide-react'
 import { useModalDialog } from '../../hooks/useModalDialog'
 import { useSingleFlight } from '../../hooks/useSingleFlight'
 import { usePerformSubtaskAction, useSubtasks } from '../../hooks/useSubtasks'
@@ -133,6 +133,18 @@ export function RecordSubtasksPanel({ recordId, currentUserId }: { recordId: str
           )
         })}
       </ul>
+
+      {subtasks.length > 0 && resolvedCount === subtasks.length ? (
+        <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-200" role="status">
+          <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          <p>
+            Tüm alt görevler sonuçlandı ({subtasks.filter((item) => item.status === 'TAMAMLANDI').length} onaylandı,{' '}
+            {subtasks.filter((item) => item.status === 'REDDEDILDI').length} reddedildi). Kayıt normalde şimdi
+            otomatik olarak bir sonraki adıma (KONTROL) ilerler; bu otomatik ilerleme backend'de henüz
+            kurulmadığı için ekranda bir değişiklik görmeyeceksin.
+          </p>
+        </div>
+      ) : null}
 
       <SubtaskRowDialog
         row={activeRow}
