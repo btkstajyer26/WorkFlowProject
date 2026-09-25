@@ -10,6 +10,8 @@ import btk.staj.WorkFlowProject.record.repository.RecordRepository;
 import btk.staj.WorkFlowProject.user.entity.User;
 import btk.staj.WorkFlowProject.user.repository.UserRepository;
 import btk.staj.WorkFlowProject.workflow.model.WorkflowStatusChangedEvent;
+import btk.staj.WorkFlowProject.workflow.service.DepartmentRoutingResolver;
+import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRuleSource;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,23 +56,34 @@ public class WorkflowStatusChangedListener {
     private final MailActionTokenService mailActionTokenService;
     private final RecordRepository recordRepository;
     private final UserRepository userRepository;
+    private final DepartmentRoutingResolver departmentRoutingResolver;
+    private final TransitionRuleSource transitionRuleSource;
 
     public WorkflowStatusChangedListener(NotificationService notificationService,
                                          MailService mailService,
                                          @Nullable PushNotificationService pushNotificationService,
                                          @Nullable MailActionTokenService mailActionTokenService,
                                          RecordRepository recordRepository,
-                                         UserRepository userRepository) {
+                                         UserRepository userRepository,
+                                         DepartmentRoutingResolver departmentRoutingResolver,
+                                         TransitionRuleSource transitionRuleSource) {
         this.notificationService = Objects.requireNonNull(notificationService, "notificationService");
         this.mailService = Objects.requireNonNull(mailService, "mailService");
         this.pushNotificationService = pushNotificationService;
         this.mailActionTokenService = mailActionTokenService;
         this.recordRepository = Objects.requireNonNull(recordRepository, "recordRepository");
         this.userRepository = Objects.requireNonNull(userRepository, "userRepository");
+        this.departmentRoutingResolver =
+                Objects.requireNonNull(departmentRoutingResolver, "departmentRoutingResolver");
+        this.transitionRuleSource =
+                Objects.requireNonNull(transitionRuleSource, "transitionRuleSource");
     }
 
     @EventListener
     public void createInAppNotification(WorkflowStatusChangedEvent event) {
+        if (!NotificationType.supports(event.action())) {
+            return;
+        }
         Set<UUID> recipients = recipientsOf(event);
         if (recipients.isEmpty()) {
             return;
@@ -90,6 +103,9 @@ public class WorkflowStatusChangedListener {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void sendMail(WorkflowStatusChangedEvent event) {
+        if (!NotificationType.supports(event.action())) {
+            return;
+        }
         Set<UUID> recipients = recipientsOf(event);
         if (recipients.isEmpty()) {
             return;
@@ -165,7 +181,9 @@ public class WorkflowStatusChangedListener {
      * Bildirimi kim(ler) almali:
      * <ul>
      *   <li>{@code event.assignedTo() != null} -> yalniz atanan kisi.</li>
-     *   <li>{@code assignedTo == null} (nihai onay/ret) -> kaydi olusturan ve
+     *   <li>Departman atamasinda workflow routing'e gore uygun departman
+     *       uyeleri; islemi yapan aktor haric.</li>
+     *   <li>Iki atama da null (nihai onay/ret) -> kaydi olusturan ve
      *       kaydi Baskana ileten yardimci ({@code Record.lastDeputyId}).</li>
      * </ul>
      * LinkedHashSet sira garantisi verir ve ayni kisi iki role denk geldiginde mukerrerligi onler.
@@ -178,6 +196,25 @@ public class WorkflowStatusChangedListener {
             return recipients;
         }
 
+        if (event.assignedDepartmentId() != null) {
+            recipients.addAll(departmentRoutingResolver.eligibleAssignees(
+                    event.assignedDepartmentId(),
+                    event.newStatus(),
+                    transitionRuleSource.snapshot()));
+
+            recipients.remove(event.actorId());
+
+            if (recipients.isEmpty()) {
+                log.warn(
+                        "Departman bildirimi için uygun alıcı bulunamadı. Evrak: {}, Departman: {}, Durum: {}",
+                        event.recordId(),
+                        event.assignedDepartmentId(),
+                        event.newStatus());
+            }
+
+            return recipients;
+        }
+
         Optional<Record> recordOpt = recordRepository.findById(event.recordId());
         if (recordOpt.isEmpty()) {
             return Collections.emptySet();
@@ -187,6 +224,11 @@ public class WorkflowStatusChangedListener {
 
         if (record.getCreatedBy() != null) {
             recipients.add(record.getCreatedBy());
+        }
+
+        if (event.action() == WorkflowAction.ALT_GOREVLERE_AYIR
+                || event.action() == WorkflowAction.ALT_GOREVLER_SONUCLANDI) {
+            return recipients;
         }
 
         if (record.getLastDeputyId() != null) {
@@ -213,6 +255,10 @@ public class WorkflowStatusChangedListener {
             case RECORD_APPROVED -> "Evrağınız onaylandı";
             case RECORD_REJECTED -> "Evrağınız reddedildi";
             case RECORD_RETURNED -> "Evrağınız düzeltme için geri gönderildi";
+            case RECORD_SPLIT -> "Evrağınız alt görevlere ayrıldı";
+            case SUBTASKS_COMPLETED -> "Evrağınızın alt görevleri sonuçlandı";
+            case SUBTASK_ASSIGNED, SUBTASK_UPDATED, SUBTASK_COMPLETED, SUBTASK_REJECTED ->
+                    throw new IllegalArgumentException("Subtask notification type is not a workflow action");
         };
 
         if (event.comment() == null || event.comment().isBlank()) {

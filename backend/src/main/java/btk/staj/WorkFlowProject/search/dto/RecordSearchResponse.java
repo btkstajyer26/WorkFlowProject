@@ -1,5 +1,7 @@
 package btk.staj.WorkFlowProject.search.dto;
 
+import btk.staj.WorkFlowProject.common.dto.AssignmentView;
+
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 
 import java.time.LocalDateTime;
@@ -115,4 +117,16 @@ public class RecordSearchResponse {
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
     }
+
+    /** Kaydin kime veya hangi departmana atandigi (B11); {@code kind} uzerinden dallanilir. */
+    private AssignmentView assignment;
+
+    /** Kayit surumu (B11 SS4). */
+    private Integer version;
+
+    public AssignmentView getAssignment() { return assignment; }
+    public void setAssignment(AssignmentView assignment) { this.assignment = assignment; }
+
+    public Integer getVersion() { return version; }
+    public void setVersion(Integer version) { this.version = version; }
 }

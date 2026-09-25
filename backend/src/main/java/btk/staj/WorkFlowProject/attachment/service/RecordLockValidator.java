@@ -17,8 +17,20 @@ public class RecordLockValidator {
 
     private final RecordRepository recordRepository;
 
-    public void assertModifyAllowed(UUID recordId, UUID currentUserId) {
-        Record record = recordRepository.findById(recordId)
+    /**
+     * Kaydi satir kilidiyle yukler ve dosya degisikligine izin verilip
+     * verilmedigini dogrular (B04).
+     *
+     * <p>Onceden kilitsiz bir {@code findById} yapiliyor ve yuklenen kayit
+     * atiliyordu; kontrol ile dosya satirinin yazilmasi arasinda workflow durumu
+     * degisirse islem eski izinle devam ediyordu. Artik kilit cagiranin
+     * transaction'i boyunca tutulur ve kilitli kayit doner, boylece cagiran
+     * ayni ornek uzerinden calisir.
+     *
+     * @return degisiklige acik oldugu dogrulanmis, kilitli kayit
+     */
+    public Record assertModifyAllowed(UUID recordId, UUID currentUserId) {
+        Record record = recordRepository.findByIdForUpdate(recordId)
                 .orElseThrow(() -> new ResourceNotFoundException("Kayıt bulunamadı: " + recordId));
 
         if (record.getDeletedAt() != null) {
@@ -33,5 +45,7 @@ public class RecordLockValidator {
         if (status != RecordStatus.TASLAK && status != RecordStatus.DUZENLEME_BEKLIYOR) {
             throw new BusinessRuleException("Yalnızca TASLAK veya DUZENLEME_BEKLIYOR durumundaki kayıtlarda dosya değişikliği yapılabilir. Mevcut durum: " + status);
         }
+
+        return record;
     }
 }

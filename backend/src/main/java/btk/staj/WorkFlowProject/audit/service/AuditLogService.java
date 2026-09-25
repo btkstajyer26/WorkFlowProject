@@ -4,41 +4,40 @@ import btk.staj.WorkFlowProject.audit.dto.AuditLogResponse;
 import btk.staj.WorkFlowProject.audit.entity.AuditLog;
 import btk.staj.WorkFlowProject.audit.model.RequestAccessEvent;
 import btk.staj.WorkFlowProject.audit.repository.AuditLogRepository;
+import btk.staj.WorkFlowProject.common.dto.AssignmentView;
 import btk.staj.WorkFlowProject.common.dto.PagedResponse;
-import btk.staj.WorkFlowProject.rbac.Role;
-import btk.staj.WorkFlowProject.user.repository.RoleRepository;
+import btk.staj.WorkFlowProject.record.view.AssignmentViewResolver;
 import btk.staj.WorkFlowProject.workflow.model.WorkflowTransitionAudit;
 import btk.staj.WorkFlowProject.workflow.port.AuditService;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
-import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
 
 /**
  * Onay akisinin {@link AuditService} portunun denetim izi tarafindaki
  * karsiligi. Onay akisi kendi modelini ({@link WorkflowTransitionAudit})
  * gonderir; bu sinif onu {@code audit_logs} satirina cevirir.
  *
- * <p>Cevrimdeki tek gercek is rol esleme: onay akisi rolu {@link RoleName}
- * enum'u olarak tasir, tablo ise {@code roles(id)}'ye FK tutar. Esleme projedeki
- * yerlesik kurala gore {@code roles.name} uzerinden yapilir.
+ * <p>Workflow supplies the relational actor role ID directly; no role-name lookup is needed.
  */
 @Service
 public class AuditLogService implements AuditService {
 
     private final AuditLogRepository auditLogRepository;
-    private final RoleRepository roleRepository;
+    private final AssignmentViewResolver assignmentViewResolver;
 
-    public AuditLogService(AuditLogRepository auditLogRepository, RoleRepository roleRepository) {
+    public AuditLogService(AuditLogRepository auditLogRepository,
+                           AssignmentViewResolver assignmentViewResolver) {
         this.auditLogRepository = Objects.requireNonNull(auditLogRepository, "auditLogRepository");
-        this.roleRepository = Objects.requireNonNull(roleRepository, "roleRepository");
+        this.assignmentViewResolver =
+                Objects.requireNonNull(assignmentViewResolver, "assignmentViewResolver");
     }
 
 
@@ -49,11 +48,15 @@ public class AuditLogService implements AuditService {
         AuditLog log = AuditLog.builder()
                 .recordId(audit.recordId())
                 .userId(audit.actorId())
-                .roleId(resolveRoleId(audit.actorRole()))
+                .roleId(audit.actorRoleId().value())
                 .action(audit.action().name())
                 .previousStatus(audit.previousStatus().name())
                 .newStatus(audit.newStatus().name())
                 .comment(audit.comment())
+                .previousAssignedTo(audit.previousAssignedTo())
+                .previousAssignedDepartmentId(audit.previousAssignedDepartmentId())
+                .newAssignedTo(audit.newAssignedTo())
+                .newAssignedDepartmentId(audit.newAssignedDepartmentId())
                 .createdAt(LocalDateTime.ofInstant(audit.performedAt(), ZoneId.systemDefault()))
                 .build();
 
@@ -70,21 +73,21 @@ public class AuditLogService implements AuditService {
      */
     public void recordLifecycleEvent(UUID recordId,
                                      UUID actorId,
-                                     RoleName actorRole,
+                                     Integer actorRoleId,
                                      String action,
                                      RecordStatus currentStatus,
                                      String comment) {
 
         Objects.requireNonNull(recordId, "recordId");
         Objects.requireNonNull(actorId, "actorId");
-        Objects.requireNonNull(actorRole, "actorRole");
+        Objects.requireNonNull(actorRoleId, "actorRoleId");
         Objects.requireNonNull(action, "action");
         Objects.requireNonNull(currentStatus, "currentStatus");
 
         AuditLog log = AuditLog.builder()
                 .recordId(recordId)
                 .userId(actorId)
-                .roleId(resolveRoleId(actorRole))
+                .roleId(actorRoleId)
                 .action(action)
                 .previousStatus(null)
                 .newStatus(currentStatus.name())
@@ -124,7 +127,7 @@ public class AuditLogService implements AuditService {
     public PagedResponse<AuditLogResponse> listAll(Pageable pageable) {
         Page<AuditLogResponse> page = auditLogRepository.findAllWithNames(pageable);
         return new PagedResponse<>(
-                page.getContent(),
+                withAssignmentNames(page.getContent()),
                 page.getNumber(),
                 page.getSize(),
                 page.getTotalElements(),
@@ -134,7 +137,7 @@ public class AuditLogService implements AuditService {
     /** Bir evragin detay sayfasindaki "Islem Gecmisi" tablosunu doldurmak icin. */
     public List<AuditLogResponse> getGecmis(UUID recordId) {
         Objects.requireNonNull(recordId, "recordId");
-        return auditLogRepository.findHistoryByRecordId(recordId);
+        return withAssignmentNames(auditLogRepository.findHistoryByRecordId(recordId));
     }
 
     /**
@@ -175,9 +178,11 @@ public class AuditLogService implements AuditService {
         }
 
         LocalDateTime cutoff = handoff;
-        return history.stream()
+        // Zenginlestirme KIRPMADAN SONRA yapilir: gizlenen satirlardaki kisi ve
+        // departman adlari yanita hic girmez, bosuna da sorgulanmaz.
+        return withAssignmentNames(history.stream()
                 .filter(row -> !row.createdAt().isAfter(cutoff))
-                .toList();
+                .toList());
     }
 
     /**
@@ -218,15 +223,44 @@ public class AuditLogService implements AuditService {
         }
 
         LocalDateTime cutoff = handover;
-        return history.stream()
+        // Kirpmadan sonra; gerekcesi getGecmisDevreKadar ile ayni.
+        return withAssignmentNames(history.stream()
                 .filter(row -> !row.createdAt().isBefore(cutoff))
+                .toList());
+    }
+
+    /**
+     * Atama gosterim adlarini TOPLU cozer (B12 / ADR-0009 K4).
+     *
+     * <p>Satir basina {@code resolve(...)} cagirmak gecmis uzunlugu kadar sorgu
+     * acardi (N+1); {@code resolveAll} tam bunun icin vardir ve butun listeyi
+     * en fazla iki sorguda karsilar. Atamasiz gecmislerde hic sorgu acilmaz:
+     * {@code resolveAll} bos kumede erken doner.
+     */
+    private List<AuditLogResponse> withAssignmentNames(List<AuditLogResponse> rows) {
+        if (rows.isEmpty()) return rows;
+
+        List<UUID> userIds = new ArrayList<>();
+        List<Integer> departmentIds = new ArrayList<>();
+        for (AuditLogResponse row : rows) {
+            userIds.add(row.previousAssignment().userId());
+            userIds.add(row.newAssignment().userId());
+            departmentIds.add(row.previousAssignment().departmentId());
+            departmentIds.add(row.newAssignment().departmentId());
+        }
+
+        AssignmentViewResolver.Names names = assignmentViewResolver.resolveAll(userIds, departmentIds);
+
+        return rows.stream()
+                .map(row -> row.withAssignments(
+                        assignmentWithName(names, row.previousAssignment()),
+                        assignmentWithName(names, row.newAssignment())))
                 .toList();
     }
 
-    private Integer resolveRoleId(RoleName role) {
-        return roleRepository.findByName(role.name())
-                .map(Role::getId)
-                .orElseThrow(() -> new IllegalStateException(
-                        "roles tablosunda '" + role.name() + "' rolu bulunamadi"));
+    private static AssignmentView assignmentWithName(AssignmentViewResolver.Names names,
+                                                     AssignmentView assignment) {
+        return names.assignmentFor(assignment.userId(), assignment.departmentId());
     }
+
 }

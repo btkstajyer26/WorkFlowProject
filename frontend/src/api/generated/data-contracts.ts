@@ -10,10 +10,39 @@
  * ---------------------------------------------------------------
  */
 
+export interface AddDepartmentMemberRequest {
+  /** @format uuid */
+  userId: string;
+}
+
+export type AddMemberData = DepartmentMembersResponse;
+
+export interface AddMemberParams {
+  /** @format int32 */
+  id: number;
+}
+
 export interface AdminUserSearchCriteria {
   active?: boolean;
   q?: string;
   role?: string;
+}
+
+export type AssignableUsersData = SubtaskAssignableUsersResponse;
+
+export interface AssignableUsersParams {
+  /** @format uuid */
+  recordId: string;
+}
+
+export interface AssignmentView {
+  /** @format int32 */
+  departmentId?: number;
+  departmentName?: string;
+  kind?: "USER" | "DEPARTMENT" | "NONE";
+  userFullName?: string;
+  /** @format uuid */
+  userId?: string;
 }
 
 export interface AuditLogResponse {
@@ -27,7 +56,9 @@ export interface AuditLogResponse {
   httpStatus?: number;
   /** @format uuid */
   id?: string;
+  newAssignment?: AssignmentView;
   newStatus?: string;
+  previousAssignment?: AssignmentView;
   previousStatus?: string;
   /** @format uuid */
   recordId?: string;
@@ -39,6 +70,63 @@ export interface AuditLogResponse {
   /** @format uuid */
   userId?: string;
 }
+
+export interface AvailableActionView {
+  action?:
+    | "GONDER"
+    | "TEKRAR_GONDER"
+    | "BASKANA_ILET"
+    | "ALT_GOREVLERE_AYIR"
+    | "ALT_GOREVLER_SONUCLANDI"
+    | "CALISANA_GERI_GONDER"
+    | "BASKAN_YARDIMCISINA_GERI_GONDER"
+    | "ONAYLA"
+    | "REDDET"
+    | "DEPARTMANA_GONDER";
+  commentRequired?: boolean;
+  displayName?: string;
+  targetDepartmentRequired?: boolean;
+  targetUserRequired?: boolean;
+}
+
+export type AvailableActionsData = AvailableActionsResponse;
+
+export interface AvailableActionsParams {
+  /** @format uuid */
+  recordId: string;
+}
+
+export interface AvailableActionsResponse {
+  actions?: AvailableActionView[];
+  /** @format uuid */
+  recordId?: string;
+  status?:
+    | "TASLAK"
+    | "BSK_YRD_INCELEMESINDE"
+    | "ALT_GOREV_BEKLIYOR"
+    | "KONTROL"
+    | "BASKAN_INCELEMESINDE"
+    | "DUZENLEME_BEKLIYOR"
+    | "ONAYLANDI"
+    | "REDDEDILDI";
+  /** @format int32 */
+  version?: number;
+}
+
+export interface BindActorRequest {
+  /**
+   * @format int32
+   * @min 0
+   */
+  actorRoleId: number;
+  /**
+   * @format int32
+   * @min 0
+   */
+  templateTransitionId: number;
+}
+
+export type BindData = WorkflowActorBindingView;
 
 export interface CategoryResponse {
   /** @format int32 */
@@ -65,17 +153,82 @@ export interface ChangeRoleParams {
   id: string;
 }
 
+/** roleId (pozitif) veya eski roleName alanlarından tam biri zorunludur. İkisi birlikte veya ikisi de eksikse 400 döner. */
 export interface ChangeRoleRequest {
   /** @format uuid */
   replacementBaskanYardimcisiId?: string;
-  /** @minLength 1 */
-  roleName: string;
+  /**
+   * Atanacak rolün kimliği; roleName ile birlikte gönderilemez
+   * @format int32
+   * @min 1
+   */
+  roleId?: number;
+  /**
+   * Eski istemciler için rol adı; roleId ile birlikte gönderilemez
+   * @deprecated
+   */
+  roleName?: string;
 }
+
+export type ConsumeData = Record<string, string>;
 
 /** @format int64 */
 export type CountUnreadData = number;
 
+export type CreateDepartmentData = DepartmentResponse;
+
+export interface CreateDepartmentRequest {
+  /**
+   * @minLength 0
+   * @maxLength 150
+   */
+  name: string;
+  /** @format int32 */
+  parentDepartmentId?: number;
+}
+
+export interface CreateDepartmentRoutingRuleRequest {
+  /**
+   * @format int32
+   * @min 0
+   */
+  actionId: number;
+  /**
+   * @format int32
+   * @min 0
+   */
+  fromStatusId: number;
+  /**
+   * @format int32
+   * @min 0
+   */
+  targetRoleId: number;
+}
+
 export type CreateRecordData = RecordResponse;
+
+export type CreateRoleData = RoleResponse;
+
+export interface CreateRoleRequest {
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  description?: string;
+  /**
+   * @minLength 0
+   * @maxLength 100
+   */
+  name: string;
+  workflowActor?: boolean;
+}
+
+export type CreateRuleData = DepartmentRoutingRuleResponse;
+
+export interface CreateRuleParams {
+  /** @format int32 */
+  departmentId: number;
+}
 
 export type CreateUserData = UserResponse;
 
@@ -96,6 +249,23 @@ export interface CreateUserRequest {
   password: string;
 }
 
+export interface CurrentUserResponse {
+  active?: boolean;
+  /** @format date-time */
+  createdAt?: string;
+  email?: string;
+  firstName?: string;
+  /** @format uuid */
+  id?: string;
+  lastName?: string;
+  /** @uniqueItems true */
+  permissionCodes?: string[];
+  /** @format int32 */
+  roleId?: number;
+  roleName?: string;
+  systemKey?: string;
+}
+
 export type DeleteFileData = any;
 
 export interface DeleteFileParams {
@@ -108,6 +278,57 @@ export type DeleteRecordData = any;
 export interface DeleteRecordParams {
   /** @format uuid */
   id: string;
+}
+
+export interface DepartmentMembersResponse {
+  /** @format int32 */
+  departmentId?: number;
+  departmentName?: string;
+  members?: UserResponse[];
+}
+
+export interface DepartmentResponse {
+  active?: boolean;
+  /** @format int32 */
+  id?: number;
+  name?: string;
+  /** @format int32 */
+  parentDepartmentId?: number;
+}
+
+export interface DepartmentRoutingRuleResponse {
+  action?: string;
+  actionDisplayName?: string;
+  /** @format int32 */
+  actionId?: number;
+  active?: boolean;
+  /** @format int32 */
+  departmentId?: number;
+  fromStatus?: string;
+  fromStatusDisplayName?: string;
+  /** @format int32 */
+  fromStatusId?: number;
+  /** @format int32 */
+  id?: number;
+  /** @format int32 */
+  targetRoleId?: number;
+  targetRoleName?: string;
+}
+
+export interface DeviceTokenDeleteRequest {
+  /** @minLength 1 */
+  token: string;
+}
+
+export interface DeviceTokenRequest {
+  deviceName?: string;
+  /**
+   * @minLength 1
+   * @pattern ^(ANDROID|IOS)$
+   */
+  platform: string;
+  /** @minLength 1 */
+  token: string;
 }
 
 /** @format binary */
@@ -164,6 +385,8 @@ export interface GetAllRecordsParams {
   status?:
     | "TASLAK"
     | "BSK_YRD_INCELEMESINDE"
+    | "ALT_GOREV_BEKLIYOR"
+    | "KONTROL"
     | "BASKAN_INCELEMESINDE"
     | "DUZENLEME_BEKLIYOR"
     | "ONAYLANDI"
@@ -193,7 +416,21 @@ export interface GetRecordByIdParams {
   id: string;
 }
 
+export type GetRolePermissionsData = RolePermissionsResponse;
+
+export interface GetRolePermissionsParams {
+  /** @format int32 */
+  id: number;
+}
+
 export type GetUnreadData = NotificationResponse[];
+
+export type List1Data = SubtaskListResponse;
+
+export interface List1Params {
+  /** @format uuid */
+  recordId: string;
+}
 
 export type ListAuditLogsData = PagedResponseObject;
 
@@ -203,6 +440,15 @@ export interface ListAuditLogsParams {
   type?: string;
 }
 
+export type ListData = WorkflowActorBindingView[];
+
+export type ListDepartmentsData = DepartmentResponse[];
+
+export interface ListDepartmentsParams {
+  /** @default false */
+  includeInactive?: boolean;
+}
+
 export type ListFilesData = FileResponseDto[];
 
 export interface ListFilesParams {
@@ -210,7 +456,28 @@ export interface ListFilesParams {
   id: string;
 }
 
+export type ListMembersData = DepartmentMembersResponse;
+
+export interface ListMembersParams {
+  /** @format int32 */
+  id: number;
+}
+
+export type ListPermissionsData = PermissionResponse[];
+
 export type ListRolesData = RoleResponse[];
+
+export interface ListRolesParams {
+  /** @default false */
+  includeInactive?: boolean;
+}
+
+export type ListRulesData = DepartmentRoutingRuleResponse[];
+
+export interface ListRulesParams {
+  /** @format int32 */
+  departmentId: number;
+}
 
 export type ListUsersData = PagedResponseUserResponse;
 
@@ -245,6 +512,22 @@ export interface LogoutRequest {
   refreshToken: string;
 }
 
+export interface MailActionPreview {
+  action?: string;
+  /** @format date-time */
+  expiresAt?: string;
+  recipientName?: string;
+  /** @format uuid */
+  recordId?: string;
+  recordStatus?: string;
+  recordTitle?: string;
+}
+
+export interface MailActionTokenRequest {
+  /** @minLength 1 */
+  token: string;
+}
+
 export type MarkAsReadData = any;
 
 export interface MarkAsReadParams {
@@ -252,7 +535,7 @@ export interface MarkAsReadParams {
   id: string;
 }
 
-export type MeData = UserResponse;
+export type MeData = CurrentUserResponse;
 
 export interface NotificationResponse {
   /** @format date-time */
@@ -265,7 +548,13 @@ export interface NotificationResponse {
     | "RECORD_FORWARDED"
     | "RECORD_APPROVED"
     | "RECORD_REJECTED"
-    | "RECORD_RETURNED";
+    | "RECORD_RETURNED"
+    | "RECORD_SPLIT"
+    | "SUBTASKS_COMPLETED"
+    | "SUBTASK_ASSIGNED"
+    | "SUBTASK_UPDATED"
+    | "SUBTASK_COMPLETED"
+    | "SUBTASK_REJECTED";
   read?: boolean;
   /** @format uuid */
   recordId?: string;
@@ -333,12 +622,30 @@ export interface PagedResponseUserResponse {
   totalPages?: number;
 }
 
-export type PerformActionData = WorkflowActionResponse;
+export type PerformAction1Data = WorkflowActionResponse;
 
-export interface PerformActionParams {
+export interface PerformAction1Params {
   /** @format uuid */
   recordId: string;
 }
+
+export type PerformActionData = SubtaskView;
+
+export interface PerformActionParams {
+  /** @format uuid */
+  subtaskId: string;
+}
+
+export interface PermissionResponse {
+  active?: boolean;
+  code?: string;
+  description?: string;
+  displayName?: string;
+  /** @format int32 */
+  id?: number;
+}
+
+export type PreviewData = MailActionPreview;
 
 /** @format binary */
 export type PreviewFileData = File;
@@ -358,6 +665,7 @@ export interface RecordCreateRequest {
 }
 
 export interface RecordResponse {
+  assignment?: AssignmentView;
   /** @format int32 */
   categoryId?: number;
   /** @format date-time */
@@ -371,16 +679,21 @@ export interface RecordResponse {
   status?:
     | "TASLAK"
     | "BSK_YRD_INCELEMESINDE"
+    | "ALT_GOREV_BEKLIYOR"
+    | "KONTROL"
     | "BASKAN_INCELEMESINDE"
     | "DUZENLEME_BEKLIYOR"
     | "ONAYLANDI"
     | "REDDEDILDI";
   title?: string;
+  /** @format int32 */
+  version?: number;
 }
 
 export interface RecordSearchResponse {
   /** @format uuid */
   assignedTo?: string;
+  assignment?: AssignmentView;
   /** @format int32 */
   categoryId?: number;
   /** @format date-time */
@@ -394,6 +707,8 @@ export interface RecordSearchResponse {
   status?:
     | "TASLAK"
     | "BSK_YRD_INCELEMESINDE"
+    | "ALT_GOREV_BEKLIYOR"
+    | "KONTROL"
     | "BASKAN_INCELEMESINDE"
     | "DUZENLEME_BEKLIYOR"
     | "ONAYLANDI"
@@ -401,6 +716,8 @@ export interface RecordSearchResponse {
   title?: string;
   /** @format date-time */
   updatedAt?: string;
+  /** @format int32 */
+  version?: number;
 }
 
 export interface RecordUpdateRequest {
@@ -419,6 +736,21 @@ export interface RefreshTokenRequest {
   refreshToken: string;
 }
 
+export type RegisterTokenData = any;
+
+export type ReloadData = Record<string, number>;
+
+export type RemoveMemberData = DepartmentMembersResponse;
+
+export interface RemoveMemberParams {
+  /** @format int32 */
+  id: number;
+  /** @format uuid */
+  userId: string;
+}
+
+export type RemoveTokenData = any;
+
 export type ResetPasswordData = any;
 
 export interface ResetPasswordRequest {
@@ -431,11 +763,24 @@ export interface ResetPasswordRequest {
   token: string;
 }
 
+export interface RolePermissionsResponse {
+  permissionCodes?: string[];
+  /** @format int32 */
+  roleId?: number;
+  roleName?: string;
+}
+
 export interface RoleResponse {
+  active?: boolean;
   description?: string;
   /** @format int32 */
   id?: number;
+  /** @format int32 */
+  maxUsers?: number;
   name?: string;
+  system?: boolean;
+  systemKey?: string;
+  workflowActor?: boolean;
 }
 
 export type SetActiveData = UserResponse;
@@ -449,11 +794,186 @@ export interface SetActiveRequest {
   active: boolean;
 }
 
+export type SplitData = SubtaskSplitResponse;
+
+export interface SplitParams {
+  /** @format uuid */
+  recordId: string;
+}
+
+export interface SubtaskActionRequest {
+  action: "DEGERLENDIRMEYI_TAMAMLA" | "ISLEMI_TAMAMLA" | "ONAYLA" | "REDDET";
+  /**
+   * @minLength 0
+   * @maxLength 2000
+   */
+  comment?: string;
+}
+
+export interface SubtaskAssignableUserView {
+  fullName?: string;
+  /** @format uuid */
+  id?: string;
+}
+
+export interface SubtaskAssignableUsersResponse {
+  users?: SubtaskAssignableUserView[];
+}
+
+export interface SubtaskCreateItem {
+  /** @format uuid */
+  assignedTo: string;
+  description?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  title: string;
+}
+
+export interface SubtaskListResponse {
+  approvalPolicy?: "UNANIMOUS" | "MAJORITY";
+  /** @format int32 */
+  requiredApprovals?: number;
+  subtasks?: SubtaskView[];
+}
+
+export interface SubtaskSplitRequest {
+  approvalPolicy: "UNANIMOUS" | "MAJORITY";
+  /**
+   * @maxItems 2147483647
+   * @minItems 2
+   */
+  subtasks: SubtaskCreateItem[];
+}
+
+export interface SubtaskSplitResponse {
+  approvalPolicy?: "UNANIMOUS" | "MAJORITY";
+  /** @format uuid */
+  parentRecordId?: string;
+  /** @format int32 */
+  requiredApprovals?: number;
+  subtasks?: SubtaskView[];
+}
+
+export interface SubtaskView {
+  /** @format uuid */
+  assignedTo?: string;
+  assignedToName?: string;
+  /** @format date-time */
+  completedAt?: string;
+  /** @format date-time */
+  createdAt?: string;
+  description?: string;
+  /** @format uuid */
+  id?: string;
+  /** @format uuid */
+  parentRecordId?: string;
+  resolutionComment?: string;
+  status?: "DEGERLENDIRME" | "ISLEM" | "ONAY" | "TAMAMLANDI" | "REDDEDILDI";
+  title?: string;
+}
+
+export interface TargetDepartmentView {
+  /** @format int32 */
+  id?: number;
+  name?: string;
+}
+
+export type TargetDepartmentsData = TargetDepartmentsResponse;
+
+export interface TargetDepartmentsParams {
+  /** @format uuid */
+  recordId: string;
+}
+
+export interface TargetDepartmentsResponse {
+  departments?: TargetDepartmentView[];
+}
+
+export type UnbindData = WorkflowActorBindingView;
+
+export interface UnbindParams {
+  /** @format int32 */
+  bindingId: number;
+}
+
+export type UpdateDepartmentData = DepartmentResponse;
+
+export interface UpdateDepartmentParams {
+  /** @format int32 */
+  id: number;
+}
+
+export interface UpdateDepartmentRequest {
+  active?: boolean;
+  clearParent?: boolean;
+  /**
+   * @minLength 0
+   * @maxLength 150
+   */
+  name?: string;
+  /** @format int32 */
+  parentDepartmentId?: number;
+}
+
+export interface UpdateDepartmentRoutingRuleRequest {
+  active?: boolean;
+  /**
+   * @format int32
+   * @min 0
+   */
+  targetRoleId?: number;
+}
+
 export type UpdateRecordData = RecordResponse;
 
 export interface UpdateRecordParams {
   /** @format uuid */
   id: string;
+}
+
+export type UpdateRoleData = RoleResponse;
+
+export interface UpdateRoleParams {
+  /** @format int32 */
+  id: number;
+}
+
+export type UpdateRolePermissionsData = RolePermissionsResponse;
+
+export interface UpdateRolePermissionsParams {
+  /** @format int32 */
+  id: number;
+}
+
+export interface UpdateRolePermissionsRequest {
+  /** @uniqueItems true */
+  permissionCodes: string[];
+}
+
+export interface UpdateRoleRequest {
+  active?: boolean;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  description?: string;
+  /**
+   * @minLength 0
+   * @maxLength 100
+   */
+  name?: string;
+  workflowActor?: boolean;
+}
+
+export type UpdateRuleData = DepartmentRoutingRuleResponse;
+
+export interface UpdateRuleParams {
+  /** @format int32 */
+  departmentId: number;
+  /** @format int32 */
+  ruleId: number;
 }
 
 export type UploadFilesData = FileResponseDto[];
@@ -504,7 +1024,10 @@ export interface UserResponse {
   /** @format uuid */
   id?: string;
   lastName?: string;
+  /** @format int32 */
+  roleId?: number;
   roleName?: string;
+  systemKey?: string;
 }
 
 export type VerifyResetCodeData = VerifyResetCodeResponse;
@@ -533,15 +1056,20 @@ export interface WorkflowActionRequest {
     | "GONDER"
     | "TEKRAR_GONDER"
     | "BASKANA_ILET"
+    | "ALT_GOREVLERE_AYIR"
+    | "ALT_GOREVLER_SONUCLANDI"
     | "CALISANA_GERI_GONDER"
     | "BASKAN_YARDIMCISINA_GERI_GONDER"
     | "ONAYLA"
-    | "REDDET";
+    | "REDDET"
+    | "DEPARTMANA_GONDER";
   /**
    * @minLength 0
    * @maxLength 2000
    */
   comment?: string;
+  /** @format int32 */
+  targetDepartmentId?: number;
   /** @format uuid */
   targetUserId?: string;
 }
@@ -551,15 +1079,21 @@ export interface WorkflowActionResponse {
     | "GONDER"
     | "TEKRAR_GONDER"
     | "BASKANA_ILET"
+    | "ALT_GOREVLERE_AYIR"
+    | "ALT_GOREVLER_SONUCLANDI"
     | "CALISANA_GERI_GONDER"
     | "BASKAN_YARDIMCISINA_GERI_GONDER"
     | "ONAYLA"
-    | "REDDET";
+    | "REDDET"
+    | "DEPARTMANA_GONDER";
   /** @format uuid */
   assignedTo?: string;
+  assignment?: AssignmentView;
   newStatus?:
     | "TASLAK"
     | "BSK_YRD_INCELEMESINDE"
+    | "ALT_GOREV_BEKLIYOR"
+    | "KONTROL"
     | "BASKAN_INCELEMESINDE"
     | "DUZENLEME_BEKLIYOR"
     | "ONAYLANDI"
@@ -571,10 +1105,43 @@ export interface WorkflowActionResponse {
   previousStatus?:
     | "TASLAK"
     | "BSK_YRD_INCELEMESINDE"
+    | "ALT_GOREV_BEKLIYOR"
+    | "KONTROL"
     | "BASKAN_INCELEMESINDE"
     | "DUZENLEME_BEKLIYOR"
     | "ONAYLANDI"
     | "REDDEDILDI";
   /** @format uuid */
   recordId?: string;
+  /** @format int32 */
+  version?: number;
+}
+
+export interface WorkflowActorBindingView {
+  action?: string;
+  actionDisplayName?: string;
+  /** @format int32 */
+  actionId?: number;
+  active?: boolean;
+  actorRequirement?: "CREATOR" | "ASSIGNEE" | "CREATOR_AND_ASSIGNEE" | "SYSTEM";
+  /** @format int32 */
+  actorRoleId?: number;
+  actorRoleName?: string;
+  /** @format int32 */
+  bindingId?: number;
+  /** @format int32 */
+  expectedTargetRoleId?: number;
+  fromStatus?: string;
+  fromStatusDisplayName?: string;
+  /** @format int32 */
+  fromStatusId?: number;
+  protectedBinding?: boolean;
+  requiredPermissionCode?: string;
+  /** @format int32 */
+  requiredPermissionId?: number;
+  targetStrategy?: string;
+  toStatus?: string;
+  toStatusDisplayName?: string;
+  /** @format int32 */
+  toStatusId?: number;
 }

@@ -1,25 +1,29 @@
 package btk.staj.WorkFlowProject.workflow.adapter;
 
 import btk.staj.WorkFlowProject.rbac.Role;
+import btk.staj.WorkFlowProject.rbac.repository.RolePermissionRepository;
+import btk.staj.WorkFlowProject.support.WorkflowRoleFixtures;
+import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
 import btk.staj.WorkFlowProject.user.entity.User;
 import btk.staj.WorkFlowProject.user.repository.UserRepository;
 import btk.staj.WorkFlowProject.workflow.model.WorkflowUserSnapshot;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -33,7 +37,20 @@ class UserPortAdapterTest {
     private static final UUID SECOND_DEPUTY_ID = UUID.fromString("00000000-0000-0000-0000-000000000003");
 
     private final UserRepository userRepository = mock(UserRepository.class);
-    private final UserPortAdapter adapter = new UserPortAdapter(userRepository);
+    private final RolePermissionRepository rolePermissionRepository = mock(RolePermissionRepository.class);
+    private final UserPortAdapter adapter = new UserPortAdapter(userRepository, rolePermissionRepository);
+
+    /**
+     * Yetenek alanlari icin rol yetkileri: adapter aktif rolun permission kodlarini okur.
+     * lenient, cunku bazi testler hic kullaniciya ulasmadan hata bekliyor.
+     */
+    @BeforeEach
+    void stubRolePermissions() {
+        for (RoleName role : RoleName.values()) {
+            lenient().when(rolePermissionRepository.findActiveCodesByRoleId(WorkflowRoleFixtures.value(role)))
+                    .thenReturn(List.copyOf(AuthorizationFixtures.permissions(role)));
+        }
+    }
 
     @Test
     void findByIdMapsAnActiveUserFromEntityData() {
@@ -42,7 +59,7 @@ class UserPortAdapterTest {
 
         Optional<WorkflowUserSnapshot> result = adapter.findById(USER_ID);
 
-        assertThat(result).contains(new WorkflowUserSnapshot(USER_ID, RoleName.CALISAN, true));
+        assertThat(result).contains(WorkflowRoleFixtures.target(USER_ID, RoleName.CALISAN, true));
         verify(userRepository).findById(USER_ID);
         verifyNoMoreInteractions(userRepository);
     }
@@ -54,7 +71,7 @@ class UserPortAdapterTest {
 
         Optional<WorkflowUserSnapshot> result = adapter.findById(USER_ID);
 
-        assertThat(result).contains(new WorkflowUserSnapshot(USER_ID, RoleName.BASKAN, false));
+        assertThat(result).contains(WorkflowRoleFixtures.target(USER_ID, RoleName.BASKAN, false));
     }
 
     @Test
@@ -67,7 +84,9 @@ class UserPortAdapterTest {
     @Test
     void requiredDependenciesAndArgumentsRejectNullBeforeRepositoryAccess() {
         assertThatNullPointerException()
-                .isThrownBy(() -> new UserPortAdapter(null));
+                .isThrownBy(() -> new UserPortAdapter(null, rolePermissionRepository));
+        assertThatNullPointerException()
+                .isThrownBy(() -> new UserPortAdapter(userRepository, null));
         assertThatNullPointerException()
                 .isThrownBy(() -> adapter.findById(null));
         assertThatNullPointerException()
@@ -89,73 +108,73 @@ class UserPortAdapterTest {
 
     @Test
     void findActiveByRoleRejectsANullListReturnedByTheRepository() {
-        when(userRepository.findByRole_NameAndActive(RoleName.CALISAN.name(), true)).thenReturn(null);
+        when(userRepository.findByRole_IdAndRole_ActiveTrueAndActiveTrue(WorkflowRoleFixtures.value(RoleName.CALISAN))).thenReturn(null);
 
         assertThatIllegalStateException()
-                .isThrownBy(() -> adapter.findActiveByRole(RoleName.CALISAN));
+                .isThrownBy(() -> adapter.findActiveByRole(WorkflowRoleFixtures.id(RoleName.CALISAN)));
 
-        verify(userRepository).findByRole_NameAndActive("CALISAN", true);
+        verify(userRepository).findByRole_IdAndRole_ActiveTrueAndActiveTrue(WorkflowRoleFixtures.value(RoleName.CALISAN));
         verifyNoMoreInteractions(userRepository);
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("malformedUsers")
     void findActiveByRoleRejectsMalformedRepositoryUsers(String scenario, User malformedUser) {
-        when(userRepository.findByRole_NameAndActive(RoleName.CALISAN.name(), true))
+        when(userRepository.findByRole_IdAndRole_ActiveTrueAndActiveTrue(WorkflowRoleFixtures.value(RoleName.CALISAN)))
                 .thenReturn(Arrays.asList(malformedUser));
 
         assertThatIllegalStateException()
-                .isThrownBy(() -> adapter.findActiveByRole(RoleName.CALISAN));
+                .isThrownBy(() -> adapter.findActiveByRole(WorkflowRoleFixtures.id(RoleName.CALISAN)));
     }
 
     @Test
     void findActiveByRoleUsesTheExactRepositoryQueryAndReturnsAnEmptyList() {
-        when(userRepository.findByRole_NameAndActive(RoleName.BASKAN.name(), true)).thenReturn(List.of());
+        when(userRepository.findByRole_IdAndRole_ActiveTrueAndActiveTrue(WorkflowRoleFixtures.value(RoleName.BASKAN))).thenReturn(List.of());
 
-        List<WorkflowUserSnapshot> result = adapter.findActiveByRole(RoleName.BASKAN);
+        List<WorkflowUserSnapshot> result = adapter.findActiveByRole(WorkflowRoleFixtures.id(RoleName.BASKAN));
 
         assertThat(result).isEmpty();
-        verify(userRepository).findByRole_NameAndActive("BASKAN", true);
+        verify(userRepository).findByRole_IdAndRole_ActiveTrueAndActiveTrue(WorkflowRoleFixtures.value(RoleName.BASKAN));
         verifyNoMoreInteractions(userRepository);
     }
 
     @Test
     void findActiveByRoleMapsActualEntityRoleAndActiveValueWithoutFiltering() {
         User repositoryUser = user(USER_ID, "ADMIN", false);
-        when(userRepository.findByRole_NameAndActive(RoleName.BASKAN.name(), true))
+        when(userRepository.findByRole_IdAndRole_ActiveTrueAndActiveTrue(WorkflowRoleFixtures.value(RoleName.BASKAN)))
                 .thenReturn(List.of(repositoryUser));
 
-        List<WorkflowUserSnapshot> result = adapter.findActiveByRole(RoleName.BASKAN);
+        List<WorkflowUserSnapshot> result = adapter.findActiveByRole(WorkflowRoleFixtures.id(RoleName.BASKAN));
 
-        assertThat(result).containsExactly(new WorkflowUserSnapshot(USER_ID, RoleName.ADMIN, false));
+        assertThat(result).containsExactly(WorkflowRoleFixtures.target(USER_ID, RoleName.ADMIN, false));
     }
 
     @Test
     void findActiveByRolePreservesRepositoryOrderAndSupportsMultipleActiveDeputies() {
         User first = user(FIRST_DEPUTY_ID, "BASKAN_YARDIMCISI", true);
         User second = user(SECOND_DEPUTY_ID, "BASKAN_YARDIMCISI", true);
-        when(userRepository.findByRole_NameAndActive(RoleName.BASKAN_YARDIMCISI.name(), true))
+        when(userRepository.findByRole_IdAndRole_ActiveTrueAndActiveTrue(WorkflowRoleFixtures.value(RoleName.BASKAN_YARDIMCISI)))
                 .thenReturn(List.of(first, second));
 
-        List<WorkflowUserSnapshot> result = adapter.findActiveByRole(RoleName.BASKAN_YARDIMCISI);
+        List<WorkflowUserSnapshot> result = adapter.findActiveByRole(WorkflowRoleFixtures.id(RoleName.BASKAN_YARDIMCISI));
 
         assertThat(result).containsExactly(
-                new WorkflowUserSnapshot(FIRST_DEPUTY_ID, RoleName.BASKAN_YARDIMCISI, true),
-                new WorkflowUserSnapshot(SECOND_DEPUTY_ID, RoleName.BASKAN_YARDIMCISI, true));
-        verify(userRepository).findByRole_NameAndActive("BASKAN_YARDIMCISI", true);
+                WorkflowRoleFixtures.target(FIRST_DEPUTY_ID, RoleName.BASKAN_YARDIMCISI, true),
+                WorkflowRoleFixtures.target(SECOND_DEPUTY_ID, RoleName.BASKAN_YARDIMCISI, true));
+        verify(userRepository).findByRole_IdAndRole_ActiveTrueAndActiveTrue(WorkflowRoleFixtures.value(RoleName.BASKAN_YARDIMCISI));
         verifyNoMoreInteractions(userRepository);
     }
 
     @Test
     void findActiveByRoleDoesNotDeduplicateRepositoryEntries() {
         User duplicate = user(FIRST_DEPUTY_ID, "BASKAN_YARDIMCISI", true);
-        when(userRepository.findByRole_NameAndActive(RoleName.BASKAN_YARDIMCISI.name(), true))
+        when(userRepository.findByRole_IdAndRole_ActiveTrueAndActiveTrue(WorkflowRoleFixtures.value(RoleName.BASKAN_YARDIMCISI)))
                 .thenReturn(List.of(duplicate, duplicate));
 
-        List<WorkflowUserSnapshot> result = adapter.findActiveByRole(RoleName.BASKAN_YARDIMCISI);
+        List<WorkflowUserSnapshot> result = adapter.findActiveByRole(WorkflowRoleFixtures.id(RoleName.BASKAN_YARDIMCISI));
 
         WorkflowUserSnapshot snapshot =
-                new WorkflowUserSnapshot(FIRST_DEPUTY_ID, RoleName.BASKAN_YARDIMCISI, true);
+                WorkflowRoleFixtures.target(FIRST_DEPUTY_ID, RoleName.BASKAN_YARDIMCISI, true);
         assertThat(result).containsExactly(snapshot, snapshot);
     }
 
@@ -168,14 +187,22 @@ class UserPortAdapterTest {
                 arguments("null User", null),
                 arguments("null User id", user(null, "CALISAN", true)),
                 arguments("null User role", withoutRole),
-                arguments("null role name", user(USER_ID, null, true)),
-                arguments("unknown role name", user(USER_ID, "UNKNOWN", true)),
-                arguments("lower-case role name", user(USER_ID, "calisan", true)));
+                arguments("null role id", user(USER_ID, null, true)),
+                arguments("zero role id", user(USER_ID, "UNKNOWN", true)),
+                arguments("negative role id", user(USER_ID, "calisan", true)));
     }
 
     private static User user(UUID id, String roleName, boolean active) {
         Role role = new Role();
+        role.setId(roleName == null ? null : switch (roleName) {
+            case "UNKNOWN" -> 0;
+            case "calisan" -> -1;
+            default -> WorkflowRoleFixtures.value(RoleName.valueOf(roleName));
+        });
         role.setName(roleName);
+        role.setSystemKey(roleName);
+        role.setActive(true);
+        role.setWorkflowActor(roleName != null && !"ADMIN".equals(roleName));
 
         User user = new User();
         user.setId(id);

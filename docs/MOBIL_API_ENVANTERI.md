@@ -1,127 +1,34 @@
 # Mobil API Envanteri
 
-**Durum:** Uç envanteri güncel; TEST ortamı daha önce gerçek cihazdan doğrulandı (M9 ✅)
-**Son kod doğrulaması:** 31 Ağustos 2026, `test` dalı `4491a80`
-**Son kabul dağıtımı:** 21 Ağustos 2026, `4726d69` — [TEST ortamı](#test-ortamı)
-**Canlı sağlık doğrulaması:** 31 Ağustos 2026 12:37 TRT — `200 UP`; çalışan commit SHA'sı health yanıtında yayınlanmıyor
+Mobil istemcinin kullandığı REST uçlarını, istek/yanıt biçimlerini ve hata
+davranışlarını tanımlar. Uç değiştiğinde bu belge aynı değişiklik kapsamında
+güncellenir.
 
-Mobil istemcinin kullanacağı uçların tam listesi. Her satır koda bakılarak
-doğrulandı; **tahminle bağlama yok.** Uç değişirse bu belge aynı PR'da güncellenir.
+`DEPARTMANA_GONDER` aksiyonu ve `targetDepartmentId` alanı backend'de mevcuttur;
+mobil istemci MOB-1 ile kayıt kapsamlı departman seçimi için bunları kullanır. Mobilin tükettiği workflow uçları ve ortak `assignment` nesnesi
+[APP-9 / APP-10 / B11 sözleşmesinde](APP9_APP10_B11_ISTEMCI_SOZLESMESI.md)
+tanımlıdır. [Güncel teslim sınırları](README.md) ayrı izlenir.
+
+> **B09/MOB-1 kapandı.** `mobile/src/api/users.ts`, değiştirilebilir `roleName`
+> için açık string; ayrıca `roleId`, nullable `systemKey` ve `permissionCodes`
+> tüketir. Dinamik ve yeniden adlandırılmış yerleşik rol geçerli yanıttır.
+> Kayıt oluşturma/düzenleme/silme yetkisi rol adına değil `permissionCodes`
+> değerlerine göre kontrol edilir (`RECORD_CREATE`, `RECORD_EDIT`,
+> `RECORD_DELETE`). Workflow düğmeleri istemcide rol/durum tablosuyla
+> hesaplanmaz; `GET /api/records/{id}/workflow/available-actions` yanıtından
+> üretilir. Departman hedefi gerektiğinde `target-departments` kullanılır.
+> `assignment.kind` ve `version` detay/liste/workflow yanıtlarında korunur;
+> kayıt detayında mevcut atama gösterilir. Backend mutasyonu kendi workflow
+> kurallarıyla doğrulamaya devam eder.
+>
+> **Ayrı istemci sınırı:** Dashboard kısayol kartları `systemKey` ile
+> eşlenmektedir; bu davranış MOB-1 atama/version sözleşmesinden ayrıdır.
 
 Kanonik kaynaklar: [FRONTEND_BACKEND_SOZLESMESI.md](FRONTEND_BACKEND_SOZLESMESI.md)
 (alan sözleşmesi) · [workflow.md](workflow.md) (durum geçişleri ve görünürlük) ·
-Swagger `/swagger-ui.html`, ham şema `/v3/api-docs`.
-
----
-
-## ✅ Sprint 0 boşlukları — kapandı
-
-**1. ~~TEST ortamı yok.~~ ✅ Kuruldu — Burak Kaya (M9).** Ekipçe erişilebilen
-HTTPS TEST ortamı 21 Ağustos 2026'da ayağa kaldırıldı ve gerçek fiziksel
-Android cihazdan doğrulandı. Mobil istemci artık `localhost` yerine bu adrese
-bağlanabilir; push bildiriminin (Sprint 4) önündeki ortam engeli kalktı.
-
-| | Adres | Örnek hesaplar | Veri |
-|---|---|---|---|
-| `DEV` | `http://localhost:8080` | Yerel bootstrap admin | Boş şema + Flyway |
-| `TEST` | `https://workflowproject-test.duckdns.org` | Çalışan ×2, Bşk. Yrd., Başkan, Admin — [aşağıda](#test-ortamı) | 7 kayıt, altı workflow durumu |
-| `PROD` | _(kapsam dışı)_ | — | — |
-
-Ayrıntı, hesaplar ve kabul kanıtı: [TEST ortamı](#test-ortamı).
-Kurulum, topoloji ve bilinen sınırlamalar: [TEST_ORTAMI_NOTU.md](TEST_ORTAMI_NOTU.md).
-
-**2. ~~Sürüm sabitlenmiş `openapi.json` yok.~~ ✅ Sabitlendi ve 31 Ağustos'ta
-güncel Springdoc çıktısından yeniden üretildi: [docs/openapi.json](openapi.json).**
-Dosya `/api/device-tokens` ve `/api/public/mail-actions/*` uçlarını içerir.
-Mobil istemci API katmanı el yazımıdır; frontend üretimi çalışan backend'in
-`/v3/api-docs` çıktısını kullanır. Bu dosya inceleme için sürümlenmiş anlık görüntüdür.
-
-Yeniden üretmek için (backend ayaktayken):
-
-```bash
-curl -s http://localhost:8080/v3/api-docs   | python -c "import sys,json;print(json.dumps(json.load(sys.stdin),ensure_ascii=False,indent=2))"   > docs/openapi.json
-```
-
-Biçimlendirme bilerek yapılıyor: springdoc tek satır JSON üretiyor ve o hâlde
-her değişiklik tek satırlık okunamaz bir diff'e dönüşüyor.
-
-> Dosyadaki `servers[0].url` `http://localhost` — veritabanısız MockMvc üretim
-> bağlamının adresidir ve çalışma zamanı hedefi değildir. Mobil base URL'i kendi
-> yapılandırmasından alır, bu alanı kullanmaz.
-
----
-
-## TEST ortamı
-
-**Base URL:** `https://workflowproject-test.duckdns.org`
-**Son kabul deploy SHA:** `4726d6974ae30f54120a7423d288acf18465da8c` (`4726d69`, `test` dalı)
-**Kabul tarihi:** 21 Ağustos 2026
-**Son canlı sağlık kontrolü:** 31 Ağustos 2026 12:37 TRT, `200 UP`
-
-Health yanıtı çalışan commit SHA'sını yayınlamaz. Bu nedenle canlı servisin son
-kabul dağıtımıyla aynı sürümde olduğu varsayılmaz; yeniden dağıtımda SHA ayrıca kaydedilmelidir.
-
-Mobil istemci base URL'i `EXPO_PUBLIC_API_BASE_URL` üzerinden alır; değişken
-zorunludur ve tanımsızsa uygulama açılışta durur
-([mobile/src/api/client.ts](../mobile/src/api/client.ts)). EAS build
-environment'ına tam adıyla verilmelidir — `eas.json` bu değeri kendiliğinden
-sağlamıyor.
-
-### Hesaplar
-
-Parolalar **bu belgeye yazılmaz**; güvenli ekip kanalından paylaşılır. Admin
-parolası ekip geneline paylaşılmaz.
-
-| E-posta | Rol | Görünür kayıt |
-|---|---|---:|
-| `calisan1@ebys-test.local` | `CALISAN` | 6 |
-| `calisan2@ebys-test.local` | `CALISAN` | 1 |
-| `bskyrd@ebys-test.local` | `BASKAN_YARDIMCISI` | 5 |
-| `baskan@ebys-test.local` | `BASKAN` | 3 |
-| `m9-admin@workflow.test` | `ADMIN` | — (mobil kapsam dışı) |
-
-Görünür kayıt sütunu görünürlük kapsamının kanıtıdır: `calisan1` yalnızca kendi
-altı kaydını görüyor, `calisan2`'nin taslağını görmüyor.
-
-### Veri
-
-Toplam 7 kayıt. `calisan1` altı workflow durumunun her birinden bir kayda
-sahip — `TASLAK`, `BSK_YRD_INCELEMESINDE`, `BASKAN_INCELEMESINDE`,
-`DUZENLEME_BEKLIYOR`, `ONAYLANDI`, `REDDEDILDI`. Yedinci kayıt `calisan2`'nin
-taslağıdır ve görünürlük kapsamının negatif tarafını test eder.
-
-Kayıtlar doğrudan SQL ile değil API üzerinden üretildi
-([deploy/seed-test-data.sh](../deploy/seed-test-data.sh)); böylece bcrypt
-parolalar, denetim satırları ve durum geçişleri tutarlı oluştu.
-
-### Kabul kanıtı
-
-| | |
-|---|---|
-| Cihaz | Samsung Galaxy A34 |
-| İşletim sistemi | Android 16 |
-| Ağ | Mobil veri |
-| Tarih | 21 Ağustos 2026, ~23:00 TRT |
-| Hesap | `calisan1@ebys-test.local` |
-| Mobil build | EAS Android preview, build `cdeede67-8124-4cd9-81ac-11296e380c7c` |
-| Backend SHA | `4726d69` |
-| Sonuç | Giriş başarılı; kayıt listesinde 6/6 kayıt görüldü |
-
-Cihazda görülen sayı, seed'in API üzerinden hesapladığı `calisan1` görünür
-kayıt sayısıyla birebir eşleşti.
-
-### Ortam yüzeyi
-
-Dışarıya açık tek servis Caddy'dir (`80`/`443`). `5432` (PostgreSQL), `8080`
-(backend), `8025`/`1025` (Mailpit) ve `5173` dış ağdan kapalıdır. `/mail`
-arayüzü basic auth ile korunur. TLS sertifikası Let's Encrypt'ten otomatik
-alınır ve yenilenir.
-
-TEST'te **ürün web frontend'i yayınlanmaz.** Bu nedenle e-posta derin
-bağlantıları bu aşamada çalışmaz; ayrıntı ve gerekçe için
-[TEST_ORTAMI_NOTU.md](TEST_ORTAMI_NOTU.md).
-
----
+Swagger `/swagger-ui.html`, ham şema `/v3/api-docs` ve inceleme amaçlı
+[OpenAPI anlık görüntüsü](openapi.json). Mobil base URL'i
+`EXPO_PUBLIC_API_BASE_URL` üzerinden alır; şemadaki `servers` alanını kullanmaz.
 
 ## Genel kurallar
 
@@ -133,7 +40,10 @@ ister. Açık uçlar: `POST /api/auth/login`, `/refresh`, `/logout`,
 **Kullanıcı kimliği gövdeden alınmaz.** Hiçbir uç `userId` kabul etmez; oturum
 JWT'den okunur. Gövdeye kullanıcı kimliği koymak sessizce yok sayılır.
 
-**Roller (mobil v1).** `CALISAN`, `BASKAN_YARDIMCISI`, `BASKAN`.
+**Mobilin başlangıç rol senaryoları:** `CALISAN`, `BASKAN_YARDIMCISI`, `BASKAN`.
+Backend kataloğu bunlarla sınırlı değildir; dinamik rol gerekli permission/ilişkiyle
+okuyabilir ve tanımlı geçişi uygulayabilir. Mobil profil ve workflow tüketimi bu
+dinamik kimlikle uyumludur; business rule istemciye kopyalanmaz.
 `ADMIN` mobil kapsamında değil — evrak göremez, `/api/admin/**` uçları mobile
 dahil edilmedi.
 
@@ -218,8 +128,10 @@ Yenilemede yeni bir refresh token da döner; eskisi geçersizleşir (rotasyon).
 **`POST /logout`** → `{ "refreshToken": "..." }` → `200`, gövde düz metin
 `"Çıkış yapıldı"`. **JSON değil** — parse etmeyin.
 
-> M4 kapsamında bu gövdeye opsiyonel `deviceToken` eklenecek. Bugün DTO yalnız
-> `refreshToken` taşıyor ve alan zorunlu.
+> Opsiyonel `deviceToken` alanı **eklenmiştir** (`LogoutRequest.deviceToken`).
+> Web bu alanı göndermez ve göndermemesi hata değildir. Gönderildiğinde cihaz
+> token'ı aynı işlemde pasifleştirilir; çıkış yapan cihaza bildirim gitmez.
+> `refreshToken` zorunlu olmaya devam eder.
 
 **`POST /change-password`** → `{ "currentPassword", "newPassword" }` → düz metin.
 `newPassword`: en az 8 karakter, en az bir harf ve bir rakam.
@@ -249,13 +161,24 @@ değil `JwtAuthenticationFilter`'da zorlanır, mobil UI gizlemesine güvenilmez.
 ```json
 {
   "id": "uuid", "firstName": "Ahmet", "lastName": "Yılmaz",
-  "email": "a@ornek.local", "roleName": "CALISAN",
+  "email": "a@ornek.local",
+  "roleId": 1, "systemKey": "CALISAN", "roleName": "Çalışan",
+  "permissionCodes": ["RECORD_VIEW", "RECORD_CREATE", "RECORD_EDIT"],
   "active": true, "createdAt": "2026-08-01T09:00:00"
 }
 ```
 
-`roleName` mobilin rol bazlı ekran seçimini besler. **Nihai yetki yine
-backend'de** — rol bilgisi sadece görünüm içindir.
+Yanıt `CurrentUserResponse`'tur ve `/api/admin/users` cevaplarındaki
+`UserResponse`'un üstüne `permissionCodes` ekler. Alanların işi ayrıdır:
+`roleId` ilişkisel kimliktir, `systemKey` yerleşik rolün değişmez anahtarıdır ve
+**dinamik rolde `null` gelir**, `roleName` yalnız gösterim adıdır (AP-2 ile
+değişebilir, kapalı bir listeye karşı doğrulanmaz), `permissionCodes` ise
+backend'in hesapladığı aktif yetkilerdir.
+
+İstemci **yetki kararlarını `permissionCodes` ile**, yerleşik role özgü görünüm
+seçimlerini `systemKey` ile yapar; `roleName` yalnız ekranda gösterilir. Workflow
+düğmeleri bunların hiçbirinden türetilmez — `available-actions` ucundan gelir.
+**Nihai yetki yine backend'dedir.**
 
 ---
 
@@ -265,9 +188,9 @@ backend'de** — rol bilgisi sadece görünüm içindir.
 |---|---|---|---|
 | `GET` | `` | Oturum | Sayfalı liste, görünürlük kapsamı uygulanır |
 | `GET` | `/{id}` | Oturum | |
-| `POST` | `` | `CALISAN` | `TASLAK` oluşturur |
-| `PUT` | `/{id}` | `CALISAN` | Yalnız kendi `TASLAK`/`DUZENLEME_BEKLIYOR` kaydı |
-| `DELETE` | `/{id}` | `CALISAN` | Yalnız `TASLAK` |
+| `POST` | `` | `RECORD_CREATE` | `TASLAK` oluşturur |
+| `PUT` | `/{id}` | `RECORD_EDIT` | Yalnız kendi `TASLAK`/`DUZENLEME_BEKLIYOR` kaydı |
+| `DELETE` | `/{id}` | `RECORD_DELETE` | Yalnız kendi `TASLAK` kaydı |
 
 **`GET /api/records`** parametreleri:
 
@@ -318,12 +241,18 @@ Liste ve detay aynı kuralı uygular — mobil ayrıca filtreleme yapmaz:
 
 | Rol | Görür |
 |---|---|
-| `CALISAN` | Yalnız kendi oluşturduğu kayıtlar |
-| `BASKAN_YARDIMCISI` | Kendisine atanan + `DUZENLEME_BEKLIYOR` + bir kez kendi elinden geçmiş (`last_deputy_id`) |
-| `BASKAN` | Onayına gelen + sonuçlanan (`ONAYLANDI`/`REDDEDILDI`) |
+| Dinamik rol / `CALISAN` | Kendi oluşturduğu, doğrudan kendisine atanan veya yetkili departman/durum kapsamındaki kayıtlar |
+| `BASKAN_YARDIMCISI` | Kendi oluşturduğu + kendisine atanan + `DUZENLEME_BEKLIYOR` + bir kez kendi elinden geçmiş (`last_deputy_id`) |
+| `BASKAN` | Kendi oluşturduğu + kendisine atanan + onayına gelen + sonuçlanan (`ONAYLANDI`/`REDDEDILDI`) |
+| `ADMIN` | Hiçbir kayıt |
 
 Kapsam dışı kayıt listede **hiç dönmez**, sayfa sayısına da girmez. Kimliğiyle
 doğrudan istenirse `403 FORBIDDEN`.
+
+> **Tablo kapalı bir liste değildir.** Dört yerleşik rolün bugünkü kapsamını
+> anlatır; rol kataloğu `roles` tablosundan gelir. Panelden rol oluşturma AP-2'de açıktır.
+> Rol adı (`roles.name`) değiştirilebilir — istemci rolü ada göre sabit bir listeye
+> karşı doğrulamamalıdır. Bütün kapsamlar aktif hesap/rol ve `RECORD_VIEW` gerektirir; ADMIN deny korunur. Dinamik rol erişimi uygulanmıştır; uygun routing/rol/permission ile departman görünürlüğü de uygulanmıştır. [WF-2C2 sözleşmesi](WF2C2_DB8_GORUNURLUK_SOZLESMESI.md). Silinmiş kaydın detay/dosya/geçmiş okumaları `404` döner.
 
 **İçerik dondurma:** Kayıt `DUZENLEME_BEKLIYOR` iken onu geri gönderen Bşk. Yrd.
 **devir anındaki kopyayı** görür — başlık, açıklama, kategori ve ek dosyalar
@@ -340,8 +269,28 @@ Yetki `@PreAuthorize` ile değil, durum makinesiyle belirlenir.
 { "action": "BASKANA_ILET", "comment": "Uygun bulunmuştur." }
 ```
 
-**`targetUserId` gönderilmez.** Alan DTO'da duruyor ama backend bilerek yok
-sayıyor; hedefi her aksiyon için sunucu çözer.
+**`targetUserId` gönderilmez.** Gönderilirse `400 WORKFLOW_TARGET_NOT_ALLOWED` döner; kişi hedefini sunucu çözer.
+
+**V23 + WF-5/WF-6:** `DEPARTMANA_GONDER` ve Integer `targetDepartmentId` desteklenir. İki hedef alanı birlikte `400 VALIDATION_ERROR`; eksik hedef `400 WORKFLOW_TARGET_REQUIRED`, yanlış alan `400 WORKFLOW_TARGET_NOT_ALLOWED` üretir.
+
+```json
+{ "action": "DEPARTMANA_GONDER", "targetDepartmentId": 12, "comment": "Satın alma incelemesi" }
+```
+
+Departmana gönderim `assigned_department_id` alanını doldurur ve `assigned_to` alanını temizler. Hedef aktif olmalı; iniş durumu için aktif routing/transition, aktif workflow rolü, uygun aktif üye, `RECORD_VIEW` ve geçiş permission'ı bulunmalıdır. Eksik/pasif departman `400 WORKFLOW_DEPARTMENT_INVALID`, kullanılabilir iniş routing'i yoksa `409 WORKFLOW_DEPARTMENT_ROUTING_NOT_CONFIGURED` döner. Kayıt zaten departmandayken eksik routing veya yetkisiz üyelik `403 WORKFLOW_FORBIDDEN` üretir. Üyelik tek başına yetki vermez.
+
+**MOB-1 mobil hedef seçimi:** `targetDepartmentRequired=true` olduğunda
+`GET /api/records/{recordId}/workflow/target-departments` çağrılır. Yanıt
+`{ "departments": [{ "id": 12, "name": "Hukuk" }] }` biçimindedir; uygunluk
+backend'de filtrelenir. Mobil bu listeye rol/routing kuralı eklemez. Seçim
+zorunludur; yükleme, hata ve boş liste durumunda gönderim yapılmaz. Hedef
+istemeyen aksiyonlara hedef kimliği eklenmez. Workflow POST `version` istemez.
+
+Kullanıcı seçimi mevcut sözleşmede desteklenmez: bütün aksiyonların
+`targetUserRequired` değeri false'tur ve normal kullanıcı için hedef kullanıcı
+keşif ucu yoktur. Beklenmedik true değerinde mobil aksiyonu gizlemez; desteklenmeyen
+seçim mesajı gösterir ve gönderimi engeller. Kullanıcı seçimini açmak backend hedef
+çözümü ve görünürlük sözleşmesi için ayrı tasarım kararı gerektirir.
 
 Cevap:
 
@@ -349,8 +298,13 @@ Cevap:
 {
   "recordId": "uuid", "action": "BASKANA_ILET",
   "previousStatus": "BSK_YRD_INCELEMESINDE", "newStatus": "BASKAN_INCELEMESINDE",
-  "assignedTo": "uuid", "performedBy": "uuid",
-  "performedAt": "2026-08-20T14:05:00Z"
+  "assignedTo": "uuid",
+  "assignment": {
+    "kind": "USER", "userId": "uuid", "userFullName": "Ayşe Demir",
+    "departmentId": null, "departmentName": null
+  },
+  "performedBy": "uuid", "performedAt": "2026-08-20T14:05:00Z",
+  "version": 8
 }
 ```
 
@@ -361,6 +315,8 @@ Cevap:
 
 | Durum | Rol | Aksiyon | Yeni durum | `comment` |
 |---|---|---|---|---|
+| `TASLAK` | `CALISAN` (sahibi) | `DEPARTMANA_GONDER` | `BSK_YRD_INCELEMESINDE` | opsiyonel |
+| `DUZENLEME_BEKLIYOR` | `CALISAN` (sahibi ve atama sahibi) | `DEPARTMANA_GONDER` | `BSK_YRD_INCELEMESINDE` | opsiyonel |
 | `TASLAK` | `CALISAN` (sahibi) | `GONDER` | `BSK_YRD_INCELEMESINDE` | opsiyonel |
 | `DUZENLEME_BEKLIYOR` | `CALISAN` (sahibi) | `TEKRAR_GONDER` | `BSK_YRD_INCELEMESINDE` | opsiyonel |
 | `BSK_YRD_INCELEMESINDE` | `BASKAN_YARDIMCISI` (atanan) | `BASKANA_ILET` | `BASKAN_INCELEMESINDE` | opsiyonel |
@@ -371,8 +327,9 @@ Cevap:
 | `BASKAN_INCELEMESINDE` | `BASKAN` (atanan) | `BASKAN_YARDIMCISINA_GERI_GONDER` | `BSK_YRD_INCELEMESINDE` | **zorunlu** |
 
 `comment` en fazla 2000 karakter. Zorunlu olduğu yerde boş gönderilirse
-`400`. Tablodaki dışında her kombinasyon reddedilir — mobil buton gizlese bile
-backend ayrıca doğrular.
+`400`. Tablo başlangıç seed'ini gösterir; WF-8 aynı geçişe dinamik aktör rolü
+bağlayabilir. Geçerli durum–aksiyon–rol birleşimini aktif DB transition'ları,
+permission ve kayıt ilişkisi belirler; mobil buton gizlese bile backend doğrular.
 
 ### ⚠️ Bu ucun kendi hata kodları var
 
@@ -383,7 +340,9 @@ Workflow ucu genel kod ailesini **kullanmaz**; `ApiError.code` alanında
 |---|---|---|
 | `WORKFLOW_INVALID_TRANSITION` | 400 | Bu durumda bu işlem yapılamaz |
 | `WORKFLOW_COMMENT_REQUIRED` | 400 | Açıklama zorunlu (boşluk kabul edilmez) |
-| `WORKFLOW_TARGET_REQUIRED` | 400 | Hedef kullanıcı gerekli |
+| `WORKFLOW_TARGET_REQUIRED` | 400 | Hedef departman gerekli |
+| `WORKFLOW_DEPARTMENT_INVALID` | 400 | Hedef departman yok/pasif |
+| `WORKFLOW_DEPARTMENT_ROUTING_NOT_CONFIGURED` | 409 | İniş durumunda kullanılabilir routing yok |
 | `WORKFLOW_TARGET_NOT_ALLOWED` | 400 | Hedef bu işlem için uygun değil |
 | `WORKFLOW_TARGET_ROLE_INVALID` | 400 | Hedefin rolü uygun değil |
 | `WORKFLOW_TARGET_INACTIVE` | 400 | Hedef kullanıcı pasif |
@@ -394,13 +353,13 @@ Workflow ucu genel kod ailesini **kullanmaz**; `ApiError.code` alanında
 | `WORKFLOW_VERSION_CONFLICT` | 409 | Kayıt siz işlem yaparken değişti |
 | `WORKFLOW_STATUS_NOT_CONFIGURED` | 500 | Sunucu yapılandırma hatası |
 
-`WORKFLOW_TARGET_*` kodları bugün pratikte oluşmaz (hedefi backend çözüyor),
-ama sözleşmede duruyorlar.
+Hedefi backend çözse de eksik/pasif/uygunsuz hedef veya geçiş metadata'sı
+`WORKFLOW_TARGET_*` hatalarını üretebilir. İstemci bunları yok saymamalıdır.
 
-**409'lar kural ihlali değil, geçici çatışmadır.** `WORKFLOW_VERSION_CONFLICT`
-ve `WORKFLOW_RECORD_LOCKED` alındığında mobil kaydı yeniden yükleyip kullanıcıya
-güncel durumu göstermeli; isteği sessizce tekrarlamamalı. `message` alanı
-kullanıcıya gösterilebilecek Türkçe metin taşır.
+`WORKFLOW_VERSION_CONFLICT` eşzamanlı değişikliği, `WORKFLOW_RECORD_LOCKED`
+terminal/kilitli kaydı, `WORKFLOW_ROLE_NOT_CONFIGURED` hedef rol yapılandırmasını
+gösterir; her 409 geçici yarış değildir. Mobil kaydı yeniden yükleyip güncel
+durumu ve hata mesajını göstermeli, isteği sessizce tekrarlamamalıdır.
 
 ---
 
@@ -417,10 +376,20 @@ Yetki: kaydı görebilen herkes. Sayfalama **yok**, tüm satırlar tek listede
   "action": "BASKANA_ILET",
   "previousStatus": "BSK_YRD_INCELEMESINDE", "newStatus": "BASKAN_INCELEMESINDE",
   "comment": "Uygun bulunmuştur.",
+  "previousAssignment": { "kind": "USER", "userId": "uuid", "userFullName": "Ayşe Kaya", "departmentId": null, "departmentName": null },
+  "newAssignment": { "kind": "DEPARTMENT", "userId": null, "userFullName": null, "departmentId": 4, "departmentName": "Hukuk" },
   "httpMethod": null, "requestPath": null, "httpStatus": null, "errorCode": null,
   "createdAt": "2026-08-20T14:05:00"
 }]
 ```
+
+**`previousAssignment` / `newAssignment` (B12, 8 Eylül).** Geçişin atamayı
+nereden nereye taşıdığını ortak `AssignmentView` şekliyle taşır; `kind` =
+`USER` / `DEPARTMENT` / `NONE`. Mobil şema bu iki alanı **opsiyonel nesne**
+olarak okumalı ve türü `kind`'dan almalıdır — iki nullable kimliği
+karşılaştırarak çıkarsamamalıdır. Geçiş olmayan satırlarda ikisi de `NONE`
+gelir. Aynı `AssignmentView` şekli kayıt yanıtlarında da vardır (`MOB-1`'in
+kalan atama gösterimi ayağı).
 
 `httpMethod` / `requestPath` / `httpStatus` / `errorCode` kayıt geçmişinde
 **her zaman `null`** — o alanlar Admin HTTP denetim satırları içindir. Mobil
@@ -433,12 +402,12 @@ Yaşam döngüsü satırlarında `previousStatus` `null`'dur — geçiş değild
 
 ### ⚠️ Geçmiş role göre kırpılır
 
-Aynı kaydın geçmişi herkese aynı gelmez. Kural: **kullanıcı evrağı yalnız kendi
-masasında olduğu dönem boyunca görür.**
+Aynı kaydın geçmişi herkese aynı gelmez. Önce ortak kayıt görünürlüğü doğrulanır;
+ardından sistem rolüne özgü geçmiş kesimi uygulanır. Ek `AUDIT_VIEW` gerekmez.
 
 | Rol | Ne görür |
 |---|---|
-| Çalışan (sahibi) | Tamamı |
+| Dinamik rol / Çalışan | Görünür kaydın tam geçmişi |
 | Bşk. Yrd. | Kayıt `DUZENLEME_BEKLIYOR` iken **devir anına kadar** kırpılmış |
 | Başkan | Evrak kendisine **ilk iletildiği andan itibaren** |
 
@@ -518,11 +487,11 @@ yerde tutmayı gerektirir.
 
 | Metot | Adres | Yetki | Not |
 |---|---|---|---|
-| `POST` | `/api/records/{id}/files` | `CALISAN` | multipart, aynı `file` alanında bir veya daha çok dosya |
+| `POST` | `/api/records/{id}/files` | `FILE_MANAGE` + sahiplik/kilit kontrolü | multipart, aynı `file` alanında bir veya daha çok dosya |
 | `GET` | `/api/records/{id}/files` | Kaydı görebilen | |
 | `GET` | `/api/files/{id}/download` | Kaydı görebilen | |
 | `GET` | `/api/files/{id}/preview` | Kaydı görebilen | Inline |
-| `DELETE` | `/api/files/{id}` | `CALISAN` | Soft delete |
+| `DELETE` | `/api/files/{id}` | `FILE_MANAGE` + sahiplik/kilit kontrolü | Soft delete |
 
 **Yükleme `multipart/form-data`, alan adı `file`.** Backend `MultipartFile[]`
 kabul eder. Mobil, dosya bazında ilerleme, hata ve yeniden deneme gösterebilmek
@@ -614,8 +583,13 @@ ve geçiş sonrasında mevcut alıcı matrisi için push göndermeyi dener. FCM
 yapılandırılmamış ortamda workflow push olmadan çalışmaya devam eder.
 
 Mobil istemci `expo-notifications` ile native cihaz tokenını alıp bu uca kaydeder.
-Eksikler token yenileme dinleyicisi, soğuk açılış yönlendirmesi ve gerçek cihaz
-uçtan uca push kanıtıdır.
+`addPushTokenListener` yenilenen tokenı yeniden kaydeder. Foreground handler
+bildirimi gösterir; background/warm tap listener'ı ve cold-start last-response
+yolu payload'daki doğrulanmış `recordId` ile kayıt detayına gider. Aynı response
+identifier tekrar yönlendirme üretmez. Kod ve testler tamamdır; Firebase bağlı
+fiziksel Android uçtan uca kanıtı **MANUAL DEVICE ACCEPTANCE PENDING** durumundadır.
+Kurulum ve lifecycle kontrol listesi
+[D04 rehberindedir](D04_NOTIFICATION_MOBILE_REALTIME_KABUL_REHBERI.md#e-nt-89-android-push-kabulü).
 
 ---
 

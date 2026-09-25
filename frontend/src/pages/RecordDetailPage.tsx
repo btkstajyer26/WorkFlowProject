@@ -12,6 +12,7 @@ import { RecordActionPanel } from '../components/records/RecordActionPanel'
 import { RecordFilesPanel } from '../components/records/RecordFilesPanel'
 import { RecordHistoryDisclosure, RecordNoteDisclosure } from '../components/records/RecordDetailDisclosures'
 import { RecordStatusBadge } from '../components/records/RecordStatusBadge'
+import { RecordSubtasksPanel } from '../components/records/RecordSubtasksPanel'
 import { useCategories } from '../context/categoryState'
 import { queryKeys } from '../query/queryKeys'
 import type { AuthUser } from '../types/auth'
@@ -31,7 +32,7 @@ export function RecordDetailPage({ user }: { user: AuthUser }) {
 }
 
 function BackendRecordDetailPage({ user }: { user: AuthUser }) {
-  const role = user.role
+  const systemKey = user.systemKey
   const { recordId } = useParams()
   const { categories, status: categoryStatus, reloadCategories } = useCategories()
   const categoryRevision = categories.map((category) => `${category.id}:${category.name}`).join('|')
@@ -41,7 +42,7 @@ function BackendRecordDetailPage({ user }: { user: AuthUser }) {
     enabled: Boolean(recordId) && categoryStatus === 'ready',
     refetchInterval: (query) => {
       const record = query.state.data as WorkflowRecord | undefined
-      return role !== 'CALISAN' && record?.status === 'DUZENLEME_BEKLIYOR' ? false : 30_000
+      return systemKey !== 'CALISAN' && record?.status === 'DUZENLEME_BEKLIYOR' ? false : 30_000
     },
   })
 
@@ -138,6 +139,8 @@ function RecordDetailContent({
       </header>
 
       <RecordActionPanel record={record} user={user} />
+
+      <RecordSubtasksPanel recordId={record.id} currentUserId={user.id} parentStatus={record.status} />
 
       <section className="rounded-xl border border-app-border bg-app-surface px-5 py-5 sm:px-6 sm:py-6">
         <div>

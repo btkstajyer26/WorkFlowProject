@@ -1,12 +1,14 @@
 package btk.staj.WorkFlowProject.workflow.statemachine;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-
+import java.util.Set;
+import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
+import btk.staj.WorkFlowProject.support.WorkflowRoleFixtures;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -21,15 +23,65 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 class WorkflowTransitionValidatorTest {
 
     private final WorkflowTransitionValidator validator =
-            new WorkflowTransitionValidator(new StaticTransitionRuleSource());
+            new WorkflowTransitionValidator(new StaticTransitionRuleSource(WorkflowRoleFixtures.roleIds()));
+
+    @Test
+    void equalRoleIdsInDifferentObjectsMatchActorAndTarget() {
+        var ids = java.util.Map.of(RoleName.CALISAN, new RoleId(1001),
+                RoleName.BASKAN_YARDIMCISI, new RoleId(2002), RoleName.BASKAN, new RoleId(3003),
+                RoleName.SISTEM, new RoleId(5005), RoleName.ADMIN, new RoleId(4004));
+        var source = new StaticTransitionRuleSource(ids);
+        var context = new TransitionContext(RecordStatus.TASLAK, WorkflowAction.GONDER,
+                new RoleId(1001), true, false, null, false, false, new RoleId(2002), true,
+                true, java.util.Set.of("RECORD_FORWARD"),
+                false, true, true, java.util.Set.of("RECORD_VIEW", "RECORD_FORWARD", "RECORD_RETURN"));
+
+        assertThat(context.actorRoleId()).isNotSameAs(ids.get(RoleName.CALISAN));
+        assertThat(context.targetRoleId()).isNotSameAs(ids.get(RoleName.BASKAN_YARDIMCISI));
+        assertThat(new WorkflowTransitionValidator(source).validate(context))
+                .isEqualTo(TransitionDecision.allowed(RecordStatus.BSK_YRD_INCELEMESINDE));
+    }
 
     // ------------------------------------------------------------------
-    // Pozitif gecisler - gecis matrisindeki sekiz satir
+    // Pozitif gecis ornekleri
     // ------------------------------------------------------------------
 
     @Nested
     @DisplayName("izinli gecisler")
     class AllowedTransitions {
+
+        @Test
+        @DisplayName("Atanmis Baskan Yardimcisi Parent kaydi alt gorevlere ayirabilir")
+        void deputyMaySplitParentRecord() {
+            TransitionContext context = Ctx.of(
+                    RecordStatus.BSK_YRD_INCELEMESINDE,
+                    WorkflowAction.ALT_GOREVLERE_AYIR,
+                    RoleName.BASKAN_YARDIMCISI).assignee().build();
+
+            assertAllowed(context, RecordStatus.ALT_GOREV_BEKLIYOR);
+        }
+
+        @Test
+        @DisplayName("SISTEM aktoru ek capability olmadan Parent join gecisini yapabilir")
+        void systemActorCompletesParentJoinWithoutCapabilityPermission() {
+            TransitionContext context = Ctx.of(
+                    RecordStatus.ALT_GOREV_BEKLIYOR,
+                    WorkflowAction.ALT_GOREVLER_SONUCLANDI,
+                    RoleName.SISTEM).build();
+
+            assertAllowed(context, RecordStatus.KONTROL);
+        }
+
+        @Test
+        @DisplayName("normal insan rolu SYSTEM gecisini yapamaz")
+        void humanRoleCannotUseSystemTransition() {
+            TransitionContext context = Ctx.of(
+                    RecordStatus.ALT_GOREV_BEKLIYOR,
+                    WorkflowAction.ALT_GOREVLER_SONUCLANDI,
+                    RoleName.BASKAN_YARDIMCISI).assignee().build();
+
+            assertRejected(context, WorkflowErrorCode.WORKFLOW_INVALID_TRANSITION);
+        }
 
         @Test
         @DisplayName("Calisan kendi taslagini Baskan Yardimcisina gonderebilir")
@@ -381,7 +433,7 @@ class WorkflowTransitionValidatorTest {
                                 .creator()
                                 .assignee()
                                 .comment("aciklama")
-                                .resolvedTarget(action.getExpectedTargetRole())
+                                .resolvedTarget(expectedTargetRoleOf(status, action, role))
                                 .build();
 
                         TransitionDecision decision = validator.validate(context);
@@ -410,7 +462,7 @@ class WorkflowTransitionValidatorTest {
                             .creator()
                             .assignee()
                             .comment("aciklama")
-                            .resolvedTarget(action.getExpectedTargetRole())
+                            .resolvedTarget(expectedTargetRoleOf(status, action, RoleName.ADMIN))
                             .build();
 
                     TransitionDecision decision = validator.validate(context);
@@ -455,8 +507,19 @@ class WorkflowTransitionValidatorTest {
     @Test
     @DisplayName("baglam olusturucusu zorunlu alanlari dogrular")
     void baglamZorunluAlanlar() {
-        assertThatCode(() -> new TransitionContext(null, WorkflowAction.ONAYLA, RoleName.BASKAN,
-                false, false, null, false, null, true))
+        assertThatCode(() -> new TransitionContext(
+                null,
+                WorkflowAction.ONAYLA,
+                WorkflowRoleFixtures.id(RoleName.BASKAN),
+                false,
+                false,
+                null,
+                false, false,
+                null,
+                true,
+                AuthorizationFixtures.workflowActor(RoleName.BASKAN),
+                AuthorizationFixtures.permissions(RoleName.BASKAN),
+                false, false, false, Set.of()))
                 .isInstanceOf(NullPointerException.class);
     }
 
@@ -477,7 +540,8 @@ class WorkflowTransitionValidatorTest {
         private final List<Boolean> bayraklar = List.of(true, false);
         private final List<String> aciklamalar = Arrays.asList(null, "", "   ", "aciklama");
         private final List<RoleName> hedefRolleri = Arrays.asList(
-                null, RoleName.CALISAN, RoleName.BASKAN_YARDIMCISI, RoleName.BASKAN, RoleName.ADMIN);
+                null, RoleName.CALISAN, RoleName.BASKAN_YARDIMCISI, RoleName.BASKAN,
+                RoleName.SISTEM, RoleName.ADMIN);
 
         @Test
         @DisplayName("hicbir girdi birlesimi WORKFLOW_VERSION_CONFLICT uretmez")
@@ -491,21 +555,23 @@ class WorkflowTransitionValidatorTest {
         }
 
         @Test
-        @DisplayName("izinli gecis sayisi surum catismasi eklendikten sonra da sekizdir")
+        @DisplayName("izinli gecis sayisi Parent/Subtask gecisleriyle on uctur")
         void izinliGecisSayisiDegismedi() {
             long izinliBirlesimSayisi = 0;
 
             for (RecordStatus status : RecordStatus.values()) {
                 for (WorkflowAction action : WorkflowAction.values()) {
                     for (RoleName actorRole : RoleName.values()) {
-                        if (TransitionRules.find(status, action, actorRole).isPresent()) {
+                        if (WorkflowRoleFixtures.rules().find(status, action, WorkflowRoleFixtures.id(actorRole)).isPresent()) {
                             izinliBirlesimSayisi++;
                         }
                     }
                 }
             }
 
-            assertThat(izinliBirlesimSayisi).isEqualTo(8);
+            // 8 yerlesik + 2 departman + ADR-0010 ile 3 Parent/Subtask gecisi (ayirma,
+            // sistem join'i, V27'deki Kontrol'den Baskana iletme).
+        assertThat(izinliBirlesimSayisi).isEqualTo(13);
         }
 
         private List<WorkflowErrorCode> tumBirlesimlerinRetKodlari() {
@@ -522,9 +588,23 @@ class WorkflowTransitionValidatorTest {
                                             for (boolean hedefAktif : bayraklar) {
                                                 TransitionDecision karar = validator.validate(
                                                         new TransitionContext(
-                                                                status, action, actorRole,
-                                                                olusturan, atanan, aciklama,
-                                                                hedefGonderildi, hedefRol, hedefAktif));
+                                                                status,
+                                                                action,
+                                                                WorkflowRoleFixtures.id(actorRole),
+                                                                olusturan,
+                                                                atanan,
+                                                                aciklama,
+                                                                hedefGonderildi, false,
+                                                                WorkflowRoleFixtures.id(hedefRol),
+                                                                hedefAktif,
+                                                                AuthorizationFixtures.workflowActor(actorRole),
+                                                                AuthorizationFixtures.permissions(actorRole),
+                                                                // Hedef cozulmus kabul edilir; bu tarama
+                                                                // ret KODLARINI olcuyor, yetenegi degil.
+                                                                false,
+                                                                true,
+                                                                AuthorizationFixtures.workflowActor(hedefRol),
+                                                                AuthorizationFixtures.permissions(hedefRol)));
 
                                                 if (karar instanceof TransitionDecision.Rejected ret) {
                                                     kodlar.add(ret.errorCode());
@@ -544,6 +624,17 @@ class WorkflowTransitionValidatorTest {
     }
 
     /** Testlerde okunabilir baglam olusturmak icin kucuk yardimci. */
+    /**
+     * Beklenen hedef rol artik aksiyonun degil GECISIN ozelligi; testler de onu kuraldan
+     * okumali. Tanimsiz birlesimlerde {@code null} doner &mdash; zaten hedef kontrolune
+     * gelinmeden once reddedilirler.
+     */
+    private static RoleId expectedTargetRoleOf(RecordStatus status, WorkflowAction action, RoleName role) {
+        return WorkflowRoleFixtures.rules().find(status, action, WorkflowRoleFixtures.id(role))
+                .map(TransitionRule::expectedTargetRoleId)
+                .orElse(null);
+    }
+
     private static final class Ctx {
 
         private final RecordStatus status;
@@ -554,8 +645,14 @@ class WorkflowTransitionValidatorTest {
         private boolean isAssignee;
         private String comment;
         private boolean targetProvidedInRequest;
-        private RoleName targetRole;
+        private RoleId targetRole;
         private boolean targetActive = true;
+        // Hedef varsayilan olarak YETENEKLIDIR (ADR-0008 K4): aksi halde her senaryo
+        // WORKFLOW_TARGET_CANNOT_ACT'a takilir ve testler kendi konularini olcemezdi.
+        // Yeteneksiz hedefi olcen testler asagidaki yardimcilarla acikca opt-in yapar.
+        private boolean targetIsCreator = true;
+        private boolean targetWorkflowActor = true;
+        private Set<String> targetPermissions = AuthorizationFixtures.permissions(RoleName.CALISAN);
 
         private Ctx(RecordStatus status, WorkflowAction action, RoleName actorRole) {
             this.status = status;
@@ -585,12 +682,37 @@ class WorkflowTransitionValidatorTest {
         /** Istemcinin istekte gonderdigi hedef; hicbir aksiyon icin beklenmiyor, reddedilir. */
         Ctx targetInRequest(RoleName role) {
             this.targetProvidedInRequest = true;
-            this.targetRole = role;
+            this.targetRole = WorkflowRoleFixtures.id(role);
             return this;
         }
 
         /** Servisin kendi cozdugu hedef (istekte gonderilmez). */
         Ctx resolvedTarget(RoleName role) {
+            this.targetRole = WorkflowRoleFixtures.id(role);
+            this.targetWorkflowActor = AuthorizationFixtures.workflowActor(role);
+            this.targetPermissions = AuthorizationFixtures.permissions(role);
+            return this;
+        }
+
+        /** Hedef kaydi olusturan degil; CREATOR gerektiren inis gecislerini dusurur. */
+        Ctx targetNotCreator() {
+            this.targetIsCreator = false;
+            return this;
+        }
+
+        /** Hedefin rolu workflow aktoru olamaz. */
+        Ctx targetNotWorkflowActor() {
+            this.targetWorkflowActor = false;
+            return this;
+        }
+
+        /** Hedefin inis durumunda hicbir gecise yetecek yetkisi yok. */
+        Ctx targetWithoutPermissions() {
+            this.targetPermissions = Set.of();
+            return this;
+        }
+
+        Ctx resolvedTarget(RoleId role) {
             this.targetRole = role;
             return this;
         }
@@ -601,8 +723,23 @@ class WorkflowTransitionValidatorTest {
         }
 
         TransitionContext build() {
-            return new TransitionContext(status, action, actorRole, isCreator, isAssignee,
-                    comment, targetProvidedInRequest, targetRole, targetActive);
+            return new TransitionContext(
+                    status,
+                    action,
+                    WorkflowRoleFixtures.id(actorRole),
+                    isCreator,
+                    isAssignee,
+                    comment,
+                    targetProvidedInRequest, false,
+                    targetRole,
+                    targetActive,
+                    AuthorizationFixtures.workflowActor(actorRole),
+                    AuthorizationFixtures.permissions(actorRole),
+                    // Hedef cozulmemisse karar askidadir.
+                    targetRole == null,
+                    targetIsCreator,
+                    targetWorkflowActor,
+                    targetPermissions);
         }
     }
 }

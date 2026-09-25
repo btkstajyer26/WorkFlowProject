@@ -1,9 +1,13 @@
 package btk.staj.WorkFlowProject.workflow.adapter;
 
 import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
+import btk.staj.WorkFlowProject.auth.security.CurrentUserProvider;
+import btk.staj.WorkFlowProject.auth.security.CurrentVisibilityActorProvider;
+import btk.staj.WorkFlowProject.auth.security.VisibilityActor;
 import btk.staj.WorkFlowProject.workflow.model.CurrentActor;
 import btk.staj.WorkFlowProject.workflow.port.CurrentActorProvider;
-import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
+import btk.staj.WorkFlowProject.workflow.statemachine.RoleId;
+import java.util.UUID;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.authentication.AuthenticationServiceException;
@@ -12,13 +16,33 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
-import java.util.UUID;
-
 @Component
-public final class SecurityCurrentActorProvider implements CurrentActorProvider {
+public final class SecurityCurrentActorProvider implements CurrentActorProvider, CurrentUserProvider,
+        CurrentVisibilityActorProvider {
 
     @Override
     public CurrentActor currentActor() {
+        AuthenticatedUser authenticatedUser = currentUser();
+        return new CurrentActor(readId(authenticatedUser), readRole(authenticatedUser),
+                authenticatedUser.isWorkflowActor(), authenticatedUser.getPermissionCodes());
+    }
+
+    @Override
+    public UUID currentUserId() {
+        return readId(currentUser());
+    }
+
+    @Override
+    public VisibilityActor currentVisibilityActor() {
+        AuthenticatedUser user = currentUser();
+        try {
+            return VisibilityActor.from(user);
+        } catch (RuntimeException exception) {
+            throw malformedPrincipal("Unable to read authenticated visibility identity", exception);
+        }
+    }
+
+    private static AuthenticatedUser currentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null) {
             throw new AuthenticationCredentialsNotFoundException("Authentication is required");
@@ -40,9 +64,7 @@ public final class SecurityCurrentActorProvider implements CurrentActorProvider 
             throw new DisabledException("Authenticated user is disabled");
         }
 
-        UUID id = readId(authenticatedUser);
-        RoleName role = readRole(authenticatedUser);
-        return new CurrentActor(id, role);
+        return authenticatedUser;
     }
 
     private static boolean readEnabled(AuthenticatedUser authenticatedUser) {
@@ -66,21 +88,11 @@ public final class SecurityCurrentActorProvider implements CurrentActorProvider 
         return id;
     }
 
-    private static RoleName readRole(AuthenticatedUser authenticatedUser) {
-        String roleName;
+    private static RoleId readRole(AuthenticatedUser authenticatedUser) {
         try {
-            roleName = authenticatedUser.getRoleName();
+            return new RoleId(authenticatedUser.getRoleId());
         } catch (RuntimeException exception) {
-            throw malformedPrincipal("Unable to read authenticated user role", exception);
-        }
-        if (roleName == null) {
-            throw new AuthenticationServiceException("Authenticated user role is missing");
-        }
-
-        try {
-            return RoleName.valueOf(roleName);
-        } catch (IllegalArgumentException exception) {
-            throw malformedPrincipal("Authenticated user role is invalid", exception);
+            throw malformedPrincipal("Authenticated user role id is missing or invalid", exception);
         }
     }
 

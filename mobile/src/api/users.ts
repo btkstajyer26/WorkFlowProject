@@ -2,13 +2,6 @@ import { z } from 'zod';
 
 import { apiRequest } from './client';
 
-export const userRoleSchema = z.enum([
-  'CALISAN',
-  'BASKAN_YARDIMCISI',
-  'BASKAN',
-  'ADMIN',
-]);
-
 const currentUserSchema = z.object({
   active: z.boolean(),
   createdAt: z.string(),
@@ -16,10 +9,12 @@ const currentUserSchema = z.object({
   firstName: z.string().min(1),
   id: z.string().uuid(),
   lastName: z.string().min(1),
-  roleName: userRoleSchema,
+  permissionCodes: z.array(z.string()),
+  roleId: z.number().int().nullable(),
+  roleName: z.string().nullable(),
+  systemKey: z.string().nullable(),
 });
 
-export type UserRole = z.infer<typeof userRoleSchema>;
 export type CurrentUser = z.infer<typeof currentUserSchema>;
 
 export async function getCurrentUser(): Promise<CurrentUser> {

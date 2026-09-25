@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Date;
 import java.util.UUID;
 
@@ -45,6 +46,19 @@ public class JwtUtil {
                 .expiration(new Date(System.currentTimeMillis() + refreshTokenExpiration))
                 .signWith(getSigningKey())
                 .compact();
+    }
+
+    /**
+     * Refresh token'in yapilandirilmis omru (R03).
+     *
+     * <p>JWT'nin kendi {@code exp} degeri ile {@code tokens.expires_at} satirinin
+     * ayni kaynaktan uretilmesi icin disari acildi. Onceden satir omru
+     * {@code AuthService} icinde iki ayri yerde {@code plusDays(7)} olarak sabitti;
+     * {@code JWT_REFRESH_TOKEN_EXPIRATION} degistirildiginde ikisi birbirinden
+     * ayrisiyordu.
+     */
+    public Duration refreshTokenTtl() {
+        return Duration.ofMillis(refreshTokenExpiration);
     }
 
     public String extractEmail(String token) {

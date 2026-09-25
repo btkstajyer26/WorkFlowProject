@@ -15,6 +15,7 @@ import { CategoryProvider } from './context/CategoryContext'
 import type { AuthUser } from './types/auth'
 import { AppQueryProvider } from './query/queryClient'
 import { useUnreadNotificationCount } from './hooks/useNotificationCenter'
+import { useRealtimeNotifications } from './hooks/useRealtimeNotifications'
 import { RoutePageSkeleton } from './components/feedback/LoadingSkeleton'
 
 const DashboardPage = lazy(() => import('./pages/DashboardPage').then((module) => ({ default: module.DashboardPage })))
@@ -31,6 +32,10 @@ const RecordsPage = lazy(() => import('./pages/RecordsPage').then((module) => ({
 const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage').then((module) => ({ default: module.AdminDashboardPage })))
 const AdminLogsPage = lazy(() => import('./pages/admin/AdminLogsPage').then((module) => ({ default: module.AdminLogsPage })))
 const AdminUsersPage = lazy(() => import('./pages/admin/AdminUsersPage').then((module) => ({ default: module.AdminUsersPage })))
+const RolesPage = lazy(() => import('./pages/admin/RolesPage').then((module) => ({ default: module.RolesPage })))
+const PermissionsPage = lazy(() => import('./pages/admin/PermissionsPage').then((module) => ({ default: module.PermissionsPage })))
+const ActorBindingsPage = lazy(() => import('./pages/admin/ActorBindingsPage').then((module) => ({ default: module.ActorBindingsPage })))
+const DepartmentsPage = lazy(() => import('./pages/admin/DepartmentsPage').then((module) => ({ default: module.DepartmentsPage })))
 
 function App() {
   const navigate = useNavigate()
@@ -85,7 +90,7 @@ function App() {
   }
 
   return (
-    <AppQueryProvider key={`${user?.id ?? 'anonymous'}:${user?.role ?? 'none'}`}>
+    <AppQueryProvider key={`${user?.id ?? 'anonymous'}:${user?.roleId ?? 'none'}`}>
       <ThemeProvider>
         <ToastProvider>
           <AppErrorBoundary>
@@ -154,13 +159,14 @@ function ProtectedApplication({
   onLogout: () => void
 }) {
   const location = useLocation()
+  useRealtimeNotifications(Boolean(user) && !user?.mustChangePassword)
 
   if (!user) {
     const returnTo = `${location.pathname}${location.search}${location.hash}`
     return <Navigate to={`/giris?returnTo=${encodeURIComponent(returnTo)}`} replace />
   }
 
-  if (user.role === 'ADMIN') {
+  if (user.systemKey === 'ADMIN') {
     return (
       <AdminProvider actor={user}>
         <AdminApplication
@@ -205,8 +211,8 @@ function WorkflowApplication({
     <AppShell user={user} unreadNotificationCount={unreadNotificationCount} onLogout={onLogout}>
       <Suspense fallback={<RoutePageSkeleton />}><Routes>
         <Route path="/dashboard" element={<DashboardPage user={user} />} />
-        <Route path="/kayitlar" element={<RecordsPage role={user.role} />} />
-        <Route path="/kayitlar/:recordId/duzenle" element={<RecordEditPage role={user.role} />} />
+        <Route path="/kayitlar" element={<RecordsPage systemKey={user.systemKey} />} />
+        <Route path="/kayitlar/:recordId/duzenle" element={<RecordEditPage systemKey={user.systemKey} />} />
         <Route path="/kayitlar/:recordId" element={<RecordDetailPage user={user} />} />
         <Route path="/records/:recordId" element={<RecordDeepLinkRedirect />} />
         <Route
@@ -240,6 +246,10 @@ function AdminApplication({
       <Suspense fallback={<RoutePageSkeleton />}><Routes>
         <Route path="/admin" element={<AdminDashboardPage />} />
         <Route path="/admin/kullanicilar" element={<AdminUsersPage />} />
+        <Route path="/admin/departmanlar" element={<DepartmentsPage />} />
+        <Route path="/admin/roller" element={<RolesPage />} />
+        <Route path="/admin/yetkiler" element={<PermissionsPage />} />
+        <Route path="/admin/aktor-baglama" element={<ActorBindingsPage />} />
         <Route path="/admin/loglar" element={<AdminLogsPage />} />
         <Route path="/profil" element={<ProfilePage user={user} />} />
         <Route path="/403" element={<ErrorStatePage type="403" />} />

@@ -3,7 +3,7 @@
 > [!NOTE]
 > **Bu belge 19 Ağustos 2026'da kapatılmıştır ve tarihsel kayıttır.**
 > Aşağıdaki tablolar kapatıldığı tarihteki durumu yansıtır. Güncel durum için
-> [README](../../README.md) "Mevcut durum" ve "Bilinen eksikler" bölümlerine,
+> [dokümantasyon dizinine](../README.md),
 > workflow davranışı için [workflow.md](../workflow.md)'ye bakınız.
 >
 > **Kapanış durumu:** Yazılacak yeni sınıf sayısı **sıfır**. Aşağıdaki "Faz 1 —

@@ -3,8 +3,8 @@ package btk.staj.WorkFlowProject.search.specification;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.search.dto.RecordSearchCriteria;
 import btk.staj.WorkFlowProject.user.entity.User;
+import btk.staj.WorkFlowProject.rbac.visibility.RecordVisibilityScope;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
-import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.jpa.domain.Specification;
@@ -27,23 +27,45 @@ public final class RecordSpecifications {
      */
     public static Specification<Record> withFilters(
             RecordSearchCriteria criteria,
-            UUID currentUserId,
-            RoleName currentUserRole) {
+            RecordVisibilityScope scope) {
 
         Objects.requireNonNull(criteria, "criteria");
-        Objects.requireNonNull(currentUserId, "currentUserId");
-        Objects.requireNonNull(currentUserRole, "currentUserRole");
+        Objects.requireNonNull(scope, "scope");
 
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            predicates.add(visibilityScope(root, cb, currentUserId, currentUserRole));
+            predicates.add(visibilityScope(root, cb, scope));
+
+            // B06: q ve kategori filtresi, RecordContentView.visibleContent'in
+            // gosterdigi surumle (canli ya da dondurulmus) ayni satirda calismali.
+            // Aksi halde aktor goremedigi canli icerikte sonuc bulabilir, ya da
+            // gordugu dondurulmus icerikte sonucu kacirabilir.
+            //
+            // seesFrozenContent yalniz gercekten gerektiginde (q veya kategori
+            // filtresi varken) cagrilir - kosulsuz cagrilirsa visibilityScope'un
+            // zaten kurdugu esitlik kontrolleriyle (orn. status = DUZENLEME_BEKLIYOR)
+            // cakisip gereksiz yere tekrarlanir.
+            boolean needsContentAwarePredicate =
+                    (criteria.getQ() != null && !criteria.getQ().isBlank())
+                            || criteria.getCategoryId() != null;
+            Predicate seesFrozen = needsContentAwarePredicate
+                    ? seesFrozenContent(root, cb, scope)
+                    : null;
 
             if (criteria.getQ() != null && !criteria.getQ().isBlank()) {
                 String text = "%" + criteria.getQ().toLowerCase() + "%";
-                predicates.add(cb.or(
+
+                Predicate matchesLiveContent = cb.or(
                         cb.like(cb.lower(root.get("title")), text),
-                        cb.like(cb.lower(root.get("description")), text)));
+                        cb.like(cb.lower(root.get("description")), text));
+                Predicate matchesFrozenContent = cb.or(
+                        cb.like(cb.lower(root.get("snapshotTitle")), text),
+                        cb.like(cb.lower(root.get("snapshotDescription")), text));
+
+                predicates.add(cb.or(
+                        cb.and(seesFrozen.not(), matchesLiveContent),
+                        cb.and(seesFrozen, matchesFrozenContent)));
             }
 
             if (criteria.getCreator() != null && !criteria.getCreator().isBlank()) {
@@ -55,7 +77,12 @@ public final class RecordSpecifications {
             }
 
             if (criteria.getCategoryId() != null) {
-                predicates.add(cb.equal(root.get("categoryId"), criteria.getCategoryId()));
+                Predicate matchesLiveCategory = cb.equal(root.get("categoryId"), criteria.getCategoryId());
+                Predicate matchesFrozenCategory = cb.equal(root.get("snapshotCategoryId"), criteria.getCategoryId());
+
+                predicates.add(cb.or(
+                        cb.and(seesFrozen.not(), matchesLiveCategory),
+                        cb.and(seesFrozen, matchesFrozenCategory)));
             }
 
             if (criteria.getFrom() != null) {
@@ -66,7 +93,6 @@ public final class RecordSpecifications {
                 predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), criteria.getTo()));
             }
 
-            predicates.add(cb.isNull(root.get("deletedAt")));
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };
@@ -105,46 +131,71 @@ public final class RecordSpecifications {
     }
 
     /**
-     * Sartnamedeki "Kayit Gorunurlugu Kapsami" (§2) kuralinin SQL karsiligi.
+     * Bir satirin, aktore GORUNEN icerigin dondurulmus (snapshot) surumu mu
+     * yoksa canli surumu mu oldugunu belirleyen kosul.
      *
-     * <p>Tek kayit icin ayni kural
-     * {@code btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy} icinde
-     * duruyor. Ayni kuralin iki bicimi olmasinin sebebi teknik: orasi tek kayda
-     * bakan bir boolean, burasi sorguya giren bir kosul. <strong>Biri
-     * degisirse digeri de degismeli.</strong>
+     * <p>RecordAccessPolicy.seesRecordAsOfHandoff + RecordContentView.
+     * visibleContent'in mekanik SQL cevirisidir - ikisi kayarsa arama/kategori
+     * filtresi kullanicinin gormedigi icerikte sonuc uretir ya da gordugu
+     * icerikte sonuc kacirir (B06).
+     *
+     * <p>forwardedByActor: yerlesik Baskan Yardimcisi HER duzeltmedeki kaydi,
+     * herhangi bir aktor (yerlesik ya da dinamik) ise yalniz KENDI ilettigi
+     * kaydi dondurulmus gorur. scope.statuses()'in DUZENLEME_BEKLIYOR
+     * icermesi, aktorun yerlesik Bsk. Yrd. oldugunun zaten RecordVisibilityScope
+     * .forActor tarafindan kodlanmis SQL karsiligidir - ayri bir rol kontrolu
+     * gerekmez (bkz. RecordVisibilityScope).
+     *
+     * <p>assignedTo NULL ise "aktor mevcut atanan degil" kosulu true olmalidir
+     * (Objects.equals(actorId, null) her zaman false dondurur); bu yuzden
+     * esitsizlik NULL kontroluyle birlikte yaziliyor.
+     *
+     * <p>snapshotAt NULL ise RecordContentView canliya duser (V9 sonrasi
+     * pratikte olusmaz, ama sozlesme burada da korunur).
      */
+    private static Predicate seesFrozenContent(
+            jakarta.persistence.criteria.Root<Record> root,
+            jakarta.persistence.criteria.CriteriaBuilder cb,
+            RecordVisibilityScope scope) {
+
+        boolean builtInDeputy = scope.statuses().contains(RecordStatus.DUZENLEME_BEKLIYOR);
+
+        Predicate forwardedByActor = builtInDeputy
+                ? cb.conjunction()
+                : cb.equal(root.get("lastDeputyId"), scope.actorId());
+
+        Predicate notCurrentAssignee = cb.or(
+                cb.isNull(root.get("assignedTo")),
+                cb.notEqual(root.get("assignedTo"), scope.actorId()));
+
+        return cb.and(
+                forwardedByActor,
+                cb.equal(root.get("status"), RecordStatus.DUZENLEME_BEKLIYOR),
+                notCurrentAssignee,
+                cb.isNotNull(root.get("snapshotAt")));
+    }
+
+    /** Mechanical SQL translation of the shared scope; no role-specific rules here. */
     private static Predicate visibilityScope(
             jakarta.persistence.criteria.Root<Record> root,
             jakarta.persistence.criteria.CriteriaBuilder cb,
-            UUID currentUserId,
-            RoleName role) {
-
-        return switch (role) {
-            // Calisan yalnizca kendi olusturdugu kayitlari gorur.
-            case CALISAN -> cb.equal(root.get("createdBy"), currentUserId);
-
-            // Bsk. Yrd. kendisine atanan kayitlari, duzeltme bekleyen kayitlari VE
-            // bir kez kendi elinden gecmis kayitlari gorur. Ucuncu kol
-            // RecordAccessPolicy'de vardi ama burada yoktu: detay ucu kaydi
-            // aciyor, liste ucu ise ayni kaydi hic dondurmuyordu. Yardimcinin
-            // "Sonuclananlar" ve panodaki "Son Kayitlar" listeleri bu yuzden
-            // bos gorunuyordu.
-            case BASKAN_YARDIMCISI -> cb.or(
-                    cb.equal(root.get("assignedTo"), currentUserId),
-                    cb.equal(root.get("status"), RecordStatus.DUZENLEME_BEKLIYOR),
-                    cb.equal(root.get("lastDeputyId"), currentUserId));
-
-            // Baskan onay asamasina gelenleri, sonuclandirdiklarini ve
-            // kendisine atananlari gorur. ONAYLA/REDDET assignedTo'yu
-            // bosalttigi icin sonuclanan iki durum acikca sayilmali.
-            case BASKAN -> cb.or(
-                    cb.equal(root.get("status"), RecordStatus.BASKAN_INCELEMESINDE),
-                    cb.equal(root.get("status"), RecordStatus.ONAYLANDI),
-                    cb.equal(root.get("status"), RecordStatus.REDDEDILDI),
-                    cb.equal(root.get("assignedTo"), currentUserId));
-
-            // ADMIN yalnizca kullanici ve rol yonetiminden sorumludur; evrak goremez.
-            case ADMIN -> cb.disjunction();
-        };
+            RecordVisibilityScope scope) {
+        List<Predicate> alternatives = new ArrayList<>();
+        for (var relation : scope.relations()) {
+            String attribute = switch (relation) {
+                case CREATOR -> "createdBy";
+                case ASSIGNEE -> "assignedTo";
+                case PREVIOUS_DEPUTY -> "lastDeputyId";
+            };
+            alternatives.add(cb.equal(root.get(attribute), scope.actorId()));
+        }
+        for (var status : scope.statuses()) alternatives.add(cb.equal(root.get("status"), status));
+        for (var pair : scope.departmentScopes()) {
+            alternatives.add(cb.and(cb.equal(root.get("assignedDepartmentId"), pair.departmentId()),
+                    cb.equal(root.get("status"), pair.status())));
+        }
+        Predicate allowed = alternatives.isEmpty() ? cb.disjunction()
+                : cb.or(alternatives.toArray(new Predicate[0]));
+        return cb.and(cb.isNull(root.get("deletedAt")), allowed);
     }
 }

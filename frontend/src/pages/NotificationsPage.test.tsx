@@ -1,9 +1,12 @@
 import { QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { MemoryRouter } from 'react-router'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import * as notificationsApi from '../api/notifications'
+import { ToastProvider } from '../context/ToastContext'
+import { queryKeys } from '../query/queryKeys'
 import { apiBaseUrl } from '../api/config'
 import { setApiAccessToken } from '../api/client'
 import { apiMockServer } from '../mocks/api/server'
@@ -62,6 +65,40 @@ function renderNotificationsPage() {
 }
 
 describe('NotificationsPage', () => {
+  it('invalidation and repeated polling keep one persisted row without producing a toast', async () => {
+    vi.useFakeTimers()
+    const item = { ...notifications[0], notificationType: 'RECORD_SUBMITTED' as const }
+    const list = vi.spyOn(notificationsApi, 'listNotifications').mockResolvedValue({
+      content: [item], page: 0, size: 20, totalElements: 1, totalPages: 1,
+    })
+    vi.spyOn(notificationsApi, 'getUnreadNotificationCount').mockResolvedValue(1)
+    const queryClient = createAppQueryClient()
+    const view = render(
+      <QueryClientProvider client={queryClient}>
+        <ToastProvider><MemoryRouter><NotificationsPage /></MemoryRouter></ToastProvider>
+      </QueryClientProvider>,
+    )
+    try {
+      await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+      expect(screen.getAllByText(item.message)).toHaveLength(1)
+      await act(async () => {
+        await queryClient.invalidateQueries({ queryKey: queryKeys.notifications.lists() })
+        await vi.advanceTimersByTimeAsync(1)
+      })
+      for (let interval = 0; interval < 3; interval++) {
+        await act(async () => { await vi.advanceTimersByTimeAsync(30_000) })
+        expect(screen.getAllByText(item.message)).toHaveLength(1)
+        expect(screen.getAllByRole('listitem')).toHaveLength(1)
+        expect(screen.queryByRole('status')).not.toBeInTheDocument()
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+      }
+      expect(list).toHaveBeenCalledTimes(5)
+    } finally {
+      view.unmount()
+      vi.useRealTimers()
+    }
+  })
+
   it('tek bildirimi backend üzerinden okundu yapar', async () => {
     installNotificationHandlers()
     const user = userEvent.setup()

@@ -31,19 +31,19 @@ export function ChangeRoleDialog({
   })
 
   useEffect(() => {
-    if (user && user.role !== 'ADMIN') {
-      reset({ role: user.role })
+    if (user && user.systemKey && user.systemKey !== 'ADMIN') {
+      reset({ role: user.systemKey })
       setReplacementDeputyId('')
     }
   }, [reset, user])
 
   const selectedRole = watch('role')
   const activeDeputy = selectedRole === 'BASKAN_YARDIMCISI'
-    ? userOptions.users.find((item) => item.id !== user?.id && item.isActive && item.role === 'BASKAN_YARDIMCISI')
+    ? userOptions.users.find((item) => item.id !== user?.id && item.isActive && item.systemKey === 'BASKAN_YARDIMCISI')
     : undefined
-  const leavingDeputy = user?.role === 'BASKAN_YARDIMCISI' && selectedRole !== 'BASKAN_YARDIMCISI'
+  const leavingDeputy = user?.systemKey === 'BASKAN_YARDIMCISI' && selectedRole !== 'BASKAN_YARDIMCISI'
   const replacementCandidates = userOptions.users.filter((item) => (
-    item.id !== user?.id && item.isActive && item.role === 'CALISAN'
+    item.id !== user?.id && item.isActive && item.systemKey === 'CALISAN'
   ))
 
   const submit = handleSubmit((values) => runMutation(async () => {

@@ -44,7 +44,7 @@ public final class RecordPortAdapter implements WorkflowRecordPort {
     }
 
     @Override
-    public void update(WorkflowRecordUpdate update) {
+    public int update(WorkflowRecordUpdate update) {
         WorkflowRecordUpdate requiredUpdate = Objects.requireNonNull(update, "update");
 
         Record record = recordRepository.findById(requiredUpdate.recordId())
@@ -79,11 +79,16 @@ public final class RecordPortAdapter implements WorkflowRecordPort {
 
         record.setStatus(requiredUpdate.newStatus());
         record.setAssignedTo(requiredUpdate.assignedTo());
+        record.setAssignedDepartmentId(requiredUpdate.assignedDepartmentId());
         record.setLastDeputyId(requiredUpdate.lastDeputyId());
         // updatedAt'e dokunulmaz: entity'de @UpdateTimestamp var, Hibernate yazar.
 
         try {
             recordRepository.saveAndFlush(record);
+            // Flush sirasinda Hibernate yonetilen entity'nin @Version alanini yerinde
+            // artirir; yeni surum buradan okunur. Yeniden okuma fazladan sorgu ve yarisa
+            // acik, "expectedVersion + 1" aritmetigi ise kirilgan olurdu.
+            return record.getVersion() == null ? 0 : record.getVersion();
         } catch (OptimisticLockingFailureException ex) {
             // Port sozlesmesi geregi altyapiya ozgu kilitleme istisnasi bu siniri
             // gecmez; cekirdek persistence teknolojisini tanimaz. Ust tip
@@ -119,7 +124,8 @@ public final class RecordPortAdapter implements WorkflowRecordPort {
                 record.getAssignedTo(),
                 record.getLastDeputyId(),
                 toInstant(record.getDeletedAt()),
-                record.getVersion() == null ? 0 : record.getVersion());
+                record.getVersion() == null ? 0 : record.getVersion(),
+                record.getAssignedDepartmentId());
     }
 
     private static Instant toInstant(java.time.LocalDateTime value) {

@@ -22,7 +22,7 @@ export default function AppLayout() {
   const currentUser = useCurrentUser();
   const unreadCountQuery = useUnreadNotificationCount();
   const unreadCount = unreadCountQuery.data ?? 0;
-  const canCreateRecord = currentUser.data?.roleName === "CALISAN";
+  const canCreateRecord = currentUser.data?.permissionCodes.includes("RECORD_CREATE") ?? false;
   const activeTintColor =
     resolvedTheme === "dark" ? appTokens.brand[300] : appTokens.brand[600];
 

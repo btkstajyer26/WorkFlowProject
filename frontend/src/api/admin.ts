@@ -8,11 +8,12 @@ import type {
 import { apiHttpClient } from './client'
 import { ApiClientError } from './errors'
 import type { AdminAuditLog, AdminLogType, ManagedUser } from '../types/admin'
-import type { UserRole } from '../types/auth'
+import { toSystemRoleKey } from '../types/auth'
 
 export type AdminUserListQuery = {
   q?: string
-  role?: UserRole
+  /** Sunucu tarafı rol filtresi; dinamik roller de geçerli olduğu için serbest metin. */
+  role?: string
   active?: boolean
   page?: number
   size?: number
@@ -35,7 +36,6 @@ export type AdminAuditLogListResult = {
   totalPages: number
 }
 
-const userRoles: UserRole[] = ['CALISAN', 'BASKAN_YARDIMCISI', 'BASKAN', 'ADMIN']
 const userActionLabels: Record<string, string> = {
   USER_CREATED: 'Hesap oluşturuldu',
   ROLE_CHANGED: 'Rol değiştirildi',
@@ -66,15 +66,19 @@ function requirePageNumber(value: number | undefined, field: string, minimum = 0
   return value!
 }
 
+/**
+ * Rol adı sabit bir listeye karşı **doğrulanmaz**: panelden dinamik rol açılabilir
+ * ve yerleşik rol yeniden adlandırılabilir. Aksi hâlde böyle bir kullanıcı listeye
+ * girdiği anda bütün kullanıcı listesi hata verirdi.
+ */
 export function normalizeManagedUser(response: UserResponse): ManagedUser {
-  const role = response.roleName as UserRole | undefined
   if (
     !response.id ||
     !response.firstName?.trim() ||
     !response.lastName?.trim() ||
     !response.email?.trim() ||
-    !role ||
-    !userRoles.includes(role) ||
+    typeof response.roleId !== 'number' ||
+    !response.roleName?.trim() ||
     typeof response.active !== 'boolean' ||
     !response.createdAt
   ) {
@@ -86,7 +90,9 @@ export function normalizeManagedUser(response: UserResponse): ManagedUser {
     firstName: response.firstName.trim(),
     lastName: response.lastName.trim(),
     email: response.email.trim().toLowerCase(),
-    role,
+    roleId: response.roleId,
+    systemKey: toSystemRoleKey(response.systemKey),
+    roleName: response.roleName.trim(),
     isActive: response.active,
     createdAt: response.createdAt,
   }

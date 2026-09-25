@@ -1,5 +1,7 @@
 package btk.staj.WorkFlowProject.attachment.service;
 
+import static btk.staj.WorkFlowProject.support.AuthorizationFixtures.visibility;
+
 import btk.staj.WorkFlowProject.attachment.dto.FileResponseDto;
 import btk.staj.WorkFlowProject.attachment.entity.FileEntity;
 import btk.staj.WorkFlowProject.attachment.repository.FileRepository;
@@ -7,6 +9,7 @@ import btk.staj.WorkFlowProject.attachment.storage.FileStorageService;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import btk.staj.WorkFlowProject.common.exception.BusinessRuleException;
 import btk.staj.WorkFlowProject.common.exception.ForbiddenException;
+import btk.staj.WorkFlowProject.common.exception.ResourceNotFoundException;
 import btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
@@ -55,7 +58,7 @@ class FileServiceAuthorizationTest {
      * kuralin dogru uygulandigini degil, yalnizca cagrildigini gosterirdi.
      */
     @Spy
-    private RecordContentView recordContentView = new RecordContentView(new RecordAccessPolicy());
+    private RecordContentView recordContentView = new RecordContentView(new RecordAccessPolicy(actor -> java.util.Set.of(), (recordId, actorId) -> false));
 
     @InjectMocks
     private FileService fileService;
@@ -90,13 +93,13 @@ class FileServiceAuthorizationTest {
     @Test
     @DisplayName("Başkasının kaydındaki dosyayı indirme -> ForbiddenException")
     void downloadFile_WhenUnauthorized_ShouldThrowForbiddenException() {
-        when(fileRepository.findByIdAndDeletedAtIsNull(fileId)).thenReturn(Optional.of(fileEntity));
-        when(recordRepository.findById(recordId)).thenReturn(Optional.of(recordEntity));
+        when(fileRepository.findById(fileId)).thenReturn(Optional.of(fileEntity));
+        when(recordRepository.findByIdAndDeletedAtIsNull(recordId)).thenReturn(Optional.of(recordEntity));
         doThrow(new ForbiddenException("Görüntüleme yetkisi yok"))
-                .when(recordAccessPolicy).assertCanView(eq(RoleName.CALISAN), eq(otherUserId), eq(ownerId), any(), any(), eq(RecordStatus.TASLAK));
+                .when(recordAccessPolicy).assertCanView(eq(visibility(RoleName.CALISAN, otherUserId)), eq(recordEntity));
 
         assertThrows(ForbiddenException.class, () ->
-                fileService.downloadFile(fileId, RoleName.CALISAN, otherUserId)
+                fileService.downloadFile(fileId, visibility(RoleName.CALISAN, otherUserId))
         );
     }
 
@@ -130,15 +133,15 @@ class FileServiceAuthorizationTest {
         recordEntity.setStatus(RecordStatus.BSK_YRD_INCELEMESINDE);
         recordEntity.setAssignedTo(otherUserId);
 
-        when(fileRepository.findByIdAndDeletedAtIsNull(fileId)).thenReturn(Optional.of(fileEntity));
-        when(recordRepository.findById(recordId)).thenReturn(Optional.of(recordEntity));
+        when(fileRepository.findById(fileId)).thenReturn(Optional.of(fileEntity));
+        when(recordRepository.findByIdAndDeletedAtIsNull(recordId)).thenReturn(Optional.of(recordEntity));
         when(fileStorageService.loadAsResource(fileEntity.getStoredName())).thenReturn(new ByteArrayResource("pdf".getBytes()));
 
         assertDoesNotThrow(() ->
-                fileService.downloadFile(fileId, RoleName.BASKAN_YARDIMCISI, otherUserId)
+                fileService.downloadFile(fileId, visibility(RoleName.BASKAN_YARDIMCISI, otherUserId))
         );
 
-        verify(recordAccessPolicy).assertCanView(RoleName.BASKAN_YARDIMCISI, otherUserId, ownerId, otherUserId, null, RecordStatus.BSK_YRD_INCELEMESINDE);
+        verify(recordAccessPolicy).assertCanView(visibility(RoleName.BASKAN_YARDIMCISI, otherUserId), recordEntity);
     }
 
     @Test
@@ -156,15 +159,15 @@ class FileServiceAuthorizationTest {
     @Test
     @DisplayName("Kaydı görebilen kullanıcı listeyi alıyor, silinmiş dosyalar listede yok")
     void listByRecord_WhenAuthorized_ShouldReturnFiles() {
-        when(recordRepository.findById(recordId)).thenReturn(Optional.of(recordEntity));
+        when(recordRepository.findByIdAndDeletedAtIsNull(recordId)).thenReturn(Optional.of(recordEntity));
         when(fileRepository.findAllByRecordIdAndDeletedAtIsNull(recordId)).thenReturn(List.of(fileEntity));
 
-        List<FileResponseDto> result = fileService.listByRecord(recordId, RoleName.CALISAN, ownerId);
+        List<FileResponseDto> result = fileService.listByRecord(recordId, visibility(RoleName.CALISAN, ownerId));
 
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(fileId, result.get(0).getId());
-        verify(recordAccessPolicy).assertCanView(RoleName.CALISAN, ownerId, ownerId, null, null, RecordStatus.TASLAK);
+        verify(recordAccessPolicy).assertCanView(visibility(RoleName.CALISAN, ownerId), recordEntity);
     }
 
     @Test
@@ -199,12 +202,12 @@ class FileServiceAuthorizationTest {
         deletedDuringCorrection.setUploadedAt(handoff.minusMinutes(10));
         deletedDuringCorrection.setDeletedAt(handoff.plusMinutes(20));
 
-        when(recordRepository.findById(recordId)).thenReturn(Optional.of(recordEntity));
+        when(recordRepository.findByIdAndDeletedAtIsNull(recordId)).thenReturn(Optional.of(recordEntity));
         when(fileRepository.findAllByRecordId(recordId))
                 .thenReturn(List.of(fileEntity, addedDuringCorrection, deletedDuringCorrection));
 
         List<FileResponseDto> result =
-                fileService.listByRecord(recordId, RoleName.BASKAN_YARDIMCISI, deputyId);
+                fileService.listByRecord(recordId, visibility(RoleName.BASKAN_YARDIMCISI, deputyId));
 
         assertEquals(2, result.size());
         assertTrue(result.stream().anyMatch(dto -> "test.pdf".equals(dto.getOriginalName())));
@@ -212,15 +215,62 @@ class FileServiceAuthorizationTest {
         assertTrue(result.stream().noneMatch(dto -> "sonradan.pdf".equals(dto.getOriginalName())));
     }
 
+    /**
+     * B07: dondurulmus goruntude listelenen ek indirilebilmeli. Onceden indirme
+     * yolu dosyayi gorunurluk kontrolune gelmeden {@code deleted_at} uzerinden
+     * eliyordu; ayni aktor icin liste basarili, indirme 404 oluyordu.
+     */
+    @Test
+    @DisplayName("B07: devirden sonra silinen ek, dondurulmuş görünümde indirilebilir")
+    void downloadFile_WhenFrozenViewAndFileDeletedAfterHandoff_ShouldSucceed() {
+        UUID deputyId = UUID.randomUUID();
+        LocalDateTime handoff = LocalDateTime.of(2026, 8, 19, 10, 0);
+
+        recordEntity.setStatus(RecordStatus.DUZENLEME_BEKLIYOR);
+        recordEntity.setAssignedTo(ownerId);
+        recordEntity.setSnapshotAt(handoff);
+
+        fileEntity.setUploadedAt(handoff.minusMinutes(10));
+        fileEntity.setDeletedAt(handoff.plusMinutes(20));
+
+        when(fileRepository.findById(fileId)).thenReturn(Optional.of(fileEntity));
+        when(recordRepository.findByIdAndDeletedAtIsNull(recordId)).thenReturn(Optional.of(recordEntity));
+        when(fileStorageService.loadAsResource("stored.pdf"))
+                .thenReturn(new ByteArrayResource("content".getBytes()));
+
+        var response = fileService.downloadFile(fileId, visibility(RoleName.BASKAN_YARDIMCISI, deputyId));
+
+        assertEquals(200, response.getStatusCode().value());
+    }
+
+    /**
+     * B07'nin diger yuzu: guncel goruntude silinmis dosya kapali kalmali.
+     * Duzeltmeyi yapan calisan kendi sildigi eki geri acamaz.
+     */
+    @Test
+    @DisplayName("B07: güncel görünümde silinmiş ek indirilemez")
+    void downloadFile_WhenLiveViewAndFileDeleted_ShouldThrowNotFound() {
+        fileEntity.setUploadedAt(LocalDateTime.now().minusDays(1));
+        fileEntity.setDeletedAt(LocalDateTime.now());
+
+        when(fileRepository.findById(fileId)).thenReturn(Optional.of(fileEntity));
+        when(recordRepository.findByIdAndDeletedAtIsNull(recordId)).thenReturn(Optional.of(recordEntity));
+
+        assertThrows(ResourceNotFoundException.class, () ->
+                fileService.downloadFile(fileId, visibility(RoleName.CALISAN, ownerId))
+        );
+        verifyNoInteractions(fileStorageService);
+    }
+
     @Test
     @DisplayName("Göremeyen kullanıcı dosya listesi istediğinde -> ForbiddenException")
     void listByRecord_WhenUnauthorized_ShouldThrowForbiddenException() {
-        when(recordRepository.findById(recordId)).thenReturn(Optional.of(recordEntity));
+        when(recordRepository.findByIdAndDeletedAtIsNull(recordId)).thenReturn(Optional.of(recordEntity));
         doThrow(new ForbiddenException("Görüntüleme yetkisi yok"))
-                .when(recordAccessPolicy).assertCanView(eq(RoleName.CALISAN), eq(otherUserId), eq(ownerId), any(), any(), eq(RecordStatus.TASLAK));
+                .when(recordAccessPolicy).assertCanView(eq(visibility(RoleName.CALISAN, otherUserId)), eq(recordEntity));
 
         assertThrows(ForbiddenException.class, () ->
-                fileService.listByRecord(recordId, RoleName.CALISAN, otherUserId)
+                fileService.listByRecord(recordId, visibility(RoleName.CALISAN, otherUserId))
         );
     }
 }

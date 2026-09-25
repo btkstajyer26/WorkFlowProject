@@ -3,7 +3,7 @@ package btk.staj.WorkFlowProject.attachment.controller;
 import btk.staj.WorkFlowProject.attachment.dto.FileResponseDto;
 import btk.staj.WorkFlowProject.attachment.service.FileService;
 import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
-import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
+import btk.staj.WorkFlowProject.auth.security.VisibilityActor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
@@ -22,7 +22,7 @@ public class FileController {
 
     private final FileService fileService;
 
-    @PreAuthorize("hasRole('CALISAN')")
+    @PreAuthorize("hasAuthority('FILE_MANAGE')")
     @PostMapping(value = "/api/records/{id}/files", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<List<FileResponseDto>> uploadFiles(
             @PathVariable("id") UUID recordId,
@@ -38,8 +38,8 @@ public class FileController {
             @PathVariable("id") UUID recordId,
             @AuthenticationPrincipal AuthenticatedUser currentUser) {
 
-        RoleName role = RoleName.valueOf(currentUser.getRoleName());
-        List<FileResponseDto> files = fileService.listByRecord(recordId, role, currentUser.getId());
+        VisibilityActor actor = VisibilityActor.from(currentUser);
+        List<FileResponseDto> files = fileService.listByRecord(recordId, actor);
         return ResponseEntity.ok(files);
     }
 
@@ -48,8 +48,8 @@ public class FileController {
             @PathVariable UUID id,
             @AuthenticationPrincipal AuthenticatedUser currentUser) {
 
-        RoleName role = RoleName.valueOf(currentUser.getRoleName());
-        return fileService.downloadFile(id, role, currentUser.getId());
+        VisibilityActor actor = VisibilityActor.from(currentUser);
+        return fileService.downloadFile(id, actor);
     }
 
     @GetMapping("/api/files/{id}/preview")
@@ -57,11 +57,11 @@ public class FileController {
             @PathVariable UUID id,
             @AuthenticationPrincipal AuthenticatedUser currentUser) {
 
-        RoleName role = RoleName.valueOf(currentUser.getRoleName());
-        return fileService.previewFile(id, role, currentUser.getId());
+        VisibilityActor actor = VisibilityActor.from(currentUser);
+        return fileService.previewFile(id, actor);
     }
 
-    @PreAuthorize("hasRole('CALISAN')")
+    @PreAuthorize("hasAuthority('FILE_MANAGE')")
     @DeleteMapping("/api/files/{id}")
     public ResponseEntity<Void> deleteFile(
             @PathVariable UUID id,

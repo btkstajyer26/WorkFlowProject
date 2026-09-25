@@ -13,6 +13,16 @@ export const queryKeys = {
     ),
     files: (recordId: string) => ['records', 'files', recordId] as const,
   },
+  workflow: {
+    all: ['workflow'] as const,
+    availableActions: (recordId: string) => ['workflow', 'available-actions', recordId] as const,
+    targetDepartments: (recordId: string) => ['workflow', 'target-departments', recordId] as const,
+  },
+  subtasks: {
+    all: ['subtasks'] as const,
+    list: (recordId: string) => ['subtasks', 'list', recordId] as const,
+    assignableUsers: (recordId: string) => ['subtasks', 'assignable-users', recordId] as const,
+  },
   notifications: {
     all: ['notifications'] as const,
     lists: () => ['notifications', 'list'] as const,
@@ -26,6 +36,25 @@ export const queryKeys = {
       all: ['admin', 'users'] as const,
       list: (query: object) => ['admin', 'users', 'list', query] as const,
       options: ['admin', 'users', 'options'] as const,
+    },
+    roles: {
+      all: ['admin', 'roles'] as const,
+      list: (includeInactive: boolean) => ['admin', 'roles', 'list', includeInactive] as const,
+      permissions: (roleId: number) => ['admin', 'roles', roleId, 'permissions'] as const,
+    },
+    permissions: {
+      all: ['admin', 'permissions'] as const,
+      list: ['admin', 'permissions', 'list'] as const,
+    },
+    actorBindings: {
+      all: ['admin', 'actor-bindings'] as const,
+      list: ['admin', 'actor-bindings', 'list'] as const,
+    },
+    departments: {
+      all: ['admin', 'departments'] as const,
+      list: (includeInactive: boolean) => ['admin', 'departments', 'list', includeInactive] as const,
+      members: (departmentId: number) => ['admin', 'departments', departmentId, 'members'] as const,
+      routingRules: (departmentId: number) => ['admin', 'departments', departmentId, 'routing-rules'] as const,
     },
     auditLogs: {
       all: ['admin', 'audit-logs'] as const,

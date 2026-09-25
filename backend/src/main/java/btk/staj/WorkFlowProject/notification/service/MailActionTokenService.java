@@ -1,6 +1,7 @@
 package btk.staj.WorkFlowProject.notification.service;
 
 import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
+import btk.staj.WorkFlowProject.auth.security.AuthenticatedUserFactory;
 import btk.staj.WorkFlowProject.notification.dto.MailActionPreview;
 import btk.staj.WorkFlowProject.notification.entity.MailActionToken;
 import btk.staj.WorkFlowProject.notification.exception.InvalidMailActionTokenException;
@@ -20,6 +21,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
@@ -76,15 +78,18 @@ public class MailActionTokenService {
     private final RecordRepository recordRepository;
     private final WorkflowActionService workflowActionService;
     private final int ttlHours;
+    private final AuthenticatedUserFactory principalFactory;
 
     public MailActionTokenService(MailActionTokenRepository mailActionTokenRepository,
                                   RecordRepository recordRepository,
                                   WorkflowActionService workflowActionService,
+                                  AuthenticatedUserFactory principalFactory,
                                   @Value("${app.mail-action-token-ttl-hours:72}") int ttlHours) {
         this.mailActionTokenRepository = Objects.requireNonNull(mailActionTokenRepository, "mailActionTokenRepository");
         this.recordRepository = Objects.requireNonNull(recordRepository, "recordRepository");
         this.workflowActionService = Objects.requireNonNull(workflowActionService, "workflowActionService");
         this.ttlHours = ttlHours;
+        this.principalFactory = Objects.requireNonNull(principalFactory, "principalFactory");
     }
 
     /**
@@ -106,7 +111,7 @@ public class MailActionTokenService {
             case BSK_YRD_INCELEMESINDE -> Optional.of(WorkflowAction.BASKANA_ILET);
             case BASKAN_INCELEMESINDE -> Optional.of(WorkflowAction.ONAYLA);
             case DUZENLEME_BEKLIYOR -> Optional.of(WorkflowAction.TEKRAR_GONDER);
-            case TASLAK, ONAYLANDI, REDDEDILDI -> Optional.empty();
+            case TASLAK, ALT_GOREV_BEKLIYOR, KONTROL, ONAYLANDI, REDDEDILDI -> Optional.empty();
         };
     }
 
@@ -116,8 +121,11 @@ public class MailActionTokenService {
      * ve loglanmaz.
      *
      * <p>Ayni evrak/kisi icin acik kalmis eski anahtarlar once kapatilir.
+     * AFTER_COMMIT dinleyicisinden cagrildiginda onceki transaction'in kaynaklari
+     * hala bagli olabilir, ancak tekrar commit edilmez. Eski anahtarlari kapatma
+     * ve yeni anahtari yazma bu nedenle kendi transaction'inda tamamlanmalidir.
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public String issue(UUID recordId, User user, WorkflowAction action) {
         Objects.requireNonNull(recordId, "recordId");
         Objects.requireNonNull(user, "user");
@@ -187,7 +195,10 @@ public class MailActionTokenService {
         SecurityContext previousContext = SecurityContextHolder.getContext();
         try {
             SecurityContext context = SecurityContextHolder.createEmptyContext();
-            AuthenticatedUser principal = new AuthenticatedUser(actor);
+            AuthenticatedUser principal = principalFactory.create(actor);
+            if (!principal.isEnabled()) {
+                throw new InvalidMailActionTokenException(INVALID_TOKEN_MESSAGE);
+            }
             Authentication authentication = new UsernamePasswordAuthenticationToken(
                     principal, null, principal.getAuthorities());
             context.setAuthentication(authentication);

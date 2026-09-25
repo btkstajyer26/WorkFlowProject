@@ -30,5 +30,23 @@ export const createUserSchema = z.object({
     .max(72, 'Şifre en fazla 72 karakter olabilir.'),
 })
 
+/**
+ * Rol formu. Sınırlar backend sözleşmesiyle aynı: ad 100, açıklama 255 karakter.
+ * `systemKey` ve `isSystem` forma hiç girmez; istemciden değiştirilemezler.
+ */
+export const roleFormSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, 'Rol adı zorunludur.')
+    .max(100, 'Rol adı en fazla 100 karakter olabilir.'),
+  description: z
+    .string()
+    .trim()
+    .max(255, 'Açıklama en fazla 255 karakter olabilir.'),
+  workflowActor: z.boolean(),
+})
+
+export type RoleFormValues = z.infer<typeof roleFormSchema>
 export type CreateUserFormValues = z.infer<typeof createUserSchema>
 export type ChangeRoleFormValues = z.infer<typeof changeRoleSchema>

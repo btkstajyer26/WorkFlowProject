@@ -7,21 +7,23 @@ import btk.staj.WorkFlowProject.notification.service.NotificationService;
 import btk.staj.WorkFlowProject.notification.service.PushNotificationService;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
+import btk.staj.WorkFlowProject.support.WorkflowRoleFixtures;
 import btk.staj.WorkFlowProject.user.entity.User;
 import btk.staj.WorkFlowProject.user.repository.UserRepository;
 import btk.staj.WorkFlowProject.workflow.model.WorkflowStatusChangedEvent;
+import btk.staj.WorkFlowProject.workflow.service.DepartmentRoutingResolver;
+import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRuleSource;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
+import java.time.Instant;
+import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
-
-import java.time.Instant;
-import java.util.Optional;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -36,6 +38,8 @@ class WorkflowStatusChangedListenerTest {
     private static final UUID ACTOR_ID = UUID.fromString("00000000-0000-0000-0000-000000000041");
     private static final UUID ASSIGNEE_ID = UUID.fromString("00000000-0000-0000-0000-000000000042");
     private static final UUID CREATOR_ID = UUID.fromString("00000000-0000-0000-0000-000000000043");
+    private static final UUID DEPARTMENT_MEMBER_ID =
+            UUID.fromString("00000000-0000-0000-0000-000000000044");
 
     private final NotificationService notificationService = mock(NotificationService.class);
     private final MailService mailService = mock(MailService.class);
@@ -43,10 +47,86 @@ class WorkflowStatusChangedListenerTest {
     private final PushNotificationService pushNotificationService = mock(PushNotificationService.class);
     private final RecordRepository recordRepository = mock(RecordRepository.class);
     private final UserRepository userRepository = mock(UserRepository.class);
+    private final DepartmentRoutingResolver departmentRoutingResolver =
+            mock(DepartmentRoutingResolver.class);
+    private final TransitionRuleSource transitionRuleSource = mock(TransitionRuleSource.class);
 
     private final WorkflowStatusChangedListener listener = new WorkflowStatusChangedListener(
             notificationService, mailService, pushNotificationService, mailActionTokenService,
-            recordRepository, userRepository);
+            recordRepository, userRepository, departmentRoutingResolver, transitionRuleSource);
+
+    @Test
+    void notifiesEligibleDepartmentMembersAndExcludesTheActor() {
+        var event = new WorkflowStatusChangedEvent(RECORD_ID, WorkflowAction.DEPARTMANA_GONDER,
+                RecordStatus.TASLAK, RecordStatus.BSK_YRD_INCELEMESINDE, ACTOR_ID,
+                WorkflowRoleFixtures.id(RoleName.CALISAN), null, null, null, Instant.now(), 42);
+
+        Record record = mock(Record.class);
+        when(record.getCreatedBy()).thenReturn(CREATOR_ID);
+        when(recordRepository.findById(RECORD_ID)).thenReturn(Optional.of(record));
+        when(transitionRuleSource.snapshot()).thenReturn(transitionRuleSource);
+        when(departmentRoutingResolver.eligibleAssignees(
+                42, RecordStatus.BSK_YRD_INCELEMESINDE, transitionRuleSource))
+                .thenReturn(java.util.Set.of(ACTOR_ID, DEPARTMENT_MEMBER_ID));
+
+        assertThat(listener.recipientsOf(event))
+                .containsExactly(DEPARTMENT_MEMBER_ID);
+
+        listener.createInAppNotification(event);
+
+        verify(notificationService).create(
+                eq(DEPARTMENT_MEMBER_ID), eq(RECORD_ID), any(),
+                eq(NotificationType.RECORD_SUBMITTED));
+        verify(notificationService, never()).create(eq(ACTOR_ID), any(), any(), any());
+    }
+
+    @Test
+    void usesTheSameEligibleDepartmentRecipientsForInAppPushAndMail() {
+        var event = new WorkflowStatusChangedEvent(RECORD_ID, WorkflowAction.DEPARTMANA_GONDER,
+                RecordStatus.TASLAK, RecordStatus.BSK_YRD_INCELEMESINDE, ACTOR_ID,
+                WorkflowRoleFixtures.id(RoleName.CALISAN), null, null, null, Instant.now(), 42);
+
+        givenRecord();
+
+        User member = user(
+                DEPARTMENT_MEMBER_ID, "Ayse", "Yilmaz", "ayse@ornek.test");
+        when(userRepository.findById(DEPARTMENT_MEMBER_ID))
+                .thenReturn(Optional.of(member));
+
+        when(transitionRuleSource.snapshot()).thenReturn(transitionRuleSource);
+        when(departmentRoutingResolver.eligibleAssignees(
+                42, RecordStatus.BSK_YRD_INCELEMESINDE, transitionRuleSource))
+                .thenReturn(java.util.Set.of(ACTOR_ID, DEPARTMENT_MEMBER_ID));
+
+        listener.createInAppNotification(event);
+        listener.sendMail(event);
+
+        verify(notificationService).create(
+                eq(DEPARTMENT_MEMBER_ID), eq(RECORD_ID), any(),
+                eq(NotificationType.RECORD_SUBMITTED));
+
+        verify(pushNotificationService).sendPushNotification(
+                eq(DEPARTMENT_MEMBER_ID),
+                eq("Bütçe talebi"),
+                any(),
+                eq(RECORD_ID),
+                eq(NotificationType.RECORD_SUBMITTED));
+
+        verify(mailService).sendStatusChangeMail(
+                eq("ayse@ornek.test"),
+                eq("Ayse Yilmaz"),
+                eq(RECORD_ID),
+                eq("Bütçe talebi"),
+                eq("BSK_YRD_INCELEMESINDE"),
+                isNull(),
+                isNull());
+
+        verify(notificationService, never()).create(
+                eq(ACTOR_ID), any(), any(), any());
+        verify(pushNotificationService, never()).sendPushNotification(
+                eq(ACTOR_ID), any(), any(), any(), any());
+        verify(userRepository, never()).findById(ACTOR_ID);
+    }
 
     @Test
     @DisplayName("bildirimi sirasi gelen kisiye yazar")
@@ -99,15 +179,57 @@ class WorkflowStatusChangedListenerTest {
     @CsvSource({
             "GONDER,RECORD_SUBMITTED",
             "TEKRAR_GONDER,RECORD_SUBMITTED",
+            "DEPARTMANA_GONDER,RECORD_SUBMITTED",
             "BASKANA_ILET,RECORD_FORWARDED",
             "ONAYLA,RECORD_APPROVED",
             "REDDET,RECORD_REJECTED",
             "CALISANA_GERI_GONDER,RECORD_RETURNED",
-            "BASKAN_YARDIMCISINA_GERI_GONDER,RECORD_RETURNED"
+            "BASKAN_YARDIMCISINA_GERI_GONDER,RECORD_RETURNED",
+            "ALT_GOREVLERE_AYIR,RECORD_SPLIT",
+            "ALT_GOREVLER_SONUCLANDI,SUBTASKS_COMPLETED"
     })
     @DisplayName("her aksiyon dogru bildirim turune eslenir")
     void mapsEveryActionToItsNotificationType(WorkflowAction action, NotificationType expected) {
         assertThat(NotificationType.of(action)).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "ALT_GOREVLERE_AYIR,ALT_GOREV_BEKLIYOR,RECORD_SPLIT",
+            "ALT_GOREVLER_SONUCLANDI,KONTROL,SUBTASKS_COMPLETED"
+    })
+    @DisplayName("Parent alt akis aksiyonlari yalniz kayit sahibine tum kanallardan bildirilir")
+    void notifiesTheRecordCreatorForParentSubtaskActions(
+            WorkflowAction action,
+            RecordStatus newStatus,
+            NotificationType expectedType) {
+        Record record = new Record();
+        record.setId(RECORD_ID);
+        record.setTitle("Bütçe talebi");
+        record.setCreatedBy(CREATOR_ID);
+        record.setLastDeputyId(ASSIGNEE_ID);
+        when(recordRepository.findById(RECORD_ID)).thenReturn(Optional.of(record));
+        when(userRepository.findById(CREATOR_ID)).thenReturn(Optional.of(
+                user(CREATOR_ID, "Ayse", "Yilmaz", "ayse@ornek.test")));
+
+        var event = event(
+                action,
+                newStatus,
+                null,
+                null);
+
+        listener.createInAppNotification(event);
+        listener.sendMail(event);
+
+        verify(notificationService).create(
+                eq(CREATOR_ID), eq(RECORD_ID), any(), eq(expectedType));
+        verify(pushNotificationService).sendPushNotification(
+                eq(CREATOR_ID), eq("Bütçe talebi"), any(), eq(RECORD_ID),
+                eq(expectedType));
+        verify(mailService).sendStatusChangeMail(
+                eq("ayse@ornek.test"), eq("Ayse Yilmaz"), eq(RECORD_ID),
+                eq("Bütçe talebi"), eq(newStatus.name()), isNull(), isNull());
+        verify(notificationService, never()).create(eq(ASSIGNEE_ID), any(), any(), any());
     }
 
     @Test
@@ -223,8 +345,15 @@ class WorkflowStatusChangedListenerTest {
                                                     UUID assignedTo,
                                                     String comment) {
         return new WorkflowStatusChangedEvent(
-                RECORD_ID, action, RecordStatus.BSK_YRD_INCELEMESINDE, newStatus,
-                ACTOR_ID, RoleName.BASKAN_YARDIMCISI, null, assignedTo, comment,
+                RECORD_ID,
+                action,
+                RecordStatus.BSK_YRD_INCELEMESINDE,
+                newStatus,
+                ACTOR_ID,
+                WorkflowRoleFixtures.id(RoleName.BASKAN_YARDIMCISI),
+                null,
+                assignedTo,
+                comment,
                 Instant.parse("2026-08-11T09:15:00Z"));
     }
 }

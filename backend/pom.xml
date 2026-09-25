@@ -11,21 +11,6 @@
 	<groupId>btk.staj</groupId>
 	<artifactId>WorkFlowProject</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name/>
-	<description/>
-	<url/>
-	<licenses>
-		<license/>
-	</licenses>
-	<developers>
-		<developer/>
-	</developers>
-	<scm>
-		<connection/>
-		<developerConnection/>
-		<tag/>
-		<url/>
-	</scm>
 	<properties>
 		<java.version>21</java.version>
 		<!-- springdoc 3.x hatti Spring Boot 4 icindir; 2.x Boot 3'e baglidir.
@@ -77,6 +62,10 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-websocket</artifactId>
 		</dependency>
 
 		<dependency>
@@ -174,6 +163,28 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<!-- Spring'in test context cache'i (varsayilan 32 giris) farkli
+					     konfigurasyona sahip her test sinifini ayri bir context olarak
+					     acik tutar; her biri kendi Hikari havuzunu barindirir. Varsayilan
+					     havuz boyutuyla (10) bu, ayni anda onlarca baglantiyi acik birakip
+					     Postgres'in max_connections limitini (CI'da varsayilan 100)
+					     asabiliyor - "FATAL: sorry, too many clients already" ile hem
+					     context yuklemesi hem de baglantisiz calisan Flyway tabanli
+					     testler (havuzu dolu bulduklari icin) dusuyordu. system property
+					     olarak verilir: application.properties'i degistirmez/golgelemez,
+					     sadece uzerine ekler. 5: SubtaskJoinConcurrencyIntegrationTest gibi
+					     testler ayni context'ten ayni anda 2 baglanti cekiyor (biri kilit
+					     tutar, digeri onu bekler); pay birakildi. -->
+					<systemPropertyVariables>
+						<spring.datasource.hikari.maximum-pool-size>5</spring.datasource.hikari.maximum-pool-size>
+						<spring.datasource.hikari.minimum-idle>1</spring.datasource.hikari.minimum-idle>
+					</systemPropertyVariables>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>

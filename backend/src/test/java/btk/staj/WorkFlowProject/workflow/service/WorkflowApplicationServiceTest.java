@@ -1,5 +1,8 @@
 package btk.staj.WorkFlowProject.workflow.service;
 
+import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
+import btk.staj.WorkFlowProject.support.WorkflowRoleFixtures;
+import btk.staj.WorkFlowProject.common.dto.AssignmentView;
 import btk.staj.WorkFlowProject.workflow.dto.WorkflowActionRequest;
 import btk.staj.WorkFlowProject.workflow.dto.WorkflowActionResponse;
 import btk.staj.WorkFlowProject.workflow.exception.WorkflowApplicationException;
@@ -19,9 +22,17 @@ import btk.staj.WorkFlowProject.workflow.port.WorkflowRecordPort;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import btk.staj.WorkFlowProject.workflow.statemachine.StaticTransitionRuleSource;
+import btk.staj.WorkFlowProject.workflow.statemachine.TargetStrategy;
+import btk.staj.WorkFlowProject.workflow.statemachine.TransitionRuleSource;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowErrorCode;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowTransitionValidator;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,18 +43,13 @@ import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.Clock;
-import java.time.Instant;
-import java.time.ZoneOffset;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.stream.Stream;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -81,14 +87,68 @@ class WorkflowApplicationServiceTest {
 
     @BeforeEach
     void setUp() {
+        // Validator ve servis AYNI kaynagi gorur; aksi halde ikisi farkli kural kumesine
+        // bakar ve servisin "validator izin verdigi gecisi kaynak tanimiyor" korumasi
+        // yanlis yere tetiklenirdi.
+        TransitionRuleSource ruleSource = new StaticTransitionRuleSource(WorkflowRoleFixtures.roleIds());
         service = new WorkflowApplicationService(
                 recordPort,
                 currentActorProvider,
                 targetUserResolver,
-                new WorkflowTransitionValidator(new StaticTransitionRuleSource()),
+                new DepartmentRoutingResolver(org.mockito.Mockito.mock(btk.staj.WorkFlowProject.workflow.port.DepartmentRoutingPort.class)),
+                new WorkflowTransitionValidator(ruleSource),
+                ruleSource,
                 auditService,
                 eventPublisher,
                 FIXED_CLOCK);
+    }
+
+    @Test
+    @DisplayName("mevcut public giris aktoru CurrentActorProvider'dan alir")
+    void defaultEntryPointStillUsesCurrentActorProvider() {
+        WorkflowRecordSnapshot record = activeRecord(
+                RecordStatus.BASKAN_INCELEMESINDE, CREATOR_ID, ACTOR_ID, LAST_DEPUTY_ID);
+        arrange(record, RoleName.BASKAN);
+        when(targetUserResolver.resolve(TargetStrategy.NONE, null, null, record))
+                .thenReturn(new TargetResolution.NotProvided());
+
+        service.performAction(
+                RECORD_ID,
+                new WorkflowActionRequest(WorkflowAction.ONAYLA, null, null));
+
+        verify(currentActorProvider).currentActor();
+    }
+
+    @Test
+    @DisplayName("explicit aktor overload'u provider kullanmadan ayni workflow yolunu calistirir")
+    void explicitActorEntryPointDoesNotUseCurrentActorProvider() {
+        WorkflowRecordSnapshot record = activeRecord(
+                RecordStatus.ALT_GOREV_BEKLIYOR, CREATOR_ID, null, LAST_DEPUTY_ID);
+        when(recordPort.findById(RECORD_ID)).thenReturn(Optional.of(record));
+        when(recordPort.update(any())).thenReturn(record.version() + 1);
+        when(targetUserResolver.resolve(TargetStrategy.NONE, null, null, record))
+                .thenReturn(new TargetResolution.NotProvided());
+        CurrentActor systemActor = new CurrentActor(
+                ACTOR_ID,
+                WorkflowRoleFixtures.id(RoleName.SISTEM),
+                true,
+                java.util.Set.of());
+
+        WorkflowActionResponse response = service.performAction(
+                RECORD_ID,
+                new WorkflowActionRequest(WorkflowAction.ALT_GOREVLER_SONUCLANDI, null, null),
+                systemActor);
+
+        assertThat(response.newStatus()).isEqualTo(RecordStatus.KONTROL);
+        assertThat(response.performedBy()).isEqualTo(ACTOR_ID);
+        verifyNoInteractions(currentActorProvider);
+        verify(recordPort).update(new WorkflowRecordUpdate(
+                RECORD_ID,
+                RecordStatus.KONTROL,
+                null,
+                LAST_DEPUTY_ID,
+                record.version(),
+                PERFORMED_AT));
     }
 
     @ParameterizedTest(name = "{0}")
@@ -98,7 +158,7 @@ class WorkflowApplicationServiceTest {
         WorkflowRecordSnapshot record = scenario.record();
         WorkflowActionRequest request = scenario.request();
         arrange(record, scenario.actorRole());
-        when(targetUserResolver.resolve(scenario.action(), request.targetUserId(), record))
+        when(targetUserResolver.resolve(any(), any(), eq(request.targetUserId()), eq(record)))
                 .thenReturn(scenario.resolution());
 
         WorkflowActionResponse response = service.performAction(RECORD_ID, request);
@@ -109,6 +169,8 @@ class WorkflowApplicationServiceTest {
                 scenario.previousStatus(),
                 scenario.newStatus(),
                 scenario.expectedAssignedTo(),
+                AssignmentView.of(scenario.expectedAssignedTo(), null),
+                scenario.version() + 1,
                 ACTOR_ID,
                 PERFORMED_AT));
         verify(recordPort).update(new WorkflowRecordUpdate(
@@ -118,14 +180,20 @@ class WorkflowApplicationServiceTest {
                 scenario.expectedLastDeputyId(),
                 scenario.version(),
                 PERFORMED_AT));
+        // B12: audit atamanin iki yanini da tasir. Sekiz merkezi gecisin hicbiri
+        // departman gecisi degildir (departman kolu DepartmentWorkflowIntegrationTest'te),
+        // bu yuzden iki departman alani da null dogrulanir - bu da bilgi tasir.
         verify(auditService).record(new WorkflowTransitionAudit(
                 RECORD_ID,
                 scenario.action(),
                 scenario.previousStatus(),
                 scenario.newStatus(),
                 ACTOR_ID,
-                scenario.actorRole(),
+                WorkflowRoleFixtures.id(scenario.actorRole()),
+                scenario.previousAssignedTo(),
+                null,
                 scenario.expectedAssignedTo(),
+                null,
                 scenario.comment(),
                 PERFORMED_AT));
         verify(eventPublisher).publish(new WorkflowStatusChangedEvent(
@@ -134,7 +202,7 @@ class WorkflowApplicationServiceTest {
                 scenario.previousStatus(),
                 scenario.newStatus(),
                 ACTOR_ID,
-                scenario.actorRole(),
+                WorkflowRoleFixtures.id(scenario.actorRole()),
                 scenario.previousAssignedTo(),
                 scenario.expectedAssignedTo(),
                 scenario.comment(),
@@ -275,7 +343,7 @@ class WorkflowApplicationServiceTest {
         WorkflowActionRequest request = new WorkflowActionRequest(
                 WorkflowAction.GONDER, null, null);
         arrange(record, RoleName.CALISAN);
-        when(targetUserResolver.resolve(WorkflowAction.GONDER, null, record))
+        when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
                 .thenReturn(new TargetResolution.RequestTargetNotFound(SUPPLIED_TARGET_ID));
 
         WorkflowApplicationException exception = assertThrows(
@@ -294,9 +362,9 @@ class WorkflowApplicationServiceTest {
         WorkflowActionRequest request = new WorkflowActionRequest(
                 WorkflowAction.GONDER, null, null);
         arrange(record, RoleName.CALISAN);
-        when(targetUserResolver.resolve(WorkflowAction.GONDER, null, record))
+        when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
                 .thenReturn(new TargetResolution.Resolved(
-                        new WorkflowUserSnapshot(TARGET_ID, RoleName.BASKAN_YARDIMCISI, false)));
+                        WorkflowRoleFixtures.target(TARGET_ID, RoleName.BASKAN_YARDIMCISI, false)));
 
         WorkflowApplicationException exception = assertThrows(
                 WorkflowApplicationException.class,
@@ -314,9 +382,9 @@ class WorkflowApplicationServiceTest {
         WorkflowActionRequest request = new WorkflowActionRequest(
                 WorkflowAction.GONDER, null, null);
         arrange(record, RoleName.CALISAN);
-        when(targetUserResolver.resolve(WorkflowAction.GONDER, null, record))
+        when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
                 .thenReturn(new TargetResolution.Resolved(
-                        new WorkflowUserSnapshot(TARGET_ID, RoleName.ADMIN, true)));
+                        WorkflowRoleFixtures.target(TARGET_ID, RoleName.ADMIN, true)));
 
         WorkflowApplicationException exception = assertThrows(
                 WorkflowApplicationException.class,
@@ -334,8 +402,8 @@ class WorkflowApplicationServiceTest {
         WorkflowActionRequest request = new WorkflowActionRequest(
                 WorkflowAction.GONDER, null, null);
         arrange(record, RoleName.CALISAN);
-        when(targetUserResolver.resolve(WorkflowAction.GONDER, null, record))
-                .thenReturn(new TargetResolution.RoleNotConfigured(RoleName.BASKAN_YARDIMCISI, 0));
+        when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
+                .thenReturn(new TargetResolution.RoleNotConfigured(WorkflowRoleFixtures.id(RoleName.BASKAN_YARDIMCISI), 0));
 
         WorkflowApplicationException exception = assertThrows(
                 WorkflowApplicationException.class,
@@ -353,8 +421,8 @@ class WorkflowApplicationServiceTest {
         WorkflowActionRequest request = new WorkflowActionRequest(
                 WorkflowAction.BASKANA_ILET, null, null);
         arrange(record, RoleName.BASKAN_YARDIMCISI);
-        when(targetUserResolver.resolve(WorkflowAction.BASKANA_ILET, null, record))
-                .thenReturn(new TargetResolution.RoleNotConfigured(RoleName.BASKAN, 0));
+        when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
+                .thenReturn(new TargetResolution.RoleNotConfigured(WorkflowRoleFixtures.id(RoleName.BASKAN), 0));
 
         WorkflowApplicationException exception = assertThrows(
                 WorkflowApplicationException.class,
@@ -375,8 +443,7 @@ class WorkflowApplicationServiceTest {
                 TargetResolution.DataIntegrityReason.LAST_DEPUTY_ID_MISSING,
                 null);
         arrange(record, RoleName.BASKAN);
-        when(targetUserResolver.resolve(
-                WorkflowAction.BASKAN_YARDIMCISINA_GERI_GONDER, null, record))
+        when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
                 .thenReturn(failure);
 
         WorkflowDataIntegrityException exception = assertThrows(
@@ -415,7 +482,11 @@ class WorkflowApplicationServiceTest {
     @Test
     @DisplayName("bulunamayan kayit resolver veya yan etki cagrisi yapmadan reddedilir")
     void rejectsMissingRecordWithoutResolutionOrSideEffects() {
-        when(currentActorProvider.currentActor()).thenReturn(new CurrentActor(ACTOR_ID, RoleName.CALISAN));
+        when(currentActorProvider.currentActor()).thenReturn(new CurrentActor(
+                ACTOR_ID,
+                WorkflowRoleFixtures.id(RoleName.CALISAN),
+                AuthorizationFixtures.workflowActor(RoleName.CALISAN),
+                AuthorizationFixtures.permissions(RoleName.CALISAN)));
         when(recordPort.findById(RECORD_ID)).thenReturn(Optional.empty());
 
         WorkflowRecordNotFoundException exception = assertThrows(
@@ -437,9 +508,9 @@ class WorkflowApplicationServiceTest {
         WorkflowActionRequest request = new WorkflowActionRequest(
                 WorkflowAction.BASKANA_ILET, null, null);
         arrange(record, RoleName.BASKAN_YARDIMCISI);
-        when(targetUserResolver.resolve(WorkflowAction.BASKANA_ILET, null, record))
+        when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
                 .thenReturn(new TargetResolution.Resolved(
-                        new WorkflowUserSnapshot(TARGET_ID, RoleName.BASKAN, true)));
+                        WorkflowRoleFixtures.target(TARGET_ID, RoleName.BASKAN, true)));
 
         WorkflowActionResponse response = service.performAction(RECORD_ID, request);
 
@@ -460,7 +531,7 @@ class WorkflowApplicationServiceTest {
         WorkflowActionRequest request = new WorkflowActionRequest(
                 WorkflowAction.ONAYLA, null, null);
         arrange(record, RoleName.BASKAN);
-        when(targetUserResolver.resolve(WorkflowAction.ONAYLA, null, record))
+        when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
                 .thenReturn(new TargetResolution.NotProvided());
 
         service.performAction(RECORD_ID, request);
@@ -480,7 +551,7 @@ class WorkflowApplicationServiceTest {
         WorkflowActionRequest request = new WorkflowActionRequest(
                 WorkflowAction.ONAYLA, null, null);
         arrange(record, RoleName.BASKAN);
-        when(targetUserResolver.resolve(WorkflowAction.ONAYLA, null, record))
+        when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
                 .thenReturn(new TargetResolution.NotProvided());
         doThrow(new IllegalStateException("optimistic lock"))
                 .when(recordPort).update(any(WorkflowRecordUpdate.class));
@@ -500,7 +571,7 @@ class WorkflowApplicationServiceTest {
         WorkflowActionRequest request = new WorkflowActionRequest(
                 WorkflowAction.ONAYLA, null, null);
         arrange(record, RoleName.BASKAN);
-        when(targetUserResolver.resolve(WorkflowAction.ONAYLA, null, record))
+        when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
                 .thenReturn(new TargetResolution.NotProvided());
         doThrow(new WorkflowApplicationException(WorkflowErrorCode.WORKFLOW_VERSION_CONFLICT))
                 .when(recordPort).update(any(WorkflowRecordUpdate.class));
@@ -525,7 +596,7 @@ class WorkflowApplicationServiceTest {
         WorkflowActionRequest request = new WorkflowActionRequest(
                 WorkflowAction.ONAYLA, null, null);
         arrange(record, RoleName.BASKAN);
-        when(targetUserResolver.resolve(WorkflowAction.ONAYLA, null, record))
+        when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
                 .thenReturn(new TargetResolution.NotProvided());
         doThrow(new WorkflowApplicationException(WorkflowErrorCode.WORKFLOW_VERSION_CONFLICT))
                 .when(recordPort).update(any(WorkflowRecordUpdate.class));
@@ -537,7 +608,8 @@ class WorkflowApplicationServiceTest {
         // Gecis kurallari acisindan istek gecerliydi: dogrulama asamasi
         // gecilmis, hedef cozulmus ve update komutu kaydin okundugu surumle
         // birlikte porta ulasmistir. Catisma yalnizca yazma aninda ortaya cikar.
-        verify(targetUserResolver).resolve(WorkflowAction.ONAYLA, null, record);
+        // ONAYLA gecisinin stratejisi NONE; servis bunu kuraldan okuyup resolver'a gecirir.
+        verify(targetUserResolver).resolve(TargetStrategy.NONE, null, null, record);
         verify(recordPort).update(new WorkflowRecordUpdate(
                 RECORD_ID,
                 RecordStatus.ONAYLANDI,
@@ -555,7 +627,7 @@ class WorkflowApplicationServiceTest {
         WorkflowActionRequest request = new WorkflowActionRequest(
                 WorkflowAction.ONAYLA, null, null);
         arrange(record, RoleName.BASKAN);
-        when(targetUserResolver.resolve(WorkflowAction.ONAYLA, null, record))
+        when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
                 .thenReturn(new TargetResolution.NotProvided());
         doThrow(new IllegalStateException("audit unavailable"))
                 .when(auditService).record(any(WorkflowTransitionAudit.class));
@@ -576,7 +648,7 @@ class WorkflowApplicationServiceTest {
         WorkflowActionRequest request = new WorkflowActionRequest(
                 WorkflowAction.ONAYLA, null, null);
         arrange(record, RoleName.BASKAN);
-        when(targetUserResolver.resolve(WorkflowAction.ONAYLA, null, record))
+        when(targetUserResolver.resolve(any(), any(), eq(null), eq(record)))
                 .thenReturn(new TargetResolution.NotProvided());
         doThrow(new IllegalStateException("event unavailable"))
                 .when(eventPublisher).publish(any(WorkflowStatusChangedEvent.class));
@@ -590,9 +662,30 @@ class WorkflowApplicationServiceTest {
         verify(eventPublisher).publish(any(WorkflowStatusChangedEvent.class));
     }
 
+    @Test
+    void missingPermissionStopsBeforeTargetLookupAndAllWrites() {
+        when(currentActorProvider.currentActor()).thenReturn(
+                new CurrentActor(ACTOR_ID, WorkflowRoleFixtures.id(RoleName.CALISAN), true, java.util.Set.of()));
+        when(recordPort.findById(RECORD_ID)).thenReturn(Optional.of(
+                activeRecord(RecordStatus.TASLAK, ACTOR_ID, null, null)));
+        WorkflowApplicationException exception = assertThrows(WorkflowApplicationException.class,
+                () -> service.performAction(RECORD_ID, new WorkflowActionRequest(WorkflowAction.GONDER, null, null)));
+        assertThat(exception.errorCode()).isEqualTo(WorkflowErrorCode.WORKFLOW_FORBIDDEN);
+        verifyNoInteractions(targetUserResolver);
+        assertNoMutation();
+    }
+
     private void arrange(WorkflowRecordSnapshot record, RoleName actorRole) {
-        when(currentActorProvider.currentActor()).thenReturn(new CurrentActor(ACTOR_ID, actorRole));
+        when(currentActorProvider.currentActor()).thenReturn(new CurrentActor(
+                ACTOR_ID,
+                WorkflowRoleFixtures.id(actorRole),
+                AuthorizationFixtures.workflowActor(actorRole),
+                AuthorizationFixtures.permissions(actorRole)));
         when(recordPort.findById(RECORD_ID)).thenReturn(Optional.of(record));
+        // Port, guncelleme sonrasi surumu doner (B11 SS4); yanittaki version bundan gelir.
+        // lenient: gecisi erken reddeden testler update'e hic ulasmaz, bu bir iddia degil
+        // port'un varsayilan davranisi.
+        lenient().when(recordPort.update(any())).thenReturn(record.version() + 1);
     }
 
     private void assertNoMutation() {
@@ -628,7 +721,7 @@ class WorkflowApplicationServiceTest {
                         null,
                         null,
                         new TargetResolution.Resolved(
-                                new WorkflowUserSnapshot(TARGET_ID, RoleName.BASKAN_YARDIMCISI, true)),
+                                WorkflowRoleFixtures.target(TARGET_ID, RoleName.BASKAN_YARDIMCISI, true)),
                         RecordStatus.BSK_YRD_INCELEMESINDE,
                         TARGET_ID,
                         LAST_DEPUTY_ID),
@@ -643,7 +736,7 @@ class WorkflowApplicationServiceTest {
                         null,
                         null,
                         new TargetResolution.Resolved(
-                                new WorkflowUserSnapshot(TARGET_ID, RoleName.BASKAN_YARDIMCISI, true)),
+                                WorkflowRoleFixtures.target(TARGET_ID, RoleName.BASKAN_YARDIMCISI, true)),
                         RecordStatus.BSK_YRD_INCELEMESINDE,
                         TARGET_ID,
                         LAST_DEPUTY_ID),
@@ -658,7 +751,7 @@ class WorkflowApplicationServiceTest {
                         null,
                         null,
                         new TargetResolution.Resolved(
-                                new WorkflowUserSnapshot(TARGET_ID, RoleName.BASKAN, true)),
+                                WorkflowRoleFixtures.target(TARGET_ID, RoleName.BASKAN, true)),
                         RecordStatus.BASKAN_INCELEMESINDE,
                         TARGET_ID,
                         ACTOR_ID),
@@ -673,7 +766,7 @@ class WorkflowApplicationServiceTest {
                         null,
                         "duzeltiniz",
                         new TargetResolution.Resolved(
-                                new WorkflowUserSnapshot(CREATOR_ID, RoleName.CALISAN, true)),
+                                WorkflowRoleFixtures.target(CREATOR_ID, RoleName.CALISAN, true)),
                         RecordStatus.DUZENLEME_BEKLIYOR,
                         CREATOR_ID,
                         LAST_DEPUTY_ID),
@@ -716,7 +809,7 @@ class WorkflowApplicationServiceTest {
                         null,
                         "duzeltiniz",
                         new TargetResolution.Resolved(
-                                new WorkflowUserSnapshot(CREATOR_ID, RoleName.CALISAN, true)),
+                                WorkflowRoleFixtures.target(CREATOR_ID, RoleName.CALISAN, true)),
                         RecordStatus.DUZENLEME_BEKLIYOR,
                         CREATOR_ID,
                         LAST_DEPUTY_ID),
@@ -731,7 +824,7 @@ class WorkflowApplicationServiceTest {
                         null,
                         "tekrar inceleyiniz",
                         new TargetResolution.Resolved(
-                                new WorkflowUserSnapshot(LAST_DEPUTY_ID, RoleName.BASKAN_YARDIMCISI, true)),
+                                WorkflowRoleFixtures.target(LAST_DEPUTY_ID, RoleName.BASKAN_YARDIMCISI, true)),
                         RecordStatus.BSK_YRD_INCELEMESINDE,
                         LAST_DEPUTY_ID,
                         LAST_DEPUTY_ID));

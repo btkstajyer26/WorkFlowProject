@@ -8,5 +8,6 @@ export default defineConfig({
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
     setupFiles: './src/test/setup.ts',
     restoreMocks: true,
+    maxWorkers: 2,
   },
 })

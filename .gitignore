@@ -25,3 +25,6 @@ uploads/
 
 # MSW postinstall ciktisi; npm ci her kurulumda yeniden uretir
 frontend/public/mockServiceWorker.js
+
+# Geçici ve üretilmiş çalışma dosyaları
+/tmp/

@@ -20,6 +20,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
@@ -89,6 +90,7 @@ class AuthServiceTest {
         when(role.getName()).thenReturn("USER");
         when(jwtUtil.generateAccessToken(userId, "test@example.com", "USER")).thenReturn("access-token");
         when(jwtUtil.generateRefreshToken(userId)).thenReturn("refresh-token");
+        when(jwtUtil.refreshTokenTtl()).thenReturn(Duration.ofDays(7));
 
         LoginResponse response = authService.login(request);
 
@@ -180,20 +182,81 @@ class AuthServiceTest {
         when(user.getEmail()).thenReturn("test@example.com");
         when(user.getRole()).thenReturn(role);
         when(role.getName()).thenReturn("USER");
+        when(tokenRepository.revokeIfActive("valid-refresh-token")).thenReturn(1);
         when(jwtUtil.generateAccessToken(userId, "test@example.com", "USER")).thenReturn("new-access-token");
         when(jwtUtil.generateRefreshToken(userId)).thenReturn("new-refresh-token");
+        when(jwtUtil.refreshTokenTtl()).thenReturn(Duration.ofDays(7));
 
         LoginResponse response = authService.refresh("valid-refresh-token");
 
         assertEquals("new-access-token", response.getAccessToken());
         assertEquals("new-refresh-token", response.getRefreshToken());
 
-        // Eski token iptal edilmeli, yenisi kaydedilmeli.
-        verify(storedToken).setRevoked(true);
+        // Eski token kosullu UPDATE ile tuketilir (B05); entity uzerinden
+        // setRevoked + save yapilmaz. Kaydedilen tek satir yeni token'dir.
+        verify(tokenRepository).revokeIfActive("valid-refresh-token");
+        verify(storedToken, never()).setRevoked(anyBoolean());
 
         ArgumentCaptor<Token> tokenCaptor = ArgumentCaptor.forClass(Token.class);
-        verify(tokenRepository, times(2)).save(tokenCaptor.capture());
-        assertEquals("new-refresh-token", tokenCaptor.getAllValues().getLast().getToken());
+        verify(tokenRepository, times(1)).save(tokenCaptor.capture());
+        assertEquals("new-refresh-token", tokenCaptor.getValue().getToken());
+    }
+
+    /**
+     * B05: ayni token ile gelen iki istekten ikincisi, birincisi satiri
+     * tukettikten sonra kosullu UPDATE'ten 0 alir. Bu istek yeni token
+     * uretmemeli; aksi halde tek kullanimlik olma garantisi kalmazdi.
+     */
+    @Test
+    void refresh_tokenBaskaIstekTarafindanTuketilmisse_yeniTokenUretmemeli() {
+        Token storedToken = mock(Token.class);
+
+        when(tokenRepository.findByToken("race-loser")).thenReturn(Optional.of(storedToken));
+        when(storedToken.isRevoked()).thenReturn(false);
+        when(storedToken.getExpiresAt()).thenReturn(LocalDateTime.now().plusDays(1));
+        when(storedToken.getUser()).thenReturn(user);
+        when(user.isActive()).thenReturn(true);
+        when(tokenRepository.revokeIfActive("race-loser")).thenReturn(0);
+
+        InvalidCredentialsException ex = assertThrows(
+                InvalidCredentialsException.class,
+                () -> authService.refresh("race-loser"));
+
+        assertEquals("Refresh token süresi dolmuş veya geçersiz", ex.getMessage());
+        verify(tokenRepository, never()).save(any());
+        verifyNoInteractions(jwtUtil);
+    }
+
+    /**
+     * R03: satirin omru yapilandirilmis refresh TTL'inden turer. Onceden iki
+     * ayri yerde plusDays(7) sabitti ve JWT'nin kendi exp degeriyle ayrisabiliyordu.
+     */
+    @Test
+    void refresh_kayitOmru_yapilandirilmisTtlDenTuremeli() {
+        Token storedToken = mock(Token.class);
+
+        when(tokenRepository.findByToken("ttl-token")).thenReturn(Optional.of(storedToken));
+        when(storedToken.isRevoked()).thenReturn(false);
+        when(storedToken.getExpiresAt()).thenReturn(LocalDateTime.now().plusDays(1));
+        when(storedToken.getUser()).thenReturn(user);
+        when(user.isActive()).thenReturn(true);
+        when(user.getId()).thenReturn(userId);
+        when(user.getEmail()).thenReturn("test@example.com");
+        when(user.getRole()).thenReturn(role);
+        when(role.getName()).thenReturn("USER");
+        when(tokenRepository.revokeIfActive("ttl-token")).thenReturn(1);
+        when(jwtUtil.generateAccessToken(userId, "test@example.com", "USER")).thenReturn("a");
+        when(jwtUtil.generateRefreshToken(userId)).thenReturn("r");
+        when(jwtUtil.refreshTokenTtl()).thenReturn(Duration.ofMinutes(30));
+
+        authService.refresh("ttl-token");
+
+        ArgumentCaptor<Token> tokenCaptor = ArgumentCaptor.forClass(Token.class);
+        verify(tokenRepository).save(tokenCaptor.capture());
+
+        Token saved = tokenCaptor.getValue();
+        assertTrue(saved.getExpiresAt().isAfter(saved.getCreatedAt().plusMinutes(29)));
+        assertTrue(saved.getExpiresAt().isBefore(saved.getCreatedAt().plusMinutes(31)));
     }
 
     @Test
@@ -255,7 +318,7 @@ class AuthServiceTest {
                 () -> authService.refresh("valid-but-inactive-user"));
 
         assertEquals("Hesap pasif durumda", ex.getMessage());
-        verify(storedToken, never()).setRevoked(true);
+        verify(tokenRepository, never()).revokeIfActive(any());
         verifyNoInteractions(jwtUtil);
     }
 
@@ -270,8 +333,8 @@ class AuthServiceTest {
 
         authService.logout("token-to-revoke", null);
 
-        verify(storedToken, times(1)).setRevoked(true);
-        verify(tokenRepository, times(1)).save(storedToken);
+        verify(tokenRepository, times(1)).revokeIfActive("token-to-revoke");
+        verify(tokenRepository, never()).save(any());
     }
 
     @Test
@@ -280,6 +343,7 @@ class AuthServiceTest {
 
         authService.logout("olmayan-token", null);
 
+        verify(tokenRepository, never()).revokeIfActive(any());
         verify(tokenRepository, never()).save(any());
     }
 
@@ -297,7 +361,7 @@ class AuthServiceTest {
 
         authService.logout("token-to-revoke", null);
 
-        verify(storedToken).setRevoked(true);
+        verify(tokenRepository).revokeIfActive("token-to-revoke");
         verifyNoInteractions(deviceTokenRepository);
     }
 
@@ -319,7 +383,7 @@ class AuthServiceTest {
 
         authService.logout("token-to-revoke", "cihaz-token");
 
-        verify(storedToken).setRevoked(true);
+        verify(tokenRepository).revokeIfActive("token-to-revoke");
         verify(deviceTokenRepository, times(1)).deactivateByToken("cihaz-token");
     }
 
@@ -344,7 +408,7 @@ class AuthServiceTest {
         authService.logout("token-to-revoke", "baskasinin-cihazi");
 
         // Refresh token yine de iptal edilir; yalnizca cihaz token'ina dokunulmaz.
-        verify(storedToken).setRevoked(true);
+        verify(tokenRepository).revokeIfActive("token-to-revoke");
         verify(deviceTokenRepository, never()).deactivateByToken(anyString());
     }
 }

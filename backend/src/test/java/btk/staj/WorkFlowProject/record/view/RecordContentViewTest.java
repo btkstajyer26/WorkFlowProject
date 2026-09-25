@@ -1,5 +1,7 @@
 package btk.staj.WorkFlowProject.record.view;
 
+import static btk.staj.WorkFlowProject.support.AuthorizationFixtures.visibility;
+
 import btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
@@ -19,7 +21,7 @@ class RecordContentViewTest {
     private static final UUID DEPUTY_ID = UUID.fromString("00000000-0000-0000-0000-000000000032");
     private static final LocalDateTime HANDOFF = LocalDateTime.of(2026, 8, 19, 10, 0);
 
-    private final RecordContentView view = new RecordContentView(new RecordAccessPolicy());
+    private final RecordContentView view = new RecordContentView(new RecordAccessPolicy(actor -> java.util.Set.of(), (recordId, actorId) -> false));
 
     @Test
     @DisplayName("duzeltmedeki kaydin guncel halini Bsk. Yrd. gormez, devir anindakini gorur")
@@ -27,7 +29,7 @@ class RecordContentViewTest {
         Record record = returnedRecord();
 
         RecordContentView.Content content =
-                view.visibleContent(record, RoleName.BASKAN_YARDIMCISI, DEPUTY_ID);
+                view.visibleContent(record, visibility(RoleName.BASKAN_YARDIMCISI, DEPUTY_ID));
 
         assertThat(content.frozen()).isTrue();
         assertThat(content.title()).isEqualTo("Gönderilen başlık");
@@ -42,7 +44,7 @@ class RecordContentViewTest {
         Record record = returnedRecord();
 
         RecordContentView.Content content =
-                view.visibleContent(record, RoleName.CALISAN, OWNER_ID);
+                view.visibleContent(record, visibility(RoleName.CALISAN, OWNER_ID));
 
         assertThat(content.frozen()).isFalse();
         assertThat(content.title()).isEqualTo("Düzeltilmiş başlık");
@@ -58,7 +60,7 @@ class RecordContentViewTest {
         record.setAssignedTo(DEPUTY_ID);
 
         RecordContentView.Content content =
-                view.visibleContent(record, RoleName.BASKAN_YARDIMCISI, DEPUTY_ID);
+                view.visibleContent(record, visibility(RoleName.BASKAN_YARDIMCISI, DEPUTY_ID));
 
         assertThat(content.frozen()).isFalse();
         assertThat(content.title()).isEqualTo("Düzeltilmiş başlık");
@@ -73,7 +75,7 @@ class RecordContentViewTest {
         record.setSnapshotAt(null);
 
         RecordContentView.Content content =
-                view.visibleContent(record, RoleName.BASKAN_YARDIMCISI, DEPUTY_ID);
+                view.visibleContent(record, visibility(RoleName.BASKAN_YARDIMCISI, DEPUTY_ID));
 
         assertThat(content.frozen()).isFalse();
         assertThat(content.title()).isEqualTo("Düzeltilmiş başlık");

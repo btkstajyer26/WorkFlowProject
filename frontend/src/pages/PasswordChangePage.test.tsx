@@ -11,8 +11,11 @@ const firstLoginUser: AuthUser = {
   firstName: 'İlk',
   lastName: 'Giriş',
   email: 'ilk.giris@kurum.gov.tr',
-  role: 'CALISAN',
+  roleId: 1,
+  systemKey: 'CALISAN',
+  roleName: 'CALISAN',
   mustChangePassword: true,
+  permissionCodes: ['RECORD_CREATE', 'RECORD_VIEW', 'RECORD_EDIT', 'RECORD_FORWARD'],
 }
 
 function LocationProbe() {

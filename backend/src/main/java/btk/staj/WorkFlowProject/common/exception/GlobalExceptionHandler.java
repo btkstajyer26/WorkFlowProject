@@ -3,10 +3,15 @@ package btk.staj.WorkFlowProject.common.exception;
 import btk.staj.WorkFlowProject.auth.exception.InvalidResetCodeException;
 import btk.staj.WorkFlowProject.auth.exception.InvalidResetTokenException;
 import btk.staj.WorkFlowProject.auth.exception.PasswordReuseException;
+import btk.staj.WorkFlowProject.department.exception.DepartmentInUseException;
+import btk.staj.WorkFlowProject.department.exception.DepartmentNotFoundException;
+import btk.staj.WorkFlowProject.department.exception.DepartmentRoutingRuleNotFoundException;
 import btk.staj.WorkFlowProject.notification.exception.InvalidMailActionTokenException;
+import btk.staj.WorkFlowProject.subtask.exception.SubtaskException;
 import btk.staj.WorkFlowProject.user.service.AdminLimitExceededException;
 import btk.staj.WorkFlowProject.user.service.RoleNotFoundException;
 import btk.staj.WorkFlowProject.workflow.exception.WorkflowApplicationException;
+import btk.staj.WorkFlowProject.workflow.exception.WorkflowBindingException;
 import btk.staj.WorkFlowProject.workflow.exception.WorkflowRecordNotFoundException;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowErrorCode;
 import org.slf4j.Logger;
@@ -39,6 +44,27 @@ public class GlobalExceptionHandler {
 
     // ---------- Uygulama hatalari ----------
 
+    @ExceptionHandler(SubtaskException.class)
+    public ResponseEntity<ApiError> handleSubtask(SubtaskException ex) {
+        HttpStatus status = switch (ex.reason()) {
+            case PARENT_NOT_FOUND, ASSIGNEE_NOT_FOUND, NOT_FOUND -> HttpStatus.NOT_FOUND;
+            case ACTION_FORBIDDEN -> HttpStatus.FORBIDDEN;
+            case PARENT_STATUS_INVALID, ALREADY_SPLIT, TERMINAL -> HttpStatus.CONFLICT;
+            default -> HttpStatus.BAD_REQUEST;
+        };
+        return build(ex.code(), ex.getMessage(), status);
+    }
+
+    @ExceptionHandler(WorkflowBindingException.class)
+    public ResponseEntity<ApiError> handleWorkflowBinding(WorkflowBindingException ex) {
+        HttpStatus status = switch (ex.reason()) {
+            case TEMPLATE_NOT_FOUND, BINDING_NOT_FOUND, ROLE_NOT_FOUND -> HttpStatus.NOT_FOUND;
+            case DUPLICATE_BINDING, METADATA_MISMATCH, PROTECTED_BINDING, BINDING_IN_USE -> HttpStatus.CONFLICT;
+            default -> HttpStatus.BAD_REQUEST;
+        };
+        return build(ex.code(), ex.getMessage(), status);
+    }
+
     @ExceptionHandler(ForbiddenException.class)
     public ResponseEntity<ApiError> handleForbidden(ForbiddenException ex) {
         return build("FORBIDDEN", ex.getMessage(), HttpStatus.FORBIDDEN);
@@ -52,6 +78,31 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessRuleException.class)
     public ResponseEntity<ApiError> handleBusinessRule(BusinessRuleException ex) {
         return build("BUSINESS_RULE_VIOLATION", ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * Rol akista kullaniliyor. WF-8'in {@code WORKFLOW_BINDING_BINDING_IN_USE}
+     * hatasiyla ayni anlamda ve ayni durum kodunda ({@code 409}) donmelidir.
+     */
+    @ExceptionHandler(RoleInUseException.class)
+    public ResponseEntity<ApiError> handleRoleInUse(RoleInUseException ex) {
+        return build("ROLE_IN_USE", ex.getMessage(), HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(DepartmentNotFoundException.class)
+    public ResponseEntity<ApiError> handleDepartmentNotFound(DepartmentNotFoundException ex) {
+        return build("DEPARTMENT_NOT_FOUND", ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
+    /** RoleInUseException ile ayni gerekce: gecici catisma, 409. */
+    @ExceptionHandler(DepartmentInUseException.class)
+    public ResponseEntity<ApiError> handleDepartmentInUse(DepartmentInUseException ex) {
+        return build("DEPARTMENT_IN_USE", ex.getMessage(), HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(DepartmentRoutingRuleNotFoundException.class)
+    public ResponseEntity<ApiError> handleDepartmentRoutingRuleNotFound(DepartmentRoutingRuleNotFoundException ex) {
+        return build("DEPARTMENT_ROUTING_RULE_NOT_FOUND", ex.getMessage(), HttpStatus.BAD_REQUEST);
     }
 
     // ---------- Kullanici yonetimi ----------
@@ -178,7 +229,8 @@ public class GlobalExceptionHandler {
             case WORKFLOW_FORBIDDEN, WORKFLOW_ROLE_NOT_ALLOWED -> HttpStatus.FORBIDDEN;
             // Ucu de kural ihlali degil, gecici catisma: kayit kilitli, tekil rol
             // hedefi cozulemedi veya kayit istek hazirlanirken degismis.
-            case WORKFLOW_RECORD_LOCKED, WORKFLOW_ROLE_NOT_CONFIGURED, WORKFLOW_VERSION_CONFLICT ->
+            case WORKFLOW_RECORD_LOCKED, WORKFLOW_ROLE_NOT_CONFIGURED, WORKFLOW_VERSION_CONFLICT,
+                    WORKFLOW_DEPARTMENT_ROUTING_NOT_CONFIGURED, WORKFLOW_TARGET_CANNOT_ACT ->
                     HttpStatus.CONFLICT;
             case WORKFLOW_STATUS_NOT_CONFIGURED -> HttpStatus.INTERNAL_SERVER_ERROR;
             default -> HttpStatus.BAD_REQUEST;
@@ -201,10 +253,14 @@ public class GlobalExceptionHandler {
             case WORKFLOW_FORBIDDEN -> "Bu kayıt üzerinde işlem yapma yetkiniz yok";
             case WORKFLOW_RECORD_LOCKED -> "Kayıt kilitli, üzerinde işlem yapılamaz";
             case WORKFLOW_COMMENT_REQUIRED -> "Bu işlem için açıklama zorunludur";
-            case WORKFLOW_TARGET_REQUIRED -> "Hedef kullanıcı seçilmelidir";
-            case WORKFLOW_TARGET_NOT_ALLOWED -> "Seçilen hedef kullanıcı bu işlem için uygun değil";
+            case WORKFLOW_TARGET_REQUIRED -> "İşlem için hedef seçilmelidir";
+            case WORKFLOW_DEPARTMENT_INVALID -> "Hedef departman bulunamadı veya pasif";
+            case WORKFLOW_DEPARTMENT_ROUTING_NOT_CONFIGURED -> "Departmanın hedef durumda uygun yönlendirmesi yok";
+            case WORKFLOW_TARGET_NOT_ALLOWED -> "Gönderilen hedef alanı bu işlem için uygun değil";
             case WORKFLOW_TARGET_ROLE_INVALID -> "Seçilen hedef kullanıcının rolü uygun değil";
             case WORKFLOW_TARGET_INACTIVE -> "Seçilen hedef kullanıcı pasif durumda";
+            case WORKFLOW_TARGET_CANNOT_ACT ->
+                    "İşlemi devralacak kişi bu kayıt üzerinde işlem yapamıyor, yöneticinize başvurun";
             case WORKFLOW_ROLE_NOT_ALLOWED -> "Rolünüz bu işlemi yapamaz";
             case WORKFLOW_STATUS_NOT_CONFIGURED -> "İş akışı yapılandırması eksik";
             case WORKFLOW_ROLE_NOT_CONFIGURED ->

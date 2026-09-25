@@ -131,6 +131,8 @@ describe('Kayıt formu edge-case davranışları', () => {
       createdBy: 'user-demo-001',
       assignedTo: 'user-demo-001',
       lastDeputyId: 'user-demo-002',
+      subtaskApprovalPolicy: null,
+      subtaskRequiredApprovals: null,
     }, ...mockApiDb.records]
     mockApiDb.auditLogs = [{
       id: 'audit-revision-request',

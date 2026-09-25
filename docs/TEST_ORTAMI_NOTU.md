@@ -1,175 +1,174 @@
-# TEST Ortamı — Dağıtım Notu
+# TEST Ortamı — Dağıtım ve Operasyon Notu
 
-**Kapsam:** M9 TEST ortamının topolojisi, bilinen sınırlamaları ve dağıtım
-öncesi/sonrası çalıştırılacak betikler.
+Bu belge TEST ortamının güncel topolojisini, dağıtım kontrollerini ve işletim yönergelerini tanımlar. Tarihli dağıtım, hesap, seed ve cihaz kabul kanıtları [M9 arşiv belgesinde](archive/M9_TEST_KABUL_KANITI.md) korunur.
 
-**Son kabul dağıtımı:** `https://workflowproject-test.duckdns.org` — 21 Ağustos
-2026, deploy SHA `4726d69`. **Son canlı sağlık kontrolü:** 31 Ağustos 2026
-12:37 TRT, `200 UP`. Health yanıtı commit SHA'sını yayınlamadığı için bu iki
-kanıt birbirinden ayrı tutulur. Adres, hesaplar, veri özeti ve kabul kanıtı
-[MOBIL_API_ENVANTERI.md](MOBIL_API_ENVANTERI.md#test-ortamı) içinde. Bu belge
-ortamın **nasıl** kurulduğunu ve nelere dikkat edilmesi gerektiğini anlatır;
-ortamın **ne olduğu** envanterdedir.
+Bu topoloji repo yapılandırmasını anlatır. **7 Eylül 2026 itibarıyla çalışan bir TEST
+sunucusu yoktur** (aşağıdaki karara bakınız). Repo tarafındaki 831 testlik yerel
+backend kabulü (`8adcf21`) deploy veya ürün kabulü sayılmaz.
+[Teslim durumu](README.md).
 
-Tek EC2 üzerinde Docker Compose ile backend + PostgreSQL + Mailpit + Caddy
-çalışıyor. Sunucuya özgü ayrıntılar (Elastic IP, SSH anahtarı, bölge) bilerek
-bu belgeye yazılmadı; ortam sahibinde durur.
+> **Karar (7 Eylül 2026) — TEST web barındırma ertelendi.** Çalışan bir TEST
+> sunucusu ve alan adı bulunmuyor; M9 kabulünün yapıldığı ortam kullanılmıyor ve
+> genişletme kararı alınmadı. Bu nedenle aşağıdaki **API-only topoloji korunur** ve
+> Workflow V1'in web/mail kabulü **yerel ortamda** yapılır (bkz. *Yerel kabul yolu*).
+> Karar sahibi Burak; gerekçesi ve bedeli görev dağılımı belgesinin kapsam kararı
+> bölümünde kayıtlıdır.
+>
+> **Sunucu sağlandığı gün yapılacak iş** (yeniden keşfedilmesin diye):
+> 1. Frontend için statik build imajı (`npm run build` çıktısını servis eden aşama).
+> 2. `docker-compose.test.yml`'e host portu yayınlamayan bir servis.
+> 3. `deploy/Caddyfile`'da yol bölmesi: `/api*`, `/ws*`, `/actuator*`, `/swagger-ui*`,
+>    `/v3/api-docs*` backend'de kalır; `/mail*` Mailpit'te kalır; geri kalan her şey
+>    web'e gider ve bilinmeyen yollarda `index.html` döner (SPA fallback — istemci
+>    tarafı `/hizli-islem`, `/kayitlar/:id` gibi rotalar bunsuz 404 verir).
+> 4. `deploy/preflight.sh`'daki `FRONTEND_URL == TEST_DOMAIN` engelinin tersine
+>    çevrilmesi — aynı adres artık beklenen değerdir.
+> 5. `.github/workflows/ci.yml`'deki `has("frontend")` kontrolünün güncellenmesi;
+>    yeni servis host portu yayınlamamalı, yoksa "yalnız Caddy yayınlar" kontrolü düşer.
 
----
+TEST ortamı, ayağa kaldırıldığında tek sunucuda Docker Compose ile backend, PostgreSQL, Mailpit ve Caddy çalıştıracak biçimde yapılandırılmıştır; aşağıdaki topoloji bu yapılandırmayı anlatır, şu an çalışan bir kurulumu değil. Sunucuya özgü Elastic IP, SSH anahtarı ve bölge bilgileri repository dışında ortam sahibinde tutulur.
 
 ## Topoloji: API-only
 
-TEST ortamında **ürün web frontend'i yayınlanmaz.** `docker-compose.yml`
-içindeki `frontend` servisi `frontend` profiline bağlıdır ve TEST birleşiminde
-başlatılmaz; CI bunu her PR'da doğrular.
+TEST ortamında ürün web frontend'i yayınlanmaz. `docker-compose.yml` içindeki `frontend` servisi profil arkasındadır ve TEST birleşiminde başlatılmaz.
 
-Dışarıya bakan tek servis Caddy'dir:
-
-| Yol | Hedef | Koruma |
-|---|---|---|
-| `/api/**` | backend:8080 | JWT; yalnız aşağıdaki iki mail-action ucu public |
-| `/api/public/mail-actions/preview`, `/consume` | backend:8080 | JWT yok; süreli tek kullanımlık token |
-| `/actuator/health` | backend:8080 | JWT yok; ayrıntı göstermez |
-| `/swagger-ui.html`, `/v3/api-docs` | backend:8080 | **yok** — aşağıya bakın |
+| Dış yol | Hedef | Koruma |
+| --- | --- | --- |
+| `/api/**` | backend:8080 | JWT; `/api/auth/**` kimlik uçları (giriş, token yenileme, çıkış, parola sıfırlama) ve mail-action uçları public |
+| `/api/public/mail-actions/preview`, `/consume` | backend:8080 | Süreli, tek kullanımlık token |
+| `/actuator/health` | backend:8080 | Ayrıntısız sağlık cevabı |
+| `/swagger-ui.html`, `/v3/api-docs` | backend:8080 | Public; kalıcı ortamda korunmalı |
 | `/mail*` | mailpit:8025 | Caddy basic auth |
 
-Birleştirilmiş TEST yapılandırmasında `db` (5432), `backend` (8080), `mailpit`
-(8025/1025) ve `frontend` (5173) host portu yayınlamaz. Temel dosyada `db` ve
-Mailpit loopback'e bağlıdır; **backend ise mobil LAN geliştirmesi için
-`0.0.0.0:8080` yayınlar.** `docker-compose.test.yml` bütün bu portları `!reset`
-ile kaldırır; bu nedenle TEST sınırı için Docker Compose `>= 2.24` zorunludur.
-Eski Compose sürümünde temel dosyanın backend portu güvenli bir yedek değildir.
+Birleştirilmiş TEST yapılandırması `db`, `backend` ve `mailpit` host portlarını kaldırır; `frontend` zaten `profiles` arkasında olduğu için TEST birleşiminde hiç oluşmaz. dışarıya yalnız Caddy'nin `80/443` portları açılır. Temel Compose dosyasında backend mobil LAN geliştirmesi için `0.0.0.0:8080` yayınladığından TEST'te `docker-compose.test.yml` mutlaka kullanılmalıdır. `!reset` desteği için Docker Compose 2.24 veya üzeri gerekir.
 
----
+## E-posta derin bağlantısı sınırlaması
 
-## Bilinen sınırlama: e-posta derin bağlantıları çalışmaz
+Backend derin bağlantıları `FRONTEND_URL` üzerinden üretir. Bu yalnız **evrak durum
+değişikliği bildirimi** için geçerlidir: `MailService.render` `deepLink`'i
+`FRONTEND_URL + "/records/{id}"`, `quickActionLink`'i
+`FRONTEND_URL + "/hizli-islem#token=..."` olarak kurar. **Parola sıfırlama maili
+bağlantı içermez** — yalnız doğrulama kodu taşır ve kod arayüzdeki forma elle girilir;
+7 Eylül'de yerel Mailpit üzerinde doğrulandı (gövdede hiçbir `http` adresi yok).
+Dolayısıyla web arayüzü yayınlanmasa bile parola akışı çalışır; kırılan yalnız evrak
+bildirimindeki iki derin bağlantıdır.
 
-Backend, e-postadaki bağlantıları `app.frontend-url` üzerinden üretir
-([application.properties:33](../backend/src/main/resources/application.properties#L33)).
-TEST'te gerçek bir web arayüzü yayınlanmadığı için bu değer boşta kalır.
+`FRONTEND_URL` alanına API adresi yazılmamalıdır; API-only topoloji korunduğu sürece bu
+kural geçerlidir ve `deploy/preflight.sh` bunu engelleyici bulgu olarak raporlar. Mobil
+istemci `EXPO_PUBLIC_API_BASE_URL` ile doğrudan API'ye bağlandığı için bu sınırlamadan
+etkilenmez.
 
-> **API adresini `FRONTEND_URL` diye tanıtmayın.** Ettiğinizde kullanıcılara
-> gönderilen kayıt/parola bağlantıları HTML bekleyen bir tarayıcıyı JSON API'ye
-> götürür ve akış sessizce kırılır. `deploy/preflight.sh` bu durumu engelleyici
-> bulgu olarak raporlar.
+## Yerel kabul yolu
 
-**Etkilenen akış:** e-posta üzerinden gelen derin bağlantılar (kayıt linki,
-parola sıfırlama linki ve `/hizli-islem#token=...` hızlı işlem sayfası). Bunlar
-TEST'te desteklenmez; kodları Mailpit arayüzünden (`/mail`) elle okunur.
+TEST sunucusu bulunmadığı için Workflow V1'in web ve mail kabulü geliştirici
+makinesinde yapılır. Ürün web arayüzü temel Compose dosyasında **profil arkasındadır**;
+backend'in `FRONTEND_URL` varsayılanı zaten `http://localhost:5173`'tür ve
+`CORS_ALLOWED_ORIGINS` varsayılanı bu adresi içerir — yani yerelde ek yapılandırma
+gerekmez.
 
-**Etkilenmeyen akış:** mobil uygulama. `EXPO_PUBLIC_API_BASE_URL` ile doğrudan
-API'ye bağlanır, deep-link kullanmaz. M9 kabulü mobil üzerinden yapıldığı için
-bu sınırlama M9'u bloke etmez.
+```bash
+docker compose up -d --build backend      # --build zorunlu; bkz. bayat imaj tuzağı
+docker compose --profile frontend up -d
+```
 
-**Swagger UI aynı şekilde korumasızdır.** Sözleşmeyi ekiple paylaşmayı
-kolaylaştırdığı için TEST'te açık bırakılmıştır. Ortam uzun süre yaşayacaksa
-Mailpit'le aynı basic auth'un arkasına alınması M9 sonrası backlog'undadır.
+Aşağıdaki kontroller **7 Eylül 2026'da `8adcf21` üzerinde çalıştırıldı**:
 
----
+| Kontrol | Sonuç |
+| --- | --- |
+| `GET :8080/actuator/health` | `{"status":"UP"}` |
+| `http://localhost:5173/giris` | Giriş ekranı render edildi |
+| `http://localhost:5173/hizli-islem` (token'sız) | Sayfa açıldı; beklenen "Bağlantı eksik veya bozuk görünüyor" durumunu gösterdi |
+| Tarayıcıdan `:5173` → `:8080/api/categories` | `401` — CORS zinciri çalışıyor, backend kimliksiz isteği reddediyor |
+| `POST /api/auth/forgot-password` → Mailpit | `202`; mail `http://localhost:8025` kutusuna düştü |
 
-## Dağıtım öncesi: `deploy/preflight.sh`
+**Bu koşumda doğrulanmayanlar:** giriş, workflow aksiyonu ve evrak bildirimi mailindeki
+iki derin bağlantı (`/records/{id}` ve `/hizli-islem#token=...`). Bunlar hesap parolası
+gerektirir. Ayrıca hızlı işlem düğmesi `B01` kapanmadan üretilmediği için mail → işlem
+zinciri bugün uçtan uca gösterilemez; sayfanın kendisinin çalışıyor olması bu zincirin
+kabulü değildir. Yerel hesaplar: `calisan@local.test`, `byardimci@local.test`,
+`baskan@local.test`, `admin@local.test`.
 
-Sunucudaki `.env` dosyasını denetler; hiçbir şeyi ayağa kaldırmaz.
+### Bayat imaj tuzağı
+
+`V24` uygulanmış bir veritabanına **eski backend imajı** bağlanırsa uygulama açılışta
+düşer ve konteyner yeniden başlatma döngüsüne girer:
+
+```
+workflow-backend  Restarting (1)
+Caused by: targetStrategy PREVIOUS_ACTOR requires expectedTargetRoleId
+```
+
+7 Eylül 2026'da yerel ortamda gerçekleşti: imaj 3 Eylül'de üretilmişti (`V24` ve
+`c0e08d7` öncesi), veritabanında ise `flyway_schema_history` **24**'ü gösteriyordu.
+Eski kodun invariant'ı `PREVIOUS_ACTOR` satırında `expected_target_role_id` beklerken
+`V24` o kolonu boşaltmıştır. Kod hatası değildir; `docker compose up -d --build backend`
+ile imaj yenilendiğinde servis sağlıklı hâle gelir.
+
+Kural: **migration uygulanmış bir ortamda `--build` olmadan `up` yapmayın.** Aynı sebeple
+`V24` ve kod değişikliği tek teslimde dağıtılır; ayrı dağıtılırsa uygulama açılmaz.
+
+## Dağıtım öncesi kontrol
+
+Sunucudaki `.env` dosyasını hiçbir servisi başlatmadan denetleyin:
 
 ```bash
 ./deploy/preflight.sh
 ```
 
-Kontrol ettikleri: dosya izni `600`, zorunlu anahtarların doluluğu,
-`JWT_SECRET` uzunluğu (≥ 32), `TEST_DOMAIN`'in IP olmaması, CORS listesinde
-`https://` origin bulunması, `FRONTEND_URL`'nin API adresi olmaması ve **gizli
-anahtarların hiçbirinin `.env.example` içindeki örnek değerde kalmaması.**
+Betik dosya iznini (`600`), zorunlu değerleri, JWT anahtarı uzunluğunu, alan adı/CORS ayarlarını, `FRONTEND_URL` sınırını ve örnek sırların değiştirilmiş olmasını denetler. Çıktı sırları maskeler; engelleyici bulguda kod `1` ile çıkar.
 
-Yasak listesi elle tutulmaz; `.env.example` ile karşılaştırılır, böylece örnek
-dosya değiştiğinde kontrol kendiliğinden güncel kalır. Çıktı maskelidir —
-hiçbir değerin tamamı yazılmaz, ekip kanalına yapıştırılabilir.
+## Test verisi yükleme
 
-Engelleyici bulgu varsa çıkış kodu `1`'dir; dağıtım yapılmaz.
+Repo **V24** migration'ına kadar olan zinciri içerir. Dağıtım öncesinde hedef
+ortamın `flyway_schema_history` sürümü ve departman verisi incelenmelidir. V22
+kendine-parent verisi bulursa tamamen geri alınır; otomatik veri düzeltmez.
+Paylaşılmış V18–V21 dosyaları değiştirilmez.
+[V22 yükseltme davranışı](database.md#v22-yükseltme-ve-geri-alma-davranışı).
 
----
+V18–V22 temel departman şemasıdır; V23 `DEPARTMENT` hedef stratejisini,
+`DEPARTMANA_GONDER` aksiyonunu ve iki geçişi ekler (toplam 10 geçiş). V24
+`expected_target_role_id` kolonunu yalnız `ROLE` stratejisine daraltır; geçiş
+sayısını değiştirmez ve kod değişikliğiyle birlikte dağıtılmalıdır. V23 tek
+başına eski bir backend üzerine dağıtılmaz; WF-5/WF-6 runtime'ı ile birlikte
+gider. Mevcut seed betiği departman gönderim kabulünü hâlâ kanıtlamaz: departman,
+üyelik ve routing için yönetim ucu bulunmadığından bu veriler TEST'te yalnız SQL
+ile oluşturulabilir. Departman kabul senaryosu ancak `AP-4`/`AP-5` uçlarıyla
+uçtan uca gösterilebilir.
 
-## Veri yükleme: `deploy/seed-test-data.sh`
+`deploy/seed-test-data.sh`, rol bazlı hesapları ve workflow örneklerini SQL yerine API üzerinden üretir; böylece parola hash'leri, audit ve geçişler uygulama kurallarıyla uyumlu kalır.
 
-Rol bazlı hesapları ve altı durumun her birinden örnek kaydı **API üzerinden**
-üretir (doğrudan SQL değil — bcrypt, audit satırları ve durum geçişleri ancak
-servis katmanından geçince tutarlı oluşur).
-
-### Güvenli çalıştırma
-
-Parolaları komut satırında `VAR=... ./seed...` biçiminde **önüne yazmayın.** O
-biçim hem kabuk geçmişine hem de sunucudaki herkesin okuyabildiği
-`/proc/<pid>/environ` çıktısına düşer. İki güvenli yol var:
+Parolaları komut satırının önüne `VAR=...` biçiminde yazmayın. İzni `600` olan bir dosyadan yükleyin veya betiğin gizli terminal istemini kullanın:
 
 ```bash
-# 1) İzni kısıtlı bir dosyadan source edin
 chmod 600 seed.env
 set -a; . ./seed.env; set +a
 ./deploy/seed-test-data.sh
 unset TEST_TEMP_PASSWORD TEST_USER_PASSWORD TEST_ADMIN_FINAL_PASSWORD BOOTSTRAP_ADMIN_PASSWORD
 ```
 
-```bash
-# 2) Hiç tanımlamayın; betik terminalden, ekrana yazmadan sorar
-./deploy/seed-test-data.sh
-```
+Zorunlu değişkenler:
 
-### Zorunlu değişkenler
+| Değişken | Amaç |
+| --- | --- |
+| `BASE` | TEST API adresi |
+| `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD` | Ortamın bootstrap Admin'i |
+| `TEST_TEMP_PASSWORD` | Kullanıcı oluşturma geçici parolası |
+| `TEST_USER_PASSWORD` | Çalışan, Başkan Yardımcısı ve Başkan test parolası |
+| `TEST_ADMIN_FINAL_PASSWORD` | Yalnız Admin için ayrı parola |
 
-Varsayılan değerleri **yoktur**; eksikse betik ilk HTTP çağrısından önce durur.
+Betik idempotent değildir; önceki seed'i görürse değişiklik yapmadan durur. Yarım kalan koşum `SEED_RESUME_AFTER_ADMIN=1` ile sürdürülebilir. Hedefli toparlama adımları betiğin başındadır; `docker compose down -v` uploads verisini de sildiği için son çaredir.
 
-| Değişken | Ne |
-|---|---|
-| `BASE` | TEST API adresi, örn. `https://ornek.duckdns.org` |
-| `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` | `.env` içindeki bootstrap Admin |
-| `TEST_TEMP_PASSWORD` | `createUser`'ın açtığı geçici parola |
-| `TEST_USER_PASSWORD` | ekiple paylaşılacak Çalışan / Bşk. Yrd. / Başkan parolası |
-| `TEST_ADMIN_FINAL_PASSWORD` | **yalnız Admin**; ekiple paylaşılmaz |
+## Mobil yapılandırma
 
-Admin parolasının ayrı olması zorunludur: test hesabı parolası ekip kanalında
-dolaşır, Admin de aynı parolayı kullansaydı parolayı alan herkes kullanıcı
-açıp rol değiştirebilir ve denetim kayıtlarını okuyabilirdi. Betik dördünün de
-birbirinden farklı olduğunu ve backend'in parola kuralına uyduğunu ilk saniyede
-doğrular.
+`EXPO_PUBLIC_API_BASE_URL` EAS build environment'ına tam adıyla verilir. Yerel IP değeri yalnız geliştiricinin commit edilmeyen `mobile/.env` dosyasında tutulur.
 
-### Temiz başlangıç ve yarım kalma
+## Bilinen operasyonel eksikler
 
-Betik idempotent **değildir**, ama korumasızca da çalışmaz: seed'in daha önce
-koştuğunu görürse hiçbir değişiklik yapmadan durur. Yarım kalmış bir koşumdan
-sonra `SEED_RESUME_AFTER_ADMIN=1` ile kaldığı yerden devam edilebilir; hesaplar
-kısmen açılmışsa betiğin başındaki **TOPARLAMA** bölümündeki hedefli `psql`
-temizliği kullanılır. `docker compose down -v` son çaredir — uploads
-volume'ünü de siler.
-
-### Çıktı
-
-Özet bilerek **parola içermez**: yalnız e-posta, rol ve rol başına görünür
-kayıt sayısı yazılır. Kanıt paketine olduğu gibi konabilir.
-
----
-
-## Kurulum sonrası envantere yazılanlar ✅
-
-Hepsi [MOBIL_API_ENVANTERI.md](MOBIL_API_ENVANTERI.md#test-ortamı) içinde:
-TEST HTTPS base URL, hesapların e-posta + rol bilgisi (parolasız), veri özeti
-ve rol başına görünür kayıt sayısı, deploy edilen `test` merge SHA'sı, kabul
-cihazı / işletim sistemi / build kimliği / doğrulama tarihi.
-
-## Mobil taraf
-
-`EXPO_PUBLIC_API_BASE_URL` EAS build environment'ına tam adıyla verilir;
-`eas.json` bu değeri kendiliğinden sağlamıyor. Kabul build'i bu değişken
-`https://workflowproject-test.duckdns.org` olarak verilerek üretildi.
-
-`mobile/.env.example` hâlâ yerel IP placeholder'ı içeriyor — yerel geliştirme
-için doğru varsayılan bu. TEST adresine bağlanmak isteyen geliştirici kendi
-`mobile/.env` dosyasına yukarıdaki URL'yi yazar; `.env` commit edilmez.
-
-## M9 sonrası açık operasyonel riskler
-
-Ortam kabul edildi ama uzun ömürlü işletim için şunlar **henüz yok** ve ayrı
-issue olarak izlenmeli: yedek/geri yükleme, reboot dayanıklılığı doğrulaması,
-izleme ve alarmlar, log saklama, image sürüm sabitleme, secret rotasyonu, AWS
-kaynak kapatma prosedürü. Swagger arayüzü de bilerek korumasız bırakıldı;
-ortam kalıcılaşırsa Mailpit'le aynı basic auth'un arkasına alınmalı.
-
-Bunlar M9'u yeniden açmaz — kendi tanımlarıyla ayrı ele alınır.
+- Yedekleme ve geri yükleme prosedürü
+- Reboot dayanıklılığı doğrulaması
+- İzleme ve alarm kuralları
+- Log saklama politikası
+- Image sürümü sabitleme
+- Secret rotasyonu
+- Bulut kaynaklarını kapatma prosedürü
+- Swagger/OpenAPI yüzeyini kimlik doğrulama arkasına alma

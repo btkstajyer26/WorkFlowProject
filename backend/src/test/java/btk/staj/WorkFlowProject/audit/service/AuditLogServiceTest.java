@@ -4,28 +4,32 @@ import btk.staj.WorkFlowProject.audit.dto.AuditLogResponse;
 import btk.staj.WorkFlowProject.audit.entity.AuditLog;
 import btk.staj.WorkFlowProject.audit.model.RequestAccessEvent;
 import btk.staj.WorkFlowProject.audit.repository.AuditLogRepository;
-import btk.staj.WorkFlowProject.rbac.Role;
-import btk.staj.WorkFlowProject.user.repository.RoleRepository;
+import btk.staj.WorkFlowProject.common.dto.AssignmentKind;
+import btk.staj.WorkFlowProject.record.view.AssignmentViewResolver;
+import btk.staj.WorkFlowProject.support.WorkflowRoleFixtures;
 import btk.staj.WorkFlowProject.workflow.model.WorkflowTransitionAudit;
 import btk.staj.WorkFlowProject.workflow.port.AuditService;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
+import btk.staj.WorkFlowProject.workflow.statemachine.RoleId;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
-
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -35,12 +39,24 @@ class AuditLogServiceTest {
 
     private static final UUID RECORD_ID = UUID.fromString("00000000-0000-0000-0000-000000000010");
     private static final UUID ACTOR_ID = UUID.fromString("00000000-0000-0000-0000-000000000011");
-    private static final UUID ASSIGNED_TO = UUID.fromString("00000000-0000-0000-0000-000000000012");
+    private static final UUID PREVIOUS_ASSIGNED_TO = UUID.fromString("00000000-0000-0000-0000-000000000011");
+    private static final UUID NEW_ASSIGNED_TO = UUID.fromString("00000000-0000-0000-0000-000000000012");
+    private static final Integer DEPARTMENT_ID = 77;
     private static final Instant PERFORMED_AT = Instant.parse("2026-08-11T09:15:00Z");
 
     private final AuditLogRepository auditLogRepository = mock(AuditLogRepository.class);
-    private final RoleRepository roleRepository = mock(RoleRepository.class);
-    private final AuditLogService service = new AuditLogService(auditLogRepository, roleRepository);
+    private final AssignmentViewResolver assignmentViewResolver = mock(AssignmentViewResolver.class);
+    private final AuditLogService service =
+            new AuditLogService(auditLogRepository, assignmentViewResolver);
+
+    @BeforeEach
+    void resolverReturnsIdentitiesWithoutNames() {
+        // Adlar bu sinifin konusu degil; kimliklerin korundugu ve turun dogru
+        // turetildigi onemli. Gercek ad cozumu AssignmentViewResolver'in kendi
+        // testlerinde.
+        when(assignmentViewResolver.resolveAll(anyCollection(), anyCollection()))
+                .thenReturn(new AssignmentViewResolver.Names(Map.of(), Map.of()));
+    }
 
     @Test
     @DisplayName("onay akisinin port sozlesmesini uygular")
@@ -51,7 +67,6 @@ class AuditLogServiceTest {
     @Test
     @DisplayName("gecis bilgisini audit_logs satirina cevirir")
     void mapsEveryTransitionFieldOntoTheRow() {
-        givenRole("BASKAN_YARDIMCISI", 2);
 
         service.record(transition(
                 WorkflowAction.BASKANA_ILET,
@@ -68,12 +83,56 @@ class AuditLogServiceTest {
         assertThat(saved.getPreviousStatus()).isEqualTo("BSK_YRD_INCELEMESINDE");
         assertThat(saved.getNewStatus()).isEqualTo("BASKAN_INCELEMESINDE");
         assertThat(saved.getComment()).isEqualTo("Uygun görülerek onayınıza sunulmuştur.");
+        // B12: atamanin iki yani da satira dusmeli. Bu dort assertion eksikti;
+        // bulgunun testlerce gorulmemesinin sebebi buydu.
+        assertThat(saved.getPreviousAssignedTo()).isEqualTo(PREVIOUS_ASSIGNED_TO);
+        assertThat(saved.getPreviousAssignedDepartmentId()).isNull();
+        assertThat(saved.getNewAssignedTo()).isEqualTo(NEW_ASSIGNED_TO);
+        assertThat(saved.getNewAssignedDepartmentId()).isNull();
+    }
+
+    @Test
+    @DisplayName("departmana gonderimde hedef departmani satira yazar")
+    void mapsADepartmentTargetOntoTheRow() {
+
+        service.record(transition(
+                WorkflowAction.DEPARTMANA_GONDER,
+                RecordStatus.TASLAK,
+                RecordStatus.BSK_YRD_INCELEMESINDE,
+                RoleName.CALISAN,
+                null,
+                PREVIOUS_ASSIGNED_TO, null,
+                null, DEPARTMENT_ID));
+
+        AuditLog saved = captureSaved();
+        assertThat(saved.getPreviousAssignedTo()).isEqualTo(PREVIOUS_ASSIGNED_TO);
+        assertThat(saved.getPreviousAssignedDepartmentId()).isNull();
+        assertThat(saved.getNewAssignedTo()).isNull();
+        assertThat(saved.getNewAssignedDepartmentId()).isEqualTo(DEPARTMENT_ID);
+    }
+
+    @Test
+    @DisplayName("terminal geciste atamanin iki yani da bosalir")
+    void leavesBothSidesEmptyOnATerminalTransition() {
+
+        service.record(transition(
+                WorkflowAction.ONAYLA,
+                RecordStatus.BASKAN_INCELEMESINDE,
+                RecordStatus.ONAYLANDI,
+                RoleName.BASKAN,
+                null,
+                PREVIOUS_ASSIGNED_TO, null,
+                null, null));
+
+        AuditLog saved = captureSaved();
+        assertThat(saved.getPreviousAssignedTo()).isEqualTo(PREVIOUS_ASSIGNED_TO);
+        assertThat(saved.getNewAssignedTo()).isNull();
+        assertThat(saved.getNewAssignedDepartmentId()).isNull();
     }
 
     @Test
     @DisplayName("islem zamani olarak gecisin gerceklestigi ani kullanir")
     void keepsTheTransitionInstantInsteadOfTheWriteTime() {
-        givenRole("BASKAN", 3);
 
         service.record(transition(
                 WorkflowAction.ONAYLA,
@@ -89,7 +148,6 @@ class AuditLogServiceTest {
     @Test
     @DisplayName("aciklamasiz gecisi de yazar")
     void acceptsATransitionWithoutAComment() {
-        givenRole("CALISAN", 1);
 
         service.record(transition(
                 WorkflowAction.GONDER,
@@ -102,35 +160,21 @@ class AuditLogServiceTest {
     }
 
     @Test
-    @DisplayName("rol adini roles tablosundaki id'ye cevirir")
-    void resolvesTheRoleIdByRoleName() {
-        givenRole("CALISAN", 7);
-
-        service.record(transition(
-                WorkflowAction.GONDER,
-                RecordStatus.TASLAK,
-                RecordStatus.BSK_YRD_INCELEMESINDE,
-                RoleName.CALISAN,
-                null));
-
-        verify(roleRepository).findByName("CALISAN");
-        assertThat(captureSaved().getRoleId()).isEqualTo(7);
+    @DisplayName("dinamik aktorun ID'sini rol sorgulamadan yazar")
+    void writesDynamicRoleIdentityDirectly() {
+        service.record(new WorkflowTransitionAudit(RECORD_ID, WorkflowAction.GONDER,
+                RecordStatus.TASLAK, RecordStatus.BSK_YRD_INCELEMESINDE, ACTOR_ID,
+                new RoleId(7007), null, null, NEW_ASSIGNED_TO, null, null, PERFORMED_AT));
+        assertThat(captureSaved().getRoleId()).isEqualTo(7007);
     }
 
     @Test
-    @DisplayName("rol roles tablosunda yoksa yazmaz ve hata firlatir")
-    void failsWithoutWritingWhenTheRoleRowIsMissing() {
-        when(roleRepository.findByName("BASKAN")).thenReturn(Optional.empty());
-
-        assertThatIllegalStateException()
-                .isThrownBy(() -> service.record(transition(
-                        WorkflowAction.ONAYLA,
-                        RecordStatus.BASKAN_INCELEMESINDE,
-                        RecordStatus.ONAYLANDI,
-                        RoleName.BASKAN,
-                        null)))
-                .withMessageContaining("BASKAN");
-
+    @DisplayName("aktor rol ID'si eksikse audit verisi olusturulamaz")
+    void missingRoleIdentityCannotReachPersistence() {
+        assertThatNullPointerException().isThrownBy(() -> service.record(new WorkflowTransitionAudit(
+                RECORD_ID, WorkflowAction.ONAYLA, RecordStatus.BASKAN_INCELEMESINDE,
+                RecordStatus.ONAYLANDI, ACTOR_ID, null, null, null, null, null, null, PERFORMED_AT)))
+                .withMessageContaining("actorRoleId");
         verifyNoInteractions(auditLogRepository);
     }
 
@@ -142,12 +186,37 @@ class AuditLogServiceTest {
     }
 
     @Test
+    @DisplayName("gecmisteki atama adlarini toplu cozer, satir basina sorgu acmaz")
+    void resolvesAssignmentNamesInBulkWithoutOpeningAQueryPerRow() {
+        when(auditLogRepository.findHistoryByRecordId(RECORD_ID)).thenReturn(List.of(
+                historyRow("GONDER", "TASLAK", "BSK_YRD_INCELEMESINDE",
+                        LocalDateTime.parse("2026-08-11T09:15:00"), null, null, NEW_ASSIGNED_TO, null),
+                historyRow("DEPARTMANA_GONDER", "BSK_YRD_INCELEMESINDE", "BSK_YRD_INCELEMESINDE",
+                        LocalDateTime.parse("2026-08-11T09:16:00"), NEW_ASSIGNED_TO, null, null, DEPARTMENT_ID)));
+
+        List<AuditLogResponse> history = service.getGecmis(RECORD_ID);
+
+        // Butun liste tek resolveAll ile karsilanir; satir basina resolve cagrisi
+        // gecmis uzunlugu kadar sorgu acardi (N+1).
+        verify(assignmentViewResolver).resolveAll(anyCollection(), anyCollection());
+        verify(assignmentViewResolver, never()).resolve(any(), any());
+
+        assertThat(history.get(0).previousAssignment().kind()).isEqualTo(AssignmentKind.NONE);
+        assertThat(history.get(0).newAssignment().kind()).isEqualTo(AssignmentKind.USER);
+        assertThat(history.get(0).newAssignment().userId()).isEqualTo(NEW_ASSIGNED_TO);
+        assertThat(history.get(1).previousAssignment().kind()).isEqualTo(AssignmentKind.USER);
+        assertThat(history.get(1).newAssignment().kind()).isEqualTo(AssignmentKind.DEPARTMENT);
+        assertThat(history.get(1).newAssignment().departmentId()).isEqualTo(DEPARTMENT_ID);
+    }
+
+    @Test
     @DisplayName("islem gecmisini adlari cozulmus halde dondurur")
     void returnsTheHistoryWithResolvedNames() {
         AuditLogResponse row = new AuditLogResponse(
                 UUID.randomUUID(), RECORD_ID, ACTOR_ID, "Ahmet Yılmaz", 1, "CALISAN",
                 "GONDER", "TASLAK", "BSK_YRD_INCELEMESINDE",
-                "Onayınıza sunulmuştur.", null, null, null, null, LocalDateTime.now());
+                "Onayınıza sunulmuştur.", null, null, null, null,
+                null, null, null, null, LocalDateTime.now());
         when(auditLogRepository.findHistoryByRecordId(RECORD_ID)).thenReturn(List.of(row));
 
         assertThat(service.getGecmis(RECORD_ID))
@@ -290,16 +359,21 @@ class AuditLogServiceTest {
 
     private static AuditLogResponse historyRow(String action, String previousStatus,
                                                String newStatus, LocalDateTime createdAt) {
-        return new AuditLogResponse(
-                UUID.randomUUID(), RECORD_ID, ACTOR_ID, "Ahmet Yılmaz", 1, "CALISAN",
-                action, previousStatus, newStatus, null, null, null, null, null, createdAt);
+        return historyRow(action, previousStatus, newStatus, createdAt, null, null, null, null);
     }
 
-    private void givenRole(String roleName, Integer roleId) {
-        Role role = new Role();
-        role.setId(roleId);
-        role.setName(roleName);
-        when(roleRepository.findByName(roleName)).thenReturn(Optional.of(role));
+    private static AuditLogResponse historyRow(String action, String previousStatus,
+                                               String newStatus, LocalDateTime createdAt,
+                                               UUID previousAssignedTo,
+                                               Integer previousAssignedDepartmentId,
+                                               UUID newAssignedTo,
+                                               Integer newAssignedDepartmentId) {
+        return new AuditLogResponse(
+                UUID.randomUUID(), RECORD_ID, ACTOR_ID, "Ahmet Yılmaz", 1, "CALISAN",
+                action, previousStatus, newStatus, null,
+                previousAssignedTo, previousAssignedDepartmentId,
+                newAssignedTo, newAssignedDepartmentId,
+                null, null, null, null, createdAt);
     }
 
     private AuditLog captureSaved() {
@@ -313,9 +387,27 @@ class AuditLogServiceTest {
                                                       RecordStatus newStatus,
                                                       RoleName actorRole,
                                                       String comment) {
+        // Varsayilan senaryo kisi -> kisi devri; departman senaryosu asagidaki
+        // uzun imza uzerinden kurulur (B12).
+        return transition(action, previousStatus, newStatus, actorRole, comment,
+                PREVIOUS_ASSIGNED_TO, null, NEW_ASSIGNED_TO, null);
+    }
+
+    private static WorkflowTransitionAudit transition(WorkflowAction action,
+                                                      RecordStatus previousStatus,
+                                                      RecordStatus newStatus,
+                                                      RoleName actorRole,
+                                                      String comment,
+                                                      UUID previousAssignedTo,
+                                                      Integer previousAssignedDepartmentId,
+                                                      UUID newAssignedTo,
+                                                      Integer newAssignedDepartmentId) {
         return new WorkflowTransitionAudit(
                 RECORD_ID, action, previousStatus, newStatus,
-                ACTOR_ID, actorRole, ASSIGNED_TO, comment, PERFORMED_AT);
+                ACTOR_ID, WorkflowRoleFixtures.id(actorRole),
+                previousAssignedTo, previousAssignedDepartmentId,
+                newAssignedTo, newAssignedDepartmentId,
+                comment, PERFORMED_AT);
     }
 
     // ------------------------------------------------------------------
@@ -325,9 +417,7 @@ class AuditLogServiceTest {
     @Test
     @DisplayName("yasam dongusu olayini durum gecisi olmadan yazar")
     void writesALifecycleEventWithoutATransition() {
-        givenRole("CALISAN", 1);
-
-        service.recordLifecycleEvent(RECORD_ID, ACTOR_ID, RoleName.CALISAN,
+        service.recordLifecycleEvent(RECORD_ID, ACTOR_ID, 1,
                 "RECORD_CREATED", RecordStatus.TASLAK, "Kayit olusturuldu");
 
         AuditLog saved = captureSaved();
@@ -345,15 +435,13 @@ class AuditLogServiceTest {
     }
 
     @Test
-    @DisplayName("yasam dongusu olayinda rol roles tablosunda yoksa yazmaz")
-    void failsWithoutWritingWhenTheLifecycleRoleRowIsMissing() {
-        when(roleRepository.findByName("CALISAN")).thenReturn(Optional.empty());
-
-        assertThatIllegalStateException()
+    @DisplayName("yasam dongusu olayinda rol kimligi eksikse yazmaz")
+    void failsWithoutWritingWhenTheLifecycleRoleIdIsMissing() {
+        org.assertj.core.api.Assertions.assertThatNullPointerException()
                 .isThrownBy(() -> service.recordLifecycleEvent(
-                        RECORD_ID, ACTOR_ID, RoleName.CALISAN,
+                        RECORD_ID, ACTOR_ID, null,
                         "RECORD_CREATED", RecordStatus.TASLAK, null))
-                .withMessageContaining("CALISAN");
+                .withMessageContaining("actorRoleId");
 
         verifyNoInteractions(auditLogRepository);
     }

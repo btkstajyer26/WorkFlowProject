@@ -1,17 +1,13 @@
 package btk.staj.WorkFlowProject.auth.security;
 
-import btk.staj.WorkFlowProject.auth.service.CustomUserDetailsService;
 import btk.staj.WorkFlowProject.common.exception.ApiErrorWriter;
-import btk.staj.WorkFlowProject.rbac.config.JwtUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.lang.NonNull;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -20,15 +16,12 @@ import java.io.IOException;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private final JwtUtil jwtUtil;
-    private final CustomUserDetailsService userDetailsService;
+    private final JwtAuthenticationService authenticationService;
     private final ApiErrorWriter apiErrorWriter;
 
-    public JwtAuthenticationFilter(JwtUtil jwtUtil,
-                                   CustomUserDetailsService userDetailsService,
+    public JwtAuthenticationFilter(JwtAuthenticationService authenticationService,
                                    ApiErrorWriter apiErrorWriter) {
-        this.jwtUtil = jwtUtil;
-        this.userDetailsService = userDetailsService;
+        this.authenticationService = authenticationService;
         this.apiErrorWriter = apiErrorWriter;
     }
 
@@ -43,18 +36,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
 
-            if (jwtUtil.isTokenValid(token)) {
-                String email = jwtUtil.extractEmail(token);
-                UserDetails userDetails = userDetailsService.loadUserByUsername(email);
-
-                if (!userDetails.isEnabled()) {
-                    filterChain.doFilter(request, response);
-                    return;
-                }
+            var authentication = authenticationService.authenticate(token);
+            if (authentication.isPresent()) {
+                Object principal = authentication.get().getPrincipal();
 
                 // Parola degisimi bekleyen kullanici yalnizca uc uca erisebilir;
                 // diger her istek 403 ile kesilir (kural arayuzde degil burada zorlanir).
-                if (userDetails instanceof AuthenticatedUser authenticatedUser
+                if (principal instanceof AuthenticatedUser authenticatedUser
                         && authenticatedUser.getUser().isMustChangePassword()
                         && !isAllowedWhilePasswordChangeRequired(request)) {
 
@@ -64,11 +52,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     return;
                 }
 
-                UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(
-                                userDetails, null, userDetails.getAuthorities());
-
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+                SecurityContextHolder.getContext().setAuthentication(authentication.get());
             }
         }
 

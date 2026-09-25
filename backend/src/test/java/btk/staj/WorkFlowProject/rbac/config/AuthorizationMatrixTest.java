@@ -1,5 +1,8 @@
 package btk.staj.WorkFlowProject.rbac.config;
 
+import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
+import btk.staj.WorkFlowProject.support.WorkflowRoleFixtures;
+
 import btk.staj.WorkFlowProject.attachment.repository.FileRepository;
 import btk.staj.WorkFlowProject.audit.repository.AuditLogRepository;
 import btk.staj.WorkFlowProject.audit.repository.UserAuditLogRepository;
@@ -11,6 +14,7 @@ import btk.staj.WorkFlowProject.rbac.Role;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.repository.CategoryRepository;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
+import btk.staj.WorkFlowProject.subtask.repository.SubtaskRepository;
 import btk.staj.WorkFlowProject.user.entity.User;
 import btk.staj.WorkFlowProject.user.repository.RoleRepository;
 import btk.staj.WorkFlowProject.auth.repository.PasswordResetCodeRepository;
@@ -18,6 +22,8 @@ import btk.staj.WorkFlowProject.user.repository.TokenRepository;
 import btk.staj.WorkFlowProject.user.repository.UserRepository;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
+import btk.staj.WorkFlowProject.workflow.StaticTransitionRuleReaderConfiguration;
+import btk.staj.WorkFlowProject.workflow.repository.WorkflowTransitionRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -25,6 +31,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -64,7 +71,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 @AutoConfigureMockMvc
 @DisplayName("Yetki matrisi")
+@Import(StaticTransitionRuleReaderConfiguration.class)
 class AuthorizationMatrixTest {
+    @MockitoBean
+    private btk.staj.WorkFlowProject.workflow.adapter.DepartmentRoutingAdapter departmentRoutingAdapter;
 
     @Autowired
     private MockMvc mockMvc;
@@ -75,12 +85,28 @@ class AuthorizationMatrixTest {
     @MockitoBean private TokenRepository tokenRepository;
     @MockitoBean private PasswordResetCodeRepository passwordResetCodeRepository;
     @MockitoBean private RecordRepository recordRepository;
+    @MockitoBean private SubtaskRepository subtaskRepository;
     @MockitoBean private CategoryRepository categoryRepository;
     @MockitoBean private AuditLogRepository auditLogRepository;
     @MockitoBean private UserAuditLogRepository userAuditLogRepository;
     @MockitoBean private NotificationRepository notificationRepository;
     @MockitoBean private DeviceTokenRepository deviceTokenRepository;
     @MockitoBean private MailActionTokenRepository mailActionTokenRepository;
+    @MockitoBean private WorkflowTransitionRepository workflowTransitionRepository;
+    // WF-8 management has no HTTP endpoint in this matrix; its real DB boundary is tested separately.
+    @MockitoBean private btk.staj.WorkFlowProject.workflow.service.WorkflowActorBindingService workflowActorBindingService;
+    @MockitoBean private btk.staj.WorkFlowProject.rbac.repository.RolePermissionRepository rolePermissionRepository;
+    // AP-3 PermissionAdminService bagimliligi; bu context JPA autoconfig'ini
+    // kapattigi icin gercek bir bean uretilemez.
+    @MockitoBean private btk.staj.WorkFlowProject.rbac.repository.PermissionRepository permissionRepository;
+    // AssignmentViewResolver / WorkflowQueryService bu depoyu ister (B11, APP-9).
+    @MockitoBean private btk.staj.WorkFlowProject.department.repository.DepartmentRepository departmentRepository;
+    // AP-4 DepartmentAdminService bagimliligi.
+    @MockitoBean private btk.staj.WorkFlowProject.department.repository.DepartmentMemberRepository departmentMemberRepository;
+    // AP-5 DepartmentRoutingRuleAdminService bagimliligi.
+    @MockitoBean private btk.staj.WorkFlowProject.department.repository.DepartmentRoutingRuleRepository departmentRoutingRuleRepository;
+    @MockitoBean private btk.staj.WorkFlowProject.workflow.repository.WorkflowStatusRepository workflowStatusRepository;
+    @MockitoBean private btk.staj.WorkFlowProject.workflow.repository.WorkflowActionRepository workflowActionRepository;
 
     private static final String RECORD_JSON = """
             {"title":"Test","description":"Test","categoryId":1}
@@ -135,7 +161,11 @@ class AuthorizationMatrixTest {
     /** SecurityCurrentActorProvider gercek bir AuthenticatedUser bekler. */
     private static AuthenticatedUser actor(RoleName role) {
         Role roleEntity = new Role();
+        roleEntity.setId(WorkflowRoleFixtures.value(role));
         roleEntity.setName(role.name());
+        roleEntity.setActive(true);
+        roleEntity.setSystemKey(role.name());
+        roleEntity.setWorkflowActor(AuthorizationFixtures.workflowActor(role.name()));
 
         User user = new User();
         user.setId(UUID.randomUUID());
@@ -144,7 +174,7 @@ class AuthorizationMatrixTest {
         user.setRole(roleEntity);
         user.setActive(true);
 
-        return new AuthenticatedUser(user);
+        return AuthorizationFixtures.authenticated(user);
     }
 
     @Nested
@@ -179,7 +209,7 @@ class AuthorizationMatrixTest {
     class KayitOlusturma {
 
         @Test
-        @WithMockUser(roles = "BASKAN")
+        @WithMockUser(authorities = {"RECORD_VIEW", "RECORD_APPROVE", "RECORD_REJECT", "RECORD_RETURN"})
         @DisplayName("Baskan kayit olusturamaz")
         void baskanOlusturamaz() throws Exception {
             mockMvc.perform(post("/api/records")
@@ -190,7 +220,7 @@ class AuthorizationMatrixTest {
         }
 
         @Test
-        @WithMockUser(roles = "BASKAN_YARDIMCISI")
+        @WithMockUser(authorities = {"RECORD_VIEW", "RECORD_FORWARD", "RECORD_RETURN"})
         @DisplayName("Baskan Yardimcisi kayit olusturamaz")
         void baskanYrdOlusturamaz() throws Exception {
             mockMvc.perform(post("/api/records")
@@ -200,7 +230,7 @@ class AuthorizationMatrixTest {
         }
 
         @Test
-        @WithMockUser(roles = "CALISAN")
+        @WithMockUser(authorities = {"RECORD_CREATE", "RECORD_VIEW", "RECORD_EDIT", "RECORD_FORWARD", "FILE_MANAGE", "RECORD_DELETE"})
         @DisplayName("Calisan icin yetki engeli yoktur")
         void calisanEngellenmez() throws Exception {
             // Servis katmani mock oldugu icin sonuc basarili olmayabilir;
@@ -282,7 +312,7 @@ class AuthorizationMatrixTest {
                 """;
 
         @Test
-        @WithMockUser(roles = "CALISAN")
+        @WithMockUser(authorities = {"RECORD_CREATE", "RECORD_VIEW", "RECORD_EDIT", "RECORD_FORWARD", "FILE_MANAGE", "RECORD_DELETE"})
         @DisplayName("Calisan kullanici olusturamaz")
         void calisanKullaniciOlusturamaz() throws Exception {
             mockMvc.perform(post("/api/admin/users")
@@ -292,7 +322,7 @@ class AuthorizationMatrixTest {
         }
 
         @Test
-        @WithMockUser(roles = "BASKAN")
+        @WithMockUser(authorities = {"RECORD_VIEW", "RECORD_APPROVE", "RECORD_REJECT", "RECORD_RETURN"})
         @DisplayName("Baskan kullanici olusturamaz")
         void baskanKullaniciOlusturamaz() throws Exception {
             mockMvc.perform(post("/api/admin/users")
@@ -307,7 +337,7 @@ class AuthorizationMatrixTest {
     class DosyaYukleme {
 
         @Test
-        @WithMockUser(roles = "BASKAN")
+        @WithMockUser(authorities = {"RECORD_VIEW", "RECORD_APPROVE", "RECORD_REJECT", "RECORD_RETURN"})
         @DisplayName("Baskan dosya yukleyemez")
         void baskanYukleyemez() throws Exception {
             // Yukleme ucu sozlesmeye uyacak sekilde POST /api/records/{id}/files

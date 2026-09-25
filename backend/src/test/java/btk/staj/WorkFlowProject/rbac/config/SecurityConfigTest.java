@@ -9,13 +9,17 @@ import btk.staj.WorkFlowProject.notification.repository.NotificationRepository;
 import btk.staj.WorkFlowProject.audit.repository.UserAuditLogRepository;
 import btk.staj.WorkFlowProject.record.repository.CategoryRepository;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
+import btk.staj.WorkFlowProject.subtask.repository.SubtaskRepository;
 import btk.staj.WorkFlowProject.user.repository.RoleRepository;
 import btk.staj.WorkFlowProject.user.repository.TokenRepository;
 import btk.staj.WorkFlowProject.user.repository.UserRepository;
+import btk.staj.WorkFlowProject.workflow.StaticTransitionRuleReaderConfiguration;
+import btk.staj.WorkFlowProject.workflow.repository.WorkflowTransitionRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -39,7 +43,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 @AutoConfigureMockMvc
 @DisplayName("Swagger erisimi")
+@Import(StaticTransitionRuleReaderConfiguration.class)
 class SecurityConfigTest {
+    @MockitoBean
+    private btk.staj.WorkFlowProject.workflow.adapter.DepartmentRoutingAdapter departmentRoutingAdapter;
 
     @Autowired
     private MockMvc mockMvc;
@@ -63,6 +70,9 @@ class SecurityConfigTest {
     private RecordRepository recordRepository;
 
     @MockitoBean
+    private SubtaskRepository subtaskRepository;
+
+    @MockitoBean
     private CategoryRepository categoryRepository;
 
     @MockitoBean
@@ -77,6 +87,17 @@ class SecurityConfigTest {
     @MockitoBean
     private DeviceTokenRepository deviceTokenRepository;
     @MockitoBean private MailActionTokenRepository mailActionTokenRepository;
+    @MockitoBean private WorkflowTransitionRepository workflowTransitionRepository;
+    // Swagger/security checks run without JPA; WF-8 has a separate PostgreSQL acceptance suite.
+    @MockitoBean private btk.staj.WorkFlowProject.workflow.service.WorkflowActorBindingService workflowActorBindingService;
+    @MockitoBean private btk.staj.WorkFlowProject.rbac.repository.RolePermissionRepository rolePermissionRepository;
+    @MockitoBean private btk.staj.WorkFlowProject.rbac.repository.PermissionRepository permissionRepository;
+    // AssignmentViewResolver / WorkflowQueryService bu depoyu ister (B11, APP-9).
+    @MockitoBean private btk.staj.WorkFlowProject.department.repository.DepartmentRepository departmentRepository;
+    @MockitoBean private btk.staj.WorkFlowProject.department.repository.DepartmentMemberRepository departmentMemberRepository;
+    @MockitoBean private btk.staj.WorkFlowProject.department.repository.DepartmentRoutingRuleRepository departmentRoutingRuleRepository;
+    @MockitoBean private btk.staj.WorkFlowProject.workflow.repository.WorkflowStatusRepository workflowStatusRepository;
+    @MockitoBean private btk.staj.WorkFlowProject.workflow.repository.WorkflowActionRepository workflowActionRepository;
 
     @Test
     @DisplayName("swagger-ui.html giris istemeden yonlendirme doner")
@@ -114,5 +135,12 @@ class SecurityConfigTest {
     void healthUcuKimlikDogrulamaIstemez() throws Exception {
         mockMvc.perform(get("/actuator/health"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("WebSocket handshake STOMP CONNECT kimlik dogrulamasina ulasabilir")
+    void websocketHandshakeServletKatmanindaKimlikDogrulamaIstemez() throws Exception {
+        mockMvc.perform(get("/ws"))
+                .andExpect(status().isBadRequest());
     }
 }

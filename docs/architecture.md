@@ -1,8 +1,10 @@
 # Sistem Mimarisi
 
-Bu belge İş Akışı ve Onay Yönetim Sistemi'nin **çalışan mimarisini** tanımlar. Hedef durumu değil, koda bakılarak doğrulanmış mevcut yapıyı anlatır.
+Bu belge İş Akışı ve Onay Yönetim Sistemi'nin **çalışan mimarisini** tanımlar. Hedef durumu değil, koda bakılarak doğrulanmış mevcut yapıyı anlatır. Modül sınırları, katmanlama veya bağımlılık yönü değiştiğinde belge aynı değişiklik kapsamında güncellenir.
 
-> Son kod doğrulaması 31 Ağustos 2026 tarihinde `test` dalının `4491a80` commit'i üzerinde yapılmıştır. Modül sınırları, katmanlama veya bağımlılık yönü değiştiğinde bu belge aynı değişiklik kapsamında güncellenmelidir.
+Kalıcı mimari sınırlar aşağıdaki [Bilinen mimari boşluklar](#bilinen-mimari-boşluklar)
+bölümündedir. Belge ilerleme durumu tutmaz; belge haritası için
+[dokümantasyon dizinine](README.md) bakın.
 
 ## İçindekiler
 
@@ -22,7 +24,8 @@ Bu belge İş Akışı ve Onay Yönetim Sistemi'nin **çalışan mimarisini** ta
 flowchart TB
     U[Kullanıcı] --> UI[React 19 + TypeScript web istemcisi]
     U --> MOBILE[Expo SDK 57 mobil istemcisi]
-    UI -->|REST/JSON + JWT| API[Spring Boot 4.1 REST API]
+    UI -->|REST/JSON + JWT| API[Spring Boot 4.1 API]
+    UI -->|STOMP /ws + CONNECT Bearer| API
     MOBILE -->|REST/JSON + JWT| API
     API --> DB[(PostgreSQL 15)]
     API --> FS[(Dosya sistemi - uploads)]
@@ -38,7 +41,10 @@ izlenir ve iptal edilebilir.
 
 ## Backend modül sınırları
 
-Ana paket `btk.staj.WorkFlowProject`. On modülün tamamı işlevseldir.
+Ana paket `btk.staj.WorkFlowProject`. `department` entity/repository katmanını
+sağlar; workflow runtime bağlantısı `workflow` içindeki adapter'lar üzerinden
+kurulmuştur. Departmanın **yönetim HTTP uçları hâlâ yoktur** (`AP-4`/`AP-5`):
+departman, üyelik ve routing yalnız veritabanından değiştirilebilir.
 
 | Modül | Sınır | Dışa açtığı |
 | --- | --- | --- |
@@ -46,7 +52,8 @@ Ana paket `btk.staj.WorkFlowProject`. On modülün tamamı işlevseldir.
 | `user` | Kullanıcı oluşturma, rol atama, aktiflik, koltuk devri | `/api/admin/**`, `/api/users/me` |
 | `rbac` | Rol tanımı, işlem yetkisi, kayıt görünürlük politikası, güvenlik yapılandırması | `RecordAccessPolicy`, `PermissionService`, `SecurityConfig` |
 | `record` | Kayıt ve kategori yaşam döngüsü, taslak, soft delete | `/api/records`, `/api/categories` |
-| `workflow` | İzinli durum geçişleri, hedef çözümleme, atama | `/api/records/{id}/workflow/actions`, `RecordStatus` |
+| `department` | Departman, çoklu üyelik ve routing kalıcılığı | Entity/repository; yönetim HTTP ucu yok (`AP-4`/`AP-5` açık) |
+| `workflow` | İzinli durum geçişleri, hedef çözümleme, atama ve aktör rolü bağlama | `/api/records/{id}/workflow/actions`, `/api/workflow/rules/reload`, Java `WorkflowActorBindingService` |
 | `attachment` | Dosya içerik doğrulama, saklama, erişim | `/api/records/{id}/files`, `/api/files/**` |
 | `audit` | Değiştirilemez işlem geçmişi (kayıt ve kullanıcı) | `/api/audit-logs/**`, `/api/user-audit-logs/**` |
 | `search` | Kriter tabanlı filtreleme, sayfalama, görünürlük kapsamı | `RecordSearchService`, `RecordSpecifications` |
@@ -55,7 +62,7 @@ Ana paket `btk.staj.WorkFlowProject`. On modülün tamamı işlevseldir.
 
 İki sınır kararı ayrıca not edilmelidir:
 
-- **Kayıt durumunu yalnız `workflow` değiştirir.** `record` modülü `status` alanına yazmaz; CRUD yalnız içerik alanlarını günceller.
+- **Durum geçişlerini `workflow` uygular.** `record` yeni kaydı `TASLAK` ile oluşturur; sonraki CRUD güncellemeleri içerik alanlarıyla sınırlıdır.
 - **Listeleme ve görünürlük kapsamı tek yerdedir.** `RecordController.getAllRecords` kendi filtre mantığını tutmaz; `RecordSearchService`'e devreder. Aynı erişim kuralının iki yerde yazılıp birinin unutulmasını önlemek için bu bilinçli bir tercihtir.
 
 ## Katmanlama kuralları
@@ -89,7 +96,7 @@ flowchart TB
         APP[WorkflowApplicationService]
         RES[TargetUserResolver]
         VAL[WorkflowTransitionValidator]
-        RULES[TransitionRules - merkezî geçiş tablosu]
+        PERM[PermissionService]
     end
     subgraph Portlar["port/ — çekirdeğin tanımladığı arayüzler"]
         P1[WorkflowRecordPort]
@@ -97,6 +104,7 @@ flowchart TB
         P3[AuditService]
         P4[WorkflowEventPublisher]
         P5[CurrentActorProvider]
+        P6[TransitionRuleSource]
     end
     subgraph Adapterler["adapter/ — altyapı uygulamaları"]
         A1[RecordPortAdapter - JPA]
@@ -104,11 +112,17 @@ flowchart TB
         A3[AuditLogService - audit modülü]
         A4[SpringWorkflowEventPublisher]
         A5[SecurityCurrentActorProvider]
+        A6[ReloadableTransitionRuleSource]
+        A7[DbTransitionRuleSource]
+        A8[JpaTransitionRuleRecordReader]
     end
 
     C --> TX --> APP
     APP --> RES
-    APP --> VAL --> RULES
+    APP --> VAL --> P6
+    PERM --> P6
+    APP --> P6
+    P6 -.-> A6 --> A7 --> A8 --> DBRULES[(workflow_transitions)]
     APP --> P1 & P2 & P3 & P4 & P5
     P1 -.-> A1
     P2 -.-> A2
@@ -124,10 +138,15 @@ Yapının üç somut sonucu:
 | Karar | Sonuç |
 | --- | --- |
 | Çekirdek sınıfları `@Service` taşımaz | `new` ile örneklenip test edilir; bean tanımları `WorkflowConfiguration`'da dışarıdan yapılır |
-| Bütün geçişler `TransitionRules.RULES` listesinde | Yeni geçiş eklemek tek satır eklemektir; `if/else` zinciri yoktur |
+| Kural tüketicileri `TransitionRuleSource` kullanır | Validator ve yetki servisi kural kaynağına doğrudan bağlanmaz; güncel adapter kuralları `workflow_transitions` tablosundan okur. Kurallar açılışta bir kez okunup belleğe alınır; `ReloadableTransitionRuleSource` bunu yeniden başlatmadan tazeleyebilir ve tazeleme başarısız olursa **eski snapshot yerinde kalır** |
 | Transaction sınırı ayrı bir sınıfta (`WorkflowActionService`) | Çekirdek Spring bilmediği için transaction'ı kendisi açamaz; kayıt güncellemesi ve audit yazımı ya birlikte olur ya hiç olmaz |
 
-Bir geçişin sırası: aktörü oku → kaydı bul → hedefi çöz → **validator'a sor** → kaydı güncelle → audit yaz → olay yayınla. Bütün kural kararları tek noktada, validator'da verilir; servis katmanında hiçbir geçiş kuralı tekrarlanmaz.
+Bir geçişin sırası: tek kural snapshot'ını al → aktörü oku → kaydı bul → **ön doğrulama** → geçiş kuralını bul → hedefi çöz → **nihai doğrulama** → kaydı güncelle → audit yaz → olay yayınla. İki doğrulama ve kural/hedef seçimi aynı snapshot'ı kullanır. Yetkisiz istek hedef sorgusundan önce elenir; başlamış işlem araya reload girse de eski snapshot ile tamamlanır.
+
+WF-8'in Spring yönetim servisi bu saf çekirdekten ayrıdır. Bağ değişikliği kendi
+transaction'ında audit ile yazılır; flush sonrası hazırlanan doğrulanmış snapshot
+yalnız başarılı commit'te yayınlanır. Manuel reload aynı koordinatörü kullanır.
+Bu koordinasyon tek backend instance'ı içindir; dağıtık invalidation uygulanmadı.
 
 Ayrıntı için [workflow.md](workflow.md).
 
@@ -137,9 +156,10 @@ Ayrıntı için [workflow.md](workflow.md).
 | --- | --- | --- |
 | Hata yönetimi | `common/exception/GlobalExceptionHandler` (`@RestControllerAdvice`) | Tüm hatalar tek `ApiError` biçiminde döner; workflow hata kodları burada HTTP durumlarına eşlenir |
 | Kimlik doğrulama | `auth/security/JwtAuthenticationFilter` | Pasif hesabı ve parola değişimi bekleyen kullanıcıyı zincirin başında durdurur |
-| Yetkilendirme | `@PreAuthorize` + `RecordAccessPolicy` | Workflow ucunda rol kontrolü bilinçli olarak controller'da değil durum makinesindedir |
+| Yetkilendirme | `@PreAuthorize("hasAuthority(...)")` + `RecordAccessPolicy` | Uç yetkileri rol adına değil **permission koduna** bağlıdır (`USER_MANAGE`, `RECORD_CREATE`, `AUDIT_VIEW`, …); authority listesi her istekte `role_permissions`'tan üretilir. Workflow ucunda kontrol bilinçli olarak controller'da değil durum makinesindedir |
 | Denetim izi | `AuditLogService`, workflow transaction'ı **içinde** | Geçiş geri alınırsa audit satırı da geri alınır |
-| Uygulama içi bildirim | `@EventListener`, transaction **içinde** | Geçişle birlikte yazılır veya hiç yazılmaz |
+| Uygulama içi bildirim | `@EventListener`, transaction **içinde** | Geçişle birlikte DB'ye yazılır veya hiç yazılmaz; save sonrası application event yayınlanır |
+| Web realtime | `@TransactionalEventListener(AFTER_COMMIT)` + `SimpMessagingTemplate` | `/ws` üzerinden e-posta principal'ının `/user/queue/notifications` adresine `NotificationResponse`; REST polling kaldırılmaz |
 | E-posta | `@TransactionalEventListener(AFTER_COMMIT)` + `@Async` | Geri alınabilir bir işlem için dışarıya e-posta çıkmasın diye commit sonrası; gönderim best-effort |
 | Push | Aynı `AFTER_COMMIT` listener içinde `PushNotificationService` | `recipientsOf` alıcı matrisi kullanılır; FCM yapılandırılmamışsa workflow push olmadan devam eder |
 | E-posta hızlı işlem | `mail_action_tokens` + `/api/public/mail-actions/preview` ve `/consume` | Anahtar süreli, tek kullanımlık ve alıcı/kayıt/aksiyona bağlıdır; preview mutasyon yapmaz |
@@ -162,32 +182,61 @@ Docker Compose varsayılan olarak üç servis başlatır:
 
 | Servis | Bağımlılık / veri | Port |
 | --- | --- | --- |
-| `db` | `db-data-pg15` volume | `5432` |
+| `db` | `db-data-pg15` volume | Host `127.0.0.1:${DB_PORT:-5432}` → container `5432`; testten önce gerçek port doğrulanır |
 | `mailpit` | Yerel SMTP yakalayıcı | `1025`, Web UI `8025` |
 | `backend` | Sağlıklı `db`, `uploads` volume | Temel dosyada `0.0.0.0:8080` (LAN + localhost); TEST overlay'inde host portu kaldırılır |
 
 Frontend servisi `frontend` profili arkasındadır ve `docker compose --profile frontend up` ile başlatılır. Uygulama `VITE_API_BASE_URL` üzerinden gerçek backend'e bağlanır; MSW yalnızca Vitest testlerinde kullanılır.
 
+Maven backend + Vite geliştirme senaryosunda yalnız `db` ve `mailpit` Docker'da
+çalışır; Docker `backend` servisi `8080` portu çakışmaması için kapalı tutulur.
+`localhost:5173` ile `127.0.0.1:5173` farklı browser origin'leridir ve kullanılan
+değer CORS listesinde açıkça bulunmalıdır. WebSocket endpoint'i `/ws`'dir. Tam
+komutlar ve kabul adımları [D04 rehberindedir](D04_NOTIFICATION_MOBILE_REALTIME_KABUL_REHBERI.md).
+
 ## Güvenlik sınırları
 
 Aşağıdakiler uygulanmış davranışlardır:
 
-- Yeni kullanıcıları yalnız Admin oluşturur ve **her hesap daima Çalışan rolüyle başlar**; başlangıç rolü dışarıdan seçilemez (`UserService.createUser`).
-- Başkan Yardımcısı, Başkan ve Admin rolleri yalnız ayrı ve audit'lenen bir Admin işlemiyle (`changeRole`) atanır.
-- Bu üç rol **tekildir**: aynı anda yalnız bir aktif kullanıcı tutabilir.
-- Pasif tekil rol sahibi yeniden etkinleştirilirken de `ensureSingletonRoleAvailable` çalışır; aynı rolde başka aktif kullanıcı varsa yazma işlemi reddedilir.
+- Kullanıcı oluşturma ve rol atama uçları `USER_MANAGE` ister; gerekli permission'a sahip dinamik rol de çağırabilir. Yeni kullanıcı varsayılan `CALISAN` sistem rolüyle başlar; başlangıç rolü dışarıdan seçilemez (`UserService.createUser`).
+- Sonraki rol ataması ayrı ve audit'lenen `changeRole` işlemiyle yapılır; rol aktifliği ve kapasite kontrolleri uygulanır.
+- Bu üç rol **tekildir**: aynı anda yalnız bir aktif kullanıcı tutabilir. Tekillik artık kodda sabit bir rol listesiyle değil, `roles.max_users` kolonuyla taşınır (`V12`; üçü için değer `1`).
+- Kapasite kontrolü ortak `RoleCapacityService` içindedir; oluşturma, bootstrap, rol değiştirme, yeniden etkinleştirme ve yardımcı devri aynı yolu kullanır. Pasif tekil rol sahibi yeniden etkinleştirilirken de çalışır; aynı rolde başka aktif kullanıcı varsa yazma işlemi reddedilir.
 - Admin rolü tek başına iş akışı kayıtlarına erişim vermez; `RecordAccessPolicy` Admin için boş kapsam üretir.
-- Nihai onay ve ret yalnız Başkan tarafından, yalnız kendisine atanmış kayıtta yapılabilir.
+- Başlangıç seed'inde onay/ret aktörü Başkan'dır. WF-8 ile aynı geçişe bağlanmış dinamik rol de gerekli permission ve doğrudan atama ilişkisiyle işlem yapabilir; rol adı tek başına yetki sağlamaz.
 - Admin hesabı aktiflik ucundan pasifleştirilemez (`UserService.setActive`).
 - Parolalar yalnız tek yönlü hash ile saklanır; sırlar ortam değişkenlerinden okunur, repository'ye yazılmaz.
 - İlk Admin yalnız `BOOTSTRAP_ADMIN_EMAIL` ve `BOOTSTRAP_ADMIN_PASSWORD` birlikte verildiğinde **ve sistemde aktif Admin yokken** oluşturulur; hesap parola değiştirme zorunluluğuyla açılır.
 
 ## Bilinen mimari boşluklar
 
-- **Son Admin'in rolü korunmuyor.** `setActive` Admin hesabının pasifleştirilmesini engelliyor, ancak `changeRole` sistemdeki tek Admin'in rolünü başka bir role çevirmeyi engellemiyor. Tekil rol kontrolü yalnız bir role *girerken* çalışıyor, *çıkarken* değil. Sistem yönetimsiz kalabilir.
-- **Audit append-only kuralı veritabanında zorlanmıyor.** Uygulama güncelleme veya silme ucu sunmuyor, fakat DB trigger'ı ya da rol kısıtı yok.
-- **E-posta teslim garantisi yok.** Gönderim asenkron ve best-effort; retry, outbox veya DLQ bulunmuyor.
-- **Bu belgedeki kararların çoğu ADR olarak kaydedilmedi.** `decisions/` altında iki ADR var (modül bazlı paketleme, mobil istemci teknolojisi); ancak port/adapter sınırı, tekil rol modeli ve enum tabanlı durum kolonu kararları yalnız bu belgede anlatılıyor, ayrı birer ADR'leri yok.
+Aşağıdakiler **kalıcı mimari eksiklerdir** — bir teslimle kapanan iş kalemleri
+değil, bilinçli olarak taşınan sınırlardır. Hangi işin açık olduğu ve kimde olduğu
+bu belgede tutulmaz (bkz. [dokümantasyon dizini](README.md)).
 
-Dinamik workflow/rol kaynakları ve WebSocket bildirim kanalı bu çalışan mimarinin
-parçası değildir; gelecek çalışma olarak planlanmaktadır.
+- **Son Admin'in rolü korunmuyor.** `setActive` Admin hesabının
+  pasifleştirilmesini engeller, fakat `changeRole` sistemdeki tek Admin'in rolünü
+  başka bir role çevirmeyi engellemez. Tekil rol kontrolü yalnız bir role
+  *girerken* çalışır, *çıkarken* değil; sistem yönetimsiz kalabilir.
+- **Audit append-only kuralı veritabanında zorlanmıyor.** Uygulama güncelleme
+  veya silme ucu sunmaz, fakat DB trigger'ı ya da yalnız-ekleme yetkisiyle
+  zorlanan ayrı bir veritabanı rolü yoktur.
+- **E-posta teslim garantisi yok.** Gönderim asenkron ve best-effort'tur;
+  kalıcı outbox, retry kuyruğu veya DLQ bulunmaz.
+- **Workflow grafiği arayüzden düzenlenemez.** WF-8/AP-8 mevcut geçişlere
+  aktör-rol bağını servis ve HTTP/UI üzerinden yönetir; geçiş topolojisini,
+  routing modelini veya workflow versioning'i düzenleyen bir grafik editörü
+  değildir. Grafik topolojisi ve draft/publish modeli Workflow V2 kapsamındadır.
+  [WF-8 sözleşmesi](WF8_AP8_AKTOR_ROL_BAGLAMA_SOZLESMESI.md)
+- **Web istemcisi workflow yetkisini kısmen ikinci kez kuruyor.** Backend
+  `available-actions` ve `target-departments` uçlarını ortak workflow
+  doğrulaması üzerinden sunar; mobil bu uçları tüketir. Web aksiyon panelinde
+  ise hâlâ `systemKey` tabanlı istemci kararları bulunduğundan dinamik rol
+  davranışı tamamen backend sözleşmesine indirgenmiş değildir (B10).
+
+Realtime bildirim teslimi mevcut mimaride `/ws` STOMP endpoint'i, CONNECT JWT
+doğrulaması, private user destination, commit-sonrası `NotificationResponse`
+yayını ve frontend query invalidation/duplicate koruması ile çalışır. 30 saniyelik
+REST polling kesinti fallback'i olarak korunur. Operasyonel kabul durumu mimari
+belgede değil [D04 kabul rehberinde](D04_NOTIFICATION_MOBILE_REALTIME_KABUL_REHBERI.md)
+izlenir.

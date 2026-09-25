@@ -4,7 +4,7 @@ import btk.staj.WorkFlowProject.attachment.dto.FileResponseDto;
 import btk.staj.WorkFlowProject.attachment.entity.FileEntity;
 import btk.staj.WorkFlowProject.attachment.repository.FileRepository;
 import btk.staj.WorkFlowProject.attachment.storage.FileStorageService;
-import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
+import btk.staj.WorkFlowProject.auth.security.VisibilityActor;
 import btk.staj.WorkFlowProject.common.exception.BusinessRuleException;
 import btk.staj.WorkFlowProject.common.exception.ResourceNotFoundException;
 import btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy;
@@ -19,6 +19,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.charset.StandardCharsets;
@@ -39,12 +41,10 @@ public class FileService {
     private final RecordAccessPolicy recordAccessPolicy;
     private final RecordContentView recordContentView;
 
-    private Record assertCanViewRecord(UUID recordId, RoleName role, UUID currentUserId) {
-        Record record = recordRepository.findById(recordId)
+    private Record assertCanViewRecord(UUID recordId, VisibilityActor actor) {
+        Record record = recordRepository.findByIdAndDeletedAtIsNull(recordId)
                 .orElseThrow(() -> new ResourceNotFoundException("Kayıt bulunamadı: " + recordId));
-        recordAccessPolicy.assertCanView(
-                role, currentUserId, record.getCreatedBy(), record.getAssignedTo(),
-                record.getLastDeputyId(), record.getStatus());
+        recordAccessPolicy.assertCanView(actor, record);
         return record;
     }
 
@@ -80,7 +80,12 @@ public class FileService {
         }
 
         // 2. ADIM: Tum dosyalar dogrulandi, simdi hepsini diske yaz ve kaydet.
+        // Diske yazilanlar ayrica biriktirilir: transaction geri alinirsa
+        // afterCompletion kancasi bunlari siler (R06).
         List<FileEntity> savedEntities = new ArrayList<>();
+        List<String> storedFilenames = new ArrayList<>();
+        registerRollbackCleanup(storedFilenames);
+
         for (int i = 0; i < files.length; i++) {
             MultipartFile file = files[i];
             String detectedType = detectedTypes[i];
@@ -89,6 +94,7 @@ public class FileService {
             String storedFilename = UUID.randomUUID() + fileContentValidator.extensionFor(detectedType);
 
             fileStorageService.store(file, storedFilename);
+            storedFilenames.add(storedFilename);
 
             FileEntity entity = new FileEntity();
             entity.setRecordId(recordId);
@@ -105,6 +111,32 @@ public class FileService {
         return savedEntities.stream()
                 .map(this::toDto)
                 .toList();
+    }
+
+    /**
+     * Transaction geri alinirsa bu istekte diske yazilan dosyalari siler (R06).
+     *
+     * <p>Depolama yazimi veritabani insert'inden once yapiliyor ve dosya sistemi
+     * transaction'a katilmiyor; commit edilmeyen bir istek aksi halde diskte
+     * yetim dosya birakirdi. Liste referans olarak tutulur, cagiran yazdikca
+     * doldurur.
+     *
+     * <p>Ayni kalip: {@code ReloadableTransitionRuleSource}.
+     */
+    private void registerRollbackCleanup(List<String> storedFilenames) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status == STATUS_COMMITTED) {
+                    return;
+                }
+                storedFilenames.forEach(fileStorageService::delete);
+            }
+        });
     }
 
     @Transactional
@@ -125,20 +157,20 @@ public class FileService {
     }
 
     @Transactional(readOnly = true)
-    public ResponseEntity<Resource> downloadFile(UUID id, RoleName role, UUID currentUserId) {
-        return buildFileResponse(id, "attachment", role, currentUserId);
+    public ResponseEntity<Resource> downloadFile(UUID id, VisibilityActor actor) {
+        return buildFileResponse(id, "attachment", actor);
     }
 
     @Transactional(readOnly = true)
-    public ResponseEntity<Resource> previewFile(UUID id, RoleName role, UUID currentUserId) {
-        return buildFileResponse(id, "inline", role, currentUserId);
+    public ResponseEntity<Resource> previewFile(UUID id, VisibilityActor actor) {
+        return buildFileResponse(id, "inline", actor);
     }
 
     @Transactional(readOnly = true)
-    public List<FileResponseDto> listByRecord(UUID recordId, RoleName role, UUID currentUserId) {
-        Record record = assertCanViewRecord(recordId, role, currentUserId);
+    public List<FileResponseDto> listByRecord(UUID recordId, VisibilityActor actor) {
+        Record record = assertCanViewRecord(recordId, actor);
         RecordContentView.Content content =
-                recordContentView.visibleContent(record, role, currentUserId);
+                recordContentView.visibleContent(record, actor);
 
         if (content.frozen()) {
             return fileRepository.findAllByRecordId(recordId)
@@ -154,15 +186,24 @@ public class FileService {
                 .toList();
     }
 
-    private ResponseEntity<Resource> buildFileResponse(UUID id, String dispositionType, RoleName role, UUID currentUserId) {
-        FileEntity fileEntity = fileRepository.findByIdAndDeletedAtIsNull(id)
+    private ResponseEntity<Resource> buildFileResponse(UUID id, String dispositionType, VisibilityActor actor) {
+        // Dosyanin bulunmasi ile erisim yetkisi ayri degerlendirilir (B07).
+        // Onceden yukleme sorgusu silinmis dosyayi gorunurluk kontrolune
+        // gelmeden eliyordu; dondurulmus goruntude listelenen bir ek indirmede
+        // 404 veriyordu. Artik zaman kesitine listeyle ayni kural karar verir.
+        FileEntity fileEntity = fileRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Dosya bulunamadı: " + id));
 
-        Record record = assertCanViewRecord(fileEntity.getRecordId(), role, currentUserId);
+        Record record = assertCanViewRecord(fileEntity.getRecordId(), actor);
 
         RecordContentView.Content content =
-                recordContentView.visibleContent(record, role, currentUserId);
-        if (content.frozen() && !existedAt(fileEntity, content.asOf())) {
+                recordContentView.visibleContent(record, actor);
+
+        boolean visibleNow = content.frozen()
+                ? existedAt(fileEntity, content.asOf())   // devir aninda duruyor muydu
+                : fileEntity.getDeletedAt() == null;      // guncel goruntude silinmis dosya kapali kalir
+
+        if (!visibleNow) {
             throw new ResourceNotFoundException("Dosya bulunamadı: " + id);
         }
 

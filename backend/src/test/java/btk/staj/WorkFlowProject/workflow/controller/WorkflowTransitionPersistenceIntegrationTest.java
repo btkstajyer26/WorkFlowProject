@@ -4,13 +4,18 @@ import btk.staj.WorkFlowProject.audit.service.AuditLogService;
 import btk.staj.WorkFlowProject.auth.security.AuthenticatedUser;
 import btk.staj.WorkFlowProject.notification.service.MailService;
 import btk.staj.WorkFlowProject.rbac.Role;
+import btk.staj.WorkFlowProject.support.AuthorizationFixtures;
 import btk.staj.WorkFlowProject.user.entity.User;
 import btk.staj.WorkFlowProject.workflow.adapter.UserPortAdapter;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
+import btk.staj.WorkFlowProject.workflow.statemachine.RoleId;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -25,10 +30,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
-
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -115,7 +116,8 @@ class WorkflowTransitionPersistenceIntegrationTest {
 
             assertAuditRow(record, WorkflowAction.GONDER,
                     RecordStatus.TASLAK, RecordStatus.BSK_YRD_INCELEMESINDE,
-                    calisan, RoleName.CALISAN, null);
+                    calisan, RoleName.CALISAN, null,
+                    null, yardimci);
         }
 
         @Test
@@ -142,7 +144,8 @@ class WorkflowTransitionPersistenceIntegrationTest {
 
             assertAuditRow(record, WorkflowAction.TEKRAR_GONDER,
                     RecordStatus.DUZENLEME_BEKLIYOR, RecordStatus.BSK_YRD_INCELEMESINDE,
-                    calisan, RoleName.CALISAN, null);
+                    calisan, RoleName.CALISAN, null,
+                    calisan, yeniYardimci);
         }
 
         @Test
@@ -168,7 +171,8 @@ class WorkflowTransitionPersistenceIntegrationTest {
 
             assertAuditRow(record, WorkflowAction.BASKANA_ILET,
                     RecordStatus.BSK_YRD_INCELEMESINDE, RecordStatus.BASKAN_INCELEMESINDE,
-                    yardimci, RoleName.BASKAN_YARDIMCISI, null);
+                    yardimci, RoleName.BASKAN_YARDIMCISI, null,
+                    yardimci, baskan);
         }
 
         @Test
@@ -191,7 +195,8 @@ class WorkflowTransitionPersistenceIntegrationTest {
 
             assertAuditRow(record, WorkflowAction.CALISANA_GERI_GONDER,
                     RecordStatus.BSK_YRD_INCELEMESINDE, RecordStatus.DUZENLEME_BEKLIYOR,
-                    yardimci, RoleName.BASKAN_YARDIMCISI, "Butce kalemi eksik");
+                    yardimci, RoleName.BASKAN_YARDIMCISI, "Butce kalemi eksik",
+                    yardimci, calisan);
         }
 
         @Test
@@ -216,7 +221,8 @@ class WorkflowTransitionPersistenceIntegrationTest {
 
             assertAuditRow(record, WorkflowAction.CALISANA_GERI_GONDER,
                     RecordStatus.BASKAN_INCELEMESINDE, RecordStatus.DUZENLEME_BEKLIYOR,
-                    baskan, RoleName.BASKAN, "Teknik sartname yetersiz");
+                    baskan, RoleName.BASKAN, "Teknik sartname yetersiz",
+                    baskan, calisan);
         }
 
         @Test
@@ -243,7 +249,8 @@ class WorkflowTransitionPersistenceIntegrationTest {
 
             assertAuditRow(record, WorkflowAction.BASKAN_YARDIMCISINA_GERI_GONDER,
                     RecordStatus.BASKAN_INCELEMESINDE, RecordStatus.BSK_YRD_INCELEMESINDE,
-                    baskan, RoleName.BASKAN, "Tekrar degerlendirin");
+                    baskan, RoleName.BASKAN, "Tekrar degerlendirin",
+                    baskan, ileten);
         }
 
         @Test
@@ -266,9 +273,11 @@ class WorkflowTransitionPersistenceIntegrationTest {
             assertThat(row.get("assigned_to")).isNull();
             assertThat(row.get("last_deputy_id")).isEqualTo(yardimci);
 
+            // Terminal gecis: yeni yanin iki kolonu da bosalir (NONE).
             assertAuditRow(record, WorkflowAction.ONAYLA,
                     RecordStatus.BASKAN_INCELEMESINDE, RecordStatus.ONAYLANDI,
-                    baskan, RoleName.BASKAN, null);
+                    baskan, RoleName.BASKAN, null,
+                    baskan, null);
         }
 
         @Test
@@ -290,9 +299,37 @@ class WorkflowTransitionPersistenceIntegrationTest {
             assertThat(row.get("status")).isEqualTo("REDDEDILDI");
             assertThat(row.get("assigned_to")).isNull();
 
+            // Terminal gecis: yeni yanin iki kolonu da bosalir (NONE).
             assertAuditRow(record, WorkflowAction.REDDET,
                     RecordStatus.BASKAN_INCELEMESINDE, RecordStatus.REDDEDILDI,
-                    baskan, RoleName.BASKAN, "Butce yetersiz");
+                    baskan, RoleName.BASKAN, "Butce yetersiz",
+                    baskan, null);
+        }
+
+        @Test
+        @Transactional
+        @DisplayName("ardisik geciste bir onceki atama sonrakinin onceki yanina tasinir")
+        void consecutiveTransitionsChainPreviousToNewAssignment() throws Exception {
+            UUID calisan = insertUser(RoleName.CALISAN);
+            UUID yardimci = insertSingleActiveYardimci();
+            UUID baskan = insertSingleActiveBaskan();
+            UUID record = insertRecord(RecordStatus.TASLAK, calisan, null, null);
+
+            perform(record, actor(calisan, RoleName.CALISAN), "{\"action\":\"GONDER\"}")
+                    .andExpect(status().isOk());
+            perform(record, actor(yardimci, RoleName.BASKAN_YARDIMCISI), "{\"action\":\"BASKANA_ILET\"}")
+                    .andExpect(status().isOk());
+
+            // Zincir invariant'i: n. gecisin YENI atamasi, n+1. gecisin ONCEKI
+            // atamasidir. Tek satirin projeksiyonuna bakarak gorulemez, iki satir
+            // birlikte okunmalidir (B12).
+            Map<String, Object> gonder = auditRowFor(record, WorkflowAction.GONDER);
+            Map<String, Object> ilet = auditRowFor(record, WorkflowAction.BASKANA_ILET);
+
+            assertThat(gonder.get("previous_assigned_to")).isNull();
+            assertThat(gonder.get("new_assigned_to")).isEqualTo(yardimci);
+            assertThat(ilet.get("previous_assigned_to")).isEqualTo(gonder.get("new_assigned_to"));
+            assertThat(ilet.get("new_assigned_to")).isEqualTo(baskan);
         }
     }
 
@@ -390,7 +427,7 @@ class WorkflowTransitionPersistenceIntegrationTest {
             doAnswer(invocation -> {
                 jdbc.update("UPDATE records SET version = version + 1 WHERE id = ?", record);
                 return invocation.callRealMethod();
-            }).when(userPortAdapter).findActiveByRole(RoleName.BASKAN_YARDIMCISI);
+            }).when(userPortAdapter).findActiveByRole(new RoleId(roleId(RoleName.BASKAN_YARDIMCISI)));
 
             perform(record, actor(calisan, RoleName.CALISAN),
                     "{\"action\":\"GONDER\"}")
@@ -450,17 +487,27 @@ class WorkflowTransitionPersistenceIntegrationTest {
         entityManager.clear();
     }
 
+    /**
+     * B12: denetim satiri artik atamanin iki yanini da tasir. Bu sinifin sekiz
+     * senaryosunun hicbiri departman gecisi degildir - departman kolu
+     * DepartmentWorkflowIntegrationTest'in konusudur - bu yuzden iki departman
+     * kolonu burada her zaman null dogrulanir; bu da bir bilgidir.
+     */
     private void assertAuditRow(UUID recordId,
                                 WorkflowAction action,
                                 RecordStatus previousStatus,
                                 RecordStatus newStatus,
                                 UUID actorId,
                                 RoleName actorRole,
-                                String comment) {
+                                String comment,
+                                UUID previousAssignedTo,
+                                UUID newAssignedTo) {
         flushToDatabase();
 
         Map<String, Object> row = jdbc.queryForMap(
-                "SELECT user_id, role_id, action, previous_status, new_status, comment "
+                "SELECT user_id, role_id, action, previous_status, new_status, comment, "
+                        + "previous_assigned_to, previous_assigned_department_id, "
+                        + "new_assigned_to, new_assigned_department_id "
                         + "FROM audit_logs WHERE record_id = ?", recordId);
 
         assertThat(row.get("action")).isEqualTo(action.name());
@@ -469,6 +516,21 @@ class WorkflowTransitionPersistenceIntegrationTest {
         assertThat(row.get("user_id")).isEqualTo(actorId);
         assertThat(row.get("role_id")).isEqualTo(roleId(actorRole));
         assertThat(row.get("comment")).isEqualTo(comment);
+
+        assertThat(row.get("previous_assigned_to")).isEqualTo(previousAssignedTo);
+        assertThat(row.get("new_assigned_to")).isEqualTo(newAssignedTo);
+        assertThat(row.get("previous_assigned_department_id")).isNull();
+        assertThat(row.get("new_assigned_department_id")).isNull();
+    }
+
+    /** Ardisik gecislerde satirlari zaman damgasina degil aksiyona gore ayirir. */
+    private Map<String, Object> auditRowFor(UUID recordId, WorkflowAction action) {
+        flushToDatabase();
+        return jdbc.queryForMap(
+                "SELECT previous_assigned_to, previous_assigned_department_id, "
+                        + "new_assigned_to, new_assigned_department_id "
+                        + "FROM audit_logs WHERE record_id = ? AND action = ?",
+                recordId, action.name());
     }
 
     private int auditRowCount(UUID recordId) {
@@ -577,6 +639,9 @@ class WorkflowTransitionPersistenceIntegrationTest {
         Role role = new Role();
         role.setId(roleId(roleName));
         role.setName(roleName.name());
+        role.setActive(true);
+        role.setSystemKey(roleName.name());
+        role.setWorkflowActor(AuthorizationFixtures.workflowActor(roleName.name()));
 
         User user = new User();
         user.setId(userId);
@@ -585,6 +650,6 @@ class WorkflowTransitionPersistenceIntegrationTest {
         user.setRole(role);
         user.setActive(true);
 
-        return new AuthenticatedUser(user);
+        return AuthorizationFixtures.authenticated(user);
     }
 }

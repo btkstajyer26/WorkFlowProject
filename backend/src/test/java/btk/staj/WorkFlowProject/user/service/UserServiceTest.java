@@ -10,7 +10,7 @@ import btk.staj.WorkFlowProject.user.repository.RoleRepository;
 import btk.staj.WorkFlowProject.user.repository.TokenRepository;
 import btk.staj.WorkFlowProject.user.repository.UserRepository;
 import btk.staj.WorkFlowProject.workflow.model.CurrentActor;
-import btk.staj.WorkFlowProject.workflow.port.CurrentActorProvider;
+import btk.staj.WorkFlowProject.auth.security.CurrentUserProvider;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -54,26 +54,33 @@ class UserServiceTest {
     @Mock
     private UserAuditLogService userAuditLogService;
     @Mock
-    private CurrentActorProvider currentActorProvider;
+    private CurrentUserProvider currentUserProvider;
     @Mock
     private RecordRepository recordRepository;
 
     private UserService userService;
+    private final java.util.Map<Integer, Role> fixtureRoles = new java.util.HashMap<>();
 
     @BeforeEach
     void setUp() {
         userService = new UserService(
                 userRepository, roleRepository, tokenRepository,
-                passwordEncoder, userAuditLogService, currentActorProvider, recordRepository);
+                passwordEncoder, userAuditLogService, currentUserProvider, recordRepository,
+                new RoleCapacityService(roleRepository, userRepository));
+        lenient().when(roleRepository.findByIdForUpdate(any(Integer.class)))
+                .thenAnswer(inv -> Optional.ofNullable(fixtureRoles.get(inv.getArgument(0))));
 
-        lenient().when(currentActorProvider.currentActor())
-                .thenReturn(new CurrentActor(ADMIN_ACTOR_ID, RoleName.ADMIN));
+        lenient().when(currentUserProvider.currentUserId()).thenReturn(ADMIN_ACTOR_ID);
     }
 
-    private static Role role(Integer id, String name) {
+    private Role role(Integer id, String name) {
         Role role = new Role();
         role.setId(id);
         role.setName(name);
+        role.setSystemKey(name);
+        role.setActive(true);
+        role.setMaxUsers("CALISAN".equals(name) ? null : 1);
+        fixtureRoles.put(id, role);
         return role;
     }
 
@@ -96,9 +103,9 @@ class UserServiceTest {
         User target = user(targetId, calisan, true);
         User existingBaskan = user(UUID.randomUUID(), baskan, true);
 
-        when(userRepository.findById(targetId)).thenReturn(Optional.of(target));
+        when(userRepository.findByIdForUpdate(targetId)).thenReturn(Optional.of(target));
         when(roleRepository.findByName("BASKAN")).thenReturn(Optional.of(baskan));
-        when(userRepository.findByRole_NameAndActive("BASKAN", true)).thenReturn(List.of(existingBaskan));
+        when(userRepository.countByRole_IdAndActiveTrue(3)).thenReturn(1L);
 
         assertThatExceptionOfType(AdminLimitExceededException.class)
                 .isThrownBy(() -> userService.changeRole(targetId, "BASKAN", null));
@@ -113,9 +120,9 @@ class UserServiceTest {
         Role baskan = role(3, "BASKAN");
         User target = user(targetId, baskan, true);
 
-        when(userRepository.findById(targetId)).thenReturn(Optional.of(target));
+        when(userRepository.findByIdForUpdate(targetId)).thenReturn(Optional.of(target));
         when(roleRepository.findByName("BASKAN")).thenReturn(Optional.of(baskan));
-        when(userRepository.findByRole_NameAndActive("BASKAN", true)).thenReturn(List.of(target));
+
         when(userRepository.save(target)).thenReturn(target);
 
         User result = userService.changeRole(targetId, "BASKAN", null);
@@ -133,9 +140,9 @@ class UserServiceTest {
         Role baskan = role(3, "BASKAN");
         User target = user(targetId, bskYrd, true);
 
-        when(userRepository.findById(targetId)).thenReturn(Optional.of(target));
+        when(userRepository.findByIdForUpdate(targetId)).thenReturn(Optional.of(target));
         when(roleRepository.findByName("BASKAN")).thenReturn(Optional.of(baskan));
-        when(userRepository.findByRole_NameAndActive("BASKAN", true)).thenReturn(List.of());
+
 
         assertThatExceptionOfType(BusinessRuleException.class)
                 .isThrownBy(() -> userService.changeRole(targetId, "BASKAN", null))
@@ -154,11 +161,11 @@ class UserServiceTest {
         User target = user(targetId, bskYrd, true);
         User replacement = user(replacementId, role(1, "CALISAN"), true);
 
-        when(userRepository.findById(targetId)).thenReturn(Optional.of(target));
-        when(userRepository.findById(replacementId)).thenReturn(Optional.of(replacement));
+        when(userRepository.findByIdForUpdate(targetId)).thenReturn(Optional.of(target));
+        when(userRepository.findByIdForUpdate(replacementId)).thenReturn(Optional.of(replacement));
         when(roleRepository.findByName("BASKAN")).thenReturn(Optional.of(baskan));
-        when(roleRepository.findByName("BASKAN_YARDIMCISI")).thenReturn(Optional.of(bskYrd));
-        when(userRepository.findByRole_NameAndActive("BASKAN", true)).thenReturn(List.of());
+
+
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
         when(recordRepository.devretBekleyenIsleri(targetId, replacementId)).thenReturn(5);
@@ -181,13 +188,12 @@ class UserServiceTest {
         Role baskan = role(3, "BASKAN");
         User target = user(targetId, bskYrd, true);
 
-        when(userRepository.findById(targetId)).thenReturn(Optional.of(target));
+        when(userRepository.findByIdForUpdate(targetId)).thenReturn(Optional.of(target));
         when(roleRepository.findByName("BASKAN")).thenReturn(Optional.of(baskan));
-        when(userRepository.findByRole_NameAndActive("BASKAN", true)).thenReturn(List.of());
-        when(userRepository.save(target)).thenReturn(target);
 
         assertThatExceptionOfType(BusinessRuleException.class)
                 .isThrownBy(() -> userService.changeRole(targetId, "BASKAN", targetId));
+        verify(userRepository, org.mockito.Mockito.never()).save(any());
     }
 
     @Test
@@ -200,15 +206,14 @@ class UserServiceTest {
         User target = user(targetId, bskYrd, true);
         User inactiveReplacement = user(replacementId, role(1, "CALISAN"), false);
 
-        when(userRepository.findById(targetId)).thenReturn(Optional.of(target));
-        when(userRepository.findById(replacementId)).thenReturn(Optional.of(inactiveReplacement));
+        when(userRepository.findByIdForUpdate(targetId)).thenReturn(Optional.of(target));
+        when(userRepository.findByIdForUpdate(replacementId)).thenReturn(Optional.of(inactiveReplacement));
         when(roleRepository.findByName("BASKAN")).thenReturn(Optional.of(baskan));
-        when(userRepository.findByRole_NameAndActive("BASKAN", true)).thenReturn(List.of());
-        when(userRepository.save(target)).thenReturn(target);
 
         assertThatExceptionOfType(BusinessRuleException.class)
                 .isThrownBy(() -> userService.changeRole(targetId, "BASKAN", replacementId))
                 .withMessageContaining("Pasif");
+        verify(userRepository, org.mockito.Mockito.never()).save(any());
     }
 
     // ---------------- Is A3: devralan aday yalnizca CALISAN olabilir ----------------
@@ -223,15 +228,14 @@ class UserServiceTest {
         User target = user(targetId, bskYrd, true);
         User adminReplacement = user(replacementId, role(4, "ADMIN"), true);
 
-        when(userRepository.findById(targetId)).thenReturn(Optional.of(target));
-        when(userRepository.findById(replacementId)).thenReturn(Optional.of(adminReplacement));
+        when(userRepository.findByIdForUpdate(targetId)).thenReturn(Optional.of(target));
+        when(userRepository.findByIdForUpdate(replacementId)).thenReturn(Optional.of(adminReplacement));
         when(roleRepository.findByName("BASKAN")).thenReturn(Optional.of(baskan));
-        when(userRepository.findByRole_NameAndActive("BASKAN", true)).thenReturn(List.of());
-        when(userRepository.save(target)).thenReturn(target);
 
         assertThatExceptionOfType(BusinessRuleException.class)
                 .isThrownBy(() -> userService.changeRole(targetId, "BASKAN", replacementId))
                 .withMessageContaining("Çalışan rolündeki");
+        verify(userRepository, org.mockito.Mockito.never()).save(any());
     }
 
     @Test
@@ -244,15 +248,14 @@ class UserServiceTest {
         User target = user(targetId, bskYrd, true);
         User baskanReplacement = user(replacementId, baskan, true);
 
-        when(userRepository.findById(targetId)).thenReturn(Optional.of(target));
-        when(userRepository.findById(replacementId)).thenReturn(Optional.of(baskanReplacement));
+        when(userRepository.findByIdForUpdate(targetId)).thenReturn(Optional.of(target));
+        when(userRepository.findByIdForUpdate(replacementId)).thenReturn(Optional.of(baskanReplacement));
         when(roleRepository.findByName("BASKAN")).thenReturn(Optional.of(baskan));
-        when(userRepository.findByRole_NameAndActive("BASKAN", true)).thenReturn(List.of());
-        when(userRepository.save(target)).thenReturn(target);
 
         assertThatExceptionOfType(BusinessRuleException.class)
                 .isThrownBy(() -> userService.changeRole(targetId, "BASKAN", replacementId))
                 .withMessageContaining("Çalışan rolündeki");
+        verify(userRepository, org.mockito.Mockito.never()).save(any());
     }
 
     // ---------------- setActive ----------------
@@ -263,7 +266,7 @@ class UserServiceTest {
         UUID targetId = UUID.randomUUID();
         User target = user(targetId, role(2, "BASKAN_YARDIMCISI"), true);
 
-        when(userRepository.findById(targetId)).thenReturn(Optional.of(target));
+        when(userRepository.findByIdForUpdate(targetId)).thenReturn(Optional.of(target));
 
         assertThatExceptionOfType(BusinessRuleException.class)
                 .isThrownBy(() -> userService.setActive(targetId, false))
@@ -276,7 +279,7 @@ class UserServiceTest {
         UUID targetId = UUID.randomUUID();
         User target = user(targetId, role(4, "ADMIN"), true);
 
-        when(userRepository.findById(targetId)).thenReturn(Optional.of(target));
+        when(userRepository.findByIdForUpdate(targetId)).thenReturn(Optional.of(target));
 
         assertThatExceptionOfType(BusinessRuleException.class)
                 .isThrownBy(() -> userService.setActive(targetId, false));
@@ -286,7 +289,7 @@ class UserServiceTest {
     @DisplayName("var olmayan kullanici icin ResourceNotFoundException firlatir")
     void setActive_kullaniciBulunamazsaHataFirlatir() {
         UUID targetId = UUID.randomUUID();
-        when(userRepository.findById(targetId)).thenReturn(Optional.empty());
+        when(userRepository.findByIdForUpdate(targetId)).thenReturn(Optional.empty());
 
         assertThatExceptionOfType(ResourceNotFoundException.class)
                 .isThrownBy(() -> userService.setActive(targetId, false));
@@ -300,8 +303,8 @@ class UserServiceTest {
         User target = user(targetId, baskan, false);
         User existingBaskan = user(UUID.randomUUID(), baskan, true);
 
-        when(userRepository.findById(targetId)).thenReturn(Optional.of(target));
-        when(userRepository.findByRole_NameAndActive("BASKAN", true)).thenReturn(List.of(existingBaskan));
+        when(userRepository.findByIdForUpdate(targetId)).thenReturn(Optional.of(target));
+        when(userRepository.countByRole_IdAndActiveTrue(3)).thenReturn(1L);
 
         assertThatExceptionOfType(AdminLimitExceededException.class)
                 .isThrownBy(() -> userService.setActive(targetId, true));
@@ -317,8 +320,8 @@ class UserServiceTest {
         Role baskan = role(3, "BASKAN");
         User target = user(targetId, baskan, false);
 
-        when(userRepository.findById(targetId)).thenReturn(Optional.of(target));
-        when(userRepository.findByRole_NameAndActive("BASKAN", true)).thenReturn(List.of());
+        when(userRepository.findByIdForUpdate(targetId)).thenReturn(Optional.of(target));
+
         when(userRepository.save(target)).thenReturn(target);
 
         User result = userService.setActive(targetId, true);
@@ -329,7 +332,7 @@ class UserServiceTest {
     @Test
     @DisplayName("ayni e-posta ile kayit denemesinde DB kisiti ihlali yukari firlatilir")
     void createUser_ayniEpostaDbKisitiIhlaliniFirlatir() {
-        when(roleRepository.findByName("CALISAN")).thenReturn(Optional.of(role(1, "CALISAN")));
+        when(roleRepository.findBySystemKey("CALISAN")).thenReturn(Optional.of(role(1, "CALISAN")));
         when(passwordEncoder.encode("sifre123")).thenReturn("hashed");
         when(userRepository.save(any(User.class)))
                 .thenThrow(new DataIntegrityViolationException("duplicate key value violates unique constraint"));

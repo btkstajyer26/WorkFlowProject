@@ -5,6 +5,7 @@ import { categoryHandlers } from './categoryHandlers'
 import { fileHandlers } from './fileHandlers'
 import { notificationHandlers } from './notificationHandlers'
 import { recordHandlers } from './recordHandlers'
+import { subtaskHandlers } from './subtaskHandlers'
 import { workflowHandlers } from './workflowHandlers'
 
 export const apiHandlers = [
@@ -13,6 +14,7 @@ export const apiHandlers = [
   ...notificationHandlers,
   ...recordHandlers,
   ...workflowHandlers,
+  ...subtaskHandlers,
   ...auditHandlers,
   ...adminHandlers,
   ...fileHandlers,

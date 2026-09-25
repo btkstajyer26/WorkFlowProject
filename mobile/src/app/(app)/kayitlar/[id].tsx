@@ -15,6 +15,7 @@ import { ApiClientError } from '@/api/errors';
 import { RecordFilesIntegrationSlot } from '@/components/records/RecordFilesIntegrationSlot';
 import { RecordForm } from '@/components/records/RecordForm';
 import { RecordHistory } from '@/components/records/RecordHistory';
+import { RecordAssignment } from '@/components/records/RecordAssignment';
 import { RecordStatusBadge } from '@/components/records/RecordStatusBadge';
 import { RecordWorkflowActions } from '@/components/records/RecordWorkflowActions';
 import { AppButton } from '@/components/ui/AppButton';
@@ -58,13 +59,13 @@ export default function RecordDetailScreen() {
   )?.name;
   const canEdit = Boolean(
     record &&
-      currentUser?.roleName === 'CALISAN' &&
+      currentUser?.permissionCodes.includes('RECORD_EDIT') &&
       currentUser.id === record.createdBy &&
       (record.status === 'TASLAK' || record.status === 'DUZENLEME_BEKLIYOR'),
   );
   const canDelete = Boolean(
     record &&
-      currentUser?.roleName === 'CALISAN' &&
+      currentUser?.permissionCodes.includes('RECORD_DELETE') &&
       currentUser.id === record.createdBy &&
       record.status === 'TASLAK',
   );
@@ -207,6 +208,7 @@ export default function RecordDetailScreen() {
                 </AppText>
                 <AppText>{record.createdByFullName ?? record.createdBy}</AppText>
               </View>
+              <RecordAssignment assignment={record.assignment} />
               <View className="gap-1">
                 <AppText tone="muted" variant="caption">
                   İlk oluşturulma
@@ -243,7 +245,6 @@ export default function RecordDetailScreen() {
             <RecordWorkflowActions
               onActionSuccess={() => router.replace('/')}
               record={record}
-              user={currentUser}
             />
             <RecordFilesIntegrationSlot
               canModify={canEdit}

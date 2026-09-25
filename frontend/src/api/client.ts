@@ -3,12 +3,19 @@ import { AdminController } from './generated/AdminController'
 import { AuditLogController } from './generated/AuditLogController'
 import { AuthController } from './generated/AuthController'
 import { CategoryController } from './generated/CategoryController'
+import { DepartmentAdminController } from './generated/DepartmentAdminController'
+import { DepartmentRoutingRuleController } from './generated/DepartmentRoutingRuleController'
 import { FileController } from './generated/FileController'
 import { HttpClient } from './generated/http-client'
 import { NotificationController } from './generated/NotificationController'
+import { PermissionAdminController } from './generated/PermissionAdminController'
 import { RecordController } from './generated/RecordController'
+import { RoleAdminController } from './generated/RoleAdminController'
+import { SubtaskController } from './generated/SubtaskController'
 import { UserController } from './generated/UserController'
 import { WorkflowActionController } from './generated/WorkflowActionController'
+import { WorkflowActorBindings } from './generated/WorkflowActorBindings'
+import { WorkflowQueryController } from './generated/WorkflowQueryController'
 import { apiBaseUrl } from './config'
 import { toApiClientError } from './errors'
 
@@ -23,6 +30,8 @@ type RetriableRequestConfig = InternalAxiosRequestConfig & {
 type AccessTokenRefresher = () => Promise<string>
 
 let refreshAccessToken: AccessTokenRefresher | null = null
+let currentAccessToken: string | null = null
+const accessTokenListeners = new Set<() => void>()
 
 function isAuthEndpoint(url?: string) {
   return Boolean(url?.includes('/api/auth/'))
@@ -68,21 +77,49 @@ export const api = {
   auditLogs: new AuditLogController(apiHttpClient),
   auth: new AuthController(apiHttpClient),
   categories: new CategoryController(apiHttpClient),
+  // AP-4 departman/uyelik yonetimi.
+  departments: new DepartmentAdminController(apiHttpClient),
+  // AP-5 departman routing kurallari.
+  departmentRoutingRules: new DepartmentRoutingRuleController(apiHttpClient),
   files: new FileController(apiHttpClient),
   notifications: new NotificationController(apiHttpClient),
+  // AP-3 rol <-> permission matrisi.
+  permissions: new PermissionAdminController(apiHttpClient),
   records: new RecordController(apiHttpClient),
+  roles: new RoleAdminController(apiHttpClient),
+  // Parent/Subtask alt akışı.
+  subtasks: new SubtaskController(apiHttpClient),
   users: new UserController(apiHttpClient),
   workflow: new WorkflowActionController(apiHttpClient),
+  // AP-8 aktor-rol baglama yonetimi.
+  workflowActorBindings: new WorkflowActorBindings(apiHttpClient),
+  // APP-9 okuma uclari: yetkili aksiyonlar ve hedef departman kesfi.
+  workflowQuery: new WorkflowQueryController(apiHttpClient),
 }
 
 export function setApiAccessToken(accessToken: string) {
   apiHttpClient.setSecurityData({ accessToken })
+  currentAccessToken = accessToken
+  accessTokenListeners.forEach((listener) => listener())
 }
 
 export function clearApiAccessToken() {
   apiHttpClient.setSecurityData(null)
+  currentAccessToken = null
+  accessTokenListeners.forEach((listener) => listener())
 }
 
 export function setApiAccessTokenRefresher(refresher: AccessTokenRefresher) {
   refreshAccessToken = refresher
+}
+
+export function getApiAccessToken() {
+  return currentAccessToken
+}
+
+export function subscribeApiAccessToken(listener: () => void) {
+  accessTokenListeners.add(listener)
+  return () => {
+    accessTokenListeners.delete(listener)
+  }
 }

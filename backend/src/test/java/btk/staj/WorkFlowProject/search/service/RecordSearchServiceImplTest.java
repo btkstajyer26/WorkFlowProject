@@ -1,18 +1,26 @@
 package btk.staj.WorkFlowProject.search.service;
 
+import static btk.staj.WorkFlowProject.support.AuthorizationFixtures.visibility;
+
+
+
+import btk.staj.WorkFlowProject.auth.security.CurrentVisibilityActorProvider;
+import btk.staj.WorkFlowProject.auth.security.VisibilityActor;
 import btk.staj.WorkFlowProject.common.dto.PagedResponse;
-import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy;
+import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
+import btk.staj.WorkFlowProject.department.repository.DepartmentRepository;
+import btk.staj.WorkFlowProject.record.view.AssignmentViewResolver;
 import btk.staj.WorkFlowProject.record.view.RecordContentView;
 import btk.staj.WorkFlowProject.search.dto.RecordSearchCriteria;
+import btk.staj.WorkFlowProject.search.dto.RecordSearchResponse;
 import btk.staj.WorkFlowProject.user.entity.User;
 import btk.staj.WorkFlowProject.user.repository.UserRepository;
-import btk.staj.WorkFlowProject.search.dto.RecordSearchResponse;
-import btk.staj.WorkFlowProject.workflow.model.CurrentActor;
-import btk.staj.WorkFlowProject.workflow.port.CurrentActorProvider;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
 import btk.staj.WorkFlowProject.workflow.statemachine.RoleName;
+import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageImpl;
@@ -21,16 +29,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 
-import java.util.List;
-import java.util.UUID;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @DisplayName("Kayit aramasi")
@@ -39,11 +44,12 @@ class RecordSearchServiceImplTest {
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000050");
 
     private final RecordRepository recordRepository = mock(RecordRepository.class);
-    private final CurrentActorProvider currentActorProvider = mock(CurrentActorProvider.class);
+    private final CurrentVisibilityActorProvider currentVisibilityActorProvider = mock(CurrentVisibilityActorProvider.class);
     private final UserRepository userRepository = mock(UserRepository.class);
     private final RecordSearchServiceImpl service =
-            new RecordSearchServiceImpl(recordRepository, currentActorProvider,
-                    new RecordContentView(new RecordAccessPolicy()), userRepository);
+            new RecordSearchServiceImpl(recordRepository, currentVisibilityActorProvider,
+                    new RecordContentView(new RecordAccessPolicy(actor -> java.util.Set.of(), (recordId, actorId) -> false)), userRepository, new RecordAccessPolicy(actor -> java.util.Set.of(), (recordId, actorId) -> false),
+                    new AssignmentViewResolver(userRepository, mock(DepartmentRepository.class)));
 
     @Test
     @DisplayName("sayfalama bilgisini oldugu gibi aktarir")
@@ -67,7 +73,7 @@ class RecordSearchServiceImplTest {
     @Test
     @DisplayName("kimlik dogrulanamiyorsa arama yapilmaz")
     void doesNotSearchWithoutAnAuthenticatedActor() {
-        when(currentActorProvider.currentActor())
+        when(currentVisibilityActorProvider.currentVisibilityActor())
                 .thenThrow(new AuthenticationCredentialsNotFoundException("Authentication is required"));
 
         assertThatExceptionOfType(AuthenticationCredentialsNotFoundException.class)
@@ -140,7 +146,7 @@ class RecordSearchServiceImplTest {
     }
 
     private void givenActor(RoleName role) {
-        when(currentActorProvider.currentActor()).thenReturn(new CurrentActor(USER_ID, role));
+        when(currentVisibilityActorProvider.currentVisibilityActor()).thenReturn(visibility(role, USER_ID));
     }
 
     private static Record record() {

@@ -1,16 +1,17 @@
 package btk.staj.WorkFlowProject.audit.model;
 
+import btk.staj.WorkFlowProject.rbac.SystemRoleKey;
 import java.util.UUID;
 
 /**
  * Tek bir HTTP isteğinin denetim izine yazılacak özeti.
- * Tablo seçimi (audit_logs / user_audit_logs) rol adına göre yapılır.
+ * Tablo seçimi (audit_logs / user_audit_logs) sistem rol anahtarına göre yapılır.
  */
 public record RequestAccessEvent(
         String action,
         UUID userId,
         Integer roleId,
-        String roleName,
+        String systemKey,
         String httpMethod,
         String requestPath,
         Integer httpStatus,
@@ -18,6 +19,6 @@ public record RequestAccessEvent(
         String comment) {
 
     public boolean adminActor() {
-        return "ADMIN".equals(roleName);
+        return SystemRoleKey.ADMIN.name().equals(systemKey);
     }
 }

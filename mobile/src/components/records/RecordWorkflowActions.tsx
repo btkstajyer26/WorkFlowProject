@@ -1,99 +1,68 @@
 import { useState } from 'react';
-import { Modal, Pressable, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, View } from 'react-native';
 
 import { ApiClientError } from '@/api/errors';
 import type { RecordDetail } from '@/api/records';
-import type { CurrentUser } from '@/api/users';
-import type { WorkflowAction } from '@/api/workflow';
+import type {
+  AvailableWorkflowAction,
+  WorkflowAction,
+} from '@/api/workflow';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppCard } from '@/components/ui/AppCard';
 import { AppText } from '@/components/ui/AppText';
 import { AppTextInput } from '@/components/ui/AppTextInput';
-import { useRecordWorkflow } from '@/query/workflow';
-
-type ActionConfig = {
-  action: WorkflowAction;
-  label: string;
-  requiresComment?: boolean;
-};
-
-function getAvailableActions(
-  record: RecordDetail,
-  user: CurrentUser,
-): ActionConfig[] {
-  if (user.roleName === 'CALISAN' && user.id === record.createdBy) {
-    if (record.status === 'TASLAK') {
-      return [{ action: 'GONDER', label: 'İncelemeye gönder' }];
-    }
-    if (record.status === 'DUZENLEME_BEKLIYOR') {
-      return [{ action: 'TEKRAR_GONDER', label: 'Tekrar gönder' }];
-    }
-  }
-
-  if (
-    user.roleName === 'BASKAN_YARDIMCISI' &&
-    record.status === 'BSK_YRD_INCELEMESINDE'
-  ) {
-    return [
-      { action: 'BASKANA_ILET', label: 'Başkana ilet' },
-      {
-        action: 'CALISANA_GERI_GONDER',
-        label: 'Çalışana geri gönder',
-        requiresComment: true,
-      },
-    ];
-  }
-
-  if (
-    user.roleName === 'BASKAN' &&
-    record.status === 'BASKAN_INCELEMESINDE'
-  ) {
-    return [
-      { action: 'ONAYLA', label: 'Onayla' },
-      { action: 'REDDET', label: 'Reddet', requiresComment: true },
-      {
-        action: 'CALISANA_GERI_GONDER',
-        label: 'Çalışana geri gönder',
-        requiresComment: true,
-      },
-      {
-        action: 'BASKAN_YARDIMCISINA_GERI_GONDER',
-        label: 'Başkan yardımcısına geri gönder',
-        requiresComment: true,
-      },
-    ];
-  }
-
-  return [];
-}
+import {
+  useAvailableWorkflowActions,
+  useRecordWorkflow,
+  useWorkflowTargetDepartments,
+} from '@/query/workflow';
 
 export function RecordWorkflowActions({
   onActionSuccess,
   record,
-  user,
 }: {
   onActionSuccess?: (action: WorkflowAction) => void;
   record: RecordDetail;
-  user: CurrentUser;
 }) {
   const mutation = useRecordWorkflow(record.id);
-  const [selectedAction, setSelectedAction] = useState<ActionConfig | null>(null);
+  const availableActionsQuery = useAvailableWorkflowActions(record.id);
+  const [selectedAction, setSelectedAction] =
+    useState<AvailableWorkflowAction | null>(null);
   const [comment, setComment] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-  const availableActions = getAvailableActions(record, user);
+
+  const [targetDepartmentId, setTargetDepartmentId] = useState<number | null>(null);
+  const availableActions = availableActionsQuery.data?.actions ?? [];
+  const targetDepartmentsQuery = useWorkflowTargetDepartments(
+    record.id,
+    Boolean(selectedAction?.targetDepartmentRequired && !selectedAction.targetUserRequired),
+  );
+  const departments = targetDepartmentsQuery.data?.departments ?? [];
+  const targetUnavailable = Boolean(selectedAction?.targetUserRequired) || Boolean(
+    selectedAction?.targetDepartmentRequired && (
+      targetDepartmentsQuery.isPending || targetDepartmentsQuery.isFetching ||
+      targetDepartmentsQuery.isError || departments.length === 0
+    ),
+  );
 
   const closeModal = () => {
     if (mutation.isPending) return;
     setSelectedAction(null);
+    setTargetDepartmentId(null);
     setComment('');
     setErrorMessage('');
   };
 
   const submitAction = async () => {
-    if (!selectedAction) return;
+    if (!selectedAction || mutation.isPending || targetUnavailable) return;
+    if (selectedAction.targetDepartmentRequired &&
+        !departments.some((department) => department.id === targetDepartmentId)) {
+      setErrorMessage('Bir hedef departman seçin.');
+      return;
+    }
     const normalizedComment = comment.trim();
 
-    if (selectedAction.requiresComment && !normalizedComment) {
+    if (selectedAction.commentRequired && !normalizedComment) {
       setErrorMessage('Bu işlem için açıklama zorunludur.');
       return;
     }
@@ -102,6 +71,8 @@ export function RecordWorkflowActions({
       setErrorMessage('');
       await mutation.mutateAsync({
         action: selectedAction.action,
+        ...(selectedAction.targetDepartmentRequired && targetDepartmentId !== null
+          ? { targetDepartmentId } : {}),
         ...(normalizedComment ? { comment: normalizedComment } : {}),
       });
       onActionSuccess?.(selectedAction.action);
@@ -115,18 +86,29 @@ export function RecordWorkflowActions({
     }
   };
 
-  if (availableActions.length === 0) return null;
+  if (
+    availableActionsQuery.isPending ||
+    availableActionsQuery.isError ||
+    availableActions.length === 0
+  ) {
+    return null;
+  }
 
   return (
     <AppCard className="gap-3">
       <AppText variant="heading">Kayıt işlemleri</AppText>
       <View className="gap-2">
-        {availableActions.map((config) => (
+        {availableActions.map((action) => (
           <AppButton
-            key={config.action}
-            label={config.label}
-            onPress={() => setSelectedAction(config)}
-            variant={config.action === 'ONAYLA' ? 'primary' : 'secondary'}
+            key={action.action}
+            label={action.displayName}
+            onPress={() => {
+              setTargetDepartmentId(null);
+              setComment('');
+              setErrorMessage('');
+              setSelectedAction(action);
+            }}
+            variant={action.action === 'ONAYLA' ? 'primary' : 'secondary'}
           />
         ))}
       </View>
@@ -141,17 +123,66 @@ export function RecordWorkflowActions({
           <Pressable className="absolute inset-0" onPress={closeModal} />
           <AppCard className="gap-4 p-5">
             <View className="gap-1">
-              <AppText variant="heading">{selectedAction?.label}</AppText>
+              <AppText variant="heading">
+                {selectedAction?.displayName}
+              </AppText>
               <AppText tone="muted">
-                {selectedAction?.requiresComment
+                {selectedAction?.commentRequired
                   ? 'Devam etmek için bir açıklama yazın.'
                   : 'İsterseniz işlem notu ekleyebilirsiniz.'}
               </AppText>
             </View>
+            {selectedAction?.targetUserRequired ? (
+              <AppText tone="danger">
+                Bu işlem için kullanıcı seçimi şu anda desteklenmiyor.
+              </AppText>
+            ) : selectedAction?.targetDepartmentRequired ? (
+              <View className="gap-2">
+                <AppText variant="label">Hedef departman</AppText>
+                {targetDepartmentsQuery.isPending || targetDepartmentsQuery.isFetching ? (
+                  <View className="gap-2">
+                    <ActivityIndicator />
+                    <AppText tone="muted">Departmanlar yükleniyor…</AppText>
+                  </View>
+                ) : targetDepartmentsQuery.isError ? (
+                  <View className="gap-2">
+                    <AppText tone="danger">Departmanlar yüklenemedi.</AppText>
+                    <AppButton label="Departmanları yeniden yükle"
+                      onPress={() => void targetDepartmentsQuery.refetch()} variant="secondary" />
+                  </View>
+                ) : departments.length === 0 ? (
+                  <AppText tone="muted">Gönderilebilecek departman yok.</AppText>
+                ) : (
+                  <ScrollView style={{ maxHeight: 180 }} nestedScrollEnabled>
+                    <View className="gap-2">
+                      {departments.map((department) => (
+                        <Pressable key={department.id} accessibilityRole="radio"
+                          accessibilityState={{ selected: targetDepartmentId === department.id,
+                            disabled: mutation.isPending }}
+                          disabled={mutation.isPending}
+                          className={`min-h-11 justify-center rounded-app-lg border px-4 py-2 ${
+                            targetDepartmentId === department.id
+                              ? 'border-brand-600 bg-brand-100 dark:border-brand-400 dark:bg-brand-900/40'
+                              : 'border-app-border bg-app-surface-strong dark:border-app-border-dark dark:bg-app-surface-strong-dark'
+                          }`}
+                          onPress={() => {
+                            setTargetDepartmentId(department.id);
+                            setErrorMessage('');
+                          }}>
+                          <AppText>{department.name}</AppText>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </ScrollView>
+                )}
+              </View>
+            ) : null}
             <AppTextInput
               className="min-h-28 py-3"
               error={errorMessage || undefined}
-              label={selectedAction?.requiresComment ? 'Açıklama' : 'İşlem notu'}
+              label={
+                selectedAction?.commentRequired ? 'Açıklama' : 'İşlem notu'
+              }
               maxLength={2000}
               multiline
               onChangeText={(value) => {
@@ -163,6 +194,7 @@ export function RecordWorkflowActions({
               value={comment}
             />
             <AppButton
+              disabled={targetUnavailable}
               isLoading={mutation.isPending}
               label="İşlemi onayla"
               onPress={() => void submitAction()}

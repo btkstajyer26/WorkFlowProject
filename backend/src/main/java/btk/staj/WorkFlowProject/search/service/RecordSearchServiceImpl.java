@@ -1,20 +1,18 @@
 package btk.staj.WorkFlowProject.search.service;
 
+import btk.staj.WorkFlowProject.auth.security.CurrentVisibilityActorProvider;
+import btk.staj.WorkFlowProject.auth.security.VisibilityActor;
+import btk.staj.WorkFlowProject.rbac.service.RecordAccessPolicy;
 import btk.staj.WorkFlowProject.common.dto.PagedResponse;
 import btk.staj.WorkFlowProject.record.entity.Record;
 import btk.staj.WorkFlowProject.record.repository.RecordRepository;
+import btk.staj.WorkFlowProject.record.view.AssignmentViewResolver;
 import btk.staj.WorkFlowProject.record.view.RecordContentView;
 import btk.staj.WorkFlowProject.search.dto.RecordSearchCriteria;
 import btk.staj.WorkFlowProject.search.dto.RecordSearchResponse;
 import btk.staj.WorkFlowProject.search.specification.RecordSpecifications;
 import btk.staj.WorkFlowProject.user.entity.User;
 import btk.staj.WorkFlowProject.user.repository.UserRepository;
-import btk.staj.WorkFlowProject.workflow.model.CurrentActor;
-import btk.staj.WorkFlowProject.workflow.port.CurrentActorProvider;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -22,24 +20,33 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
 
 @Service
 public class RecordSearchServiceImpl implements RecordSearchService {
 
     private final RecordRepository recordRepository;
-    private final CurrentActorProvider currentActorProvider;
+    private final CurrentVisibilityActorProvider currentVisibilityActorProvider;
     private final RecordContentView recordContentView;
     private final UserRepository userRepository;
+    private final RecordAccessPolicy recordAccessPolicy;
+    private final AssignmentViewResolver assignmentViewResolver;
 
     public RecordSearchServiceImpl(RecordRepository recordRepository,
-                                   CurrentActorProvider currentActorProvider,
+                                   CurrentVisibilityActorProvider currentVisibilityActorProvider,
                                    RecordContentView recordContentView,
-                                   UserRepository userRepository) {
+                                   UserRepository userRepository,
+                                   RecordAccessPolicy recordAccessPolicy,
+                                   AssignmentViewResolver assignmentViewResolver) {
+        this.recordAccessPolicy = Objects.requireNonNull(recordAccessPolicy, "recordAccessPolicy");
         this.recordRepository = Objects.requireNonNull(recordRepository, "recordRepository");
-        this.currentActorProvider = Objects.requireNonNull(
-                currentActorProvider, "currentActorProvider");
+        this.currentVisibilityActorProvider = Objects.requireNonNull(
+                currentVisibilityActorProvider, "currentVisibilityActorProvider");
         this.recordContentView = Objects.requireNonNull(recordContentView, "recordContentView");
         this.userRepository = Objects.requireNonNull(userRepository, "userRepository");
+        this.assignmentViewResolver = Objects.requireNonNull(assignmentViewResolver, "assignmentViewResolver");
     }
 
     /**
@@ -55,17 +62,21 @@ public class RecordSearchServiceImpl implements RecordSearchService {
             RecordSearchCriteria criteria,
             Pageable pageable) {
 
-        CurrentActor actor = currentActorProvider.currentActor();
+        VisibilityActor actor = currentVisibilityActorProvider.currentVisibilityActor();
 
         Page<Record> recordPage = recordRepository.findAll(
-                RecordSpecifications.withFilters(criteria, actor.id(), actor.role()),
+                RecordSpecifications.withFilters(criteria, recordAccessPolicy.scopeFor(actor)),
                 pageable);
 
         Map<UUID, String> creatorNames = creatorNamesOf(recordPage.getContent());
+        // Atama adlari da sayfa basina iki sorguyla cozulur; olusturan adlariyla ayni gerekce.
+        AssignmentViewResolver.Names assignmentNames = assignmentViewResolver.resolveAll(
+                recordPage.getContent().stream().map(Record::getAssignedTo).toList(),
+                recordPage.getContent().stream().map(Record::getAssignedDepartmentId).toList());
 
         return new PagedResponse<>(
                 recordPage.getContent().stream()
-                        .map(record -> toResponse(record, actor, creatorNames))
+                        .map(record -> toResponse(record, actor, creatorNames, assignmentNames))
                         .toList(),
                 recordPage.getNumber(),
                 recordPage.getSize(),
@@ -101,10 +112,11 @@ public class RecordSearchServiceImpl implements RecordSearchService {
      * devam ederdi.
      */
     private RecordSearchResponse toResponse(Record record,
-                                            CurrentActor actor,
-                                            Map<UUID, String> creatorNames) {
+                                            VisibilityActor actor,
+                                            Map<UUID, String> creatorNames,
+                                            AssignmentViewResolver.Names assignmentNames) {
         RecordContentView.Content content =
-                recordContentView.visibleContent(record, actor.role(), actor.id());
+                recordContentView.visibleContent(record, actor);
 
         RecordSearchResponse response = new RecordSearchResponse();
 
@@ -116,6 +128,9 @@ public class RecordSearchServiceImpl implements RecordSearchService {
         response.setCreatedBy(record.getCreatedBy());
         response.setCreatedByFullName(creatorNames.get(record.getCreatedBy()));
         response.setAssignedTo(record.getAssignedTo());
+        response.setAssignment(assignmentNames.assignmentFor(
+                record.getAssignedTo(), record.getAssignedDepartmentId()));
+        response.setVersion(record.getVersion());
         response.setCreatedAt(record.getCreatedAt());
         response.setUpdatedAt(record.getUpdatedAt());
 

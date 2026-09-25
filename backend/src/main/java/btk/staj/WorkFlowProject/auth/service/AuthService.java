@@ -65,7 +65,7 @@ public class AuthService {
         tokenEntity.setToken(refreshToken);
         tokenEntity.setTokenType("REFRESH");
         tokenEntity.setCreatedAt(LocalDateTime.now());
-        tokenEntity.setExpiresAt(LocalDateTime.now().plusDays(7));
+        tokenEntity.setExpiresAt(LocalDateTime.now().plus(jwtUtil.refreshTokenTtl()));
         tokenRepository.save(tokenEntity);
 
         requestAuditContext.mark("LOGIN", user);
@@ -92,8 +92,14 @@ public class AuthService {
             throw new InvalidCredentialsException("Hesap pasif durumda");
         }
 
-        storedToken.setRevoked(true);
-        tokenRepository.save(storedToken);
+        // Token'i burada tuketiyoruz. Yukaridaki kontroller tek basina yeterli
+        // degildi: iki eszamanli istek ayni satiri "revoked = false" okuyup
+        // ikisi de rotasyonu tamamlayabiliyordu (B05). Kosullu UPDATE'te satiri
+        // yalnizca biri gunceller; digeri 0 alir ve yeni token uretemez.
+        if (tokenRepository.revokeIfActive(refreshToken) == 0) {
+            requestAuditContext.mark("TOKEN_REFRESH_FAILED", user);
+            throw new InvalidCredentialsException("Refresh token süresi dolmuş veya geçersiz");
+        }
 
         String newAccessToken = jwtUtil.generateAccessToken(user.getId(), user.getEmail(), user.getRole().getName());
         String newRefreshToken = jwtUtil.generateRefreshToken(user.getId());
@@ -103,7 +109,7 @@ public class AuthService {
         newTokenEntity.setToken(newRefreshToken);
         newTokenEntity.setTokenType("REFRESH");
         newTokenEntity.setCreatedAt(LocalDateTime.now());
-        newTokenEntity.setExpiresAt(LocalDateTime.now().plusDays(7));
+        newTokenEntity.setExpiresAt(LocalDateTime.now().plus(jwtUtil.refreshTokenTtl()));
         tokenRepository.save(newTokenEntity);
 
         requestAuditContext.mark("TOKEN_REFRESH", user);
@@ -113,8 +119,10 @@ public class AuthService {
     @Transactional
     public void logout(String refreshToken, String deviceToken) {
         tokenRepository.findByToken(refreshToken).ifPresent(token -> {
-            token.setRevoked(true);
-            tokenRepository.save(token);
+            // Refresh ile ayni kosullu tuketim (B05). Audit ve cihaz token'i
+            // bilerek kosulsuz: zaten iptal edilmis bir token ile gelen cikis
+            // istegi de cihazi kayittan dusurmelidir.
+            tokenRepository.revokeIfActive(refreshToken);
             requestAuditContext.mark("LOGOUT", token.getUser());
 
             deactivateDeviceTokenIfOwned(deviceToken, token.getUser().getId());

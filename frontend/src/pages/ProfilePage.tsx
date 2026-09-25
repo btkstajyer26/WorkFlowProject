@@ -1,7 +1,7 @@
 import { Info, KeyRound, Mail, ShieldCheck, UserRound } from 'lucide-react'
 import { Link } from 'react-router'
 import { UserAvatar } from '../components/users/UserAvatar'
-import { roleLabels, type AuthUser } from '../types/auth'
+import { roleLabelOf, type AuthUser } from '../types/auth'
 
 export function ProfilePage({ user }: { user: AuthUser }) {
   const fullName = `${user.firstName} ${user.lastName}`
@@ -26,7 +26,7 @@ export function ProfilePage({ user }: { user: AuthUser }) {
                   <h2 className="truncate text-xl font-bold text-app-text sm:text-2xl">{fullName}</h2>
                   <div className="mt-1 flex items-center gap-1.5 text-sm font-medium text-app-text-subtle">
                     <ShieldCheck className="size-4" aria-hidden="true" />
-                    {roleLabels[user.role]}
+                    {roleLabelOf(user)}
                   </div>
                 </div>
               </div>

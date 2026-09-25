@@ -15,6 +15,7 @@ import { listAdminAuditLogs, listAdminUsers } from './admin'
 import { deleteRecordFile, listRecordFiles, uploadRecordFile } from './files'
 import { apiMockServer } from '../mocks/api/server'
 import { apiBaseUrl } from './config'
+import { performWorkflowAction } from './workflow'
 
 const employeeCredentials = {
   email: 'john.doe@kurum.gov.tr',
@@ -29,6 +30,19 @@ async function loginAs(email: string) {
 }
 
 describe('OpenAPI istemcisi ve MSW sözleşmesi', () => {
+  it('departmana gönderim isteğini kişi hedefi olmadan sözleşmeye uygun taşır', async () => {
+    await loginAs(employeeCredentials.email)
+    const recordId = '11111111-1111-4111-8111-111111111111'
+    apiMockServer.use(http.post(`${apiBaseUrl}/api/records/:recordId/workflow/actions`, async ({ request }) => {
+      expect(await request.json()).toEqual({ action: 'DEPARTMANA_GONDER', targetDepartmentId: 12 })
+      return HttpResponse.json({ recordId, action: 'DEPARTMANA_GONDER', previousStatus: 'TASLAK',
+        newStatus: 'BSK_YRD_INCELEMESINDE', assignedTo: null,
+        performedBy: 'employee-id', performedAt: '2026-09-04T12:00:00Z' })
+    }))
+    await expect(performWorkflowAction(recordId, { action: 'DEPARTMANA_GONDER', targetDepartmentId: 12 }))
+      .resolves.toMatchObject({ action: 'DEPARTMANA_GONDER', assignedTo: null, newStatus: 'BSK_YRD_INCELEMESINDE' })
+  })
+
   it('kayıt eklerini listeler, multipart olarak yükler ve siler', async () => {
     await loginAs(employeeCredentials.email)
     const recordId = '11111111-1111-4111-8111-111111111111'
@@ -171,7 +185,7 @@ describe('OpenAPI istemcisi ve MSW sözleşmesi', () => {
     const deputyId = 'user-demo-002'
 
     await loginAs(employeeCredentials.email)
-    const submitted = await api.workflow.performAction({ recordId }, {
+    const submitted = await api.workflow.performAction1({ recordId }, {
       action: 'GONDER',
     })
     expect(submitted).toMatchObject({
@@ -181,14 +195,14 @@ describe('OpenAPI istemcisi ve MSW sözleşmesi', () => {
     })
 
     await loginAs('ayse.kaya@kurum.gov.tr')
-    const forwarded = await api.workflow.performAction({ recordId }, {
+    const forwarded = await api.workflow.performAction1({ recordId }, {
       action: 'BASKANA_ILET',
       comment: 'Başkan değerlendirmesine uygundur.',
     })
     expect(forwarded.newStatus).toBe('BASKAN_INCELEMESINDE')
 
     await loginAs('mehmet.demir@kurum.gov.tr')
-    const approved = await api.workflow.performAction({ recordId }, {
+    const approved = await api.workflow.performAction1({ recordId }, {
       action: 'ONAYLA',
       comment: 'Uygundur.',
     })
@@ -307,7 +321,8 @@ describe('OpenAPI istemcisi ve MSW sözleşmesi', () => {
     expect(result.content).toEqual([
       expect.objectContaining({
         email: 'elif.akin@kurum.gov.tr',
-        role: 'CALISAN',
+        systemKey: 'CALISAN',
+        roleName: 'CALISAN',
         isActive: true,
       }),
     ])

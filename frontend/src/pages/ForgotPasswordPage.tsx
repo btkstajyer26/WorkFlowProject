@@ -23,7 +23,7 @@ export function ForgotPasswordPage({ user }: ForgotPasswordPageProps) {
   // hesapla eşleştirebilmek için e-postayı ister.
   const [pendingEmail, setPendingEmail] = useState<string | null>(null)
 
-  if (user) return <Navigate to={user.role === 'ADMIN' ? '/admin' : '/dashboard'} replace />
+  if (user) return <Navigate to={user.systemKey === 'ADMIN' ? '/admin' : '/dashboard'} replace />
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-app-canvas px-4 py-8 sm:px-8">

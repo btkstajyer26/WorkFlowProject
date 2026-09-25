@@ -13,6 +13,21 @@ import {
 } from '../auth'
 import { apiErrorResponse, unauthorizedResponse } from '../responses'
 
+/** V12 backfill'indeki yerleşik rol kimlikleri. */
+const systemRoleIds = { CALISAN: 1, BASKAN_YARDIMCISI: 2, BASKAN: 3, ADMIN: 4 } as const
+
+/** V13 seed'indeki yerleşik rol -> permission eşlemesiyle aynı (B09 ile aynı gerekçe: mock gerçek sözleşmeyi yansıtmalı). */
+const systemRolePermissionCodes: Record<keyof typeof systemRoleIds, string[]> = {
+  CALISAN: ['RECORD_CREATE', 'RECORD_VIEW', 'RECORD_EDIT', 'RECORD_FORWARD'],
+  BASKAN_YARDIMCISI: ['RECORD_VIEW', 'RECORD_FORWARD', 'RECORD_RETURN'],
+  BASKAN: ['RECORD_VIEW', 'RECORD_APPROVE', 'RECORD_REJECT', 'RECORD_RETURN'],
+  ADMIN: [
+    'USER_VIEW', 'USER_MANAGE', 'ROLE_VIEW', 'ROLE_MANAGE',
+    'DEPARTMENT_VIEW', 'DEPARTMENT_MANAGE', 'WORKFLOW_VIEW', 'WORKFLOW_MANAGE',
+    'ADMIN_PANEL_ACCESS',
+  ],
+}
+
 type ChangePasswordRequest = {
   currentPassword?: string
   newPassword?: string
@@ -41,7 +56,10 @@ export const authHandlers = [
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
+      roleId: systemRoleIds[user.role],
+      systemKey: user.role,
       roleName: user.role,
+      permissionCodes: systemRolePermissionCodes[user.role],
       active: true,
       createdAt: '2026-08-01T09:00:00Z',
     })

@@ -19,7 +19,7 @@ export function AppShell({
   unreadNotificationCount,
   onLogout,
 }: AppShellProps) {
-  const role = user.role
+  const systemKey = user.systemKey
   const [mobileOpen, setMobileOpen] = useState(false)
   const [composerOpen, setComposerOpen] = useState(false)
   const [newRecordRequestId, setNewRecordRequestId] = useState(0)
@@ -34,8 +34,8 @@ export function AppShell({
   })
 
   useEffect(() => {
-    if (role !== 'CALISAN') setComposerOpen(false)
-  }, [role])
+    if (systemKey !== 'CALISAN') setComposerOpen(false)
+  }, [systemKey])
 
   useEffect(() => {
     const desktopQuery = window.matchMedia('(min-width: 1024px)')
@@ -86,7 +86,7 @@ export function AppShell({
         <div inert={mobileOpen}>
           <MobileHeader
             unreadNotificationCount={unreadNotificationCount}
-            showNotifications={role !== 'ADMIN'}
+            showNotifications={systemKey !== 'ADMIN'}
             onMenuOpen={() => setMobileOpen(true)}
           />
 
@@ -96,7 +96,7 @@ export function AppShell({
             </div>
           </main>
         </div>
-        {role === 'CALISAN' ? <NewRecordComposer
+        {systemKey === 'CALISAN' ? <NewRecordComposer
           open={composerOpen}
           requestId={newRecordRequestId}
           onClose={() => setComposerOpen(false)}

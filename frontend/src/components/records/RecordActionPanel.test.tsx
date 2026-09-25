@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { http, HttpResponse } from 'msw'
@@ -6,25 +6,50 @@ import { MemoryRouter } from 'react-router'
 import { describe, expect, it } from 'vitest'
 import { api, setApiAccessToken } from '../../api/client'
 import { apiBaseUrl } from '../../api/config'
-import type { WorkflowActionRequest } from '../../api/generated/data-contracts'
+import type { AvailableActionView, WorkflowActionRequest } from '../../api/generated/data-contracts'
 import { ToastProvider } from '../../context/ToastContext'
 import { getDemoUserByRole } from '../../mocks/users'
 import { RecordActionPanel } from './RecordActionPanel'
 import type { WorkflowRecord } from '../../types/record'
 import { apiMockServer } from '../../mocks/api/server'
 
-function renderActionPanel(role: 'CALISAN' | 'BASKAN', recordId?: string) {
+/**
+ * B10/WEB-1: hangi düğmelerin gösterileceğine sunucu (`available-actions`)
+ * karar verir; testler bu ucu mock'layarak senaryoyu kurar - artık role
+ * göre dallanan sabit bir liste yoktur.
+ */
+function mockAvailableActions(recordId: string, status: WorkflowRecord['status'], actions: AvailableActionView[]) {
+  apiMockServer.use(
+    http.get(`${apiBaseUrl}/api/records/:recordId/workflow/available-actions`, ({ params }) => (
+      HttpResponse.json({
+        recordId: params.recordId,
+        status,
+        version: 0,
+        actions: params.recordId === recordId ? actions : [],
+      })
+    )),
+  )
+}
+
+function renderActionPanel(role: 'CALISAN' | 'BASKAN' | 'BASKAN_YARDIMCISI', recordId: string, actions: AvailableActionView[]) {
   const user = getDemoUserByRole(role)
+  const status: WorkflowRecord['status'] = role === 'BASKAN'
+    ? 'BASKAN_INCELEMESINDE'
+    : role === 'BASKAN_YARDIMCISI'
+      ? 'BSK_YRD_INCELEMESINDE'
+      : 'TASLAK'
+  mockAvailableActions(recordId, status, actions)
   const record: WorkflowRecord = {
-    id: recordId ?? 'record-ui-test',
+    id: recordId,
     recordNumber: '',
     title: 'İşlem paneli testi',
     description: 'Test kaydı',
     categoryId: 1,
     category: 'İdari',
-    status: role === 'BASKAN' ? 'BASKAN_INCELEMESINDE' : 'TASLAK',
+    status,
     createdBy: `${user.firstName} ${user.lastName}`,
-    assignedTo: null,
+    createdById: user.id,
+    assignedTo: null, assignment: { kind: 'NONE' },
     lastAction: '',
     createdAt: '2026-08-17T10:00:00Z',
     updatedAt: '2026-08-17T10:00:00Z',
@@ -56,13 +81,17 @@ async function renderBackendChairPanel() {
     category: 'İdari',
     status: 'BASKAN_INCELEMESINDE',
     createdBy: '',
-    assignedTo: null,
+    assignedTo: null, assignment: { kind: 'NONE' },
     lastAction: '',
     createdAt: '2026-08-03T11:30:00Z',
     updatedAt: '2026-08-05T09:45:00Z',
     attachments: [],
     history: [],
   }
+  mockAvailableActions(record.id, record.status, [
+    { action: 'REDDET', displayName: 'Reddet', commentRequired: true, targetDepartmentRequired: false, targetUserRequired: false },
+    { action: 'ONAYLA', displayName: 'Onayla', commentRequired: false, targetDepartmentRequired: false, targetUserRequired: false },
+  ])
 
   render(
     <MemoryRouter initialEntries={[`/kayitlar/${record.id}`]}>
@@ -88,13 +117,16 @@ async function renderBackendEmployeePanel() {
     category: 'Bilgi İşlem',
     status: 'TASLAK',
     createdBy: 'John Doe',
-    assignedTo: null,
+    assignedTo: null, assignment: { kind: 'NONE' },
     lastAction: 'Taslak kaydedildi',
     createdAt: '2026-08-17T10:00:00Z',
     updatedAt: '2026-08-17T10:00:00Z',
     attachments: [],
     history: [],
   }
+  mockAvailableActions(record.id, record.status, [
+    { action: 'GONDER', displayName: 'İncelemeye Gönder', commentRequired: false, targetDepartmentRequired: false, targetUserRequired: false },
+  ])
 
   render(
     <MemoryRouter initialEntries={[`/kayitlar/${record.id}`]}>
@@ -110,28 +142,38 @@ async function renderBackendEmployeePanel() {
 describe('RecordActionPanel', () => {
   it('ret açıklamasını işlem penceresinde zorunlu gösterir', async () => {
     const user = userEvent.setup()
-    renderActionPanel('BASKAN')
+    renderActionPanel('BASKAN', 'record-ui-test', [
+      { action: 'REDDET', displayName: 'Reddet', commentRequired: true, targetDepartmentRequired: false, targetUserRequired: false },
+      { action: 'ONAYLA', displayName: 'Onayla', commentRequired: false, targetDepartmentRequired: false, targetUserRequired: false },
+    ])
 
     expect(screen.queryByRole('region', { name: 'Çalışma Notu' })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Reddet' }))
+    await user.click(await screen.findByRole('button', { name: 'Reddet' }))
 
-    const explanation = screen.getByRole('textbox', { name: 'Ret açıklaması *' })
-    const confirmButton = screen.getAllByRole('button', { name: 'Reddet' }).at(-1)!
+    const explanation = screen.getByRole('textbox', { name: 'Açıklama *' })
+    const confirmButton = screen.getByRole('button', { name: 'İşlemi Onayla' })
     expect(confirmButton).toBeDisabled()
 
     await user.type(explanation, 'Bütçe kalemi uygun değil.')
     expect(confirmButton).toBeEnabled()
   })
 
-  it('Çalışanın incelemeye gönderme penceresinde not alanı göstermez', async () => {
+  it('yalnız sunucunun yetkili saydığı aksiyonları gösterir - dinamik rolde de aynı yol işler', async () => {
     const user = userEvent.setup()
-    renderActionPanel('CALISAN', 'rec-006')
+    renderActionPanel('CALISAN', 'rec-006', [
+      { action: 'GONDER', displayName: 'İncelemeye Gönder', commentRequired: false, targetDepartmentRequired: false, targetUserRequired: false },
+    ])
+
+    expect(await screen.findByRole('button', { name: 'İncelemeye Gönder' })).toBeInTheDocument()
+    // Sunucu bu aksiyonu döndürmediği için eski systemKey tabanlı "Karar" düğmeleri gösterilmez.
+    expect(screen.queryByRole('button', { name: 'Onayla' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Reddet' })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'İncelemeye Gönder' }))
 
-    expect(screen.getByRole('dialog', { name: 'Başkan Yardımcısına gönder' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'İncelemeye Gönder' })).toBeInTheDocument()
+    // GONDER zorunlu olmadıkça not alanı göstermez (bilinçli sadeleştirme).
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
-    expect(screen.queryByText(/Gönderim açıklaması/)).not.toBeInTheDocument()
   })
 
   it('Başkan kararını gerçek workflow endpointine açıklamasıyla gönderir', async () => {
@@ -152,11 +194,11 @@ describe('RecordActionPanel', () => {
     )
     await renderBackendChairPanel()
 
-    await user.click(screen.getByRole('button', { name: 'Onayla' }))
-    await user.type(screen.getByRole('textbox', { name: 'Onay açıklaması (isteğe bağlı)' }), 'Gerçek API onayı.')
-    await user.click(screen.getAllByRole('button', { name: 'Onayla' }).at(-1)!)
+    await user.click(await screen.findByRole('button', { name: 'Onayla' }))
+    await user.type(screen.getByRole('textbox', { name: 'İşlem notu (isteğe bağlı)' }), 'Gerçek API onayı.')
+    await user.click(screen.getByRole('button', { name: 'İşlemi Onayla' }))
 
-    await waitFor(() => expect(screen.getByText('Kayıt onaylandı')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('İşlem tamamlandı')).toBeInTheDocument())
     expect(receivedRequest).toEqual({
       action: 'ONAYLA',
       comment: 'Gerçek API onayı.',
@@ -181,10 +223,54 @@ describe('RecordActionPanel', () => {
     )
     await renderBackendEmployeePanel()
 
-    await user.click(screen.getByRole('button', { name: 'İncelemeye Gönder' }))
-    await user.click(screen.getAllByRole('button', { name: 'İncelemeye Gönder' }).at(-1)!)
+    await user.click(await screen.findByRole('button', { name: 'İncelemeye Gönder' }))
+    await user.click(screen.getByRole('button', { name: 'İşlemi Onayla' }))
 
-    await waitFor(() => expect(screen.getByText('Kayıt incelemeye gönderildi')).toBeInTheDocument())
-    expect(receivedRequest).toEqual({ action: 'GONDER' })
+    await waitFor(() => expect(receivedRequest).toEqual({ action: 'GONDER' }))
+  })
+
+  it('departman hedefi gereken aksiyonda hedef seçilmeden gönderim reddedilir', async () => {
+    const user = userEvent.setup()
+    renderActionPanel('CALISAN', 'rec-dept', [
+      { action: 'DEPARTMANA_GONDER', displayName: 'Departmana Gönder', commentRequired: false, targetDepartmentRequired: true, targetUserRequired: false },
+    ])
+    apiMockServer.use(
+      http.get(`${apiBaseUrl}/api/records/:recordId/workflow/target-departments`, () => HttpResponse.json({
+        departments: [{ id: 1, name: 'Hukuk' }, { id: 2, name: 'Satın Alma' }],
+      })),
+    )
+
+    await user.click(await screen.findByRole('button', { name: 'Departmana Gönder' }))
+    await screen.findByRole('radio', { name: 'Hukuk' })
+    await user.click(screen.getByRole('button', { name: 'İşlemi Onayla' }))
+
+    expect(await screen.findByText('Hedef departman seçin')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('radio', { name: 'Hukuk' }))
+    expect(screen.getByRole('radio', { name: 'Hukuk' })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('ALT_GOREVLERE_AYIR aksiyonu genel diyalog yerine bölme diyaloğunu açar', async () => {
+    const user = userEvent.setup()
+    apiMockServer.use(
+      http.get(`${apiBaseUrl}/api/records/:recordId/subtasks/assignable-users`, () => HttpResponse.json({
+        users: [
+          { id: 'user-a', fullName: 'Ayşe Yılmaz' },
+          { id: 'user-b', fullName: 'Burak Demir' },
+        ],
+      })),
+    )
+    renderActionPanel('BASKAN_YARDIMCISI', 'rec-subtask', [
+      { action: 'ALT_GOREVLERE_AYIR' as AvailableActionView['action'], displayName: 'Alt Görevlere Ayır', commentRequired: false, targetDepartmentRequired: false, targetUserRequired: false },
+    ])
+
+    await user.click(await screen.findByRole('button', { name: 'Alt Görevlere Ayır' }))
+
+    const dialog = screen.getByRole('dialog', { name: 'Alt Görevlere Ayır' })
+    expect(await within(dialog).findByText('Alt Görev 1')).toBeInTheDocument()
+    expect(within(dialog).getByText('Alt Görev 2')).toBeInTheDocument()
+    expect(within(dialog).getByRole('radio', { name: /Tümü onaylanmalı/ })).toBeChecked()
+    // Genel ActionDialog değil, özel bölme diyaloğu açılmalı - onay düğmesi "İşlemi Onayla" değil "Alt Görevlere Ayır".
+    expect(within(dialog).getByRole('button', { name: 'Alt Görevlere Ayır' })).toBeInTheDocument()
   })
 })

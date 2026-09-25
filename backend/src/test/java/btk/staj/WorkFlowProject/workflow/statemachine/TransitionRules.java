@@ -1,0 +1,85 @@
+package btk.staj.WorkFlowProject.workflow.statemachine;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+
+import static btk.staj.WorkFlowProject.workflow.statemachine.ActorRequirement.ASSIGNEE;
+import static btk.staj.WorkFlowProject.workflow.statemachine.ActorRequirement.CREATOR;
+import static btk.staj.WorkFlowProject.workflow.statemachine.ActorRequirement.CREATOR_AND_ASSIGNEE;
+import static btk.staj.WorkFlowProject.workflow.statemachine.ActorRequirement.ROLE_ONLY;
+import static btk.staj.WorkFlowProject.workflow.statemachine.ActorRequirement.SYSTEM;
+import static btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus.ALT_GOREV_BEKLIYOR;
+import static btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus.BASKAN_INCELEMESINDE;
+import static btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus.BSK_YRD_INCELEMESINDE;
+import static btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus.DUZENLEME_BEKLIYOR;
+import static btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus.ONAYLANDI;
+import static btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus.REDDEDILDI;
+import static btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus.TASLAK;
+import static btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus.KONTROL;
+import static btk.staj.WorkFlowProject.workflow.statemachine.RoleName.BASKAN;
+import static btk.staj.WorkFlowProject.workflow.statemachine.RoleName.BASKAN_YARDIMCISI;
+import static btk.staj.WorkFlowProject.workflow.statemachine.RoleName.CALISAN;
+import static btk.staj.WorkFlowProject.workflow.statemachine.RoleName.SISTEM;
+import static btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction.ALT_GOREVLERE_AYIR;
+import static btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction.ALT_GOREVLER_SONUCLANDI;
+import static btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction.BASKANA_ILET;
+import static btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction.BASKAN_YARDIMCISINA_GERI_GONDER;
+import static btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction.CALISANA_GERI_GONDER;
+import static btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction.DEPARTMANA_GONDER;
+import static btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction.GONDER;
+import static btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction.ONAYLA;
+import static btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction.REDDET;
+import static btk.staj.WorkFlowProject.workflow.statemachine.WorkflowAction.TEKRAR_GONDER;
+
+/**
+ * Seeded transition templates, kept in the test tree as the parity reference (TZ-1).
+ * Production reads the same rows from {@code workflow_transitions}; this table exists only
+ * so the parity test has an independent second source.
+ * Role IDs must be supplied by the caller: production IDs are environment-specific.
+ * Tests without a database supply their own synthetic mapping.
+ */
+public final class TransitionRules {
+    private static final List<RuleTemplate> TEMPLATES = List.of(
+            //                 mevcut durum           aksiyon                          yetkili rol         kayit iliskisi         hedef durum            hedef stratejisi              beklenen hedef rol
+            new RuleTemplate(TASLAK,                GONDER,                          CALISAN,            CREATOR,               BSK_YRD_INCELEMESINDE, TargetStrategy.ROLE,           BASKAN_YARDIMCISI, "RECORD_FORWARD"),
+            new RuleTemplate(DUZENLEME_BEKLIYOR,    TEKRAR_GONDER,                   CALISAN,            CREATOR_AND_ASSIGNEE,  BSK_YRD_INCELEMESINDE, TargetStrategy.ROLE,           BASKAN_YARDIMCISI, "RECORD_FORWARD"),
+            new RuleTemplate(BSK_YRD_INCELEMESINDE, BASKANA_ILET,                    BASKAN_YARDIMCISI,  ASSIGNEE,              BASKAN_INCELEMESINDE,  TargetStrategy.ROLE,           BASKAN, "RECORD_FORWARD"),
+            new RuleTemplate(BSK_YRD_INCELEMESINDE, CALISANA_GERI_GONDER,            BASKAN_YARDIMCISI,  ASSIGNEE,              DUZENLEME_BEKLIYOR,    TargetStrategy.CREATOR,        null, "RECORD_RETURN"),
+            new RuleTemplate(BASKAN_INCELEMESINDE,  ONAYLA,                          BASKAN,             ASSIGNEE,              ONAYLANDI,             TargetStrategy.NONE,           null, "RECORD_APPROVE"),
+            new RuleTemplate(BASKAN_INCELEMESINDE,  REDDET,                          BASKAN,             ASSIGNEE,              REDDEDILDI,            TargetStrategy.NONE,           null, "RECORD_REJECT"),
+            new RuleTemplate(BASKAN_INCELEMESINDE,  CALISANA_GERI_GONDER,            BASKAN,             ASSIGNEE,              DUZENLEME_BEKLIYOR,    TargetStrategy.CREATOR,        null, "RECORD_RETURN"),
+            new RuleTemplate(BASKAN_INCELEMESINDE,  BASKAN_YARDIMCISINA_GERI_GONDER, BASKAN,             ASSIGNEE,              BSK_YRD_INCELEMESINDE, TargetStrategy.PREVIOUS_ACTOR, null, "RECORD_RETURN"),
+            // ADR-0006 / V23: departmana gonderim. Hedef rol tasimazlar; departman icinde
+            // kimin yetkili oldugu department_routing_rules'tan calisma zamaninda cozulur.
+            new RuleTemplate(TASLAK,                DEPARTMANA_GONDER,               CALISAN,            CREATOR,               BSK_YRD_INCELEMESINDE, TargetStrategy.DEPARTMENT,     null, "RECORD_FORWARD"),
+            new RuleTemplate(DUZENLEME_BEKLIYOR,    DEPARTMANA_GONDER,               CALISAN,            CREATOR_AND_ASSIGNEE,  BSK_YRD_INCELEMESINDE, TargetStrategy.DEPARTMENT,     null, "RECORD_FORWARD"),
+            // ADR-0010 / V26: Parent fan-out insan aktorle, join ise yalniz SISTEM
+            // roluyle ve ek capability permission olmadan calisir.
+            new RuleTemplate(BSK_YRD_INCELEMESINDE, ALT_GOREVLERE_AYIR,              BASKAN_YARDIMCISI,  ASSIGNEE,              ALT_GOREV_BEKLIYOR,    TargetStrategy.NONE,           null, "RECORD_FORWARD"),
+            new RuleTemplate(ALT_GOREV_BEKLIYOR,    ALT_GOREVLER_SONUCLANDI,         SISTEM,             SYSTEM,                KONTROL,                TargetStrategy.NONE,           null, null),
+            // V27: KONTROL bir olu uc olmasin diye eklendi. Bolme sonrasi assigned_to bos
+            // oldugu icin ASSIGNEE degil ROLE_ONLY kullanir - rolu tutan herhangi bir
+            // Baskan Yardimcisi iletebilir.
+            new RuleTemplate(KONTROL,               BASKANA_ILET,                    BASKAN_YARDIMCISI,  ROLE_ONLY,             BASKAN_INCELEMESINDE,  TargetStrategy.ROLE,           BASKAN, "RECORD_FORWARD")
+    );
+
+    private TransitionRules() { }
+
+    public static List<TransitionRule> all(Map<RoleName, RoleId> roleIds) {
+        Map<RoleName, RoleId> identities = Map.copyOf(roleIds);
+        return TEMPLATES.stream().map(template -> template.resolve(identities)).toList();
+    }
+
+    private record RuleTemplate(RecordStatus from, WorkflowAction action, RoleName actorRole,
+            ActorRequirement actorRequirement, RecordStatus to, TargetStrategy targetStrategy,
+            RoleName expectedTargetRole, String requiredPermissionCode) {
+        TransitionRule resolve(Map<RoleName, RoleId> ids) {
+            RoleId actorId = Objects.requireNonNull(ids.get(actorRole), "Missing role ID for " + actorRole);
+            RoleId targetId = expectedTargetRole == null ? null
+                    : Objects.requireNonNull(ids.get(expectedTargetRole), "Missing role ID for " + expectedTargetRole);
+            return new TransitionRule(from, action, actorId, actorRequirement, to, targetStrategy,
+                    targetId, requiredPermissionCode);
+        }
+    }
+}

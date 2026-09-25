@@ -9,13 +9,14 @@ import { CreateUserDialog } from '../../components/admin/CreateUserDialog'
 import { UserAvatar } from '../../components/users/UserAvatar'
 import { useAdmin } from '../../context/adminState'
 import { useDebouncedSearchParam } from '../../hooks/useDebouncedSearchParam'
-import { roleLabels, type UserRole } from '../../types/auth'
+import { roleLabelOf, roleLabels, type SystemRoleKey } from '../../types/auth'
 import type { ManagedUser } from '../../types/admin'
 import { queryKeys } from '../../query/queryKeys'
 import { ListLoadingSkeleton } from '../../components/feedback/LoadingSkeleton'
 
 const pageSize = 6
-const roleValues: UserRole[] = ['CALISAN', 'BASKAN_YARDIMCISI', 'BASKAN', 'ADMIN']
+// Filtre kutusu yerleşik rolleri sunar; dinamik rollere göre filtreleme AP-2 UI işidir.
+const roleValues: SystemRoleKey[] = ['CALISAN', 'BASKAN_YARDIMCISI', 'BASKAN', 'ADMIN']
 
 export function AdminUsersPage() {
   useAdmin()
@@ -26,7 +27,7 @@ export function AdminUsersPage() {
   const queryText = searchParams.get('q')?.trim() ?? ''
   const [searchInput, setSearchInput] = useDebouncedSearchParam(searchParams, setSearchParams)
   const roleParam = searchParams.get('rol')
-  const role = roleValues.includes(roleParam as UserRole) ? roleParam as UserRole : ''
+  const role = roleValues.includes(roleParam as SystemRoleKey) ? roleParam as SystemRoleKey : ''
   const statusParam = searchParams.get('durum')
   const status = statusParam === 'aktif' || statusParam === 'pasif'
     ? statusParam
@@ -162,7 +163,7 @@ function UserTableRow({ user, onRole, onStatus }: UserActionsProps) {
   return (
     <tr className="hover:bg-app-surface-muted/70">
       <td className="px-6 py-4"><UserIdentity user={user} /></td>
-      <td className="px-4 py-4"><RoleBadge role={user.role} /></td>
+      <td className="px-4 py-4"><RoleBadge user={user} /></td>
       <td className="px-4 py-4"><StatusBadge active={user.isActive} /></td>
       <td className="px-6 py-4"><ActionButtons user={user} onRole={onRole} onStatus={onStatus} alignRight /></td>
     </tr>
@@ -173,7 +174,7 @@ function UserCard({ user, onRole, onStatus }: UserActionsProps) {
   return (
     <article className="p-4">
       <UserIdentity user={user} />
-      <div className="mt-3 flex flex-wrap gap-2"><RoleBadge role={user.role} /><StatusBadge active={user.isActive} /></div>
+      <div className="mt-3 flex flex-wrap gap-2"><RoleBadge user={user} /><StatusBadge active={user.isActive} /></div>
       <ActionButtons user={user} onRole={onRole} onStatus={onStatus} />
     </article>
   )
@@ -190,8 +191,8 @@ function UserIdentity({ user }: { user: ManagedUser }) {
   )
 }
 
-function RoleBadge({ role }: { role: UserRole }) {
-  return <span className="inline-flex rounded-full bg-brand-50 dark:bg-brand-900/30 px-2.5 py-1 text-xs font-bold text-brand-700 dark:text-brand-300 ring-1 ring-inset ring-brand-100 dark:ring-brand-800/60">{roleLabels[role]}</span>
+function RoleBadge({ user }: { user: ManagedUser }) {
+  return <span className="inline-flex rounded-full bg-brand-50 dark:bg-brand-900/30 px-2.5 py-1 text-xs font-bold text-brand-700 dark:text-brand-300 ring-1 ring-inset ring-brand-100 dark:ring-brand-800/60">{roleLabelOf(user)}</span>
 }
 
 function StatusBadge({ active }: { active: boolean }) {
@@ -199,7 +200,7 @@ function StatusBadge({ active }: { active: boolean }) {
 }
 
 function ActionButtons({ user, onRole, onStatus, alignRight = false }: UserActionsProps & { alignRight?: boolean }) {
-  if (user.role === 'ADMIN') {
+  if (user.systemKey === 'ADMIN') {
     return <span className={`flex items-center gap-1.5 text-xs font-semibold text-app-text-faint ${alignRight ? 'justify-end' : 'mt-4'}`}><ShieldAlert className="size-4" aria-hidden="true" />Korumalı hesap</span>
   }
   return (

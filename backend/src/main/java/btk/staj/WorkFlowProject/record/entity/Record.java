@@ -5,6 +5,7 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import btk.staj.WorkFlowProject.workflow.statemachine.RecordStatus;
+import btk.staj.WorkFlowProject.subtask.model.SubtaskApprovalPolicy;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -51,6 +52,27 @@ public class Record {
     // 🔑 last_deputy_id: nullable
     @Column(name = "last_deputy_id")
     private UUID lastDeputyId;
+
+    // Kaydin kisiye DEGIL departmana atanmasi. assignedTo ile ayni anda
+    // dolu olamaz (bkz. chk_records_assignment_exclusive, V21).
+    // ADR-0006 uyarinca WF-5/WF-6 runtime'i bu alani yazar: DEPARTMANA_GONDER
+    // aksiyonu ve DEPARTMENT hedef stratejisi V23 ile seed'lidir; hedef
+    // cozumu DepartmentRoutingResolver, gorunurluk DepartmentVisibilityAdapter
+    // uzerinden isler.
+    // NOT: bu alan yanit DTO'larinda ortak AssignmentView.kind ile tasinir
+    // (B11: RecordResponse, RecordSearchResponse, WorkflowActionResponse) ve
+    // kalici gecmise de yazilir (B12 / ADR-0009: audit_logs'un onceki/yeni
+    // atama kolonlari, V25). Kaydin hangi departmana gonderildigi artik hem
+    // istemciden hem gecmisten okunabilir.
+    @Column(name = "assigned_department_id")
+    private Integer assignedDepartmentId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "subtask_approval_policy", length = 20)
+    private SubtaskApprovalPolicy subtaskApprovalPolicy;
+
+    @Column(name = "subtask_required_approvals")
+    private Integer subtaskRequiredApprovals;
 
     // Kayit Calisana geri gonderildigi anda icerigin dondurulmus kopyasi.
     // Baskan Yardimcisi, evrak duzeltmedeyken canli icerigi degil bunu gorur

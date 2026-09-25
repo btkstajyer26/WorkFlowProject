@@ -1,10 +1,10 @@
 import { startAuthSession } from '../auth/authSession'
 import { demoAccounts } from '../mocks/users'
 import { getMockUserByRole } from '../mocks/api/auth'
-import type { AuthUser, UserRole } from '../types/auth'
+import type { AuthUser, SystemRoleKey } from '../types/auth'
 
-export async function seedAuthenticatedUser(role: UserRole, userOverride?: AuthUser) {
-  const account = demoAccounts.find((item) => item.role === role)
+export async function seedAuthenticatedUser(role: SystemRoleKey, userOverride?: AuthUser) {
+  const account = demoAccounts.find((item) => item.systemKey === role)
   if (!account) throw new Error(`${role} rolü için demo hesabı bulunamadı.`)
 
   const mockUser = getMockUserByRole(role)
@@ -14,7 +14,9 @@ export async function seedAuthenticatedUser(role: UserRole, userOverride?: AuthU
       firstName: userOverride.firstName,
       lastName: userOverride.lastName,
       email: userOverride.email,
-      role: userOverride.role,
+      roleId: userOverride.roleId,
+      systemKey: userOverride.systemKey,
+      roleName: userOverride.roleName,
       mustChangePassword: userOverride.mustChangePassword,
     })
   }

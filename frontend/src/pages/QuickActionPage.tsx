@@ -63,7 +63,10 @@ export function QuickActionPage() {
   const tokenRef = useRef<string>('')
 
   useEffect(() => {
-    const token = readTokenFromHash()
+    // React StrictMode development'ta effect'i setup/cleanup/setup olarak yeniden
+    // çalıştırır. İlk setup fragment'ı güvenlik için sildikten sonra ikinci setup
+    // aynı bileşen ömründeki ref'ten tokenı kullanmalıdır.
+    const token = tokenRef.current || readTokenFromHash()
     tokenRef.current = token
 
     if (!token) {

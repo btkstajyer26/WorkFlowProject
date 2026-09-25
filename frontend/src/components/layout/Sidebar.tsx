@@ -13,12 +13,12 @@ import {
   adminNavigation,
   notificationNavigation,
   primaryNavigation,
-  recordNavigation,
+  recordViewsFor,
   recordSection,
   type RecordView,
 } from '../../config/navigation'
 import { UserAvatar } from '../users/UserAvatar'
-import { roleLabels, type AuthUser } from '../../types/auth'
+import { roleLabelOf, type AuthUser } from '../../types/auth'
 import { Brand } from './Brand'
 import { ThemeToggle } from './ThemeToggle'
 
@@ -50,12 +50,12 @@ function SidebarContent({
   onNewRecord,
   onLogout,
 }: SidebarContentProps) {
-  const role = user.role
+  const systemKey = user.systemKey
   const location = useLocation()
   const [recordsExpanded, setRecordsExpanded] = useState(true)
   const currentView = new URLSearchParams(location.search).get('gorunum')
-  const recordItems = recordNavigation[role]
-  const navigationItems = role === 'ADMIN' ? adminNavigation : primaryNavigation
+  const recordItems = recordViewsFor(systemKey)
+  const navigationItems = systemKey === 'ADMIN' ? adminNavigation : primaryNavigation
   const RecordsIcon = recordSection.icon
 
   const isRecordViewActive = (view?: string) => {
@@ -80,7 +80,7 @@ function SidebarContent({
         ) : null}
       </div>
 
-      {role === 'CALISAN' ? (
+      {systemKey === 'CALISAN' ? (
         <div className="px-4">
           <button
             type="button"
@@ -124,7 +124,7 @@ function SidebarContent({
             )
           })}
 
-          {role !== 'ADMIN' ? <div>
+          {systemKey !== 'ADMIN' ? <div>
             <div className="flex items-center gap-1">
               <Link
                 to="/kayitlar"
@@ -180,7 +180,7 @@ function SidebarContent({
             ) : null}
           </div> : null}
 
-          {role !== 'ADMIN' ? <NavLink
+          {systemKey !== 'ADMIN' ? <NavLink
             to={notificationNavigation.to}
             onClick={onNavigate}
             className={({ isActive }) =>
@@ -209,7 +209,7 @@ function SidebarContent({
             <UserAvatar user={user} className="size-10 rounded-full text-xs" />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-bold text-app-text-strong">{user.firstName} {user.lastName}</p>
-              <p className="truncate text-xs text-app-text-subtle">{roleLabels[role]}</p>
+              <p className="truncate text-xs text-app-text-subtle">{roleLabelOf(user)}</p>
             </div>
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2 border-t border-app-border pt-3">
