@@ -164,6 +164,28 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<!-- Spring'in test context cache'i (varsayilan 32 giris) farkli
+					     konfigurasyona sahip her test sinifini ayri bir context olarak
+					     acik tutar; her biri kendi Hikari havuzunu barindirir. Varsayilan
+					     havuz boyutuyla (10) bu, ayni anda onlarca baglantiyi acik birakip
+					     Postgres'in max_connections limitini (CI'da varsayilan 100)
+					     asabiliyor - "FATAL: sorry, too many clients already" ile hem
+					     context yuklemesi hem de baglantisiz calisan Flyway tabanli
+					     testler (havuzu dolu bulduklari icin) dusuyordu. system property
+					     olarak verilir: application.properties'i degistirmez/golgelemez,
+					     sadece uzerine ekler. 5: SubtaskJoinConcurrencyIntegrationTest gibi
+					     testler ayni context'ten ayni anda 2 baglanti cekiyor (biri kilit
+					     tutar, digeri onu bekler); pay birakildi. -->
+					<systemPropertyVariables>
+						<spring.datasource.hikari.maximum-pool-size>5</spring.datasource.hikari.maximum-pool-size>
+						<spring.datasource.hikari.minimum-idle>1</spring.datasource.hikari.minimum-idle>
+					</systemPropertyVariables>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 
